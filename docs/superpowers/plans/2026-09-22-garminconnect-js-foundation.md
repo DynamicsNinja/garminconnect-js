@@ -2071,7 +2071,10 @@ describe("FileTokenStore", () => {
     dir = await mkdtemp(join(tmpdir(), "gcjs-"));
   });
   afterEach(async () => {
-    await rm(dir, { recursive: true, force: true });
+    // maxRetries/retryDelay are required on Windows: a handle can still be
+    // briefly held when the recursive walk reaches the parent, yielding
+    // ENOTEMPTY. Without them this test fails roughly one run in three.
+    await rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
   });
 
   it("returns null when the directory has no tokens", async () => {
