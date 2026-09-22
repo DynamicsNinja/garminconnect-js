@@ -4,7 +4,9 @@ import * as activities from "./services/activities.js";
 import * as metrics from "./services/metrics.js";
 import * as weight from "./services/weight.js";
 import * as wellness from "./services/wellness.js";
+import * as workouts from "./services/workouts.js";
 import type { ActivityDownloadFormat, ActivityExerciseSets } from "./types/activities.js";
+import type { WorkoutInput } from "./types/workouts.js";
 
 export interface SocialProfile {
   displayName: string;
@@ -377,5 +379,61 @@ export class Garmin {
   }
   getPowerZonesForSport(sport: string) {
     return metrics.getPowerZonesForSport(this, sport);
+  }
+
+  // --- workouts ---
+  getWorkouts(start?: number, limit?: number) {
+    return workouts.getWorkouts(this, start, limit);
+  }
+  getWorkoutById(workoutId: number | string) {
+    return workouts.getWorkoutById(this, workoutId);
+  }
+  deleteWorkout(workoutId: number | string) {
+    return workouts.deleteWorkout(this, workoutId);
+  }
+  downloadWorkout(workoutId: number | string) {
+    return workouts.downloadWorkout(this, workoutId);
+  }
+  uploadWorkout(workoutJson: Record<string, unknown> | unknown[] | string) {
+    return workouts.uploadWorkout(this, workoutJson);
+  }
+  updateWorkout(workoutId: number | string, workoutJson: Record<string, unknown> | string) {
+    return workouts.updateWorkout(this, workoutId, workoutJson);
+  }
+  uploadRunningWorkout(workout: WorkoutInput) {
+    return workouts.uploadRunningWorkout(this, workout);
+  }
+  uploadCyclingWorkout(workout: WorkoutInput) {
+    return workouts.uploadCyclingWorkout(this, workout);
+  }
+  uploadSwimmingWorkout(workout: WorkoutInput) {
+    return workouts.uploadSwimmingWorkout(this, workout);
+  }
+  uploadWalkingWorkout(workout: WorkoutInput) {
+    return workouts.uploadWalkingWorkout(this, workout);
+  }
+  uploadHikingWorkout(workout: WorkoutInput) {
+    return workouts.uploadHikingWorkout(this, workout);
+  }
+  uploadStrengthWorkout(workout: WorkoutInput) {
+    return workouts.uploadStrengthWorkout(this, workout);
+  }
+  pushWorkoutToDevice(workoutId?: number | string, deviceId?: number | string) {
+    return workouts.pushWorkoutToDevice(this, workoutId, deviceId);
+  }
+  getScheduledWorkouts(year: number | string, month: number | string) {
+    return workouts.getScheduledWorkouts(this, year, month);
+  }
+  getScheduledWorkoutById(scheduledWorkoutId: number | string) {
+    return workouts.getScheduledWorkoutById(this, scheduledWorkoutId);
+  }
+  getNextScheduledWorkout() {
+    return workouts.getNextScheduledWorkout(this);
+  }
+  scheduleWorkout(workoutId: number | string, dateStr: string | Date) {
+    return workouts.scheduleWorkout(this, workoutId, dateStr);
+  }
+  unscheduleWorkout(scheduledWorkoutId: number | string) {
+    return workouts.unscheduleWorkout(this, scheduledWorkoutId);
   }
 }

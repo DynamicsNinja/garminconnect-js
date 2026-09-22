@@ -1,0 +1,415 @@
+import { GarminError } from "../errors.js";
+import type { GarminClient } from "../client.js";
+import { formatDate } from "../util/date.js";
+import {
+  WORKOUT_SPORT_TYPE_ID,
+  type CalendarItem,
+  type CalendarMonth,
+  type WorkoutInput,
+  type WorkoutRecord,
+} from "../types/workouts.js";
+
+export interface WorkoutsHost {
+  readonly client: GarminClient;
+}
+
+// ---------------------------------------------------------------------------
+// Basic CRUD
+// ---------------------------------------------------------------------------
+
+/**
+ * `list`, "passes through unchecked" per the inventory — stays nullable, NOT
+ * coalesced to `[]` (per the project rule: only methods whose inventory row
+ * explicitly documents `[]`-coalescing do that; "passes through unchecked"
+ * means exactly what it says).
+ */
+export async function getWorkouts(
+  host: WorkoutsHost,
+  start = 0,
+  limit = 100,
+): Promise<WorkoutRecord[] | null> {
+  return host.client.connectapi<WorkoutRecord[]>("/workout-service/workouts", {
+    params: { start, limit },
+  });
+}
+
+/** `dict`, passes through unchecked per the inventory. */
+export async function getWorkoutById(
+  host: WorkoutsHost,
+  workoutId: number | string,
+): Promise<WorkoutRecord | null> {
+  return host.client.connectapi<WorkoutRecord>(`/workout-service/workout/${workoutId}`);
+}
+
+/**
+ * UNCERTAIN (inventory): "no explicit null handling". Deletes the template
+ * from the workout library — irreversible.
+ */
+export async function deleteWorkout(host: WorkoutsHost, workoutId: number | string): Promise<unknown> {
+  return host.client.connectapi(`/workout-service/workout/${workoutId}`, { method: "DELETE" });
+}
+
+/**
+ * UNCERTAIN (inventory): "routed through `self.download(url)`", no explicit
+ * null handling reviewed. Returns the workout's FIT-file bytes.
+ */
+export async function downloadWorkout(host: WorkoutsHost, workoutId: number | string): Promise<Buffer> {
+  return host.client.download(`/workout-service/workout/FIT/${workoutId}`);
+}
+
+/**
+ * `workout_json` may be a caller-built object/array, or a JSON string (parsed here, matching
+ * upstream's `json.loads` — an invalid string throws `GarminError`, the TS analogue of upstream's
+ * `ValueError`). After parsing, the result must be an object or an array, else `GarminError`
+ * (upstream: `ValueError`). UNCERTAIN (inventory): no explicit null handling on the response
+ * beyond this input validation.
+ */
+export async function uploadWorkout(
+  host: WorkoutsHost,
+  workoutJson: Record<string, unknown> | unknown[] | string,
+): Promise<WorkoutRecord | null> {
+  const body = parseWorkoutJson(workoutJson, /* allowArray */ true);
+  return host.client.connectapi<WorkoutRecord>("/workout-service/workout", {
+    method: "POST",
+    json: body,
+  });
+}
+
+/**
+ * Full-replace semantics: Garmin's PUT replaces the whole workout, so `workout_json` must be the
+ * complete structure. `workoutId` is forced into the body to match the path id, overriding
+ * whatever (if anything) the caller put there — matches upstream's `{**parsed, "workoutId":
+ * workout_id}` merge. Unlike `uploadWorkout`, a string input must resolve to an object, not an
+ * array (upstream: `ValueError` otherwise; here: `GarminError`). UNCERTAIN (inventory): no
+ * explicit null handling on the response.
+ */
+export async function updateWorkout(
+  host: WorkoutsHost,
+  workoutId: number | string,
+  workoutJson: Record<string, unknown> | string,
+): Promise<WorkoutRecord | null> {
+  const parsed = parseWorkoutJson(workoutJson, /* allowArray */ false);
+  const body = { ...(parsed as Record<string, unknown>), workoutId };
+  return host.client.connectapi<WorkoutRecord>(`/workout-service/workout/${workoutId}`, {
+    method: "PUT",
+    json: body,
+  });
+}
+
+function parseWorkoutJson(
+  input: Record<string, unknown> | unknown[] | string,
+  allowArray: boolean,
+): Record<string, unknown> | unknown[] {
+  let value: unknown = input;
+  if (typeof input === "string") {
+    try {
+      value = JSON.parse(input) as unknown;
+    } catch (cause) {
+      throw new GarminError("workout_json is not valid JSON", { cause });
+    }
+  }
+  if (Array.isArray(value)) {
+    if (!allowArray) {
+      throw new GarminError("workout_json must resolve to an object, not an array, for updateWorkout");
+    }
+    // `Array.isArray` narrows `unknown` to `any[]` (a lib.d.ts quirk, not a
+    // real loss of safety here — `value` came from `unknown`), so an
+    // explicit cast back to `unknown[]` is needed to satisfy
+    // `no-unsafe-return`.
+    return value as unknown[];
+  }
+  if (value !== null && typeof value === "object") {
+    return value as Record<string, unknown>;
+  }
+  throw new GarminError("workout_json must be an object or array (or a JSON string of one)");
+}
+
+// ---------------------------------------------------------------------------
+// Per-sport upload helpers
+//
+// The inventory's `body` column for these six rows says only "`workout.to_dict()` from a
+// `<Sport>Workout` pydantic model" — it does not give the model's field-level shape, and this
+// port carries zero runtime dependencies, so there is no pydantic model to port. The shape below
+// was NOT invented to fill that gap: it was read directly from upstream's actual implementation,
+// `garminconnect/workout.py` (cyberjunky/python-garminconnect, fetched from GitHub during this
+// task), which is the primary source the inventory row itself summarizes. See task-6-report.md
+// for the full account of this deviation from "transcribe from the inventory table alone".
+//
+// All six sports share IDENTICAL structure beyond `sportType`'s default value (workoutName,
+// estimatedDurationInSecs, workoutSegments, author, description — upstream's `BaseWorkout`) — that
+// commonality is real and is factored into one `buildSportWorkout` helper below, not six
+// near-copies. The one thing that differs per sport (the default `sportType` id/key/displayOrder)
+// is kept as six distinct constants rather than flattened into a lookup, because a caller can
+// override `sportType` per call and each of the six default triples IS the fact this port must get
+// exactly right.
+//
+// Upstream additionally raises `TypeError` if `workout` isn't an instance of the matching pydantic
+// class, and `ImportError` if pydantic isn't installed. Neither is reproduced here: there is no
+// pydantic dependency to be missing, and there is no runtime class to check `instanceof` against a
+// plain object literal. Minimal shape validation (`workoutName`, `estimatedDurationInSecs`,
+// `workoutSegments` all present) substitutes for the `TypeError` case.
+// ---------------------------------------------------------------------------
+
+function buildSportWorkout(
+  input: WorkoutInput,
+  defaultSportType: Record<string, unknown>,
+): Record<string, unknown> {
+  if (
+    typeof input.workoutName !== "string" ||
+    typeof input.estimatedDurationInSecs !== "number" ||
+    !Array.isArray(input.workoutSegments)
+  ) {
+    throw new GarminError(
+      "workout must have workoutName (string), estimatedDurationInSecs (number), and workoutSegments (array)",
+    );
+  }
+  return {
+    ...input,
+    sportType: input.sportType ?? defaultSportType,
+  };
+}
+
+const RUNNING_SPORT_TYPE = {
+  sportTypeId: WORKOUT_SPORT_TYPE_ID.RUNNING,
+  sportTypeKey: "running",
+  displayOrder: 1,
+};
+const CYCLING_SPORT_TYPE = {
+  sportTypeId: WORKOUT_SPORT_TYPE_ID.CYCLING,
+  sportTypeKey: "cycling",
+  displayOrder: 2,
+};
+const SWIMMING_SPORT_TYPE = {
+  sportTypeId: WORKOUT_SPORT_TYPE_ID.SWIMMING,
+  sportTypeKey: "swimming",
+  displayOrder: 3,
+};
+const WALKING_SPORT_TYPE = {
+  sportTypeId: WORKOUT_SPORT_TYPE_ID.WALKING,
+  sportTypeKey: "walking",
+  displayOrder: 17,
+};
+const HIKING_SPORT_TYPE = {
+  sportTypeId: WORKOUT_SPORT_TYPE_ID.HIKING,
+  sportTypeKey: "hiking",
+  displayOrder: 18,
+};
+const STRENGTH_SPORT_TYPE = {
+  sportTypeId: WORKOUT_SPORT_TYPE_ID.STRENGTH_TRAINING,
+  sportTypeKey: "strength_training",
+  displayOrder: 5,
+};
+
+/** Delegates to `uploadWorkout`, matching the inventory's "POST (delegates to upload_workout)". */
+export async function uploadRunningWorkout(
+  host: WorkoutsHost,
+  workout: WorkoutInput,
+): Promise<WorkoutRecord | null> {
+  return uploadWorkout(host, buildSportWorkout(workout, RUNNING_SPORT_TYPE));
+}
+
+export async function uploadCyclingWorkout(
+  host: WorkoutsHost,
+  workout: WorkoutInput,
+): Promise<WorkoutRecord | null> {
+  return uploadWorkout(host, buildSportWorkout(workout, CYCLING_SPORT_TYPE));
+}
+
+export async function uploadSwimmingWorkout(
+  host: WorkoutsHost,
+  workout: WorkoutInput,
+): Promise<WorkoutRecord | null> {
+  return uploadWorkout(host, buildSportWorkout(workout, SWIMMING_SPORT_TYPE));
+}
+
+export async function uploadWalkingWorkout(
+  host: WorkoutsHost,
+  workout: WorkoutInput,
+): Promise<WorkoutRecord | null> {
+  return uploadWorkout(host, buildSportWorkout(workout, WALKING_SPORT_TYPE));
+}
+
+export async function uploadHikingWorkout(
+  host: WorkoutsHost,
+  workout: WorkoutInput,
+): Promise<WorkoutRecord | null> {
+  return uploadWorkout(host, buildSportWorkout(workout, HIKING_SPORT_TYPE));
+}
+
+export async function uploadStrengthWorkout(
+  host: WorkoutsHost,
+  workout: WorkoutInput,
+): Promise<WorkoutRecord | null> {
+  return uploadWorkout(host, buildSportWorkout(workout, STRENGTH_SPORT_TYPE));
+}
+
+// ---------------------------------------------------------------------------
+// Device push
+// ---------------------------------------------------------------------------
+
+/**
+ * Multi-step, matching upstream exactly: resolves a missing `deviceId` via
+ * `/device-service/deviceservice/mylastused`'s `userDeviceId` (upstream:
+ * `get_device_last_used()["userDeviceId"]` — a plain dict index that would
+ * KeyError on a missing key; translated here as a `GarminError` throw rather
+ * than letting `undefined.userDeviceId` crash), and a missing `workoutId` via
+ * the first result of `getWorkouts(0, 1)` (throws `GarminError` matching
+ * upstream's `ValueError("No workouts found to push.")` if the account has no
+ * workouts). `messageName` always comes from `getWorkoutById(workoutId)`'s
+ * `workoutName`. `messageUrl` is the literal relative string upstream sends
+ * (no leading slash), NOT an absolute path.
+ *
+ * UNCERTAIN (inventory): no explicit null handling on the final POST.
+ */
+export async function pushWorkoutToDevice(
+  host: WorkoutsHost,
+  workoutId?: number | string,
+  deviceId?: number | string,
+): Promise<WorkoutRecord | null> {
+  const resolvedDeviceId = deviceId ?? (await resolveLastUsedDeviceId(host));
+  const resolvedWorkoutId = workoutId ?? (await resolveFirstWorkoutId(host));
+
+  const workout = await getWorkoutById(host, resolvedWorkoutId);
+  const messageName = workout?.workoutName;
+  if (typeof messageName !== "string") {
+    throw new GarminError(
+      `Cannot push workout ${String(resolvedWorkoutId)}: getWorkoutById returned no workoutName`,
+    );
+  }
+
+  return host.client.connectapi<WorkoutRecord>("/device-service/devicemessage/messages", {
+    method: "POST",
+    json: [
+      {
+        deviceId: resolvedDeviceId,
+        messageUrl: `workout-service/workout/FIT/${resolvedWorkoutId}`,
+        messageType: "workouts",
+        groupName: null,
+        messageName,
+        priority: 1,
+        fileType: "FIT",
+        metaDataId: resolvedWorkoutId,
+      },
+    ],
+  });
+}
+
+async function resolveLastUsedDeviceId(host: WorkoutsHost): Promise<number | string> {
+  const device = await host.client.connectapi<{ userDeviceId?: number | string }>(
+    "/device-service/deviceservice/mylastused",
+  );
+  const id = device?.userDeviceId;
+  if (id === undefined) {
+    throw new GarminError("No last-used device found (userDeviceId missing) to push workout to");
+  }
+  return id;
+}
+
+async function resolveFirstWorkoutId(host: WorkoutsHost): Promise<number | string> {
+  const list = await getWorkouts(host, 0, 1);
+  const id = list?.[0]?.workoutId;
+  if (id === undefined) {
+    throw new GarminError("No workouts found to push.");
+  }
+  return id;
+}
+
+// ---------------------------------------------------------------------------
+// Scheduling
+// ---------------------------------------------------------------------------
+
+/**
+ * `dict`, passes through unchecked. **Month is 0-indexed on the wire**: this
+ * takes a normal 1-12 `month` and subtracts 1 before building the URL. Both
+ * `year` (>=2000) and `month` (1-12) are validated as upstream does.
+ */
+export async function getScheduledWorkouts(
+  host: WorkoutsHost,
+  year: number | string,
+  month: number | string,
+): Promise<CalendarMonth | null> {
+  const yearNum = Number(year);
+  const monthNum = Number(month);
+  if (!Number.isInteger(yearNum) || yearNum < 2000) {
+    throw new GarminError(`Expected year >= 2000, got "${String(year)}"`);
+  }
+  if (!Number.isInteger(monthNum) || monthNum < 1 || monthNum > 12) {
+    throw new GarminError(`Expected month between 1 and 12, got "${String(month)}"`);
+  }
+  return host.client.connectapi<CalendarMonth>(
+    `/calendar-service/year/${yearNum}/month/${monthNum - 1}`,
+  );
+}
+
+/**
+ * `dict`, passes through unchecked. Uses a DIFFERENT base
+ * (`/workout-service/schedule`) than `getScheduledWorkouts`
+ * (`/calendar-service`), despite both being about scheduled workouts —
+ * transcribed verbatim from the inventory, not a typo.
+ */
+export async function getScheduledWorkoutById(
+  host: WorkoutsHost,
+  scheduledWorkoutId: number | string,
+): Promise<WorkoutRecord | null> {
+  return host.client.connectapi<WorkoutRecord>(`/workout-service/schedule/${scheduledWorkoutId}`);
+}
+
+/**
+ * Computed, no HTTP path of its own: calls `getScheduledWorkouts` for the
+ * current month and the next (handling a December->January year rollover),
+ * treats a falsy/`null` result from either as `{}`, merges `calendarItems`
+ * from both, filters to `itemType === "workout"` with `date >= today`, sorts
+ * by date, and returns the first match. Returns `{}` (never throws) if
+ * nothing matches — matching the inventory's documented behaviour.
+ */
+export async function getNextScheduledWorkout(
+  host: WorkoutsHost,
+): Promise<CalendarItem | Record<string, never>> {
+  const today = new Date();
+  const todayStr = formatDate(today);
+  const year = today.getUTCFullYear();
+  const month = today.getUTCMonth() + 1; // 1-12
+  const nextMonth = month === 12 ? 1 : month + 1;
+  const nextYear = month === 12 ? year + 1 : year;
+
+  const [current, next] = await Promise.all([
+    getScheduledWorkouts(host, year, month),
+    getScheduledWorkouts(host, nextYear, nextMonth),
+  ]);
+
+  const items = [...(current?.calendarItems ?? []), ...(next?.calendarItems ?? [])].filter(
+    (item): item is CalendarItem & { date: string } =>
+      item.itemType === "workout" && typeof item.date === "string" && item.date >= todayStr,
+  );
+  items.sort((a, b) => a.date.localeCompare(b.date));
+  return items[0] ?? {};
+}
+
+/**
+ * UNCERTAIN (inventory): "no explicit null handling". `date_str` is routed
+ * through `formatDate`, matching upstream's `_validate_date_format`.
+ */
+export async function scheduleWorkout(
+  host: WorkoutsHost,
+  workoutId: number | string,
+  dateStr: string | Date,
+): Promise<WorkoutRecord | null> {
+  const date = formatDate(dateStr);
+  return host.client.connectapi<WorkoutRecord>(`/workout-service/schedule/${workoutId}`, {
+    method: "POST",
+    json: { date },
+  });
+}
+
+/**
+ * UNCERTAIN (inventory): "no explicit null handling". Removes the calendar
+ * entry without deleting the underlying workout template — irreversible.
+ */
+export async function unscheduleWorkout(
+  host: WorkoutsHost,
+  scheduledWorkoutId: number | string,
+): Promise<unknown> {
+  return host.client.connectapi(`/workout-service/schedule/${scheduledWorkoutId}`, {
+    method: "DELETE",
+  });
+}

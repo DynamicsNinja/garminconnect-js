@@ -133,6 +133,24 @@ Every identifier above (`GarminClient`, `Garmin`, `FileTokenStore`) is exported 
 | `getHeartRateZones` | `(): Promise<HeartRateZoneEntry[] \| null>` — passes through unchecked | yes |
 | `getPowerZones` | `(): Promise<PowerZoneEntry[] \| null>` — passes through unchecked | yes |
 | `getPowerZonesForSport` | `(sport: string): Promise<PowerZonesForSportResult \| null>` — `sport` upper-cased and validated the same way as `getFunctionalThresholdPowerRange` | yes |
+| `getWorkouts` | `(start?: number, limit?: number): Promise<WorkoutRecord[] \| null>` — defaults `start=0, limit=100`; passes through unchecked, stays nullable (does NOT coalesce to `[]`) | yes |
+| `getWorkoutById` | `(workoutId: number \| string): Promise<WorkoutRecord \| null>` — passes through unchecked | yes |
+| `deleteWorkout` | `(workoutId: number \| string): Promise<unknown>` — UNCERTAIN upstream null handling; deletes the template from the workout library, irreversible | yes (fixture-only: create via `uploadRunningWorkout`, delete, poll-confirm gone) |
+| `downloadWorkout` | `(workoutId: number \| string): Promise<Buffer>` — UNCERTAIN upstream null handling; FIT-file bytes | yes |
+| `uploadWorkout` | `(workoutJson: Record<string, unknown> \| unknown[] \| string): Promise<WorkoutRecord \| null>` — a string is JSON-parsed (throws `GarminError` on invalid JSON or a non-object/array result); UNCERTAIN upstream null handling | yes |
+| `updateWorkout` | `(workoutId: number \| string, workoutJson: Record<string, unknown> \| string): Promise<WorkoutRecord \| null>` — full-replace PUT; forces `workoutId` into the body to match the path id; unlike `uploadWorkout`, a string must resolve to an object, not an array; UNCERTAIN upstream null handling | yes |
+| `uploadRunningWorkout` | `(workout: WorkoutInput): Promise<WorkoutRecord \| null>` — fills the default `running` `sportType` (`{sportTypeId:1, sportTypeKey:"running", displayOrder:1}`) if the caller didn't supply one, then delegates to `uploadWorkout`; see gotchas for where the body shape came from | yes |
+| `uploadCyclingWorkout` | `(workout: WorkoutInput): Promise<WorkoutRecord \| null>` — same pattern, default `sportType` `{sportTypeId:2, sportTypeKey:"cycling", displayOrder:2}` | yes |
+| `uploadSwimmingWorkout` | `(workout: WorkoutInput): Promise<WorkoutRecord \| null>` — same pattern, default `sportType` `{sportTypeId:4, sportTypeKey:"swimming", displayOrder:3}` | yes |
+| `uploadWalkingWorkout` | `(workout: WorkoutInput): Promise<WorkoutRecord \| null>` — same pattern, default `sportType` `{sportTypeId:17, sportTypeKey:"walking", displayOrder:17}` (17 is NOT in upstream's core `SportType` enum — see gotchas) | yes |
+| `uploadHikingWorkout` | `(workout: WorkoutInput): Promise<WorkoutRecord \| null>` — same pattern, default `sportType` `{sportTypeId:18, sportTypeKey:"hiking", displayOrder:18}` (18 also not in the core enum) | yes |
+| `uploadStrengthWorkout` | `(workout: WorkoutInput): Promise<WorkoutRecord \| null>` — same pattern, default `sportType` `{sportTypeId:5, sportTypeKey:"strength_training", displayOrder:5}` | yes |
+| `pushWorkoutToDevice` | `(workoutId?: number \| string, deviceId?: number \| string): Promise<WorkoutRecord \| null>` — multi-call: resolves a missing `deviceId` via `/device-service/deviceservice/mylastused`'s `userDeviceId`, a missing `workoutId` via `getWorkouts(0,1)`'s first result (throws if none), then reads `getWorkoutById(workoutId).workoutName` for the push message; UNCERTAIN upstream null handling on the final POST | attempted live — see gotchas, no paired device on the test account |
+| `getScheduledWorkouts` | `(year: number \| string, month: number \| string): Promise<CalendarMonth \| null>` — `month` is 1-12 on the way in, converted to 0-indexed on the wire; validates `year>=2000`, `month` 1-12; passes through unchecked | yes |
+| `getScheduledWorkoutById` | `(scheduledWorkoutId: number \| string): Promise<WorkoutRecord \| null>` — uses a DIFFERENT base (`/workout-service/schedule`) than `getScheduledWorkouts` (`/calendar-service`); passes through unchecked | yes |
+| `getNextScheduledWorkout` | `(): Promise<CalendarItem \| {}>` — computed from two `getScheduledWorkouts` calls (this month + next, handling Dec->Jan rollover); returns `{}` if nothing matches, never throws | yes |
+| `scheduleWorkout` | `(workoutId: number \| string, dateStr: string \| Date): Promise<WorkoutRecord \| null>` — `dateStr` routed through `formatDate`; UNCERTAIN upstream null handling | yes |
+| `unscheduleWorkout` | `(scheduledWorkoutId: number \| string): Promise<unknown>` — removes the calendar entry without deleting the workout template; irreversible; UNCERTAIN upstream null handling | yes |
 
 `Garmin` exposes the underlying client as `readonly client: GarminClient`.
 
@@ -174,8 +192,10 @@ upstream names.
 Notably absent (implement via `connectapi` instead — see below):
 
 - Gear and gear maintenance
-- Workouts and training plans, including per-sport upload helpers and workout scheduling
-- Devices and device settings
+- Training plans (workouts themselves are implemented — see section 3 — but the separate
+  `trainingPlans` service is not)
+- Devices and device settings (except the one-off `mylastused` lookup `pushWorkoutToDevice`
+  makes internally — there is no public `getDeviceLastUsed`)
 - Badges and challenges (including virtual challenges)
 - Goals
 - Personal records
@@ -340,6 +360,25 @@ login. This is the intended pattern for serverless MFA, not a workaround.
   of the three throws; supplying none hits the `.../latest/{displayName}` endpoint; supplying all
   three hits `.../{type}/{displayName}` and additionally caps the span at 366 days. `type` must be
   `"daily"` or `"monthly"`.
+- **The six per-sport workout upload helpers' body shape came from upstream's actual source, not
+  from the inventory table alone.** `docs/upstream-method-inventory.md`'s `workouts` section
+  documents these six rows only as `workout.to_dict()` from a `<Sport>Workout` pydantic model — it
+  does not give the model's field-level shape. This port has zero runtime dependencies, so there is
+  no pydantic model to port. Rather than invent a schema, the shape was read directly from
+  `garminconnect/workout.py` in upstream `cyberjunky/python-garminconnect` on GitHub (fetched live
+  during Task 6, not from training-data memory) — the actual implementation the inventory row
+  summarizes. `src/types/workouts.ts` and `src/services/workouts.ts` carry the full citation. The
+  six sports share IDENTICAL structure (`workoutName`, `estimatedDurationInSecs`,
+  `workoutSegments`, `author`, `description`) except each one's default `sportType`
+  `{sportTypeId, sportTypeKey, displayOrder}` triple, which is why one `buildSportWorkout` helper
+  backs all six thin wrappers rather than six near-copies. Upstream additionally raises `TypeError`
+  if `workout` isn't an instance of the matching pydantic class; this port instead does minimal
+  required-field validation (`workoutName`/`estimatedDurationInSecs`/`workoutSegments` present) on
+  a plain object, since there is no pydantic class to `instanceof`-check.
+- **`pushWorkoutToDevice` was attempted live and failed — the test account has no paired device.**
+  See the smoke-writes report for the exact error. This is a genuine account-state limitation, not
+  a wrong URL: the multi-step resolution chain (`mylastused` -> `getWorkouts` ->
+  `getWorkoutById`) was exercised successfully up to the final POST.
 - **`getFunctionalThresholdPowerRange` and `getPowerZonesForSport` both normalize `sport`** by
   upper-casing it and validating it matches `^[A-Z_]+$` (`"cycling"` becomes `"CYCLING"`; `"run1"`
   throws) — this is the one sport-key validation shared across methods; the literal

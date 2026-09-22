@@ -710,6 +710,257 @@ function activitiesDetailProbes(): WriteProbe[] {
   ];
 }
 
+/** Polls `getWorkouts` until the account has zero workouts. */
+async function pollUntilNoWorkouts(): Promise<boolean> {
+  return pollUntil(async () => ((await g.getWorkouts(0, 10)) ?? []).length === 0, 10, 3000);
+}
+
+/** Polls a given month's `getScheduledWorkouts` until no `itemType === "workout"` calendar items remain. */
+async function pollUntilNoScheduledWorkouts(year: number, month: number): Promise<boolean> {
+  return pollUntil(async () => {
+    const cal = await g.getScheduledWorkouts(year, month);
+    return !(cal?.calendarItems ?? []).some((item) => item.itemType === "workout");
+  }, 10, 3000);
+}
+
+/** A minimal, structurally-valid single-step running workout, matching `WorkoutInput`. */
+function fixtureRunningWorkout(name: string) {
+  return {
+    workoutName: name,
+    estimatedDurationInSecs: 1800,
+    workoutSegments: [
+      {
+        segmentOrder: 1,
+        sportType: { sportTypeId: 1, sportTypeKey: "running", displayOrder: 1 },
+        workoutSteps: [
+          {
+            type: "ExecutableStepDTO",
+            stepOrder: 1,
+            stepType: { stepTypeId: 1, stepTypeKey: "warmup", displayOrder: 1 },
+            endCondition: {
+              conditionTypeId: 2,
+              conditionTypeKey: "time",
+              displayOrder: 2,
+              displayable: true,
+            },
+            endConditionValue: 600,
+            targetType: { workoutTargetTypeId: 1, workoutTargetTypeKey: "no.target", displayOrder: 1 },
+          },
+        ],
+      },
+    ],
+  };
+}
+
+function workoutProbes(): WriteProbe[] {
+  return [
+    {
+      name:
+        "uploadRunningWorkout -> getWorkoutById -> updateWorkout -> scheduleWorkout -> " +
+        "getScheduledWorkouts -> unscheduleWorkout -> deleteWorkout (full round-trip, every stage read-back-asserted)",
+      run: async () => {
+        const before = await g.getWorkouts(0, 10);
+        if ((before ?? []).length !== 0) {
+          return {
+            ok: false,
+            detail: `refusing to run: account already has ${(before ?? []).length} workouts before this probe started`,
+          };
+        }
+
+        const workoutName = `garminconnect-js-task6-running-${Date.now()}`;
+        const now = new Date();
+        const year = now.getUTCFullYear();
+        const month = now.getUTCMonth() + 1;
+        const scheduleDate = new Date(Date.now() + 2 * 86_400_000).toISOString().slice(0, 10);
+
+        let workoutId: number | undefined;
+        try {
+          const uploaded = await g.uploadRunningWorkout(fixtureRunningWorkout(workoutName));
+          if (typeof uploaded?.workoutId !== "number") {
+            return {
+              ok: false,
+              detail: `uploadRunningWorkout did not return a numeric workoutId (got ${JSON.stringify(uploaded)})`,
+            };
+          }
+          workoutId = uploaded.workoutId;
+
+          // --- read back the created workout and assert the STORED structure, not just a 2xx ---
+          const fetched = await g.getWorkoutById(workoutId);
+          if (fetched?.workoutName !== workoutName) {
+            return {
+              ok: false,
+              detail: `expected workoutName "${workoutName}", read back "${String(fetched?.workoutName)}"`,
+            };
+          }
+          const sportType = fetched?.["sportType"] as { sportTypeKey?: string } | undefined;
+          if (sportType?.sportTypeKey !== "running") {
+            return {
+              ok: false,
+              detail: `expected sportType.sportTypeKey "running", read back ${JSON.stringify(sportType)}`,
+            };
+          }
+          if (fetched?.["estimatedDurationInSecs"] !== 1800) {
+            return {
+              ok: false,
+              detail: `expected estimatedDurationInSecs 1800, read back ${String(fetched?.["estimatedDurationInSecs"])}`,
+            };
+          }
+
+          // --- updateWorkout: rename, then read back to confirm the change landed ---
+          const newName = `garminconnect-js-task6-running-renamed-${Date.now()}`;
+          await g.updateWorkout(workoutId, { ...(fetched as Record<string, unknown>), workoutName: newName });
+          const afterUpdate = await g.getWorkoutById(workoutId);
+          if (afterUpdate?.workoutName !== newName) {
+            return {
+              ok: false,
+              detail: `updateWorkout: expected workoutName "${newName}", read back "${String(afterUpdate?.workoutName)}"`,
+            };
+          }
+
+          // --- scheduleWorkout, verify via getScheduledWorkouts ---
+          await g.scheduleWorkout(workoutId, scheduleDate);
+          const calAfterSchedule = await g.getScheduledWorkouts(year, month);
+          const items = calAfterSchedule?.calendarItems ?? [];
+          const scheduledItem = items.find(
+            (item) => item.itemType === "workout" && item["workoutId"] === workoutId,
+          );
+          if (!scheduledItem) {
+            return {
+              ok: false,
+              detail:
+                `scheduleWorkout issued but no matching item found in getScheduledWorkouts(${year},${month}); ` +
+                `${items.length} workout-typed items present`,
+            };
+          }
+          const scheduleId = scheduledItem["id"];
+          if (typeof scheduleId !== "number" && typeof scheduleId !== "string") {
+            return {
+              ok: false,
+              detail: `scheduled item found but has no usable id field to unschedule: ${JSON.stringify(scheduledItem)}`,
+            };
+          }
+
+          // --- unscheduleWorkout, verify gone via getScheduledWorkouts ---
+          await g.unscheduleWorkout(scheduleId);
+          const goneScheduled = await pollUntil(async () => {
+            const cal = await g.getScheduledWorkouts(year, month);
+            return !(cal?.calendarItems ?? []).some(
+              (item) => item.itemType === "workout" && item["workoutId"] === workoutId,
+            );
+          }, 10, 3000);
+          if (!goneScheduled) {
+            return {
+              ok: false,
+              detail: `unscheduleWorkout(${String(scheduleId)}) issued but workout ${workoutId} still appears scheduled after polling`,
+            };
+          }
+
+          // --- deleteWorkout, verify gone via getWorkouts ---
+          await g.deleteWorkout(workoutId);
+          const deletedId = workoutId;
+          workoutId = undefined; // delete issued; finally has nothing left to clean up either way
+          const gone = await pollUntilNoWorkouts();
+          if (!gone) {
+            return {
+              ok: false,
+              detail: `deleteWorkout issued but workout ${deletedId} still listed after polling`,
+            };
+          }
+
+          return {
+            ok: true,
+            detail:
+              `created ${deletedId} (running); read-back matched workoutName/sportType/estimatedDurationInSecs; ` +
+              `updateWorkout rename confirmed by read-back; scheduled for ${scheduleDate} and confirmed via ` +
+              `getScheduledWorkouts; unscheduled and confirmed gone; deleted and confirmed gone`,
+          };
+        } finally {
+          if (workoutId !== undefined) {
+            try {
+              await g.deleteWorkout(workoutId);
+            } catch (cleanupError) {
+              console.error(
+                `  WARNING: cleanup failed for workout round-trip probe (workout ${workoutId}): ${(cleanupError as Error).message}`,
+              );
+            }
+          }
+        }
+      },
+    },
+    {
+      name: "pushWorkoutToDevice — expected to fail: the test account has no paired device",
+      run: async () => {
+        let workoutId: number | undefined;
+        try {
+          const uploaded = await g.uploadRunningWorkout(
+            fixtureRunningWorkout(`garminconnect-js-task6-push-fixture-${Date.now()}`),
+          );
+          if (typeof uploaded?.workoutId !== "number") {
+            return {
+              ok: false,
+              detail: `setup failed: uploadRunningWorkout did not return a numeric workoutId (got ${JSON.stringify(uploaded)}) — pushWorkoutToDevice itself was not exercised`,
+            };
+          }
+          workoutId = uploaded.workoutId;
+
+          try {
+            const result = await g.pushWorkoutToDevice(workoutId);
+            return {
+              ok: false,
+              detail:
+                `UNEXPECTED: pushWorkoutToDevice succeeded (result=${JSON.stringify(result)}) — either a ` +
+                `device is now paired on the test account, or this probe's "no device" assumption is stale`,
+            };
+          } catch (pushError) {
+            if (pushError instanceof GarminHttpError) {
+              return {
+                ok: true,
+                detail:
+                  `pushWorkoutToDevice failed as expected (no paired device): GarminHttpError ${pushError.status} — ` +
+                  `${pushError.message.slice(0, 200)}. No positive response was ever observed for this path.`,
+              };
+            }
+            if (pushError instanceof GarminConnectionError || pushError instanceof Error) {
+              return {
+                ok: true,
+                detail:
+                  `pushWorkoutToDevice failed as expected (no paired device): ${pushError.constructor.name} — ` +
+                  `${pushError.message.slice(0, 200)}. No positive response was ever observed for this path.`,
+              };
+            }
+            throw pushError;
+          }
+        } finally {
+          if (workoutId !== undefined) {
+            try {
+              await g.deleteWorkout(workoutId);
+            } catch (cleanupError) {
+              console.error(
+                `  WARNING: cleanup failed for pushWorkoutToDevice probe (workout ${workoutId}): ${(cleanupError as Error).message}`,
+              );
+            }
+          }
+        }
+      },
+    },
+    {
+      name: "final account state after all workouts write probes",
+      run: async () => {
+        const cleanWorkouts = await pollUntilNoWorkouts();
+        const now = new Date();
+        const cleanScheduled = await pollUntilNoScheduledWorkouts(now.getUTCFullYear(), now.getUTCMonth() + 1);
+        const list = await g.getWorkouts(0, 10);
+        const cal = await g.getScheduledWorkouts(now.getUTCFullYear(), now.getUTCMonth() + 1);
+        const scheduledCount = (cal?.calendarItems ?? []).filter((item) => item.itemType === "workout").length;
+        return {
+          ok: cleanWorkouts && cleanScheduled,
+          detail: `${(list ?? []).length} workouts remain (expected 0); ${scheduledCount} scheduled workout calendar items remain this month (expected 0)`,
+        };
+      },
+    },
+  ];
+}
+
 // Each subsequent task appends its service's WRITE probes here.
 const services: Record<string, WriteProbe[]> = {
   weight: [
@@ -811,6 +1062,7 @@ const services: Record<string, WriteProbe[]> = {
   ],
   activities: activityProbes(),
   activitiesDetail: activitiesDetailProbes(),
+  workouts: workoutProbes(),
 };
 
 const which = process.argv[2];

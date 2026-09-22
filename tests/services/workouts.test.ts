@@ -1,0 +1,457 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { http, HttpResponse } from "msw";
+import { setupServer } from "msw/node";
+import { GarminClient } from "../../src/client.js";
+import { Garmin } from "../../src/garmin.js";
+import type { Tokens } from "../../src/auth/tokens.js";
+import type { WorkoutInput } from "../../src/types/workouts.js";
+
+const API = "https://connectapi.garmin.com";
+const seen: { url: string; method: string; body?: unknown }[] = [];
+
+async function record(request: Request): Promise<void> {
+  let body: unknown;
+  if (request.method !== "GET" && request.method !== "DELETE") {
+    body = await request.clone().json();
+  }
+  seen.push({ url: request.url, method: request.method, body });
+}
+
+const baseWorkoutInput: WorkoutInput = {
+  workoutName: "Test Workout",
+  estimatedDurationInSecs: 1800,
+  workoutSegments: [
+    {
+      segmentOrder: 1,
+      sportType: { sportTypeId: 1, sportTypeKey: "running", displayOrder: 1 },
+      workoutSteps: [
+        {
+          type: "ExecutableStepDTO",
+          stepOrder: 1,
+          stepType: { stepTypeId: 1, stepTypeKey: "warmup", displayOrder: 1 },
+          endCondition: { conditionTypeId: 2, conditionTypeKey: "time", displayOrder: 2, displayable: true },
+          endConditionValue: 600,
+          targetType: { workoutTargetTypeId: 1, workoutTargetTypeKey: "no.target", displayOrder: 1 },
+        },
+      ],
+    },
+  ],
+};
+
+const server = setupServer(
+  http.get(`${API}/userprofile-service/socialProfile`, () =>
+    HttpResponse.json({ displayName: "abc-display", userName: "testuser", fullName: "Test User", profileId: 1 }),
+  ),
+
+  // getWorkouts
+  http.get(`${API}/workout-service/workouts`, async ({ request }) => {
+    await record(request);
+    return HttpResponse.json([{ workoutId: 1, workoutName: "A" }]);
+  }),
+
+  // getWorkoutById
+  http.get(`${API}/workout-service/workout/123`, async ({ request }) => {
+    await record(request);
+    return HttpResponse.json({ workoutId: 123, workoutName: "Fetched" });
+  }),
+
+  // deleteWorkout
+  http.delete(`${API}/workout-service/workout/123`, async ({ request }) => {
+    await record(request);
+    return new HttpResponse(null, { status: 204 });
+  }),
+
+  // downloadWorkout
+  http.get(`${API}/workout-service/workout/FIT/123`, async ({ request }) => {
+    await record(request);
+    return new HttpResponse(new Uint8Array([1, 2, 3, 4]), {
+      headers: { "Content-Type": "application/octet-stream" },
+    });
+  }),
+
+  // uploadWorkout / uploadRunningWorkout / uploadCyclingWorkout / etc all hit this same URL
+  http.post(`${API}/workout-service/workout`, async ({ request }) => {
+    await record(request);
+    return HttpResponse.json({ workoutId: 999, workoutName: "uploaded" });
+  }),
+
+  // updateWorkout
+  http.put(`${API}/workout-service/workout/456`, async ({ request }) => {
+    await record(request);
+    return HttpResponse.json({ workoutId: 456, workoutName: "updated" });
+  }),
+
+  // pushWorkoutToDevice: resolution chain
+  http.get(`${API}/device-service/deviceservice/mylastused`, async ({ request }) => {
+    await record(request);
+    return HttpResponse.json({ userDeviceId: 777 });
+  }),
+  http.post(`${API}/device-service/devicemessage/messages`, async ({ request }) => {
+    await record(request);
+    return HttpResponse.json({ status: "ok" });
+  }),
+
+  // getScheduledWorkouts (month 9 -> wire month 8)
+  http.get(`${API}/calendar-service/year/2026/month/8`, async ({ request }) => {
+    await record(request);
+    return HttpResponse.json({ calendarItems: [] });
+  }),
+
+  // getScheduledWorkoutById
+  http.get(`${API}/workout-service/schedule/555`, async ({ request }) => {
+    await record(request);
+    return HttpResponse.json({ scheduleId: 555, workoutId: 123 });
+  }),
+
+  // scheduleWorkout
+  http.post(`${API}/workout-service/schedule/123`, async ({ request }) => {
+    await record(request);
+    return HttpResponse.json({ scheduleId: 1, workoutId: 123 });
+  }),
+
+  // unscheduleWorkout
+  http.delete(`${API}/workout-service/schedule/555`, async ({ request }) => {
+    await record(request);
+    return new HttpResponse(null, { status: 204 });
+  }),
+);
+
+const tokens: Tokens = {
+  oauth1: { oauth_token: "o1", oauth_token_secret: "s1", domain: "garmin.com" },
+  oauth2: {
+    scope: "CONNECT_READ",
+    jti: "j",
+    token_type: "Bearer",
+    access_token: "at",
+    refresh_token: "rt",
+    expires_in: 3600,
+    // Fixed far-future absolute epoch, NOT `Date.now() + 3600`: a couple of
+    // tests below use `vi.setSystemTime` to jump the clock months ahead
+    // (to test `getNextScheduledWorkout`'s December->January rollover),
+    // which would make a `Date.now()`-relative expiry look expired.
+    expires_at: Math.floor(Date.UTC(2035, 0, 1) / 1000),
+    refresh_token_expires_in: 7200,
+    refresh_token_expires_at: Math.floor(Date.UTC(2035, 0, 1) / 1000),
+  },
+};
+
+function makeGarmin(): Garmin {
+  const client = new GarminClient();
+  client.setTokens(tokens);
+  return new Garmin(client);
+}
+
+beforeEach(() => {
+  seen.length = 0;
+  server.listen({ onUnhandledRequest: "error" });
+});
+afterEach(() => {
+  server.resetHandlers();
+  server.close();
+  vi.useRealTimers();
+});
+
+describe("workouts service", () => {
+  it("getWorkouts composes the default-paginated URL", async () => {
+    const g = makeGarmin();
+    const result = await g.getWorkouts();
+    expect(seen[0]!.url).toBe(`${API}/workout-service/workouts?start=0&limit=100`);
+    expect(result).toEqual([{ workoutId: 1, workoutName: "A" }]);
+  });
+
+  it("getWorkouts stays nullable on a 204 (passes through unchecked, does NOT coalesce to [])", async () => {
+    server.use(
+      http.get(`${API}/workout-service/workouts`, () => new HttpResponse(null, { status: 204 })),
+    );
+    const g = makeGarmin();
+    const result = await g.getWorkouts(0, 5);
+    expect(result).toBeNull();
+  });
+
+  it("getWorkoutById composes the correct URL", async () => {
+    const g = makeGarmin();
+    const result = await g.getWorkoutById(123);
+    expect(seen[0]!.url).toBe(`${API}/workout-service/workout/123`);
+    expect(result).toEqual({ workoutId: 123, workoutName: "Fetched" });
+  });
+
+  it("deleteWorkout issues a DELETE to the workout path", async () => {
+    const g = makeGarmin();
+    await g.deleteWorkout(123);
+    expect(seen[0]!.url).toBe(`${API}/workout-service/workout/123`);
+    expect(seen[0]!.method).toBe("DELETE");
+  });
+
+  it("downloadWorkout hits the FIT path and returns a Buffer", async () => {
+    const g = makeGarmin();
+    const result = await g.downloadWorkout(123);
+    expect(seen[0]!.url).toBe(`${API}/workout-service/workout/FIT/123`);
+    expect(Buffer.isBuffer(result)).toBe(true);
+    expect(result).toEqual(Buffer.from([1, 2, 3, 4]));
+  });
+
+  it("uploadWorkout POSTs an object body verbatim", async () => {
+    const g = makeGarmin();
+    const payload = { workoutName: "X", workoutSegments: [] };
+    await g.uploadWorkout(payload);
+    expect(seen[0]!.url).toBe(`${API}/workout-service/workout`);
+    expect(seen[0]!.method).toBe("POST");
+    expect(seen[0]!.body).toEqual(payload);
+  });
+
+  it("uploadWorkout accepts an array body", async () => {
+    const g = makeGarmin();
+    const payload = [{ a: 1 }];
+    await g.uploadWorkout(payload);
+    expect(seen[0]!.body).toEqual(payload);
+  });
+
+  it("uploadWorkout JSON-parses a string body", async () => {
+    const g = makeGarmin();
+    await g.uploadWorkout(JSON.stringify({ workoutName: "from-string" }));
+    expect(seen[0]!.body).toEqual({ workoutName: "from-string" });
+  });
+
+  it("uploadWorkout throws on invalid JSON string", async () => {
+    const g = makeGarmin();
+    await expect(g.uploadWorkout("{not json")).rejects.toThrow();
+    expect(seen.length).toBe(0);
+  });
+
+  it("uploadWorkout throws on a non-object/array string result", async () => {
+    const g = makeGarmin();
+    await expect(g.uploadWorkout(JSON.stringify("just a string"))).rejects.toThrow();
+  });
+
+  it("updateWorkout PUTs, forcing workoutId to match the path id", async () => {
+    const g = makeGarmin();
+    await g.updateWorkout(456, { workoutId: 999, workoutName: "renamed" });
+    expect(seen[0]!.url).toBe(`${API}/workout-service/workout/456`);
+    expect(seen[0]!.method).toBe("PUT");
+    expect(seen[0]!.body).toEqual({ workoutId: 456, workoutName: "renamed" });
+  });
+
+  it("updateWorkout rejects an array body (unlike uploadWorkout)", async () => {
+    const g = makeGarmin();
+    await expect(g.updateWorkout(456, JSON.stringify([1, 2]))).rejects.toThrow();
+  });
+
+  // --- per-sport upload helpers: exact composed body ---
+
+  it("uploadRunningWorkout composes the default running sportType and delegates to POST /workout-service/workout", async () => {
+    const g = makeGarmin();
+    await g.uploadRunningWorkout(baseWorkoutInput);
+    expect(seen[0]!.url).toBe(`${API}/workout-service/workout`);
+    expect(seen[0]!.body).toEqual({
+      ...baseWorkoutInput,
+      sportType: { sportTypeId: 1, sportTypeKey: "running", displayOrder: 1 },
+    });
+  });
+
+  it("uploadCyclingWorkout composes the default cycling sportType", async () => {
+    const g = makeGarmin();
+    await g.uploadCyclingWorkout(baseWorkoutInput);
+    expect(seen[0]!.body).toEqual({
+      ...baseWorkoutInput,
+      sportType: { sportTypeId: 2, sportTypeKey: "cycling", displayOrder: 2 },
+    });
+  });
+
+  it("uploadSwimmingWorkout composes the default swimming sportType", async () => {
+    const g = makeGarmin();
+    await g.uploadSwimmingWorkout(baseWorkoutInput);
+    expect(seen[0]!.body).toEqual({
+      ...baseWorkoutInput,
+      sportType: { sportTypeId: 4, sportTypeKey: "swimming", displayOrder: 3 },
+    });
+  });
+
+  it("uploadWalkingWorkout composes the default walking sportType (id 17, not in the core SportType enum)", async () => {
+    const g = makeGarmin();
+    await g.uploadWalkingWorkout(baseWorkoutInput);
+    expect(seen[0]!.body).toEqual({
+      ...baseWorkoutInput,
+      sportType: { sportTypeId: 17, sportTypeKey: "walking", displayOrder: 17 },
+    });
+  });
+
+  it("uploadHikingWorkout composes the default hiking sportType (id 18, not in the core SportType enum)", async () => {
+    const g = makeGarmin();
+    await g.uploadHikingWorkout(baseWorkoutInput);
+    expect(seen[0]!.body).toEqual({
+      ...baseWorkoutInput,
+      sportType: { sportTypeId: 18, sportTypeKey: "hiking", displayOrder: 18 },
+    });
+  });
+
+  it("uploadStrengthWorkout composes the default strength_training sportType", async () => {
+    const g = makeGarmin();
+    await g.uploadStrengthWorkout(baseWorkoutInput);
+    expect(seen[0]!.body).toEqual({
+      ...baseWorkoutInput,
+      sportType: { sportTypeId: 5, sportTypeKey: "strength_training", displayOrder: 5 },
+    });
+  });
+
+  it("the per-sport helpers pass through a caller-supplied sportType unchanged instead of the default", async () => {
+    const g = makeGarmin();
+    const override = { sportTypeId: 99, sportTypeKey: "custom", displayOrder: 1 };
+    await g.uploadRunningWorkout({ ...baseWorkoutInput, sportType: override });
+    expect((seen[0]!.body as { sportType: unknown }).sportType).toEqual(override);
+  });
+
+  it("the per-sport helpers reject a workout missing required fields", async () => {
+    const g = makeGarmin();
+    await expect(
+      g.uploadRunningWorkout({ workoutName: "no segments" } as unknown as WorkoutInput),
+    ).rejects.toThrow();
+    expect(seen.length).toBe(0);
+  });
+
+  // --- push to device ---
+
+  it("pushWorkoutToDevice uses explicit workoutId/deviceId without resolution calls", async () => {
+    const g = makeGarmin();
+    await g.pushWorkoutToDevice(123, 42);
+    expect(seen).toHaveLength(2); // getWorkoutById (for messageName) + the final POST
+    expect(seen[0]!.url).toBe(`${API}/workout-service/workout/123`);
+    expect(seen[1]!.url).toBe(`${API}/device-service/devicemessage/messages`);
+    expect(seen[1]!.method).toBe("POST");
+    expect(seen[1]!.body).toEqual([
+      {
+        deviceId: 42,
+        messageUrl: "workout-service/workout/FIT/123",
+        messageType: "workouts",
+        groupName: null,
+        messageName: "Fetched",
+        priority: 1,
+        fileType: "FIT",
+        metaDataId: 123,
+      },
+    ]);
+  });
+
+  it("pushWorkoutToDevice resolves a missing deviceId via getDeviceLastUsed's userDeviceId", async () => {
+    const g = makeGarmin();
+    await g.pushWorkoutToDevice(123);
+    const deviceLookup = seen.find((s) => s.url === `${API}/device-service/deviceservice/mylastused`);
+    expect(deviceLookup).toBeDefined();
+    const finalPost = seen.find((s) => s.url === `${API}/device-service/devicemessage/messages`);
+    expect((finalPost!.body as [{ deviceId: number }])[0].deviceId).toBe(777);
+  });
+
+  it("pushWorkoutToDevice resolves a missing workoutId via getWorkouts(0, 1)'s first result", async () => {
+    server.use(
+      http.get(`${API}/workout-service/workouts`, async ({ request }) => {
+        await record(request);
+        return HttpResponse.json([{ workoutId: 321, workoutName: "First" }]);
+      }),
+      http.get(`${API}/workout-service/workout/321`, async ({ request }) => {
+        await record(request);
+        return HttpResponse.json({ workoutId: 321, workoutName: "First" });
+      }),
+    );
+    const g = makeGarmin();
+    await g.pushWorkoutToDevice(undefined, 42);
+    const listCall = seen.find((s) => s.url.startsWith(`${API}/workout-service/workouts?`));
+    expect(listCall?.url).toBe(`${API}/workout-service/workouts?start=0&limit=1`);
+    const finalPost = seen.find((s) => s.url === `${API}/device-service/devicemessage/messages`);
+    expect((finalPost!.body as [{ metaDataId: number; messageUrl: string }])[0]).toMatchObject({
+      metaDataId: 321,
+      messageUrl: "workout-service/workout/FIT/321",
+    });
+  });
+
+  it("pushWorkoutToDevice throws when no workouts exist to resolve", async () => {
+    server.use(
+      http.get(`${API}/workout-service/workouts`, () => HttpResponse.json([])),
+    );
+    const g = makeGarmin();
+    await expect(g.pushWorkoutToDevice(undefined, 42)).rejects.toThrow(/No workouts found to push/);
+  });
+
+  // --- scheduling ---
+
+  it("getScheduledWorkouts converts a 1-12 month to the wire's 0-indexed month", async () => {
+    const g = makeGarmin();
+    const result = await g.getScheduledWorkouts(2026, 9);
+    expect(seen[0]!.url).toBe(`${API}/calendar-service/year/2026/month/8`);
+    expect(result).toEqual({ calendarItems: [] });
+  });
+
+  it("getScheduledWorkouts rejects an out-of-range month", async () => {
+    const g = makeGarmin();
+    await expect(g.getScheduledWorkouts(2026, 13)).rejects.toThrow();
+    await expect(g.getScheduledWorkouts(2026, 0)).rejects.toThrow();
+  });
+
+  it("getScheduledWorkouts rejects a year below 2000", async () => {
+    const g = makeGarmin();
+    await expect(g.getScheduledWorkouts(1999, 6)).rejects.toThrow();
+  });
+
+  it("getScheduledWorkoutById uses the DIFFERENT /workout-service/schedule base, not /calendar-service", async () => {
+    const g = makeGarmin();
+    const result = await g.getScheduledWorkoutById(555);
+    expect(seen[0]!.url).toBe(`${API}/workout-service/schedule/555`);
+    expect(result).toEqual({ scheduleId: 555, workoutId: 123 });
+  });
+
+  it("getNextScheduledWorkout merges current+next month, filters to future workout items, and returns the earliest", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-22T12:00:00Z"));
+    server.use(
+      http.get(`${API}/calendar-service/year/2026/month/8`, () =>
+        HttpResponse.json({
+          calendarItems: [
+            { itemType: "workout", date: "2026-09-20" }, // past, filtered out
+            { itemType: "race", date: "2026-09-25" }, // wrong itemType, filtered out
+            { itemType: "workout", date: "2026-09-28", workoutId: 1 },
+          ],
+        }),
+      ),
+      http.get(`${API}/calendar-service/year/2026/month/9`, () =>
+        HttpResponse.json({
+          calendarItems: [{ itemType: "workout", date: "2026-09-26", workoutId: 2 }],
+        }),
+      ),
+    );
+    const g = makeGarmin();
+    const result = await g.getNextScheduledWorkout();
+    expect(result).toEqual({ itemType: "workout", date: "2026-09-26", workoutId: 2 });
+  });
+
+  it("getNextScheduledWorkout handles the December->January rollover and returns {} when nothing matches", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-12-15T12:00:00Z"));
+    server.use(
+      http.get(`${API}/calendar-service/year/2026/month/11`, () =>
+        HttpResponse.json({ calendarItems: [] }),
+      ),
+      http.get(`${API}/calendar-service/year/2027/month/0`, ({ request }) => {
+        seen.push({ url: request.url, method: request.method });
+        return HttpResponse.json({ calendarItems: [] });
+      }),
+    );
+    const g = makeGarmin();
+    const result = await g.getNextScheduledWorkout();
+    expect(seen.some((s) => s.url === `${API}/calendar-service/year/2027/month/0`)).toBe(true);
+    expect(result).toEqual({});
+  });
+
+  it("scheduleWorkout POSTs {date} to /workout-service/schedule/{workoutId}", async () => {
+    const g = makeGarmin();
+    const result = await g.scheduleWorkout(123, "2026-09-25");
+    expect(seen[0]!.url).toBe(`${API}/workout-service/schedule/123`);
+    expect(seen[0]!.method).toBe("POST");
+    expect(seen[0]!.body).toEqual({ date: "2026-09-25" });
+    expect(result).toEqual({ scheduleId: 1, workoutId: 123 });
+  });
+
+  it("unscheduleWorkout DELETEs /workout-service/schedule/{scheduledWorkoutId}", async () => {
+    const g = makeGarmin();
+    await g.unscheduleWorkout(555);
+    expect(seen[0]!.url).toBe(`${API}/workout-service/schedule/555`);
+    expect(seen[0]!.method).toBe("DELETE");
+  });
+});

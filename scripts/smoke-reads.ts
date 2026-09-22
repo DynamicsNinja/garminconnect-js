@@ -161,6 +161,30 @@ const services: Record<string, Probe[]> = {
     { name: "getPowerZones", run: () => g.getPowerZones() },
     { name: "getPowerZonesForSport", run: () => g.getPowerZonesForSport("CYCLING") },
   ],
+  workouts: [
+    { name: "getWorkouts", run: () => g.getWorkouts(0, 5) },
+    {
+      name: "getWorkoutById",
+      run: async () => {
+        const list = await g.getWorkouts(0, 1);
+        const first = list?.[0];
+        return first ? g.getWorkoutById(first.workoutId!) : null;
+      },
+    },
+    { name: "getScheduledWorkouts", run: () => g.getScheduledWorkouts(new Date().getFullYear(), new Date().getMonth() + 1) },
+    {
+      name: "getScheduledWorkoutById",
+      run: async () => {
+        const month = await g.getScheduledWorkouts(new Date().getFullYear(), new Date().getMonth() + 1);
+        const item = month?.calendarItems?.find((i) => i.itemType === "workout");
+        const scheduleId = item?.["id"];
+        return typeof scheduleId === "number" || typeof scheduleId === "string"
+          ? g.getScheduledWorkoutById(scheduleId)
+          : null;
+      },
+    },
+    { name: "getNextScheduledWorkout", run: () => g.getNextScheduledWorkout() },
+  ],
 };
 
 const which = process.argv[2];
