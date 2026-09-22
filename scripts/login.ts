@@ -20,10 +20,18 @@ const client = new GarminClient({ tokenStore: new FileTokenStore(dir) });
 const result = await client.login(email, password);
 
 if (result.state === "mfa_required") {
+  if (!process.stdin.isTTY) {
+    console.error("MFA required but stdin is not interactive; cannot prompt for a code.");
+    process.exit(1);
+  }
   const rl = createInterface({ input: process.stdin, output: process.stdout });
-  const code = await rl.question(`MFA code (sent via ${result.mfaState.mfaMethod}): `);
+  const code = (await rl.question(`MFA code (sent via ${result.mfaState.mfaMethod}): `)).trim();
   rl.close();
-  await client.resumeLogin(result.mfaState, code.trim());
+  if (!code) {
+    console.error("No MFA code entered.");
+    process.exit(1);
+  }
+  await client.resumeLogin(result.mfaState, code);
 }
 
 console.log(`Tokens written to ${dir}`);

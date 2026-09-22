@@ -36,9 +36,22 @@ await mkdir(out, { recursive: true });
 for (const [name, fetchOne] of captures) {
   try {
     const data = await fetchOne();
+    if (data === null) {
+      // e.g. getSleepData returns null when Garmin has no data for the date.
+      // Don't write a file that would look like a real (empty) recording.
+      console.log(`${name}: no data for ${date}, skipped`);
+      continue;
+    }
     await writeFile(join(out, `${name}.json`), JSON.stringify(scrub(data), null, 2) + "\n");
     console.log(`recorded ${name}`);
   } catch (error) {
     console.error(`FAILED ${name}:`, error instanceof Error ? error.message : error);
   }
 }
+
+console.log(
+  "\nReminder: these fixtures were derived from a REAL Garmin account. " +
+    `${out}/ is gitignored by default so nothing here is committed automatically. ` +
+    "scrub() is a safety net, not a guarantee — inspect every file yourself before " +
+    "choosing to stage or commit any of them.",
+);
