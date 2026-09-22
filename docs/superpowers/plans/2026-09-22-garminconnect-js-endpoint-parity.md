@@ -165,6 +165,81 @@ git commit -m "feat: add live read-smoke harness for endpoint verification"
 
 ---
 
+### Task 1b: Live write-smoke harness
+
+**Added after the plan was written**, when a dedicated empty test account made live write verification
+possible. The write policy above requires `npm run smoke:write -- <service>`; this task builds it. It must
+land before Task 3, so every service from then on can verify its writes as it completes.
+
+**Files:**
+- Create: `scripts/smoke-writes.ts`
+- Modify: `package.json` (add `"smoke:write": "tsx scripts/smoke-writes.ts"`)
+
+**Interfaces:**
+- Consumes: `GarminClient`, `Garmin`, `FileTokenStore`, error classes from `src/index.js`; `./load-env.js`.
+- Produces: `npm run smoke:write -- <service>` — runs each service's write round-trips and prints pass/fail.
+
+**The safety gate is the point of this task and is not optional.** Before issuing ANY write, the script
+MUST fetch the live profile and compare `profileId` against `GARMIN_TEST_PROFILE_ID` from `.env`. On a
+mismatch, or if the variable is absent, it prints what it found versus what it expected and exits non-zero
+WITHOUT writing. The same `tokens/` directory held a real user's account earlier in this project and a
+re-login can swap it back at any time; this gate is the only thing standing between a test run and someone's
+real health record.
+
+**Shape:** mirror `scripts/smoke-reads.ts` — a `Record<string, WriteProbe[]>` keyed by service so each of
+the following tasks appends its own entry with a minimal, conflict-free edit.
+
+```ts
+type WriteProbe = {
+  name: string;
+  /** create → read back → assert stored value → delete → assert gone. Returns a pass/fail line. */
+  run: () => Promise<{ ok: boolean; detail: string }>;
+};
+```
+
+**Every probe follows the same five beats**, and the read-back is the part that matters: asserting the
+request shape proves nothing about what Garmin actually stored. `addWeighIn` once passed 189 tests while
+storing 93 kg as 93,000 kg, and only reading the value back caught it.
+
+1. create
+2. read it back
+3. assert the stored value equals what was sent (converting units where the API does)
+4. delete
+5. assert it is gone — **poll with a short retry**, because Garmin's activity list is eventually
+   consistent after a delete: an immediate read can still show the deleted item. Observed live in this
+   project; an assert-immediately test fails intermittently.
+
+**Cleanup is mandatory and must run in a `finally`,** so a failed assertion still removes whatever the
+probe created. Every probe leaves the account as it found it.
+
+Seed it with the one service that has verified writes today:
+
+```ts
+const services: Record<string, WriteProbe[]> = {
+  weight: [
+    { name: "addWeighIn/deleteWeighIn round-trip", run: async () => { /* … */ } },
+  ],
+};
+```
+
+Where a write has no inverse (`add_hydration_data`, `request_reload`, `push_workout_to_device`, the
+menstrual writes), verify what can be verified — that the call succeeds and any read endpoint reflects it —
+and have the probe report `no delete available` in its detail string rather than silently passing.
+
+- [ ] **Step 1: Write `scripts/smoke-writes.ts`** with the safety gate, the `services` map, and the weight round-trip probe.
+- [ ] **Step 2: Add the npm script.** `npm pkg set scripts."smoke:write"="tsx scripts/smoke-writes.ts"`
+- [ ] **Step 3: Verify the gate fires.** Temporarily set `GARMIN_TEST_PROFILE_ID` to a wrong value in the environment for one run and confirm the script refuses and exits non-zero WITHOUT writing. Quote the output. Restore it afterwards.
+- [ ] **Step 4: Verify a real round-trip.** `npm run smoke:write -- weight` against the test account; quote the output; confirm the account is left with zero weigh-ins.
+- [ ] **Step 5: Full verification.** `npm test`, `npm run typecheck`, `npm run lint` — all green.
+- [ ] **Step 6: Commit.**
+
+```bash
+git add scripts/smoke-writes.ts package.json
+git commit -m "feat: add live write-smoke harness with test-account safety gate"
+```
+
+---
+
 ## Tasks 2–15: service ports
 
 Tasks 2 through 15 each port one service. **They share an identical procedure**, given once here in full; each task below states only what differs (its service, its method list, and its specific gotchas). An implementer working a single task reads this procedure plus their own task section — both are required.
