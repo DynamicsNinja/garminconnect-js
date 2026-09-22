@@ -961,6 +961,148 @@ function workoutProbes(): WriteProbe[] {
   ];
 }
 
+/**
+ * Gear has no delete/retire endpoint anywhere in upstream python-garminconnect or this port —
+ * gear created here is PERMANENT on the test account. Task 7's brief explicitly overrides the
+ * earlier "account ends with zero gear" rule for this reason (see task-7 report for the ruling).
+ * A single gear item is created and reused across every probe below rather than one-per-probe, to
+ * minimize residue.
+ *
+ * Two live findings from prior investigation shape these probes (see task-7 report for the full
+ * detail):
+ *  - `getGear`'s list entries store `uuid` WITHOUT hyphens (`createGear`'s response uses hyphens),
+ *    and the distance field on read is named `maximumMeters`, not `maxUsageDistanceMeters` (that
+ *    name is confirmed as the correct WRITE-side field from the POST body per the inventory, but
+ *    no read endpoint discovered so far echoes a duration/distance field under that write name).
+ *  - No field observed on `getGear`, `getGearStats`, or the raw `createGear` response ever
+ *    surfaces a duration value at all, so `maxUsageDurationSeconds`'s conversion direction cannot
+ *    be positively read-back-verified the way distance can — only the request-shape/rounding logic
+ *    is verified (by the unit tests in tests/services/gear.test.ts) and by upstream source review.
+ *  - `setGearDefault`'s success path (PUT `.../default/true`, DELETE the plain path) 404s for
+ *    every activityType format tried live against real gear (lower-case key, upper-case key,
+ *    mixed case, and the numeric `activityTypePk` shown by `getGearDefaults`, which instead
+ *    returns 400 Bad Request) — including gear created with that activity type already
+ *    pre-associated via `activityTypeKeys`. Only the 404-to-`GarminConnectionError` error-mapping
+ *    path is verified live here, matching the same caveat already accepted for
+ *    `addGearToActivity`/`removeGearFromActivity` in Task 4.
+ */
+function gearProbes(): WriteProbe[] {
+  let sharedGearUuidDashed: string | undefined;
+  let sharedGearUuidNoDash: string | undefined;
+
+  /** Finds the shared fixture in `getGear`'s list — its `uuid` field has no hyphens. */
+  async function findSharedGear(): Promise<Record<string, unknown> | undefined> {
+    const profile = await g.getUserProfile();
+    const list = (await g.getGear(profile.profileId)) as Record<string, unknown>[] | null;
+    return (list ?? []).find((item) => item["uuid"] === sharedGearUuidNoDash);
+  }
+
+  return [
+    {
+      name: "createGear/getGear round-trip (unit conversion: km->m; duration unconfirmable, see notes)",
+      run: async () => {
+        const distanceKm = 5;
+        const durationMin = 30;
+        const expectedMeters = 5000;
+        const gearName = `garminconnect-js-task7-gear-${Date.now()}`;
+
+        const created = (await g.createGear(
+          "shoes",
+          "garminconnect-js",
+          "test-fixture",
+          gearName,
+          new Date().toISOString().slice(0, 10),
+          "distance",
+          distanceKm,
+          durationMin,
+          "created by scripts/smoke-writes.ts (task 7); permanent, no delete endpoint exists",
+        )) as Record<string, unknown> | null;
+
+        const createdUuid = created?.["uuid"];
+        if (typeof createdUuid !== "string") {
+          return {
+            ok: false,
+            detail: `createGear did not return a string uuid (got ${JSON.stringify(created)})`,
+          };
+        }
+        sharedGearUuidDashed = createdUuid;
+        sharedGearUuidNoDash = createdUuid.replace(/-/g, "");
+
+        const found = await pollUntil(async () => (await findSharedGear()) !== undefined, 5, 2000);
+        if (!found) {
+          return {
+            ok: false,
+            detail: `created gear uuid ${createdUuid} but it did not appear in getGear() after polling`,
+          };
+        }
+        const stored = await findSharedGear();
+
+        const storedMeters = stored?.["maximumMeters"];
+        if (storedMeters !== expectedMeters) {
+          return {
+            ok: false,
+            detail:
+              `unit conversion bug: sent maxUsageDistanceKm=${distanceKm} expecting ${expectedMeters}m, ` +
+              `Garmin stored maximumMeters=${JSON.stringify(storedMeters)}`,
+          };
+        }
+
+        return {
+          ok: true,
+          detail:
+            `created gear uuid=${createdUuid}, read back maximumMeters=${storedMeters} ` +
+            `(sent maxUsageDistanceKm=${distanceKm}). Sent maxUsageDurationMin=${durationMin} ` +
+            `(-> maxUsageDurationSeconds=${durationMin * 60} in the POST body) but no read endpoint ` +
+            `found echoes a duration field, so that direction is unconfirmed live (see notes above ` +
+            `this function). RESIDUE: this gear item is permanent (no delete endpoint).`,
+        };
+      },
+    },
+    {
+      name: "getGearStats on the fixture gear",
+      run: async () => {
+        if (!sharedGearUuidDashed) {
+          return { ok: false, detail: "no shared gear uuid (createGear probe must run first)" };
+        }
+        // Brand-new gear has no recorded activities, so `{}` (the documented 404 fallback) is a
+        // legitimate pass here — the point is only that the call does not throw.
+        const stats = await g.getGearStats(sharedGearUuidDashed);
+        return {
+          ok: true,
+          detail: `getGearStats(${sharedGearUuidDashed}) -> ${JSON.stringify(stats)}`,
+        };
+      },
+    },
+    {
+      name: "setGearDefault re-raises a 404 as GarminConnectionError (error-mapping path only — see notes)",
+      run: async () => {
+        // A syntactically valid but non-existent UUID, exactly like Task 4's precedent for
+        // addGearToActivity/removeGearFromActivity — the success path could not be exercised
+        // live (see the block comment above this function), so only the 404 mapping is verified.
+        const bogusUuid = "00000000-0000-0000-0000-000000000000";
+        try {
+          await g.setGearDefault("running", bogusUuid, true);
+          return {
+            ok: false,
+            detail: `expected a GarminConnectionError for a non-existent gear uuid, but the call succeeded`,
+          };
+        } catch (error) {
+          if (
+            error instanceof GarminConnectionError &&
+            error.message.includes("gear not found")
+          ) {
+            return {
+              ok: true,
+              detail: `setGearDefault("running", "${bogusUuid}", true) correctly re-raised as GarminConnectionError: ${error.message}`,
+            };
+          }
+          throw error;
+        }
+      },
+    },
+  ];
+}
+
 // Each subsequent task appends its service's WRITE probes here.
 const services: Record<string, WriteProbe[]> = {
   weight: [
@@ -1063,6 +1205,7 @@ const services: Record<string, WriteProbe[]> = {
   activities: activityProbes(),
   activitiesDetail: activitiesDetailProbes(),
   workouts: workoutProbes(),
+  gear: gearProbes(),
 };
 
 const which = process.argv[2];

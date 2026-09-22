@@ -16,5 +16,6 @@ export type { SerializedCookie } from "./http/cookie-jar.js";
 export type * from "./types/wellness.js";
 export type * from "./types/activities.js";
 export type * from "./types/weight.js";
+export type * from "./types/gear.js";
 export type * from "./types/metrics.js";
 export type * from "./types/workouts.js";

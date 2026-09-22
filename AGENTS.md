@@ -114,6 +114,11 @@ Every identifier above (`GarminClient`, `Garmin`, `FileTokenStore`) is exported 
 | `removeGearFromActivity` | `(gearUUID: string, activityId: number \| string): Promise<GearLinkResult \| null>` — **PUT**, not DELETE; same 404-handling pattern as `addGearToActivity`; inventory places this row under "gear" | yes — same caveat as `addGearToActivity` |
 | `getProgressSummaryBetweenDates` | `(startdate: string \| Date, enddate: string \| Date, metric?: string, groupbyactivities?: boolean): Promise<ProgressSummary \| null>` — defaults `metric="distance", groupbyactivities=true`; both dates routed through `formatDate`; passes through unchecked | yes |
 | `downloadHealthSnapshot` | `(requestedDate: string \| Date): Promise<Buffer>` — routed through `formatDate`; UNCERTAIN upstream null handling, routed through `client.download` | attempted — 404 `NotFoundException` on the test account (no health snapshot exists for any date on an account that has never recorded one); the URL was transcribed verbatim from the inventory and matches the pattern exactly, so this 404 is PROBABLY "no data for this account" rather than a wrong-URL bug. **UNCONFIRMED:** unlike every other 404 in this library, no positive/success response has ever been observed for this path, so the classification rests on reasoning rather than evidence. A Health Snapshot is an opt-in, user-triggered recording; generate one on a test account and re-run to close this out |
+| `getGear` | `(userProfileNumber: number \| string): Promise<Gear \| null>` — hits `/gear-service/gear/filterGear?userProfilePk=...`; passes through unchecked. This is the dedicated gear-CRUD service (`src/services/gear.ts`), distinct from `getActivityGear` (activities service, reuses the same base URL with `activityId` instead) | yes — live account returned the gear list (an array of gear objects) with no 404, confirming `filterGear` (the un-versioned path upstream uses) is NOT deprecated/broken, contrary to the concern that Garmin's own web client uses `/gear-service/gear/v2/list` instead |
+| `createGear` | `(gearType: string, brand: string, model: string, name: string, firstUseDate: string \| Date, usageType?: string, maxUsageDistanceKm?: number, maxUsageDurationMin?: number, notes?: string, activityTypeKeys?: string[]): Promise<unknown>` — POSTs `/gear-service/gear/v2`; defaults `usageType="DISTANCE", notes=""`; `firstUseDate` routed through `formatDate`; `gearType`/`usageType` upper-cased via `validateSportKey`; **converts** `maxUsageDistanceKm` -> `maxUsageDistanceMeters` (`round(km*1000)`, floor 1) and `maxUsageDurationMin` -> `maxUsageDurationSeconds` (`round(min*60)`, floor 1) — the opposite direction from `addWeighIn`'s "send raw" rule; UNCERTAIN upstream null handling (implemented as a raw pass-through) | partially — live round-trip confirmed the DISTANCE conversion direction (`maxUsageDistanceKm=5` read back as `getGear`'s `maximumMeters: 5000`); the DURATION conversion (`maxUsageDurationMin` -> `maxUsageDurationSeconds`) could NOT be read-back-verified — no field on `getGear`, `getGearStats`, or the raw `createGear` response ever surfaced a duration value on the live account, so only the request-shape/rounding code (unit-tested) and upstream source review back that direction, not a live read-back. See gotchas |
+| `getGearStats` | `(gearUUID: string): Promise<GearStats>` — GETs `/gear-service/gear/stats/{gearUUID}`; `gearUUID` validated via `validateUuid` (hex, hyphens optional); returns `{}` on a 404 instead of throwing; other errors re-raised | yes — both a real gear UUID (returned real stats) and a bogus hex UUID (returned `{}` on the 404) were exercised live |
+| `getGearDefaults` | `(userProfileNumber: number \| string): Promise<GearDefaults \| null>` — GETs `/gear-service/gear/user/{userProfileNumber}/activityTypes`; passes through unchecked | yes |
+| `setGearDefault` | `(activityType: string, gearUUID: string, defaultGear?: boolean): Promise<unknown>` — defaults `defaultGear=true`; verb is chosen dynamically: `true` PUTs `.../activityType/{activityType}/default/true`, `false` DELETEs `.../activityType/{activityType}`; `activityType` upper-cased via `validateSportKey` (opposite case convention from `createGear`'s lower-case `activityTypeKeys`, matching upstream's own asymmetry); on 404 re-raised as `GarminConnectionError` ("gear not found (likely retired/removed)") | partially — the 404-to-`GarminConnectionError` error-mapping path is confirmed live (same caveat as `addGearToActivity`/`removeGearFromActivity`); the SUCCESS path could not be exercised: every activityType format tried against real gear (lower-case key, upper-case key, mixed case, and the numeric `activityTypePk` `getGearDefaults` itself returns) 404s, including gear created with that activity type pre-associated via `activityTypeKeys`. See gotchas |
 | `getWeighIns` | `(startdate: string \| Date, enddate: string \| Date): Promise<WeighInRange>` | yes |
 | `addWeighIn` | `(weightValue: number, unitKey?: "kg" \| "lbs", when?: Date): Promise<unknown>` — defaults `unitKey="kg"`, `when=new Date()` | yes |
 | `deleteWeighIn` | `(cdate: string \| Date, weightPk: number): Promise<null>` | yes |
@@ -184,14 +189,16 @@ interface GarminClientOptions {
 
 ## 4. These methods do NOT exist
 
-This is a **partial port**: ~53 of upstream python-garminconnect's 154 public methods. An agent that has
-seen `garminconnect` in training will write calls like `client.get_devices()` or `client.get_gear()`
-— none of that exists here. Do not invent methods on `Garmin` or `GarminClient` by analogy with
-upstream names.
+This is a **partial port**: ~58 of upstream python-garminconnect's 154 public methods. An agent that has
+seen `garminconnect` in training will write calls like `client.get_devices()` — that does not exist
+here. Do not invent methods on `Garmin` or `GarminClient` by analogy with upstream names. (Gear IS now
+fully ported — `getGear`, `createGear`, `getGearStats`, `getGearDefaults`, `setGearDefault` in
+`src/services/gear.ts`, plus the activity-association methods in `src/services/activities.ts` — so
+`client.get_gear()`-style calls DO have a TypeScript equivalent now, just camelCased and possibly
+signature-shifted; check section 3 rather than assuming it is still absent.)
 
 Notably absent (implement via `connectapi` instead — see below):
 
-- Gear and gear maintenance
 - Training plans (workouts themselves are implemented — see section 3 — but the separate
   `trainingPlans` service is not)
 - Devices and device settings (except the one-off `mylastused` lookup `pushWorkoutToDevice`
@@ -209,10 +216,6 @@ Notably absent (implement via `connectapi` instead — see below):
 - Segments
 - Social/connections
 - The GraphQL passthrough endpoint
-- Gear CRUD itself (`getGear`, `createGear`, `getGearStats`, `getGearDefaults`, `setGearDefault`) —
-  only the activity-association half (`getActivityGear`, `getGearActivities`, `addGearToActivity`,
-  `removeGearFromActivity`) is implemented so far, ported alongside the activities service; the
-  rest is a separate, not-yet-ported task
 
 **What to do instead:** call `client.connectapi<T>(path, options)` directly with the same
 upstream Garmin Connect path. `connectapi` is the general HTTP-with-auth primitive every `Garmin`
@@ -286,16 +289,48 @@ login. This is the intended pattern for serverless MFA, not a workaround.
   ported alongside `activities`, not `gear`**, even though the upstream inventory files all four
   under its "gear" section — the task that ported them targeted the activities service and folded
   these four in because they take an `activity_id` and are the activity/gear-association surface,
-  not gear CRUD itself (`getGear`/`createGear`/etc., not yet ported). They live in
-  `src/services/activities.ts`, not a `gear.ts` that doesn't exist yet.
-- **`addGearToActivity`/`removeGearFromActivity` are live-verified only on their 404 path, not a
-  full add→read-back→remove round-trip.** This inventory (and upstream `python-garminconnect`) has
-  no delete/retire-gear endpoint at all — gear created via `POST /gear-service/gear/v2` would be
-  permanent on the test account, which would violate "the account ends with zero gear" with no way
-  to comply. Rather than leave orphaned gear behind, verification was done against a syntactically
-  valid but non-existent gearUUID on a real fixture activity, confirming the URL shape and the
-  404-to-`GarminConnectionError` mapping. The success path (adding/removing gear that actually
-  exists) is unverified.
+  not gear CRUD itself. They live in `src/services/activities.ts`. Gear CRUD (`getGear`,
+  `createGear`, `getGearStats`, `getGearDefaults`, `setGearDefault`) was ported later, in
+  `src/services/gear.ts` — see below.
+- **`addGearToActivity`/`removeGearFromActivity` are STILL live-verified only on their 404 path,
+  not a full add→read-back→remove round-trip**, even though real gear now exists on the test
+  account (see the next point) — re-verifying the success path against real gear was out of scope
+  for the task that added `gear.ts` and was not attempted.
+- **Gear has no delete/retire endpoint anywhere in upstream `python-garminconnect` or this port.**
+  The original "account ends with zero gear" rule made `createGear` unverifiable by any live
+  round-trip; Task 7 explicitly overrode that rule for gear specifically (the test account is a
+  disposable throwaway, and shipping a unit-converting write unverified was judged the worse risk —
+  the exact bug class that previously turned 93kg into 93,000kg). **As a result the test account now
+  permanently holds 3 gear items** created during that task's live verification (two from
+  interactive investigation into why `setGearDefault` 404s, one from the final `npm run
+  smoke:write -- gear` run) — see the task-7 report for their UUIDs. Any future write-probe or
+  smoke run against this account will add more; there is no way to clean them up.
+- **`createGear`'s distance conversion (km -> metres) was live-verified by round-trip; the duration
+  conversion (min -> seconds) could NOT be.** `getGear`'s list entries expose a distance limit
+  under the field `maximumMeters` (NOT `maxUsageDistanceMeters` — that name is the correct
+  WRITE-side POST body field per the inventory, but no discovered read response echoes it under
+  that name), which read back exactly as expected (5km sent -> `maximumMeters: 5000`). No field on
+  `getGear`, `getGearStats`, or the raw `createGear` response was ever observed to carry a duration
+  value at all, on any of the 3 gear items created — so the `min * 60` direction rests on upstream
+  source review and the unit tests in `tests/services/gear.test.ts`, not a live read-back. Also
+  note `getGear`'s list entries store `uuid` WITHOUT hyphens, while `createGear`'s own response
+  uses hyphens — strip hyphens before comparing.
+- **`setGearDefault`'s success path could not be made to work live, against either fresh gear or
+  gear created with that activity type pre-associated via `activityTypeKeys`.** Every activityType
+  format tried against real gear UUIDs 404s: the lower-case key (`running`), upper-case
+  (`RUNNING`, what this library sends per `validateSportKey`), mixed case, and the numeric
+  `activityTypePk` (`1`) that `getGearDefaults` itself returns for that same gear/activity-type pair
+  — the numeric form 400s instead of 404ing, ruling out "just use the numeric ID" as a fix. This
+  may mean upstream's own `set_gear_default` endpoint is broken/deprecated (parallel to the
+  `filterGear`-vs-`v2` question this task also had to resolve — see the task-7 report), or there is
+  a precondition this investigation did not find. Only the 404-to-`GarminConnectionError`
+  error-mapping path is live-verified (same caveat already accepted for
+  `addGearToActivity`/`removeGearFromActivity` above); the success path is UNCONFIRMED.
+- **`filterGear` (the path `getGear`/`getActivityGear` use) is confirmed live, NOT deprecated.**
+  Garmin's own web client calls `/gear-service/gear/v2/list` instead, which raised a concern that
+  upstream's un-versioned `filterGear` might 404. Live testing found the opposite: `filterGear`
+  returns 200 with the gear list (empty before any gear existed, 3 items after Task 7's live
+  writes) — a genuine positive response, settling the question in upstream's favor for this path.
 - **`getDailySteps` and `getSleepDaily` auto-chunk ranges over 28 days.** Garmin's underlying
   endpoints have a documented 28-day-per-request limit; both methods split a longer `(start, end)`
   range into ≤28-day windows internally and concatenate/de-duplicate the results — callers pass an

@@ -1,6 +1,7 @@
 import type { GarminClient } from "./client.js";
 import { GarminError } from "./errors.js";
 import * as activities from "./services/activities.js";
+import * as gear from "./services/gear.js";
 import * as metrics from "./services/metrics.js";
 import * as weight from "./services/weight.js";
 import * as wellness from "./services/wellness.js";
@@ -304,6 +305,46 @@ export class Garmin {
   }
   downloadHealthSnapshot(requestedDate: string | Date) {
     return activities.downloadHealthSnapshot(this, requestedDate);
+  }
+
+  // --- gear ---
+  getGear(userProfileNumber: number | string) {
+    return gear.getGear(this, userProfileNumber);
+  }
+  createGear(
+    gearType: string,
+    brand: string,
+    model: string,
+    name: string,
+    firstUseDate: string | Date,
+    usageType?: string,
+    maxUsageDistanceKm?: number,
+    maxUsageDurationMin?: number,
+    notes?: string,
+    activityTypeKeys?: string[],
+  ) {
+    return gear.createGear(
+      this,
+      gearType,
+      brand,
+      model,
+      name,
+      firstUseDate,
+      usageType,
+      maxUsageDistanceKm,
+      maxUsageDurationMin,
+      notes,
+      activityTypeKeys,
+    );
+  }
+  getGearStats(gearUUID: string) {
+    return gear.getGearStats(this, gearUUID);
+  }
+  getGearDefaults(userProfileNumber: number | string) {
+    return gear.getGearDefaults(this, userProfileNumber);
+  }
+  setGearDefault(activityType: string, gearUUID: string, defaultGear?: boolean) {
+    return gear.setGearDefault(this, activityType, gearUUID, defaultGear);
   }
 
   // --- weight ---

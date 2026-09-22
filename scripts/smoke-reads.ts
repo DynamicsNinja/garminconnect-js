@@ -185,6 +185,27 @@ const services: Record<string, Probe[]> = {
     },
     { name: "getNextScheduledWorkout", run: () => g.getNextScheduledWorkout() },
   ],
+  gear: [
+    // Deliberately using upstream's exact `filterGear` (no `v2`) path here — see task-7 report for
+    // the live verdict on whether this deprecated-looking path still works.
+    {
+      name: "getGear",
+      run: async () => {
+        const profile = await g.getUserProfile();
+        return g.getGear(profile.profileId);
+      },
+    },
+    {
+      name: "getGearDefaults",
+      run: async () => {
+        const profile = await g.getUserProfile();
+        return g.getGearDefaults(profile.profileId);
+      },
+    },
+    // No real gear UUID exists to probe with before scripts/smoke-writes.ts runs; a syntactically
+    // valid hex UUID with no matching gear exercises the "404 -> {}" branch honestly.
+    { name: "getGearStats (no matching gear)", run: () => g.getGearStats("deadbeef00000000deadbeef00000000") },
+  ],
 };
 
 const which = process.argv[2];
