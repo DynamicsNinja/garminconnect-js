@@ -821,7 +821,9 @@ git commit -m "feat: add cookie jar for the SSO flow"
 - Consumes: `CookieJar` (Task 3); error classes (Task 1).
 - Produces:
   - `interface FetcherOptions { timeoutMs?: number; retries?: number; backoffMs?: number; fetchImpl?: typeof fetch; jar?: CookieJar }`
-  - `interface RequestOptions { method?: string; params?: Record<string, string | number | undefined>; body?: BodyInit; json?: unknown; headers?: Record<string, string>; referer?: boolean }`
+  - `interface RequestOptions { method?: string; params?: Record<string, string | number | undefined>; // `BodyInit` is not an ambient global without the DOM lib; this resolves
+  // structurally to `BodyInit | null | undefined` and still accepts FormData.
+  body?: RequestInit["body"]; json?: unknown; headers?: Record<string, string>; referer?: boolean }`
   - `class Fetcher` with `readonly jar: CookieJar`, `request(url: string, options?: RequestOptions): Promise<Response>`, `lastUrl: string | undefined`
 
 `Fetcher` throws `GarminRateLimitError` on 429, `GarminAuthError` on 401/403, `GarminHttpError` on other non-2xx, `GarminConnectionError` on network failure or timeout. It retries only on 408/500/502/503/504 and network errors.
@@ -1011,7 +1013,9 @@ export interface FetcherOptions {
 export interface RequestOptions {
   method?: string;
   params?: Record<string, string | number | undefined>;
-  body?: BodyInit;
+  // `BodyInit` is not an ambient global without the DOM lib; this resolves
+  // structurally to `BodyInit | null | undefined` and still accepts FormData.
+  body?: RequestInit["body"];
   json?: unknown;
   headers?: Record<string, string>;
   referer?: boolean;
