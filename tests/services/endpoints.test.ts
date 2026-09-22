@@ -58,9 +58,21 @@ const server = setupServer(
     record(request);
     return HttpResponse.arrayBuffer(new Uint8Array([70, 73, 84]).buffer);
   }),
+  http.get(`${API}/download-service/export/tcx/activity/999`, ({ request }) => {
+    record(request);
+    return HttpResponse.arrayBuffer(new Uint8Array([84, 67, 88]).buffer);
+  }),
   http.get(`${API}/download-service/export/gpx/activity/999`, ({ request }) => {
     record(request);
     return HttpResponse.arrayBuffer(new Uint8Array([60, 63]).buffer);
+  }),
+  http.get(`${API}/download-service/export/kml/activity/999`, ({ request }) => {
+    record(request);
+    return HttpResponse.arrayBuffer(new Uint8Array([75, 77, 76]).buffer);
+  }),
+  http.get(`${API}/download-service/export/csv/activity/999`, ({ request }) => {
+    record(request);
+    return HttpResponse.arrayBuffer(new Uint8Array([67, 83, 86]).buffer);
   }),
   http.get(`${API}/weight-service/weight/range/2026-09-01/2026-09-22`, ({ request }) => {
     record(request);
@@ -217,9 +229,23 @@ describe("activity endpoints", () => {
     expect(seen[0]!.url).toBe(`${API}/download-service/files/activity/999`);
   });
 
-  it("downloadActivity uses the export path for GPX", async () => {
-    await makeGarmin().downloadActivity(999, "GPX");
-    expect(seen[0]!.url).toBe(`${API}/download-service/export/gpx/activity/999`);
+  it.each([
+    ["ORIGINAL", `${API}/download-service/files/activity/999`],
+    ["TCX", `${API}/download-service/export/tcx/activity/999`],
+    ["GPX", `${API}/download-service/export/gpx/activity/999`],
+    ["KML", `${API}/download-service/export/kml/activity/999`],
+    ["CSV", `${API}/download-service/export/csv/activity/999`],
+  ] as const)("downloadActivity uses the correct path for %s", async (format, url) => {
+    const buf = await makeGarmin().downloadActivity(999, format);
+    expect(Buffer.isBuffer(buf)).toBe(true);
+    expect(seen[0]!.url).toBe(url);
+  });
+
+  it("downloadActivity throws GarminError for an unrecognised format", async () => {
+    await expect(
+      makeGarmin().downloadActivity(999, "BOGUS" as unknown as never),
+    ).rejects.toThrow(/Unknown download format/);
+    expect(seen).toHaveLength(0);
   });
 });
 
