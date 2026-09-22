@@ -10,6 +10,9 @@ its auth dependency, [`garth`][garth-url]) for **Node and Next.js server runtime
 the same undocumented Garmin Connect endpoints the mobile app uses, with a fully typed,
 promise-based API.
 
+If you're an AI coding agent (or configuring one), read [`AGENTS.md`](AGENTS.md) first — it's a
+terser, higher-signal briefing than this README and calls out what does *not* exist here.
+
 Two files show it working end to end:
 
 - [`scripts/login.ts`](scripts/login.ts) — one-time interactive login. Prompts for an MFA code on
