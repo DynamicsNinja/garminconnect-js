@@ -1,4 +1,4 @@
-import { GarminAuthError } from "./errors.js";
+import { GarminAuthError, GarminError } from "./errors.js";
 import { Fetcher } from "./http/fetcher.js";
 import { API_USER_AGENT } from "./auth/constants.js";
 import {
@@ -103,20 +103,34 @@ export class GarminClient {
       throw new GarminAuthError("Refresh token expired; log in again");
     }
 
-    // Collapse concurrent refreshes into one exchange.
-    this.#refreshing ??= (async () => {
+    // Collapse concurrent refreshes into one exchange. Captured into a local
+    // immediately after the assignment so a later `await` can never observe
+    // a `this.#refreshing` that a concurrent `finally` has already reset to
+    // null out from under us.
+    const refreshing = (this.#refreshing ??= (async () => {
       try {
         const oauth2 = await exchange(tokens.oauth1, this.#ssoContext);
         await this.#persist({ oauth1: tokens.oauth1, oauth2 });
       } catch (cause) {
-        await this.tokenStore.clear();
-        this.#tokens = null;
-        throw new GarminAuthError("Token refresh failed; log in again", { cause });
+        // Only a dead credential (Garmin returning 401/403, which the
+        // Fetcher already maps to GarminAuthError) justifies destroying the
+        // user's saved tokens. A transient failure — a DNS blip, a timeout,
+        // a 5xx, a 429 — must not force a full interactive re-login: leave
+        // the store untouched and let the error propagate so the caller can
+        // retry later.
+        if (cause instanceof GarminAuthError) {
+          await this.tokenStore.clear();
+          this.#tokens = null;
+        }
+        throw cause;
       } finally {
+        // Reset unconditionally (success or failure) so a failed refresh
+        // never wedges the client: the next call always tries again rather
+        // than re-serving this rejected promise forever.
         this.#refreshing = null;
       }
-    })();
-    await this.#refreshing;
+    })());
+    await refreshing;
 
     const refreshed = this.#tokens;
     if (!refreshed) throw new GarminAuthError("Token refresh failed; log in again");
@@ -130,19 +144,36 @@ export class GarminClient {
       params: options.params,
       json: options.json,
       headers: {
+        // Caller headers are spread first so the transport's own auth
+        // header always wins — a caller-supplied `headers.authorization`
+        // (or a differently-cased `Authorization`) can never replace the
+        // bearer token this method injects.
+        ...options.headers,
         authorization: authorizationHeader(tokens.oauth2),
         "User-Agent": API_USER_AGENT,
-        ...options.headers,
       },
     });
   }
 
-  async connectapi<T = unknown>(path: string, options: ApiOptions = {}): Promise<T | null> {
-    const res = await this.#apiRequest(path, options);
+  /**
+   * Parses a JSON body, returning `null` for a 204 or an empty body. A 200
+   * with a non-JSON body (e.g. an HTML Cloudflare challenge page) is turned
+   * into a `GarminError` instead of letting a bare `SyntaxError` escape.
+   */
+  async #parseBody<T>(res: Response): Promise<T | null> {
     if (res.status === 204) return null;
     const text = await res.text();
     if (text.length === 0) return null;
-    return JSON.parse(text) as T;
+    try {
+      return JSON.parse(text) as T;
+    } catch (cause) {
+      throw new GarminError("Garmin API returned a non-JSON response", { cause });
+    }
+  }
+
+  async connectapi<T = unknown>(path: string, options: ApiOptions = {}): Promise<T | null> {
+    const res = await this.#apiRequest(path, options);
+    return this.#parseBody<T>(res);
   }
 
   async download(path: string, options: ApiOptions = {}): Promise<Buffer> {
@@ -167,6 +198,6 @@ export class GarminClient {
         "User-Agent": API_USER_AGENT,
       },
     });
-    return res.json();
+    return this.#parseBody(res);
   }
 }
