@@ -12,6 +12,7 @@ export type {
   Tokens,
 } from "./auth/tokens.js";
 export type { LoginResult, MfaState } from "./auth/sso.js";
+export type { SerializedCookie } from "./http/cookie-jar.js";
 export type * from "./types/wellness.js";
 export type * from "./types/activities.js";
 export type * from "./types/weight.js";

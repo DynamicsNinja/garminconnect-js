@@ -120,8 +120,8 @@ export class Garmin {
   getWeighIns(startdate: string | Date, enddate: string | Date) {
     return weight.getWeighIns(this, startdate, enddate);
   }
-  addWeighIn(weightValue: number, unitKey?: "kg" | "lbs") {
-    return weight.addWeighIn(this, weightValue, unitKey);
+  addWeighIn(weightValue: number, unitKey?: "kg" | "lbs", when?: Date) {
+    return weight.addWeighIn(this, weightValue, unitKey, when);
   }
   deleteWeighIn(cdate: string | Date, weightPk: number) {
     return weight.deleteWeighIn(this, cdate, weightPk);

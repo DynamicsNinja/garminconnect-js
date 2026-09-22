@@ -260,11 +260,11 @@ describe("activity endpoints", () => {
 });
 
 describe("weight endpoints", () => {
-  it("getWeighIns builds a range path", async () => {
+  it("getWeighIns builds a range path and requests includeAll=true", async () => {
     await makeGarmin().getWeighIns("2026-09-01", "2026-09-22");
-    expect(new URL(seen[0]!.url).pathname).toBe(
-      "/weight-service/weight/range/2026-09-01/2026-09-22",
-    );
+    const url = new URL(seen[0]!.url);
+    expect(url.pathname).toBe("/weight-service/weight/range/2026-09-01/2026-09-22");
+    expect(url.searchParams.get("includeAll")).toBe("true");
   });
 
   it("addWeighIn posts grams for a kg value", async () => {
@@ -277,6 +277,46 @@ describe("weight endpoints", () => {
     await makeGarmin().addWeighIn(160, "lbs");
     const body = seen[0]!.body as { value: number };
     expect(body.value).toBe(Math.round(160 * 453.592));
+  });
+
+  it("addWeighIn pins dateTimestamp to local time and gmtTimestamp to UTC for an explicit `when`", async () => {
+    // A fixed instant, so the expected strings are computed once from the
+    // same `when` value and the assertion is deterministic regardless of
+    // the machine's timezone — never hard-coded literals that would only
+    // be correct under one specific TZ.
+    const when = new Date("2026-09-22T23:30:07.000Z");
+    await makeGarmin().addWeighIn(72.5, "kg", when);
+    const body = seen[0]!.body as { dateTimestamp: string; gmtTimestamp: string };
+
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const expectedLocal =
+      `${when.getFullYear()}-${pad(when.getMonth() + 1)}-${pad(when.getDate())}` +
+      `T${pad(when.getHours())}:${pad(when.getMinutes())}:${pad(when.getSeconds())}.00`;
+    const expectedGmt = when.toISOString().slice(0, 19) + ".00";
+
+    expect(body.dateTimestamp).toBe(expectedLocal);
+    expect(body.gmtTimestamp).toBe(expectedGmt);
+
+    // On a machine whose process timezone is not UTC, the two fields must
+    // genuinely differ (that's the whole point of the fix) — this is
+    // detected at runtime, not assumed, so the assertion never depends on
+    // which timezone the test happens to run under.
+    if (when.getTimezoneOffset() !== 0) {
+      expect(body.dateTimestamp).not.toBe(body.gmtTimestamp);
+    }
+  });
+
+  it("addWeighIn defaults `when` to now when omitted", async () => {
+    const before = Date.now();
+    await makeGarmin().addWeighIn(72.5, "kg");
+    const after = Date.now();
+    const body = seen[0]!.body as { gmtTimestamp: string };
+    // gmtTimestamp has second-granularity ("...:ss.00"); recover a
+    // millisecond-comparable instant from it and check it falls in the
+    // [before, after] window the call itself bounds.
+    const parsed = Date.parse(body.gmtTimestamp.replace(".00", "Z"));
+    expect(parsed).toBeGreaterThanOrEqual(Math.floor(before / 1000) * 1000);
+    expect(parsed).toBeLessThanOrEqual(after);
   });
 
   it("deleteWeighIn issues a DELETE and returns null on 204", async () => {

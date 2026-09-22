@@ -93,12 +93,17 @@ export async function login(
     headers: { ...SSO_PAGE_HEADERS, "Sec-Fetch-Site": "none" },
   });
 
-  // 2. Submit credentials.
+  // 2. Submit credentials. Opt into retrying this POST: Garmin's login
+  // endpoint is idempotent in effect (re-submitting the same credentials
+  // after a 5xx/network blip either succeeds identically or reports
+  // "already signed in"-equivalent success), unlike a generic POST such as
+  // the weight-service write, which must NOT be retried automatically.
   const res = await ctx.fetcher.request(ssoUrl(ctx.domain, "/mobile/api/login"), {
     method: "POST",
     params: { ...params },
     headers: SSO_PAGE_HEADERS,
     json: { username: email, password, rememberMe: false, captchaToken: "" },
+    retry: true,
   });
   const body = await parseJson<SsoResponse>(res);
   const type = body.responseStatus?.type;

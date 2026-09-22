@@ -57,7 +57,10 @@ beforeEach(() => {
   settingsCalls = 0;
   server.listen({ onUnhandledRequest: "error" });
 });
-afterEach(() => server.close());
+afterEach(() => {
+  server.resetHandlers();
+  server.close();
+});
 
 describe("Garmin profile resolution", () => {
   it("returns the display name", async () => {

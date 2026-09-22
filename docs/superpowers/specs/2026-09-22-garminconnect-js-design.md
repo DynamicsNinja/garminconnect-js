@@ -249,8 +249,13 @@ index signatures and `unknown` rather than invented fields.
 - `GarminConnectionError` — network failure or timeout.
 - `GarminHttpError` — other non-2xx, carries `status`, `url`, and response body.
 
-Retries apply to 408/5xx and network errors only. Never 4xx. Never 429 unless the
-server sent `Retry-After`.
+Retries apply to 408/5xx and network errors, and only for idempotent HTTP
+methods (GET/HEAD/PUT/DELETE/OPTIONS) by default; a caller can opt a specific
+non-idempotent request (e.g. POST) into retrying via `RequestOptions.retry`.
+Never 4xx. 429 is never retried at all: the Fetcher always throws
+`GarminRateLimitError` on the first 429 response, attaching `retryAfter`
+(seconds) from the `Retry-After` header when Garmin sends one, and leaves
+backing off and re-issuing the request to the caller.
 
 ## Testing
 

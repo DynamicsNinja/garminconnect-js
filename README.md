@@ -99,6 +99,14 @@ export async function GET(req: Request) {
 The OAuth2 token refreshes automatically before it expires and the refreshed token is
 written back to your store. You never call refresh yourself.
 
+`Garmin` caches the resolved user profile (and user settings) for the lifetime of the
+instance — see "Reading data" above, where `getGarmin()` builds a fresh `Garmin` per
+request. That's fine for a single call, but any date-scoped method (`getSleepData`,
+`getStepsData`, ...) resolves `displayName` first, so constructing a new `Garmin` per
+request means an extra `socialProfile` fetch on every call. If a request handler makes
+several Garmin calls, or you're calling from a long-lived process (a cron job, a worker),
+hoist and reuse one `Garmin` instance instead of building a new one per call.
+
 Dates are interpreted as UTC calendar dates, not local ones. Passing a `Date` object
 (instead of a `"YYYY-MM-DD"` string) is formatted with `toISOString().slice(0, 10)`, so a
 caller in a negative UTC-offset timezone (e.g. US Pacific) who calls `new Date()` late in
@@ -137,6 +145,24 @@ export class RedisTokenStore implements TokenStore {
 
 `FileTokenStore` uses garth's on-disk format, so tokens produced by Python `garth` load
 here unchanged.
+
+## Uploading a file
+
+```ts
+const client = new GarminClient({ tokenStore: myStore });
+await client.loadTokens();
+
+const file = new Blob([fitBytes]);
+await client.upload(file, "ride.fit");
+// Custom path and a longer per-request timeout for a slow link:
+await client.upload(file, "ride.fit", "/upload-service/upload", { timeoutMs: 120_000 });
+```
+
+`upload(file, filename, path?, options?)` posts multipart form data (field name `file`)
+to `path` (default `/upload-service/upload`) and defaults to a 60s timeout, longer than
+the 10s default for ordinary JSON calls, since it's moving a binary payload. **Not yet
+exercised against the live Garmin service** — verified only against the local test
+harness.
 
 ## Errors
 

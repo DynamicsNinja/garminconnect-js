@@ -163,6 +163,88 @@ describe("Fetcher", () => {
     }
   });
 
+  it("does not retry a POST that returns 503 by default (non-idempotent write)", async () => {
+    const fetchImpl = vi.fn(async () => new Response("down", { status: 503 }));
+    const f = new Fetcher({
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      retries: 3,
+      backoffMs: 1,
+    });
+    await expect(
+      f.request("https://x.test/a", { method: "POST" }),
+    ).rejects.toBeInstanceOf(GarminHttpError);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it("still retries a GET that returns 503", async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(new Response("down", { status: 503 }))
+      .mockResolvedValueOnce(jsonResponse({ ok: true }));
+    const f = new Fetcher({
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      retries: 3,
+      backoffMs: 1,
+    });
+    const res = await f.request("https://x.test/a", { method: "GET" });
+    expect(res.status).toBe(200);
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
+  it("retries a POST that returns 503 when the caller opts in via retry: true", async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(new Response("down", { status: 503 }))
+      .mockResolvedValueOnce(jsonResponse({ ok: true }));
+    const f = new Fetcher({
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      retries: 3,
+      backoffMs: 1,
+    });
+    const res = await f.request("https://x.test/a", { method: "POST", retry: true });
+    expect(res.status).toBe(200);
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not retry a POST after a thrown network error by default", async () => {
+    const fetchImpl = vi.fn(async () => {
+      throw new TypeError("fetch failed");
+    });
+    const f = new Fetcher({
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      retries: 3,
+      backoffMs: 1,
+    });
+    await expect(
+      f.request("https://x.test/a", { method: "POST" }),
+    ).rejects.toBeInstanceOf(GarminConnectionError);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it("a per-request timeoutMs overrides the Fetcher's default", async () => {
+    const timeoutSpy = vi.spyOn(AbortSignal, "timeout");
+    const fetchImpl = vi.fn(async () => jsonResponse({ ok: true }));
+    const f = new Fetcher({ fetchImpl: fetchImpl as unknown as typeof fetch, timeoutMs: 10_000 });
+    try {
+      await f.request("https://x.test/a", { timeoutMs: 60_000 });
+      expect(timeoutSpy).toHaveBeenCalledWith(60_000);
+    } finally {
+      timeoutSpy.mockRestore();
+    }
+  });
+
+  it("falls back to the Fetcher's default timeoutMs when no per-request override is given", async () => {
+    const timeoutSpy = vi.spyOn(AbortSignal, "timeout");
+    const fetchImpl = vi.fn(async () => jsonResponse({ ok: true }));
+    const f = new Fetcher({ fetchImpl: fetchImpl as unknown as typeof fetch, timeoutMs: 10_000 });
+    try {
+      await f.request("https://x.test/a");
+      expect(timeoutSpy).toHaveBeenCalledWith(10_000);
+    } finally {
+      timeoutSpy.mockRestore();
+    }
+  });
+
   it("strips the query string from the retry-exhausted GarminConnectionError message", async () => {
     const fetchImpl = vi.fn(async () => {
       throw new TypeError("fetch failed");

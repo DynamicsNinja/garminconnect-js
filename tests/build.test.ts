@@ -37,7 +37,7 @@ describe("package contract", () => {
     for (const file of files) {
       const source = await readFile(file, "utf8");
       expect(source, `${file} must stay server-only`).not.toMatch(
-        /from "react"|\bdocument\.|\bwindow\./,
+        /from "react"|\bdocument\.|\bwindow\.|\bglobalThis\.window\b|\bnavigator\.|\blocalStorage\b|\bsessionStorage\b/,
       );
     }
   });

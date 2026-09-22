@@ -6,6 +6,7 @@ import { MemoryTokenStore } from "../src/auth/token-store.js";
 import { GarminAuthError, GarminError } from "../src/errors.js";
 import { resetConsumerCache } from "../src/auth/consumer.js";
 import type { Tokens } from "../src/auth/tokens.js";
+import type { MfaState } from "../src/auth/sso.js";
 
 const future = Math.floor(Date.now() / 1000) + 3600;
 const past = Math.floor(Date.now() / 1000) - 10;
@@ -332,6 +333,80 @@ describe("GarminClient", () => {
     const client = new GarminClient();
     client.setTokens(tokensWith(future));
     await expect(client.connectapi("/thing")).rejects.toThrow(GarminError);
+  });
+
+  it("download and upload default to a 60s timeout, overridable per call", async () => {
+    const timeoutSpy = vi.spyOn(AbortSignal, "timeout");
+    try {
+      const client = new GarminClient();
+      client.setTokens(tokensWith(future));
+
+      await client.download("/file");
+      expect(timeoutSpy).toHaveBeenLastCalledWith(60_000);
+
+      await client.download("/file", { timeoutMs: 5_000 });
+      expect(timeoutSpy).toHaveBeenLastCalledWith(5_000);
+
+      const blob = new Blob([new Uint8Array([1, 2, 3, 4])]);
+      await client.upload(blob, "ride.fit");
+      expect(timeoutSpy).toHaveBeenLastCalledWith(60_000);
+
+      await client.upload(blob, "ride.fit", "/upload-service/upload", { timeoutMs: 120_000 });
+      expect(timeoutSpy).toHaveBeenLastCalledWith(120_000);
+    } finally {
+      timeoutSpy.mockRestore();
+    }
+  });
+
+  it("connectapi keeps the client's ordinary default timeout unless overridden", async () => {
+    const timeoutSpy = vi.spyOn(AbortSignal, "timeout");
+    try {
+      const client = new GarminClient({ timeoutMs: 10_000 });
+      client.setTokens(tokensWith(future));
+
+      await client.connectapi("/thing");
+      expect(timeoutSpy).toHaveBeenLastCalledWith(10_000);
+
+      await client.connectapi("/thing", { timeoutMs: 45_000 });
+      expect(timeoutSpy).toHaveBeenLastCalledWith(45_000);
+    } finally {
+      timeoutSpy.mockRestore();
+    }
+  });
+
+  it("loadTokens rejects tokens whose oauth1.domain does not match the client's domain", async () => {
+    const store = new MemoryTokenStore();
+    await store.save({
+      oauth1: { oauth_token: "o1", oauth_token_secret: "s1", domain: "garmin.cn" },
+      oauth2: tokensWith(future).oauth2,
+    });
+    const client = new GarminClient({ tokenStore: store }); // defaults to garmin.com
+    await expect(client.loadTokens()).rejects.toThrow(GarminAuthError);
+    await expect(client.loadTokens()).rejects.toThrow(/garmin\.cn.*garmin\.com/);
+  });
+
+  it("loadTokens accepts tokens with no domain recorded", async () => {
+    const store = new MemoryTokenStore();
+    await store.save({
+      oauth1: { oauth_token: "o1", oauth_token_secret: "s1" },
+      oauth2: tokensWith(future).oauth2,
+    });
+    const client = new GarminClient({ tokenStore: store });
+    await expect(client.loadTokens()).resolves.toBe(true);
+  });
+
+  it("resumeLogin rejects an MfaState whose domain does not match the client's domain", async () => {
+    const client = new GarminClient(); // defaults to garmin.com
+    const mfaState: MfaState = {
+      loginParams: { clientId: "GCM_ANDROID_DARK", locale: "en-US", service: "svc" },
+      mfaMethod: "email",
+      cookies: [],
+      domain: "garmin.cn",
+    };
+    await expect(client.resumeLogin(mfaState, "123456")).rejects.toThrow(GarminAuthError);
+    await expect(client.resumeLogin(mfaState, "123456")).rejects.toThrow(
+      /garmin\.cn.*garmin\.com/,
+    );
   });
 
   it("uses the garmin.cn domain when isCn is set", async () => {

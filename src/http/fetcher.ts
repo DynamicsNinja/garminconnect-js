@@ -8,6 +8,16 @@ import { CookieJar } from "./cookie-jar.js";
 
 const RETRY_STATUSES = new Set([408, 500, 502, 503, 504]);
 
+/**
+ * Methods safe to retry automatically: repeating them has no side effect
+ * beyond the first successful application. POST is not idempotent — Garmin
+ * may already have processed a write when a 502/503 or network blip hits
+ * after the fact, so replaying it would duplicate the write. A caller that
+ * knows a specific POST is safe (e.g. it's idempotent in effect on the
+ * server) can opt in per-request via `RequestOptions.retry`.
+ */
+const IDEMPOTENT_METHODS = new Set(["GET", "HEAD", "PUT", "DELETE", "OPTIONS"]);
+
 export interface FetcherOptions {
   timeoutMs?: number;
   retries?: number;
@@ -23,6 +33,14 @@ export interface RequestOptions {
   json?: unknown;
   headers?: Record<string, string>;
   referer?: boolean;
+  /** Per-request timeout, overriding the Fetcher's default. */
+  timeoutMs?: number;
+  /**
+   * Opt in to retrying a non-idempotent method (i.e. POST) on a retryable
+   * status or network error. Idempotent methods (GET/HEAD/PUT/DELETE/OPTIONS)
+   * already retry by default and ignore this flag.
+   */
+  retry?: boolean;
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -66,6 +84,10 @@ export class Fetcher {
       if (!headers.has("content-type")) headers.set("content-type", "application/json");
     }
 
+    const method = options.method ?? "GET";
+    const canRetry = IDEMPOTENT_METHODS.has(method.toUpperCase()) || options.retry === true;
+    const timeoutMs = options.timeoutMs ?? this.#timeoutMs;
+
     let lastError: unknown;
     for (let attempt = 0; attempt <= this.#retries; attempt++) {
       if (attempt > 0) await sleep(this.#backoffMs * 2 ** (attempt - 1));
@@ -73,15 +95,19 @@ export class Fetcher {
       let res: Response;
       try {
         res = await this.#fetch(finalUrl, {
-          method: options.method ?? "GET",
+          method,
           headers,
           body,
           redirect: "follow",
-          signal: AbortSignal.timeout(this.#timeoutMs),
+          signal: AbortSignal.timeout(timeoutMs),
         });
       } catch (cause) {
         lastError = cause;
-        continue;
+        if (canRetry && attempt < this.#retries) continue;
+        throw new GarminConnectionError(
+          `Request to ${safeUrl} failed after ${attempt + 1} attempt${attempt === 0 ? "" : "s"}`,
+          { cause: lastError },
+        );
       }
 
       const setCookie = this.#readSetCookie(res);
@@ -90,7 +116,7 @@ export class Fetcher {
 
       if (res.ok) return res;
 
-      if (RETRY_STATUSES.has(res.status) && attempt < this.#retries) {
+      if (RETRY_STATUSES.has(res.status) && canRetry && attempt < this.#retries) {
         continue;
       }
       throw await this.#toError(res, safeUrl);

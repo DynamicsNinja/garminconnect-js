@@ -31,7 +31,17 @@ export interface ApiOptions {
   params?: Record<string, string | number | undefined>;
   json?: unknown;
   headers?: Record<string, string>;
+  /** Per-request timeout, overriding the client's default (10s). */
+  timeoutMs?: number;
 }
+
+/**
+ * `download()`/`upload()` move binary payloads (FIT files, images) rather
+ * than a small JSON body, so they get a longer default timeout than the
+ * client's general-purpose 10s — a caller on a slow link can still override
+ * it via `ApiOptions.timeoutMs`.
+ */
+const TRANSFER_DEFAULT_TIMEOUT_MS = 60_000;
 
 export class GarminClient {
   readonly domain: string;
@@ -65,6 +75,7 @@ export class GarminClient {
   }
 
   async resumeLogin(mfaState: MfaState, code: string): Promise<void> {
+    this.#checkDomain(mfaState.domain);
     const result = await ssoResumeLogin(mfaState, code, { fetcher: this.#fetcher });
     await this.#persist({ oauth1: result.oauth1, oauth2: result.oauth2 });
   }
@@ -73,8 +84,27 @@ export class GarminClient {
   async loadTokens(): Promise<boolean> {
     const tokens = await this.tokenStore.load();
     if (!tokens) return false;
+    this.#checkDomain(tokens.oauth1.domain);
     this.#tokens = tokens;
     return true;
+  }
+
+  /**
+   * A `.cn` MFA state resumed on a default `.com` client (or vice versa)
+   * mints tokens whose signed `oauth_token` is scoped to the wrong SSO
+   * realm, but every later request would still be sent to *this* client's
+   * `connectapi.<domain>` — a mismatch severe enough to fail loudly rather
+   * than surface as a confusing downstream 401. Tokens with no domain
+   * recorded (e.g. hand-constructed, or from an older on-disk format) are
+   * accepted as-is.
+   */
+  #checkDomain(tokenDomain: string | undefined): void {
+    if (tokenDomain && tokenDomain !== this.domain) {
+      throw new GarminAuthError(
+        `Token domain ${tokenDomain} does not match client domain ${this.domain}; ` +
+          `construct the client with isCn: ${tokenDomain === "garmin.cn"}`,
+      );
+    }
   }
 
   setTokens(tokens: Tokens): void {
@@ -143,6 +173,7 @@ export class GarminClient {
       method: options.method,
       params: options.params,
       json: options.json,
+      timeoutMs: options.timeoutMs,
       headers: {
         // Caller headers are spread first so the transport's own auth
         // header always wins — a caller-supplied `headers.authorization`
@@ -177,7 +208,10 @@ export class GarminClient {
   }
 
   async download(path: string, options: ApiOptions = {}): Promise<Buffer> {
-    const res = await this.#apiRequest(path, options);
+    const res = await this.#apiRequest(path, {
+      ...options,
+      timeoutMs: options.timeoutMs ?? TRANSFER_DEFAULT_TIMEOUT_MS,
+    });
     return Buffer.from(await res.arrayBuffer());
   }
 
@@ -185,6 +219,7 @@ export class GarminClient {
     file: Blob,
     filename: string,
     path = "/upload-service/upload",
+    options: Pick<ApiOptions, "timeoutMs"> = {},
   ): Promise<unknown> {
     const tokens = await this.#ensureFresh();
     const form = new FormData();
@@ -193,6 +228,7 @@ export class GarminClient {
     const res = await this.#fetcher.request(`https://connectapi.${this.domain}${path}`, {
       method: "POST",
       body: form,
+      timeoutMs: options.timeoutMs ?? TRANSFER_DEFAULT_TIMEOUT_MS,
       headers: {
         authorization: authorizationHeader(tokens.oauth2),
         "User-Agent": API_USER_AGENT,

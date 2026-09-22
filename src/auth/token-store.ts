@@ -69,8 +69,14 @@ export class FileTokenStore implements TokenStore {
 
   async save(tokens: Tokens): Promise<void> {
     await mkdir(this.dir, { recursive: true });
-    const tmp1 = join(this.dir, `${OAUTH1_FILE}.tmp`);
-    const tmp2 = join(this.dir, `${OAUTH2_FILE}.tmp`);
+    // Unique per call (pid + random suffix) so two processes sharing a
+    // token directory (a cron refresher beside a web server, two Node
+    // workers) can never interleave writes to the same temp file and
+    // persist a torn pair; the catch block below only ever cleans up the
+    // temp files THIS call created.
+    const suffix = `${process.pid}-${Math.random().toString(36).slice(2)}`;
+    const tmp1 = join(this.dir, `${OAUTH1_FILE}.${suffix}.tmp`);
+    const tmp2 = join(this.dir, `${OAUTH2_FILE}.${suffix}.tmp`);
 
     try {
       // Write both temp files first with 0o600 permissions.
