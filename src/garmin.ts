@@ -1,6 +1,7 @@
 import type { GarminClient } from "./client.js";
 import { GarminError } from "./errors.js";
 import * as activities from "./services/activities.js";
+import * as badges from "./services/badges.js";
 import * as gear from "./services/gear.js";
 import * as metrics from "./services/metrics.js";
 import * as weight from "./services/weight.js";
@@ -346,6 +347,32 @@ export class Garmin {
   }
   setGearDefault(activityType: string, gearUUID: string, defaultGear?: boolean) {
     return gear.setGearDefault(this, activityType, gearUUID, defaultGear);
+  }
+
+  // --- badges & challenges ---
+  getEarnedBadges() {
+    return badges.getEarnedBadges(this);
+  }
+  getAvailableBadges() {
+    return badges.getAvailableBadges(this);
+  }
+  getInProgressBadges() {
+    return badges.getInProgressBadges(this);
+  }
+  getAdhocChallenges(start: number, limit: number) {
+    return badges.getAdhocChallenges(this, start, limit);
+  }
+  getBadgeChallenges(start: number, limit: number) {
+    return badges.getBadgeChallenges(this, start, limit);
+  }
+  getAvailableBadgeChallenges(start: number, limit: number) {
+    return badges.getAvailableBadgeChallenges(this, start, limit);
+  }
+  getNonCompletedBadgeChallenges(start: number, limit: number) {
+    return badges.getNonCompletedBadgeChallenges(this, start, limit);
+  }
+  getInprogressVirtualChallenges(start: number, limit: number) {
+    return badges.getInprogressVirtualChallenges(this, start, limit);
   }
 
   // --- weight ---

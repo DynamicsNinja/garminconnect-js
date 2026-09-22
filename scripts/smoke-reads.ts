@@ -206,6 +206,21 @@ const services: Record<string, Probe[]> = {
     // valid hex UUID with no matching gear exercises the "404 -> {}" branch honestly.
     { name: "getGearStats (no matching gear)", run: () => g.getGearStats("deadbeef00000000deadbeef00000000") },
   ],
+  badges: [
+    { name: "getEarnedBadges", run: () => g.getEarnedBadges() },
+    { name: "getAvailableBadges", run: () => g.getAvailableBadges() },
+    { name: "getInProgressBadges", run: () => g.getInProgressBadges() },
+    { name: "getAdhocChallenges", run: () => g.getAdhocChallenges(0, 10) },
+    // getBadgeChallenges/getAvailableBadgeChallenges/getNonCompletedBadgeChallenges: the client-side
+    // validation (mirroring upstream) allows start=0, but Garmin's SERVER rejects it on these three
+    // endpoints with a 400 "start should > 0." (discovered live in Task 9) — using start=1 here so
+    // the probe exercises the real success path instead of that documented server-side 400.
+    { name: "getBadgeChallenges", run: () => g.getBadgeChallenges(1, 10) },
+    { name: "getAvailableBadgeChallenges", run: () => g.getAvailableBadgeChallenges(1, 10) },
+    { name: "getNonCompletedBadgeChallenges", run: () => g.getNonCompletedBadgeChallenges(1, 10) },
+    // start validated POSITIVE here (asymmetric vs. the other 4 challenge methods above).
+    { name: "getInprogressVirtualChallenges", run: () => g.getInprogressVirtualChallenges(1, 10) },
+  ],
   // Reads only — the 5 write methods in this service must NEVER be live-tested (irreversible
   // health-data writes; see the file-level comment in src/services/womensHealth.ts). The test
   // account has no cycle-tracking data, so `null`/empty-object responses here are the expected

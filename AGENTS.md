@@ -119,6 +119,14 @@ Every identifier above (`GarminClient`, `Garmin`, `FileTokenStore`) is exported 
 | `getGearStats` | `(gearUUID: string): Promise<GearStats>` — GETs `/gear-service/gear/stats/{gearUUID}`; `gearUUID` validated via `validateUuid` (hex, hyphens optional); returns `{}` on a 404 instead of throwing; other errors re-raised | yes — both a real gear UUID (returned real stats) and a bogus hex UUID (returned `{}` on the 404) were exercised live |
 | `getGearDefaults` | `(userProfileNumber: number \| string): Promise<GearDefaults[] \| null>` — GETs `/gear-service/gear/user/{userProfileNumber}/activityTypes`; passes through unchecked; returns an ARRAY of `{uuid, activityTypePk, defaultGear}` entries (fixed in Task 7's fix-round-1, was previously mistyped as a single object — see gotchas) | yes |
 | `setGearDefault` | `(activityType: string, gearUUID: string, defaultGear?: boolean): Promise<unknown>` — defaults `defaultGear=true`; verb is chosen dynamically: `true` PUTs `.../activityType/{activityType}/default/true`, `false` DELETEs `.../activityType/{activityType}`; `activityType` upper-cased via `validateSportKey` (opposite case convention from `createGear`'s lower-case `activityTypeKeys`, matching upstream's own asymmetry); on 404 re-raised as `GarminConnectionError` ("gear not found (likely retired/removed)") | partially — the 404-to-`GarminConnectionError` error-mapping path is confirmed live (same caveat as `addGearToActivity`/`removeGearFromActivity`); the SUCCESS path could not be exercised: every activityType format tried against real gear (lower-case key, upper-case key, mixed case, and the numeric `activityTypePk` `getGearDefaults` itself returns) 404s, including gear created with that activity type pre-associated via `activityTypeKeys`. See gotchas |
+| `getEarnedBadges` | `(): Promise<Badge[] \| null>` — GETs `/badge-service/badge/earned`; passes through unchecked, stays nullable (does NOT coalesce to `[]`) | yes |
+| `getAvailableBadges` | `(): Promise<Badge[] \| null>` — GETs `/badge-service/badge/available?showExclusiveBadge=true`; passes through unchecked, stays nullable | yes |
+| `getInProgressBadges` | `(): Promise<Badge[]>` — no HTTP path of its own: calls `getEarnedBadges()` and `getAvailableBadges()`, filters each with upstream's `is_badge_in_progress` predicate (progress truthy; if `progress === target`, only "in progress" when `badgeLimitCount` is set and `badgeEarnedNumber < badgeLimitCount`), then merges both filtered lists into a `Map` keyed by `badgeId` (available overwrites earned on collision, same key-position semantics as Python's `dict.update`); never raises — a `null` from either upstream call is treated as `[]` | yes |
+| `getAdhocChallenges` | `(start: number, limit: number): Promise<AdhocChallenge[] \| null>` — GETs `/adhocchallenge-service/adHocChallenge/historical`; `start` validated non-negative, `limit` validated positive (throws `GarminError` otherwise); passes through unchecked; live-verified as a JSON ARRAY, not the `dict` the inventory's `returns` column names (see gotchas) | yes |
+| `getBadgeChallenges` | `(start: number, limit: number): Promise<BadgeChallenge[] \| null>` — GETs `/badgechallenge-service/badgeChallenge/completed`; same `start`/`limit` validation as `getAdhocChallenges`; passes through unchecked; same array-not-dict correction. **Live discovery**: Garmin's server itself rejects `start=0` with a 400 (`"start should > 0."`) on this endpoint despite upstream's own client-side validation allowing it — the client-side check here faithfully matches upstream (non-negative), the 400 is Garmin's server, not a wrong URL; call with `start>=1` in practice | yes (with `start=1`; `start=0` reproduces the documented server-side 400) |
+| `getAvailableBadgeChallenges` | `(start: number, limit: number): Promise<AvailableBadgeChallenge[] \| null>` — GETs `/badgechallenge-service/badgeChallenge/available`; same `start`/`limit` validation; passes through unchecked; same array-not-dict correction and same live `start=0` -> 400 discovery as `getBadgeChallenges` | yes (with `start=1`) |
+| `getNonCompletedBadgeChallenges` | `(start: number, limit: number): Promise<NonCompletedBadgeChallenge[] \| null>` — GETs `/badgechallenge-service/badgeChallenge/non-completed`; same `start`/`limit` validation; passes through unchecked; same array-not-dict correction and same live `start=0` -> 400 discovery as `getBadgeChallenges` | yes (with `start=1`) |
+| `getInprogressVirtualChallenges` | `(start: number, limit: number): Promise<InprogressVirtualChallenge[] \| null>` — GETs `/badgechallenge-service/virtualChallenge/inProgress`; **asymmetric validation**: `start` validated POSITIVE here (rejects `start=0`), unlike the non-negative `start` on the four challenge methods above; `limit` validated positive; passes through unchecked; same array-not-dict correction | yes |
 | `getWeighIns` | `(startdate: string \| Date, enddate: string \| Date): Promise<WeighInRange>` | yes |
 | `addWeighIn` | `(weightValue: number, unitKey?: "kg" \| "lbs", when?: Date): Promise<unknown>` — defaults `unitKey="kg"`, `when=new Date()` | yes |
 | `deleteWeighIn` | `(cdate: string \| Date, weightPk: number): Promise<null>` | yes |
@@ -201,7 +209,7 @@ interface GarminClientOptions {
 
 ## 4. These methods do NOT exist
 
-This is a **partial port**: ~69 of upstream python-garminconnect's 154 public methods. An agent that has
+This is a **partial port**: ~77 of upstream python-garminconnect's 154 public methods. An agent that has
 seen `garminconnect` in training will write calls like `client.get_devices()` — that does not exist
 here. Do not invent methods on `Garmin` or `GarminClient` by analogy with upstream names. (Gear IS now
 fully ported — `getGear`, `createGear`, `getGearStats`, `getGearDefaults`, `setGearDefault` in
@@ -215,7 +223,6 @@ Notably absent (implement via `connectapi` instead — see below):
   `trainingPlans` service is not)
 - Devices and device settings (except the one-off `mylastused` lookup `pushWorkoutToDevice`
   makes internally — there is no public `getDeviceLastUsed`)
-- Badges and challenges (including virtual challenges)
 - Goals
 - Personal records
 - Connect IQ
