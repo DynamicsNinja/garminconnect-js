@@ -185,9 +185,12 @@ export async function createManualActivityFromJson(
  *
  * `startDatetime` is passed through unmodified, NOT routed through
  * `formatDate`: upstream types it as a bare `str` (Garmin's local
- * start-time format, e.g. `"2026-09-22T09:00:00"`), not a `YYYY-MM-DD`
- * calendar date, so `formatDate`'s stricter date-only validation would
- * reject a legitimate value.
+ * start-time format), not a `YYYY-MM-DD` calendar date, so `formatDate`'s
+ * stricter date-only validation would reject a legitimate value. It MUST
+ * include milliseconds, e.g. `"2026-09-22T09:00:00.000"` (upstream's
+ * documented pattern) — live-verified against the Garmin test account:
+ * omitting the `.000` produced an HTTP 500 `ValueInstantiationException`
+ * from Garmin, while the same body with `.000` appended succeeded.
  *
  * `typeKey` is the Garmin activity type key WITHOUT the `activity_type_`
  * prefix (e.g. `"resort_skiing"`), per the inventory notes.

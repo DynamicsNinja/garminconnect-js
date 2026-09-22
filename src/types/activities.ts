@@ -20,12 +20,30 @@ export interface ActivitiesForDateResponse {
 }
 
 /**
- * Response shape of `GET /activity-service/activity/activityTypes` is undocumented
- * beyond "a dict" per the upstream method inventory — index signature only.
+ * One entry of `GET /activity-service/activity/activityTypes`'s response. Fields observed
+ * live against a real account (not invented): `typeId`, `typeKey`, `parentTypeId`,
+ * `isHidden`, `restricted`, `trimmable`.
  */
-export interface ActivityTypesResponse {
+export interface ActivityType {
+  typeId: number;
+  typeKey: string;
+  parentTypeId: number;
+  isHidden?: boolean;
+  restricted?: boolean;
+  trimmable?: boolean;
   [key: string]: unknown;
 }
+
+/**
+ * Response of `GET /activity-service/activity/activityTypes`.
+ *
+ * The upstream method inventory's `returns` column says "dict" for `get_activity_types`, but
+ * the live response is a JSON ARRAY of `ActivityType` (154 entries observed against a real
+ * account, e.g. `{typeId:1, typeKey:"running", parentTypeId:17, ...}`) — not an object. This
+ * type reflects the observed reality rather than the inventory's label; flagged for the
+ * inventory to be corrected upstream of this port.
+ */
+export type ActivityTypesResponse = ActivityType[];
 
 /** Result of `POST /upload-service/upload/{ext}` (`import_activity`). */
 export interface ImportActivityResult {

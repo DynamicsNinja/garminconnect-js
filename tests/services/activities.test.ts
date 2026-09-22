@@ -42,7 +42,7 @@ const server = setupServer(
   }),
   http.get(`${API}/activity-service/activity/activityTypes`, ({ request }) => {
     record(request);
-    return HttpResponse.json({ types: [] });
+    return HttpResponse.json([{ typeId: 1, typeKey: "running", parentTypeId: 17 }]);
   }),
   http.delete(`${API}/activity-service/activity/555`, ({ request }) => {
     record(request);
@@ -157,7 +157,9 @@ describe("getLastActivity", () => {
 
 describe("getActivityTypes", () => {
   it("hits the activityTypes endpoint", async () => {
-    await expect(makeGarmin().getActivityTypes()).resolves.toEqual({ types: [] });
+    await expect(makeGarmin().getActivityTypes()).resolves.toEqual([
+      { typeId: 1, typeKey: "running", parentTypeId: 17 },
+    ]);
     expect(seen[0]!.url).toBe(`${API}/activity-service/activity/activityTypes`);
   });
 
