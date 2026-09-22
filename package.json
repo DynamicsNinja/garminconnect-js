@@ -23,7 +23,6 @@
     "AGENTS.md",
     "NOTICE"
   ],
-  "dependencies": {},
   "scripts": {
     "build": "tsup",
     "test": "vitest run",
@@ -35,7 +34,8 @@
     "login": "tsx scripts/login.ts",
     "record": "tsx scripts/record-fixtures.ts",
     "demo": "tsx examples/demo.ts",
-    "smoke": "tsx scripts/smoke-reads.ts"
+    "smoke": "tsx scripts/smoke-reads.ts",
+    "smoke:write": "tsx scripts/smoke-writes.ts"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
