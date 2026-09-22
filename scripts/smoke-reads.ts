@@ -1,0 +1,45 @@
+import "./load-env.js";
+import { GarminClient, Garmin, FileTokenStore } from "../src/index.js";
+
+type Probe = { name: string; run: () => Promise<unknown> };
+
+const client = new GarminClient({ tokenStore: new FileTokenStore("./tokens") });
+if (!(await client.loadTokens())) {
+  console.error("No tokens. Run `npm run login` first.");
+  process.exit(1);
+}
+const g = new Garmin(client);
+const day = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+const weekAgo = new Date(Date.now() - 7 * 86_400_000).toISOString().slice(0, 10);
+
+// Each task appends its service's READ probes here.
+const services: Record<string, Probe[]> = {
+  wellness: [
+    { name: "getUserSummary", run: () => g.getUserSummary(day) },
+    { name: "getStepsData", run: () => g.getStepsData(day) },
+  ],
+};
+
+const which = process.argv[2];
+const probes = which ? services[which] : Object.values(services).flat();
+if (!probes) {
+  console.error(`Unknown service "${which}". Known: ${Object.keys(services).join(", ")}`);
+  process.exit(1);
+}
+
+let pass = 0, fail = 0;
+for (const p of probes) {
+  try {
+    const r = await p.run();
+    const shape = r === null ? "null" : Array.isArray(r) ? `array[${r.length}]`
+      : typeof r === "object" ? `object(${Object.keys(r as object).length} keys)` : typeof r;
+    console.log(`  PASS  ${p.name.padEnd(34)} ${shape}`);
+    pass++;
+  } catch (e) {
+    const err = e as Error;
+    console.log(`  FAIL  ${p.name.padEnd(34)} ${err.constructor.name}: ${err.message.slice(0, 80)}`);
+    fail++;
+  }
+}
+console.log(`\n${pass} passed, ${fail} failed`);
+if (fail > 0) process.exitCode = 1;
