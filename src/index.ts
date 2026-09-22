@@ -19,3 +19,4 @@ export type * from "./types/weight.js";
 export type * from "./types/gear.js";
 export type * from "./types/metrics.js";
 export type * from "./types/workouts.js";
+export type * from "./types/womensHealth.js";

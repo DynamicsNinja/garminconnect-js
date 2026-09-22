@@ -6,6 +6,7 @@ import * as metrics from "./services/metrics.js";
 import * as weight from "./services/weight.js";
 import * as wellness from "./services/wellness.js";
 import * as workouts from "./services/workouts.js";
+import * as womensHealth from "./services/womensHealth.js";
 import type { ActivityDownloadFormat, ActivityExerciseSets } from "./types/activities.js";
 import type { WorkoutInput } from "./types/workouts.js";
 
@@ -476,5 +477,97 @@ export class Garmin {
   }
   unscheduleWorkout(scheduledWorkoutId: number | string) {
     return workouts.unscheduleWorkout(this, scheduledWorkoutId);
+  }
+
+  // --- womensHealth ---
+  getMenstrualDataForDate(fordate: string | Date) {
+    return womensHealth.getMenstrualDataForDate(this, fordate);
+  }
+  getMenstrualCalendarData(startdate: string | Date, enddate: string | Date) {
+    return womensHealth.getMenstrualCalendarData(this, startdate, enddate);
+  }
+  getMenstrualLastConfirmed(fordate: string | Date) {
+    return womensHealth.getMenstrualLastConfirmed(this, fordate);
+  }
+  getMenstrualCycleSummary(fordate: string | Date) {
+    return womensHealth.getMenstrualCycleSummary(this, fordate);
+  }
+  getMenstrualReports(
+    fordate: string | Date,
+    numberOfCycles?: number,
+    options?: { nextReport?: boolean; reportType?: string; todayCalendarDate?: string | Date },
+  ) {
+    return womensHealth.getMenstrualReports(this, fordate, numberOfCycles, options);
+  }
+  getPregnancySummary() {
+    return womensHealth.getPregnancySummary(this);
+  }
+  /**
+   * Irreversible write to real health data. NOT live-verified — see the file-level comment at the
+   * top of `src/services/womensHealth.ts` for why this must never be executed against a live
+   * account.
+   */
+  updateMenstrualDailyLog(
+    calendarDate: string | Date,
+    options?: {
+      symptoms?: string[];
+      moods?: string[];
+      flow?: string;
+      discharge?: string[];
+      sexDrive?: string;
+      sexualActivity?: string;
+      notes?: string;
+      ovulationDay?: boolean;
+    },
+  ) {
+    return womensHealth.updateMenstrualDailyLog(this, calendarDate, options);
+  }
+  /**
+   * Irreversible write to real health data. NOT live-verified — see the file-level comment at the
+   * top of `src/services/womensHealth.ts` for why this must never be executed against a live
+   * account.
+   */
+  updateMenstrualCalendar(
+    startdate: string | Date,
+    enddate: string | Date,
+    cycleDatesLists: (string | Date)[][],
+    options?: { todayCalendarDate?: string | Date },
+  ) {
+    return womensHealth.updateMenstrualCalendar(this, startdate, enddate, cycleDatesLists, options);
+  }
+  /**
+   * Irreversible write to real health data (account-level cycle-tracking setup). NOT
+   * live-verified — see the file-level comment at the top of `src/services/womensHealth.ts` for
+   * why this must never be executed against a live account.
+   */
+  initMenstrualCycleSetup(periodStartDate: string | Date, periodLength: number, cycleLength: number) {
+    return womensHealth.initMenstrualCycleSetup(this, periodStartDate, periodLength, cycleLength);
+  }
+  /**
+   * Irreversible write to real health data. NOT live-verified — see the file-level comment at the
+   * top of `src/services/womensHealth.ts` for why this must never be executed against a live
+   * account.
+   */
+  confirmMenstrualPeriodStart(
+    periodStartDate: string | Date,
+    periodLength: number,
+    cycleLength: number,
+    options?: { predictedCycle?: boolean },
+  ) {
+    return womensHealth.confirmMenstrualPeriodStart(
+      this,
+      periodStartDate,
+      periodLength,
+      cycleLength,
+      options,
+    );
+  }
+  /**
+   * Irreversible write to real health data (account-level tracking-preference flags). NOT
+   * live-verified — see the file-level comment at the top of `src/services/womensHealth.ts` for
+   * why this must never be executed against a live account.
+   */
+  updateMenstrualSettings(settings: Record<string, unknown>, options?: { userSettingsId?: number }) {
+    return womensHealth.updateMenstrualSettings(this, settings, options);
   }
 }

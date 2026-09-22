@@ -157,6 +157,18 @@ Every identifier above (`GarminClient`, `Garmin`, `FileTokenStore`) is exported 
 | `scheduleWorkout` | `(workoutId: number \| string, dateStr: string \| Date): Promise<WorkoutRecord \| null>` — `dateStr` routed through `formatDate`; UNCERTAIN upstream null handling | yes |
 | `unscheduleWorkout` | `(scheduledWorkoutId: number \| string): Promise<unknown>` — removes the calendar entry without deleting the workout template; irreversible; UNCERTAIN upstream null handling | yes |
 
+| `getMenstrualDataForDate` | `(fordate: string \| Date): Promise<MenstrualDayView \| null>` — passes through unchecked | yes |
+| `getMenstrualCalendarData` | `(startdate: string \| Date, enddate: string \| Date): Promise<MenstrualCalendarData \| null>` — passes through unchecked; Garmin rejects windows of 92+ inclusive days per upstream's docstring, not enforced here (caller's responsibility, matching upstream) | yes |
+| `getMenstrualLastConfirmed` | `(fordate: string \| Date): Promise<MenstrualLastConfirmed \| null>` — passes through unchecked | yes |
+| `getMenstrualCycleSummary` | `(fordate: string \| Date): Promise<MenstrualCycleSummary \| null>` — passes through unchecked | yes |
+| `getMenstrualReports` | `(fordate: string \| Date, numberOfCycles?: number, options?: {nextReport?: boolean, reportType?: string, todayCalendarDate?: string \| Date}): Promise<MenstrualReports \| null>` — defaults `numberOfCycles=6, nextReport=false, reportType="CYCLE"`, `todayCalendarDate` defaults to today; `numberOfCycles` restricted to `{1,6,12}` or throws `GarminError`; passes through unchecked | yes |
+| `getPregnancySummary` | `(): Promise<PregnancySummary \| null>` — passes through unchecked | yes |
+| `updateMenstrualDailyLog` | `(calendarDate: string \| Date, options?: {symptoms?: string[], moods?: string[], flow?: string, discharge?: string[], sexDrive?: string, sexualActivity?: string, notes?: string, ovulationDay?: boolean}): Promise<unknown>` — **full-day replace, not a merge**; at least one optional field required or throws `GarminError`; `notes: undefined` preserves the existing note, `notes: ""` clears it (distinct, load-bearing); `discharge` rejects combining `"NO_DISCHARGE"` with any other value; UNCERTAIN upstream null handling | **no** — irreversible health-data write, deliberately not live-tested (see `src/services/womensHealth.ts` file-level comment); unit-tested only |
+| `updateMenstrualCalendar` | `(startdate: string \| Date, enddate: string \| Date, cycleDatesLists: (string \| Date)[][], options?: {todayCalendarDate?: string \| Date}): Promise<unknown>` — **full replace, not a merge**; each `cycleDatesLists` group must be non-empty, consecutive calendar dates, and fall within `[startdate, enddate]`, else throws `GarminError`; UNCERTAIN upstream null handling | **no** — irreversible health-data write, deliberately not live-tested; unit-tested only |
+| `initMenstrualCycleSetup` | `(periodStartDate: string \| Date, periodLength: number, cycleLength: number): Promise<unknown>` — does NOT also update tracking-preference settings (call `updateMenstrualSettings` separately for that); not intended for an already-configured account; UNCERTAIN upstream null handling | **no** — irreversible health-data write, deliberately not live-tested; unit-tested only |
+| `confirmMenstrualPeriodStart` | `(periodStartDate: string \| Date, periodLength: number, cycleLength: number, options?: {predictedCycle?: boolean}): Promise<unknown>` — POSTs `/periodichealth-service/menstrualcycle/{periodStartDate}` directly, NOT the `dayview`/`calendar`/`lastconfirmed`/`summary` sub-paths; UNCERTAIN upstream null handling | **no** — irreversible health-data write, deliberately not live-tested; unit-tested only |
+| `updateMenstrualSettings` | `(settings: Record<string, unknown>, options?: {userSettingsId?: number}): Promise<unknown>` — `settings` must be non-empty or throws `GarminError`; multi-step: GETs `/userprofile-service/userprofile/user-settings`, overlays `settings` onto the current `userMenstrualCycleSettings`, then PUTs the same endpoint, including `id` if resolvable; UNCERTAIN upstream null handling | **no** — irreversible, plausibly account-level write, deliberately not live-tested; unit-tested only |
+
 `Garmin` exposes the underlying client as `readonly client: GarminClient`.
 
 ### `GarminClient` (src/client.ts) — construct with `new GarminClient(options?: GarminClientOptions)`
@@ -189,7 +201,7 @@ interface GarminClientOptions {
 
 ## 4. These methods do NOT exist
 
-This is a **partial port**: ~58 of upstream python-garminconnect's 154 public methods. An agent that has
+This is a **partial port**: ~69 of upstream python-garminconnect's 154 public methods. An agent that has
 seen `garminconnect` in training will write calls like `client.get_devices()` — that does not exist
 here. Do not invent methods on `Garmin` or `GarminClient` by analogy with upstream names. (Gear IS now
 fully ported — `getGear`, `createGear`, `getGearStats`, `getGearDefaults`, `setGearDefault` in
@@ -207,7 +219,6 @@ Notably absent (implement via `connectapi` instead — see below):
 - Goals
 - Personal records
 - Connect IQ
-- Women's health, menstrual cycle tracking
 - Body composition read/upload (`getStatsAndBody` inlines one body-composition GET call directly; the
   dedicated `bodyComposition` service — `getBodyComposition`, `addBodyComposition` — is a separate,
   not-yet-ported task)

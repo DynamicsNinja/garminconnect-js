@@ -206,6 +206,18 @@ const services: Record<string, Probe[]> = {
     // valid hex UUID with no matching gear exercises the "404 -> {}" branch honestly.
     { name: "getGearStats (no matching gear)", run: () => g.getGearStats("deadbeef00000000deadbeef00000000") },
   ],
+  // Reads only — the 5 write methods in this service must NEVER be live-tested (irreversible
+  // health-data writes; see the file-level comment in src/services/womensHealth.ts). The test
+  // account has no cycle-tracking data, so `null`/empty-object responses here are the expected
+  // PASS, exercising the empty-data path rather than a populated one.
+  womensHealth: [
+    { name: "getMenstrualDataForDate", run: () => g.getMenstrualDataForDate(day) },
+    { name: "getMenstrualCalendarData", run: () => g.getMenstrualCalendarData(weekAgo, day) },
+    { name: "getMenstrualLastConfirmed", run: () => g.getMenstrualLastConfirmed(day) },
+    { name: "getMenstrualCycleSummary", run: () => g.getMenstrualCycleSummary(day) },
+    { name: "getMenstrualReports", run: () => g.getMenstrualReports(day) },
+    { name: "getPregnancySummary", run: () => g.getPregnancySummary() },
+  ],
 };
 
 const which = process.argv[2];
