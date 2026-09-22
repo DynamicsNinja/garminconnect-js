@@ -267,16 +267,24 @@ describe("weight endpoints", () => {
     expect(url.searchParams.get("includeAll")).toBe("true");
   });
 
-  it("addWeighIn posts grams for a kg value", async () => {
+  it("addWeighIn sends the raw kg value unconverted, alongside unitKey: kg", async () => {
+    // Garmin converts server-side based on unitKey; sending a pre-converted
+    // gram figure here would tell Garmin "this many kilograms" and inflate
+    // the stored value by 1000x (confirmed against a live account).
     await makeGarmin().addWeighIn(72.5, "kg");
     expect(seen[0]!.method).toBe("POST");
-    expect(seen[0]!.body).toMatchObject({ value: 72500, unitKey: "kg" });
+    expect(seen[0]!.body).toMatchObject({ value: 72.5, unitKey: "kg" });
   });
 
-  it("addWeighIn converts lbs to grams", async () => {
+  it("addWeighIn sends the raw lbs value unconverted, alongside unitKey: lbs", async () => {
     await makeGarmin().addWeighIn(160, "lbs");
+    expect(seen[0]!.body).toMatchObject({ value: 160, unitKey: "lbs" });
+  });
+
+  it("addWeighIn passes a fractional value through unrounded", async () => {
+    await makeGarmin().addWeighIn(72.55, "kg");
     const body = seen[0]!.body as { value: number };
-    expect(body.value).toBe(Math.round(160 * 453.592));
+    expect(body.value).toBe(72.55);
   });
 
   it("addWeighIn pins dateTimestamp to local time and gmtTimestamp to UTC for an explicit `when`", async () => {
