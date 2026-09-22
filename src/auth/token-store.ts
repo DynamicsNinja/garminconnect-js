@@ -1,4 +1,4 @@
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { OAuth1Token, OAuth2Token, Tokens } from "./tokens.js";
 
@@ -36,16 +36,32 @@ export class FileTokenStore implements TokenStore {
         readFile(join(this.dir, OAUTH2_FILE), "utf8"),
       ]);
       const parsed1 = JSON.parse(raw1) as Record<string, unknown>;
+      const parsed2 = JSON.parse(raw2) as Record<string, unknown>;
+
+      // Validate required OAuth1 fields are present and non-empty.
+      const token1 = parsed1["oauth_token"];
+      const secret1 = parsed1["oauth_token_secret"];
+      if (typeof token1 !== "string" || !token1 || typeof secret1 !== "string" || !secret1) {
+        return null;
+      }
+
+      // Validate required OAuth2 fields are present and non-empty.
+      const access2 = parsed2["access_token"];
+      const refresh2 = parsed2["refresh_token"];
+      if (typeof access2 !== "string" || !access2 || typeof refresh2 !== "string" || !refresh2) {
+        return null;
+      }
+
       const oauth1: OAuth1Token = {
-        oauth_token: String(parsed1["oauth_token"]),
-        oauth_token_secret: String(parsed1["oauth_token_secret"]),
+        oauth_token: token1,
+        oauth_token_secret: secret1,
         // Python writes null where TS wants undefined.
         mfa_token: (parsed1["mfa_token"] as string | null) ?? undefined,
         mfa_expiration_timestamp:
           (parsed1["mfa_expiration_timestamp"] as string | null) ?? undefined,
         domain: (parsed1["domain"] as string | null) ?? undefined,
       };
-      return { oauth1, oauth2: JSON.parse(raw2) as OAuth2Token };
+      return { oauth1, oauth2: parsed2 as unknown as OAuth2Token };
     } catch {
       return null;
     }
@@ -53,14 +69,29 @@ export class FileTokenStore implements TokenStore {
 
   async save(tokens: Tokens): Promise<void> {
     await mkdir(this.dir, { recursive: true });
-    await Promise.all([
-      writeFile(join(this.dir, OAUTH1_FILE), JSON.stringify(tokens.oauth1, null, 2), {
-        mode: 0o600,
-      }),
-      writeFile(join(this.dir, OAUTH2_FILE), JSON.stringify(tokens.oauth2, null, 2), {
-        mode: 0o600,
-      }),
-    ]);
+    const tmp1 = join(this.dir, `${OAUTH1_FILE}.tmp`);
+    const tmp2 = join(this.dir, `${OAUTH2_FILE}.tmp`);
+
+    try {
+      // Write both temp files first with 0o600 permissions.
+      await Promise.all([
+        writeFile(tmp1, JSON.stringify(tokens.oauth1, null, 2), { mode: 0o600 }),
+        writeFile(tmp2, JSON.stringify(tokens.oauth2, null, 2), { mode: 0o600 }),
+      ]);
+
+      // Then atomically rename both temp files into place.
+      await Promise.all([
+        rename(tmp1, join(this.dir, OAUTH1_FILE)),
+        rename(tmp2, join(this.dir, OAUTH2_FILE)),
+      ]);
+    } catch (err) {
+      // Clean up temp files if something went wrong.
+      await Promise.all([
+        rm(tmp1, { force: true }),
+        rm(tmp2, { force: true }),
+      ]);
+      throw err;
+    }
   }
 
   async clear(): Promise<void> {

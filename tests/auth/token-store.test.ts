@@ -76,7 +76,7 @@ describe("FileTokenStore", () => {
         oauth_token_secret: "pys1",
         mfa_token: null,
         mfa_expiration_timestamp: null,
-        domain: "garmin.com",
+        domain: null,
       }),
     );
     await writeFile(
@@ -86,6 +86,8 @@ describe("FileTokenStore", () => {
     const loaded = await new FileTokenStore(dir).load();
     expect(loaded?.oauth1.oauth_token).toBe("py1");
     expect(loaded?.oauth1.mfa_token).toBeUndefined();
+    expect(loaded?.oauth1.mfa_expiration_timestamp).toBeUndefined();
+    expect(loaded?.oauth1.domain).toBeUndefined();
     expect(loaded?.oauth2.access_token).toBe("pyat");
   });
 
@@ -113,5 +115,42 @@ describe("FileTokenStore", () => {
     await mkdir(dir, { recursive: true });
     await writeFile(join(dir, "oauth1_token.json"), JSON.stringify(tokens.oauth1));
     await expect(new FileTokenStore(dir).load()).resolves.toBeNull();
+  });
+
+  it("returns null when oauth1_token.json is an empty object", async () => {
+    await writeFile(join(dir, "oauth1_token.json"), "{}");
+    await writeFile(join(dir, "oauth2_token.json"), JSON.stringify(tokens.oauth2));
+    await expect(new FileTokenStore(dir).load()).resolves.toBeNull();
+  });
+
+  it("returns null when oauth1_token.json is missing oauth_token_secret", async () => {
+    await writeFile(
+      join(dir, "oauth1_token.json"),
+      JSON.stringify({ oauth_token: "o1", mfa_token: null }),
+    );
+    await writeFile(join(dir, "oauth2_token.json"), JSON.stringify(tokens.oauth2));
+    await expect(new FileTokenStore(dir).load()).resolves.toBeNull();
+  });
+
+  it("returns null when oauth2_token.json is missing access_token", async () => {
+    await writeFile(join(dir, "oauth1_token.json"), JSON.stringify(tokens.oauth1));
+    await writeFile(
+      join(dir, "oauth2_token.json"),
+      JSON.stringify({ ...tokens.oauth2, access_token: undefined }),
+    );
+    await expect(new FileTokenStore(dir).load()).resolves.toBeNull();
+  });
+
+  it("ignores .tmp files left behind by a crashed save", async () => {
+    // Write the real files
+    await writeFile(join(dir, "oauth1_token.json"), JSON.stringify(tokens.oauth1));
+    await writeFile(join(dir, "oauth2_token.json"), JSON.stringify(tokens.oauth2));
+    // Write temp files that should be ignored
+    await writeFile(join(dir, "oauth1_token.json.tmp"), "garbage");
+    await writeFile(join(dir, "oauth2_token.json.tmp"), "garbage");
+    // Load should succeed and not be affected by .tmp files
+    const loaded = await new FileTokenStore(dir).load();
+    expect(loaded?.oauth1.oauth_token).toBe("o1");
+    expect(loaded?.oauth2.access_token).toBe("at");
   });
 });
