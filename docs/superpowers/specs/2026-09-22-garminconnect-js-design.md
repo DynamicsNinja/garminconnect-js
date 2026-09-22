@@ -41,7 +41,7 @@ one-to-one:
 
 - **Auth + transport layer** (the `garth` equivalent) — SSO login, OAuth1 signing,
   cookie jar, token refresh, token persistence.
-- **Endpoint layer** (the `python-garminconnect` equivalent) — ~90 thin typed methods
+- **Endpoint layer** (the `python-garminconnect` equivalent) — ~155 thin typed methods
   over a single `connectapi(path)` primitive.
 
 The boundary is a hard interface, so the auth layer can be split into its own package
@@ -266,7 +266,7 @@ failure, then implement.
 - **Live smoke** — opt-in, skipped unless `GARMIN_EMAIL` and `GARMIN_PASSWORD` are
   present. Never runs in CI.
 
-Fixtures are recorded by a `pnpm record` script that scrubs names, emails, user IDs,
+Fixtures are recorded by a `npm run record` script that scrubs names, emails, user IDs,
 tokens, and GPS coordinates before writing. Scrubbing is itself tested.
 
 CI runs typecheck, lint, and the unit + flow tiers on Node 18/20/22.
@@ -295,7 +295,7 @@ CI runs typecheck, lint, and the unit + flow tiers on Node 18/20/22.
   flow lives in one file, mirroring garth's, so upstream's fix ports directly. The live
   smoke test is how you find out.
 - **Fixtures drift from reality.** Recorded responses keep passing after Garmin changes
-  a payload. Mitigation: the `pnpm record` refresh task and the manual live smoke run.
+  a payload. Mitigation: the `npm run record` refresh task and the manual live smoke run.
 - **Consumer key rotation.** The key comes from a third-party S3 bucket
   (`thegarth.s3.amazonaws.com`) that garth's author controls. If it disappears, login
   breaks. Mitigation: the URL is configurable and the fetched value is cacheable, so a
