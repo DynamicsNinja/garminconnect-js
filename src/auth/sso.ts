@@ -1,5 +1,5 @@
 import { GarminAuthError, GarminError } from "../errors.js";
-import type { Fetcher } from "../http/fetcher.js";
+import { Fetcher } from "../http/fetcher.js";
 import type { SerializedCookie } from "../http/cookie-jar.js";
 import { fetchConsumer } from "./consumer.js";
 import { buildOAuth1Header } from "./oauth1.js";
@@ -219,4 +219,48 @@ export async function exchange(
   });
 
   return setExpirations(await parseJson<RawOAuth2Token>(res));
+}
+
+/**
+ * Complete an MFA login from a JSON-serializable `MfaState`. This is the
+ * deliberate divergence from upstream garth: garth's resume holds a live
+ * client object in memory, which doesn't survive a serverless request
+ * boundary where the MFA code arrives in a SECOND HTTP request — likely on
+ * a different instance. `MfaState` is plain JSON, so it can cross that
+ * boundary; the cookies captured at `login()` time travel with it.
+ *
+ * When `options.fetcher` is supplied (the normal application path — see
+ * `GarminClient.resumeLogin`), the stored cookies are merged into that
+ * fetcher's existing jar via `mergeFromJSON`, which preserves every field
+ * (`secure`, `expires`, `hostOnly`/`Domain`) exactly as captured. Replaying
+ * them as synthetic `Set-Cookie` headers instead would silently downgrade a
+ * `Domain=.garmin.com` cookie to host-only, so it would never be attached to
+ * `connectapi.garmin.com` requests later in the flow.
+ */
+export async function resumeLogin(
+  mfaState: MfaState,
+  code: string,
+  options: { fetcher?: Fetcher } = {},
+): Promise<{ state: "success"; oauth1: OAuth1Token; oauth2: OAuth2Token }> {
+  const fetcher = options.fetcher ?? new Fetcher();
+  fetcher.jar.mergeFromJSON(mfaState.cookies);
+  const ctx: SsoContext = { fetcher, domain: mfaState.domain };
+
+  const res = await fetcher.request(ssoUrl(ctx.domain, "/mobile/api/mfa/verifyCode"), {
+    method: "POST",
+    params: { ...mfaState.loginParams },
+    headers: SSO_PAGE_HEADERS,
+    json: {
+      mfaMethod: mfaState.mfaMethod,
+      mfaVerificationCode: code,
+      rememberMyBrowser: false,
+      reconsentList: [],
+      mfaSetup: false,
+    },
+  });
+
+  const body = requireSuccess(await parseJson<SsoResponse>(res));
+  const ticket = body.serviceTicketId;
+  if (!ticket) throw new GarminAuthError("MFA succeeded but returned no service ticket");
+  return completeLogin(ticket, ctx);
 }

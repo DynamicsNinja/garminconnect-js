@@ -108,6 +108,27 @@ export class CookieJar {
     return this.#cookies.map((c) => ({ ...c }));
   }
 
+  /**
+   * Upsert deserialized cookies into this jar, preserving every field
+   * (`secure`, `expires`, `hostOnly`/`Domain`) exactly as stored — unlike
+   * replaying them as synthetic `Set-Cookie` headers through
+   * `setFromResponse`, which can only reconstruct what a real header would
+   * carry and silently downgrades a `Domain`-scoped cookie to host-only.
+   */
+  mergeFromJSON(cookies: SerializedCookie[]): void {
+    for (const cookie of cookies) {
+      this.#cookies = this.#cookies.filter(
+        (c) =>
+          !(
+            c.name === cookie.name &&
+            c.domain === cookie.domain &&
+            c.path === cookie.path
+          ),
+      );
+      this.#cookies.push({ ...cookie });
+    }
+  }
+
   static fromJSON(cookies: SerializedCookie[]): CookieJar {
     const jar = new CookieJar();
     for (const c of cookies) jar.#cookies.push({ ...c });
