@@ -115,6 +115,9 @@ the three-method interface against whatever you already run:
 
 ```ts
 import type { TokenStore, Tokens } from "garminconnect-js";
+// `Redis` here is illustrative — bring your own client's type
+// (e.g. `import type { Redis } from "ioredis";`).
+type Redis = { get(key: string): Promise<string | null>; set(key: string, value: string): Promise<unknown>; del(key: string): Promise<unknown> };
 
 export class RedisTokenStore implements TokenStore {
   constructor(private redis: Redis, private userId: string) {}

@@ -16,11 +16,14 @@ export default tseslint.config(
       },
     },
     rules: {
-      // The codebase deliberately narrows `unknown` HTTP/JSON payloads with
-      // manual runtime checks rather than a schema library (zero runtime
-      // dependencies is a hard constraint), which routinely needs an
-      // explicit, well-understood assertion at the edge of the type system.
-      "@typescript-eslint/no-explicit-any": "off",
+      // Hard constraint: no `any` in exported (or any) signatures. Kept as
+      // an explicit error, not left at the ruleset default, so it is a real
+      // backstop for the ~145 endpoint methods a follow-up plan adds across
+      // many new service files written from a template under less scrutiny
+      // than this task received. If a genuine `unknown`-narrowing boundary
+      // needs `any` later, disable it inline at that one site with a reason,
+      // not here.
+      "@typescript-eslint/no-explicit-any": "error",
       // Template literals over template-friendly primitives (numbers,
       // booleans) read fine and are used throughout for building URLs and
       // messages; not worth the noise of unicorn-style restrictions here.
