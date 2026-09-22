@@ -23,6 +23,7 @@
     "AGENTS.md",
     "NOTICE"
   ],
+  "dependencies": {},
   "scripts": {
     "build": "tsup",
     "test": "vitest run",

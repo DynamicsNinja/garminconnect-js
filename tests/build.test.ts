@@ -19,7 +19,12 @@ async function listTsFiles(dir: string): Promise<string[]> {
 describe("package contract", () => {
   it("declares zero runtime dependencies", async () => {
     const pkg = JSON.parse(await readFile("package.json", "utf8"));
-    expect(pkg.dependencies ?? {}).toEqual({});
+    // Assert the key is present AND empty. `pkg.dependencies ?? {}` would
+    // treat a missing key the same as an empty object, which is exactly the
+    // failure mode `npm pkg set` can silently introduce (it rewrites the
+    // whole file and can drop an empty object key entirely).
+    expect(Object.hasOwn(pkg, "dependencies")).toBe(true);
+    expect(pkg.dependencies).toEqual({});
   });
 
   it("requires Node 18 or newer", async () => {

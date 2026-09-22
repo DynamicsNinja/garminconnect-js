@@ -47,13 +47,25 @@ if (!expectedProfileId) {
   process.exit(1);
 }
 
+/**
+ * `userName` is realistically a personal email address. The gate fires
+ * exactly when the account is unexpectedly wrong — i.e. most likely someone's
+ * real account — and this output gets quoted verbatim into task reports and
+ * can reach an issue tracker. `profileId` alone already proves the mismatch
+ * and drives the operator's next action; this redaction exists only so a
+ * human can recognise their own account without it being published in full.
+ */
+function redactUserName(userName: string): string {
+  return `${userName.slice(0, 2)}***@***`;
+}
+
 const liveProfile = await g.getUserProfile();
 const liveProfileId = String(liveProfile.profileId);
 if (liveProfileId !== expectedProfileId) {
   console.error(
     "Refusing to run: the live account's profile does not match the expected test account.\n" +
       `  expected profileId: ${expectedProfileId}\n` +
-      `  found    profileId: ${liveProfileId} (userName: ${liveProfile.userName})\n` +
+      `  found    profileId: ${liveProfileId} (userName: ${redactUserName(liveProfile.userName)})\n` +
       "This is very likely the wrong account. No writes were issued.",
   );
   process.exit(1);
