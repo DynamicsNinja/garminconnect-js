@@ -5,17 +5,28 @@ import { GarminClient } from "../src/client.js";
 import { Garmin } from "../src/garmin.js";
 import type { Tokens } from "../src/auth/tokens.js";
 
+const SOCIAL_PROFILE_URL = "https://connectapi.garmin.com/userprofile-service/socialProfile";
+const USER_SETTINGS_URL =
+  "https://connectapi.garmin.com/userprofile-service/userprofile/user-settings";
+
 let profileCalls = 0;
+let settingsCalls = 0;
 
 const server = setupServer(
-  http.get("https://connectapi.garmin.com/userprofile-service/socialProfile", () => {
+  http.get(SOCIAL_PROFILE_URL, () => {
     profileCalls++;
     return HttpResponse.json({
       displayName: "abc-display-name",
       userName: "testuser",
       fullName: "Test User",
       profileId: 1234,
-      measurementSystem: "metric",
+    });
+  }),
+  http.get(USER_SETTINGS_URL, () => {
+    settingsCalls++;
+    return HttpResponse.json({
+      id: 1234,
+      userData: { measurementSystem: "metric" },
     });
   }),
 );
@@ -43,6 +54,7 @@ function makeGarmin(): Garmin {
 
 beforeEach(() => {
   profileCalls = 0;
+  settingsCalls = 0;
   server.listen({ onUnhandledRequest: "error" });
 });
 afterEach(() => server.close());
@@ -52,11 +64,10 @@ describe("Garmin profile resolution", () => {
     await expect(makeGarmin().displayName()).resolves.toBe("abc-display-name");
   });
 
-  it("returns full name, user name and unit system", async () => {
+  it("returns full name and user name", async () => {
     const g = makeGarmin();
     await expect(g.fullName()).resolves.toBe("Test User");
     await expect(g.userName()).resolves.toBe("testuser");
-    await expect(g.unitSystem()).resolves.toBe("metric");
   });
 
   it("fetches the profile only once", async () => {
@@ -79,7 +90,7 @@ describe("Garmin profile resolution", () => {
     // through to the healthy default handler registered above.
     server.use(
       http.get(
-        "https://connectapi.garmin.com/userprofile-service/socialProfile",
+        SOCIAL_PROFILE_URL,
         () => {
           profileCalls++;
           return HttpResponse.json({ message: "bad request" }, { status: 400 });
@@ -99,7 +110,7 @@ describe("Garmin profile resolution", () => {
   it("rejects every concurrent caller when the shared profile fetch fails", async () => {
     server.use(
       http.get(
-        "https://connectapi.garmin.com/userprofile-service/socialProfile",
+        SOCIAL_PROFILE_URL,
         () => {
           profileCalls++;
           return HttpResponse.json({ message: "bad request" }, { status: 400 });
@@ -118,14 +129,62 @@ describe("Garmin profile resolution", () => {
 
   it("throws when Garmin returns no profile body", async () => {
     server.use(
+      http.get(SOCIAL_PROFILE_URL, () => new HttpResponse(null, { status: 204 }), {
+        once: true,
+      }),
+    );
+    const g = makeGarmin();
+
+    await expect(g.getUserProfile()).rejects.toThrow(/no user profile/);
+  });
+});
+
+describe("Garmin unit system", () => {
+  it("returns the measurement system from user-settings, not socialProfile", async () => {
+    const g = makeGarmin();
+    await expect(g.unitSystem()).resolves.toBe("metric");
+    expect(settingsCalls).toBe(1);
+    expect(profileCalls).toBe(0); // unitSystem() must not touch /socialProfile
+  });
+
+  it("returns undefined when userData is absent from the payload", async () => {
+    server.use(
       http.get(
-        "https://connectapi.garmin.com/userprofile-service/socialProfile",
-        () => new HttpResponse(null, { status: 204 }),
+        USER_SETTINGS_URL,
+        () => {
+          settingsCalls++;
+          return HttpResponse.json({ id: 1234 });
+        },
         { once: true },
       ),
     );
     const g = makeGarmin();
 
-    await expect(g.getUserProfile()).rejects.toThrow(/no user profile/);
+    await expect(g.unitSystem()).resolves.toBeUndefined();
+  });
+
+  it("fetches user-settings only once across repeated and concurrent calls", async () => {
+    const g = makeGarmin();
+    await Promise.all([g.unitSystem(), g.unitSystem()]);
+    await g.unitSystem();
+    expect(settingsCalls).toBe(1);
+  });
+
+  it("resets the cache after a failed user-settings fetch, allowing a retry", async () => {
+    server.use(
+      http.get(
+        USER_SETTINGS_URL,
+        () => {
+          settingsCalls++;
+          return HttpResponse.json({ message: "bad request" }, { status: 400 });
+        },
+        { once: true },
+      ),
+    );
+    const g = makeGarmin();
+
+    await expect(g.unitSystem()).rejects.toThrow();
+    await expect(g.unitSystem()).resolves.toBe("metric");
+    expect(settingsCalls).toBe(2);
   });
 });
