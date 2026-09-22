@@ -57,17 +57,20 @@ export async function getHeartRates(
   return data;
 }
 
+// Upstream's get_sleep_data has no null check — it returns whatever
+// connectapi gives back, including nothing for a night the user didn't wear
+// the watch. That's an ordinary, expected result, not an error, so this
+// mirrors upstream and returns null instead of throwing. Match upstream's
+// null behaviour per-method rather than applying a blanket policy here.
 export async function getSleepData(
   host: WellnessHost,
   cdate: string | Date,
-): Promise<SleepData> {
+): Promise<SleepData | null> {
   const date = formatDate(cdate);
-  const data = await host.client.connectapi<SleepData>(
+  return host.client.connectapi<SleepData>(
     `/wellness-service/wellness/dailySleepData/${await host.displayName()}`,
     { params: { date, nonSleepBufferMinutes: 60 } },
   );
-  if (!data) throw new GarminError("No sleep data received from Garmin");
-  return data;
 }
 
 export async function getHrvData(

@@ -188,6 +188,16 @@ describe("wellness endpoints", () => {
     expect(url.searchParams.get("nonSleepBufferMinutes")).toBe("60");
   });
 
+  it("getSleepData resolves to null when Garmin sends 204 (no data for an unworn night)", async () => {
+    server.use(
+      http.get(
+        `${API}/wellness-service/wellness/dailySleepData/abc-display`,
+        () => new HttpResponse(null, { status: 204 }),
+      ),
+    );
+    await expect(makeGarmin().getSleepData("2026-09-22")).resolves.toBeNull();
+  });
+
   it("getHrvData puts the date in the path", async () => {
     await makeGarmin().getHrvData("2026-09-22");
     expect(seen[0]!.url).toBe(`${API}/hrv-service/hrv/2026-09-22`);
