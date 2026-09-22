@@ -10,7 +10,6 @@ if (!(await client.loadTokens())) {
 }
 const g = new Garmin(client);
 const day = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
-const weekAgo = new Date(Date.now() - 7 * 86_400_000).toISOString().slice(0, 10);
 
 // Each task appends its service's READ probes here.
 const services: Record<string, Probe[]> = {
@@ -32,7 +31,7 @@ for (const p of probes) {
   try {
     const r = await p.run();
     const shape = r === null ? "null" : Array.isArray(r) ? `array[${r.length}]`
-      : typeof r === "object" ? `object(${Object.keys(r as object).length} keys)` : typeof r;
+      : typeof r === "object" ? `object(${Object.keys(r).length} keys)` : typeof r;
     console.log(`  PASS  ${p.name.padEnd(34)} ${shape}`);
     pass++;
   } catch (e) {

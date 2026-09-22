@@ -71,7 +71,7 @@ function loadEnv(): void {
   let content: string;
   try {
     content = readFileSync(envPath, "utf-8");
-  } catch (error) {
+  } catch (_error) {
     // File doesn't exist or can't be read — nothing to do.
     return;
   }

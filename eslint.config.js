@@ -62,6 +62,13 @@ export default tseslint.config(
       // safe, explicit form this rule exists to steer people toward, so
       // flagging it here is a false positive.
       "@typescript-eslint/no-base-to-string": "off",
+      // Catch-clause parameters in scripts may be deliberately ignored (e.g.,
+      // when only the presence of an exception matters, not its details).
+      // Allowing underscore-prefixed names sidesteps the need for empty blocks.
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^_" },
+      ],
     },
   },
 );

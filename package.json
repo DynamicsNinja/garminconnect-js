@@ -30,7 +30,7 @@
     "test:watch": "vitest",
     "test:live": "vitest run --config vitest.live.config.ts",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint src tests",
+    "lint": "eslint src tests scripts examples",
     "format": "prettier --write .",
     "login": "tsx scripts/login.ts",
     "record": "tsx scripts/record-fixtures.ts",
