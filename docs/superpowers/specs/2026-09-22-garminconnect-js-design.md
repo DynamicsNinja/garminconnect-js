@@ -87,9 +87,9 @@ Domain is `garmin.com`, or `garmin.cn` when the China flag is set. Subdomains us
 
 Steps:
 
-1. `GET https://sso.<domain>/sso/mobile/sso/en/sign-in?clientId=GCM_ANDROID_DARK`
+1. `GET https://sso.<domain>/mobile/sso/en/sign-in?clientId=GCM_ANDROID_DARK`
    with `Sec-Fetch-Site: none`. Seeds cookies. Response body unused.
-2. `POST https://sso.<domain>/sso/mobile/api/login` with query params
+2. `POST https://sso.<domain>/mobile/api/login` with query params
    `{clientId, locale: "en-US", service: "https://mobile.integration.<domain>/gcm/android"}`
    and JSON body `{username, password, rememberMe: false, captchaToken: ""}`.
    Read `responseStatus.type`:
@@ -97,11 +97,11 @@ Steps:
    - `MFA_REQUIRED` → read `customerMfaInfo.mfaLastMethodUsed` (default `"email"`),
      go to step 3.
    - anything else → `GarminAuthError` carrying `type: message`.
-3. `POST https://sso.<domain>/sso/mobile/api/mfa/verifyCode` with the same query params
+3. `POST https://sso.<domain>/mobile/api/mfa/verifyCode` with the same query params
    and JSON body
    `{mfaMethod, mfaVerificationCode, rememberMyBrowser: false, reconsentList: [], mfaSetup: false}`
    → `serviceTicketId`.
-4. Best-effort `GET https://sso.<domain>/sso/portal/sso/embed` with
+4. Best-effort `GET https://sso.<domain>/portal/sso/embed` with
    `Sec-Fetch-Site: same-origin` and a `referer` header set to the previous response
    URL. Sets a Cloudflare load-balancer cookie for backend pinning. Failures here are
    swallowed.

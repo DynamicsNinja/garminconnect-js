@@ -1672,7 +1672,10 @@ interface SsoResponse {
 }
 
 function ssoUrl(domain: string, path: string): string {
-  return `https://sso.${domain}/sso${path}`;
+  // No "/sso" segment here. garth calls urljoin("https://sso.garmin.com",
+  // "/mobile/sso/en/sign-in"), which does NOT insert the subdomain into the
+  // path. Verified live: .../sso/mobile/sso/en/sign-in 404s, .../mobile/sso/en/sign-in 200s.
+  return `https://sso.${domain}${path}`;
 }
 
 function requireSuccess(body: SsoResponse): SsoResponse {

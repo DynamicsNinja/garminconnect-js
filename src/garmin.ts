@@ -10,12 +10,22 @@ export interface SocialProfile {
   userName: string;
   fullName: string;
   profileId: number;
-  measurementSystem?: string;
+  [key: string]: unknown;
+}
+
+/** Response of `/userprofile-service/userprofile/user-settings`. */
+export interface UserSettings {
+  id?: number;
+  userData?: {
+    measurementSystem?: string;
+    [key: string]: unknown;
+  };
   [key: string]: unknown;
 }
 
 export class Garmin {
   #profile: Promise<SocialProfile> | null = null;
+  #settings: Promise<UserSettings> | null = null;
 
   constructor(readonly client: GarminClient) {}
 
@@ -34,6 +44,21 @@ export class Garmin {
     return this.#profile;
   }
 
+  /** Cached per instance, same eviction-on-failure pattern as `getUserProfile()`. */
+  getUserSettings(): Promise<UserSettings> {
+    this.#settings ??= (async () => {
+      const settings = await this.client.connectapi<UserSettings>(
+        "/userprofile-service/userprofile/user-settings",
+      );
+      if (!settings) throw new GarminError("Garmin returned no user settings");
+      return settings;
+    })().catch((error: unknown) => {
+      this.#settings = null; // allow a retry on the next call
+      throw error;
+    });
+    return this.#settings;
+  }
+
   async displayName(): Promise<string> {
     return (await this.getUserProfile()).displayName;
   }
@@ -46,8 +71,14 @@ export class Garmin {
     return (await this.getUserProfile()).userName;
   }
 
+  /**
+   * `measurementSystem` lives on `/userprofile-service/userprofile/user-settings`
+   * (under `userData`), not on the social profile. A convenience accessor, not
+   * a data endpoint: returns `undefined` rather than throwing if the payload
+   * shape is missing.
+   */
   async unitSystem(): Promise<string | undefined> {
-    return (await this.getUserProfile()).measurementSystem;
+    return (await this.getUserSettings()).userData?.measurementSystem;
   }
 
   // --- wellness ---

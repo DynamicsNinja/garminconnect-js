@@ -1,6 +1,6 @@
 export * from "./errors.js";
 export { GarminClient, type ApiOptions, type GarminClientOptions } from "./client.js";
-export { Garmin, type SocialProfile } from "./garmin.js";
+export { Garmin, type SocialProfile, type UserSettings } from "./garmin.js";
 export {
   FileTokenStore,
   MemoryTokenStore,
