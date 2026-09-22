@@ -242,4 +242,22 @@ describe("negative parse paths (5e)", () => {
       harness.server.close();
     }
   });
+
+  it("throws GarminAuthError when the oauth1 step returns a Cloudflare HTML challenge body", async () => {
+    resetConsumerCache();
+    const harness = makeSsoServer({
+      loginOutcome: "success",
+      oauth1Body: "<html><body>Attention Required</body></html>",
+    });
+    harness.server.listen({ onUnhandledRequest: "error" });
+    try {
+      const ctx = { fetcher: new Fetcher(), domain: "garmin.com" };
+      await expect(login("a@b.test", "pw", ctx)).rejects.toThrow(GarminAuthError);
+      await expect(login("a@b.test", "pw", ctx)).rejects.toThrow(
+        "OAuth1 exchange returned no token",
+      );
+    } finally {
+      harness.server.close();
+    }
+  });
 });

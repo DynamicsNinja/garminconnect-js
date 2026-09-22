@@ -163,4 +163,24 @@ describe("Fetcher", () => {
       expect(message).not.toContain("?");
     }
   });
+
+  it("strips the query string from the retry-exhausted GarminConnectionError message", async () => {
+    const fetchImpl = vi.fn(async () => {
+      throw new TypeError("fetch failed");
+    });
+    const f = new Fetcher({
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      retries: 1,
+      backoffMs: 1,
+    });
+    try {
+      await f.request("https://x.test/a?ticket=SECRET");
+      throw new Error("expected request to throw");
+    } catch (err) {
+      expect(err).toBeInstanceOf(GarminConnectionError);
+      const message = (err as Error).message;
+      expect(message).not.toContain("SECRET");
+      expect(message).not.toContain("?");
+    }
+  });
 });

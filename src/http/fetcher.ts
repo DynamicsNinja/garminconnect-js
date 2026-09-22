@@ -50,6 +50,10 @@ export class Fetcher {
       if (v !== undefined) target.searchParams.set(k, String(v));
     }
     const finalUrl = target.toString();
+    // Computed once, alongside finalUrl, so every error construction path
+    // in this method (including the retry-exhausted branch below) uses it
+    // rather than the raw, secret-carrying URL.
+    const safeUrl = this.#redactUrl(finalUrl);
 
     const headers = new Headers(options.headers ?? {});
     const cookie = this.jar.cookieHeaderFor(finalUrl);
@@ -89,11 +93,11 @@ export class Fetcher {
       if (RETRY_STATUSES.has(res.status) && attempt < this.#retries) {
         continue;
       }
-      throw await this.#toError(res, finalUrl);
+      throw await this.#toError(res, safeUrl);
     }
 
     throw new GarminConnectionError(
-      `Request to ${finalUrl} failed after ${this.#retries + 1} attempts`,
+      `Request to ${safeUrl} failed after ${this.#retries + 1} attempts`,
       { cause: lastError },
     );
   }
@@ -106,11 +110,9 @@ export class Fetcher {
     return single ? [single] : [];
   }
 
-  async #toError(res: Response, url: string): Promise<Error> {
+  /** `safeUrl` must already be redacted (see `#redactUrl`) — callers compute it once. */
+  async #toError(res: Response, safeUrl: string): Promise<Error> {
     const body = await res.text().catch(() => "");
-    // Strip the query string: it can carry secrets (e.g. a Garmin service
-    // ticket) that must not end up in error messages, logs or stack traces.
-    const safeUrl = this.#redactUrl(url);
     if (res.status === 429) {
       const raw = res.headers.get("retry-after");
       const retryAfter = raw && !Number.isNaN(Number(raw)) ? Number(raw) : undefined;
