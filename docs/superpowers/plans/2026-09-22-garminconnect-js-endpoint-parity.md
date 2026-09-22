@@ -28,14 +28,29 @@
 
 ## Write-method verification policy
 
-40 of the 154 methods mutate a real Garmin account, and Garmin has no sandbox.
+**AMENDED after the plan was written.** A dedicated, empty Garmin test account is now configured in
+`.env`, and the user has authorised full CRUD testing against it. This replaces the original policy,
+which shipped all 40 write methods unverified because the only account available held real personal
+data.
 
-- **Reads** are verified by a live smoke check per service (see each task's final step). This is safe and required.
-- **Writes** ship implemented and unit-tested, and are marked **not live-verified** in `AGENTS.md` and the README coverage table.
-- **No write method is exercised against a live account without explicit, per-method authorisation from the user**, requested at the time. Methods with no undo — `delete_activity`, `delete_workout`, `delete_weigh_ins`, `unschedule_workout`, the menstrual-cycle writes — are never live-tested automatically under any circumstances.
-- Where a write has a proven inverse (`addWeighIn`/`deleteWeighIn`, `setBloodPressure`/`deleteBloodPressure`), the task notes it as *safely round-trippable* so the user can authorise a verification cheaply if they want one.
-
-This policy exists because a green mocked suite does not prove a write is correct: `addWeighIn` shipped with 189 passing tests while storing 93 kg as 93,000 kg, because the implementation, the MSW handler and the assertion all encoded the same wrong assumption.
+- **Reads** are verified by a live smoke check per service (`npm run smoke -- <service>`).
+- **Writes** are verified by a live CRUD round-trip per service (`npm run smoke:write -- <service>`),
+  against the test account only.
+- **A write round-trip means: create → read back → assert the stored value matches what was sent →
+  delete → assert it is gone.** Reading the value back is the point. `addWeighIn` shipped green with
+  189 passing tests while storing 93 kg as 93,000 kg; only reading the stored value caught it. A test
+  that asserts the request shape proves nothing about what Garmin actually recorded.
+- **Hard safety gate.** `scripts/smoke-writes.ts` MUST verify it is talking to the test account before
+  issuing any write, by comparing the live `profileId` against `GARMIN_TEST_PROFILE_ID` from `.env`.
+  If the variable is absent or the profile does not match, it refuses to run and exits non-zero. This
+  is not optional and must not be bypassed: the same `tokens/` directory previously held a real
+  account's credentials, and a re-login can swap it back at any time.
+- **Where a write has no inverse** (`request_reload`, `push_workout_to_device`, the menstrual-cycle
+  writes), verify what can be verified — that the call succeeds and any read-back endpoint reflects it
+  — and record in the report that no delete was possible.
+- **Destructive-but-verifiable writes are in scope on the test account**, including `delete_activity`
+  and `delete_workout`, because the account is empty and the data is synthetic. Create the thing
+  first, then delete it. Never run a bare delete against pre-existing data.
 
 ## Handling UNCERTAIN rows
 
@@ -303,7 +318,8 @@ import * as metrics from "./services/metrics.js";
 npm test
 npm run typecheck
 npm run lint
-npm run smoke -- <service>
+npm run smoke -- <service>          # reads, live
+npm run smoke:write -- <service>    # writes, live, test account only (skip if the service has none)
 ```
 
 The first three must be green. For the smoke run, report the real output verbatim. A `FAIL` line is expected and useful for endpoints the account has no data for (e.g. golf for a non-golfer) — report it, do not hide it, and distinguish "no data" from "wrong URL": a wrong URL surfaces as `GarminHttpError: … 404`, while no data surfaces as `null`, `[]` or a 204.
@@ -368,6 +384,13 @@ Inventory section: `gear`.
 
 **Specific gotchas:** `create_gear` CONVERTS `maxUsageDistance` km→metres (`× 1000`) and `maxUsageDuration` minutes→seconds (`× 60`), rounding, with a floor of 1 — verified in upstream source. Replicate exactly, including the floor. This is the opposite direction from the weigh-in rule; do not generalise either one.
 
+**Live-verification requirement specific to this task.** Garmin's own web client calls
+`/gear-service/gear/v2/list` and `/gear-service/gear/v2/user-gear-types`, while upstream uses
+`/gear-service/gear/filterGear` with no `v2` (see `docs/webapp-endpoint-gap-analysis.md`). Upstream may
+be on a deprecated path. Implement upstream's paths as the inventory specifies — parity is the goal —
+but smoke-test every gear read live. If `filterGear` returns a 404 or an error, STOP and report it: that
+is a genuine upstream breakage, and the v2 paths are the replacement. Do not silently substitute v2.
+
 ### Task 8: womensHealth (11 methods)
 
 **Files:** Create `src/services/womensHealth.ts`, `src/types/womensHealth.ts`, `tests/services/womensHealth.test.ts`.
@@ -425,6 +448,15 @@ Inventory section: `golf`.
 Inventory sections: `nutrition`, `trainingPlans`.
 
 ### Task 15: misc, and final reconciliation (4 methods + reconciliation)
+
+**Additional documentation requirement.** Garmin returns
+`412 PreconditionFailedException: "The user is from EU location, but upload consent is not yet granted or
+revoked"` for EVERY write on an EU account that has not granted upload consent. This was hit live during
+this plan. The web client reads that flag from `GET /gc-api/gdprconsent-service/feature/UPLOAD`, which
+upstream does not wrap. Document the 412 in both `AGENTS.md` and the README — what it means, that it is
+an account-state precondition rather than a library bug, that it is fixed by granting consent in Garmin
+Connect, and that the consent flag is readable via `client.connectapi("/gdprconsent-service/feature/UPLOAD")`.
+An EU consumer will otherwise hit an opaque 412 on their first write.
 
 **Files:** Create `src/services/misc.ts`, `src/types/misc.ts`, `tests/services/misc.test.ts`; modify `README.md`, `AGENTS.md`.
 
