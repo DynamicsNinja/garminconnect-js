@@ -3385,7 +3385,7 @@ const DOWNLOAD_PATHS: Record<ActivityDownloadFormat, string> = {
   TCX: "/download-service/export/tcx/activity",
   GPX: "/download-service/export/gpx/activity",
   KML: "/download-service/export/kml/activity",
-  CSV: "/download-service/csvExporter",
+  CSV: "/download-service/export/csv/activity",
 };
 
 export async function downloadActivity(
