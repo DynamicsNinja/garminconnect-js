@@ -32,7 +32,8 @@
     "lint": "eslint src tests",
     "format": "prettier --write .",
     "login": "tsx scripts/login.ts",
-    "record": "tsx scripts/record-fixtures.ts"
+    "record": "tsx scripts/record-fixtures.ts",
+    "demo": "tsx examples/demo.ts"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
