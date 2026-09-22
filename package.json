@@ -4,7 +4,9 @@
   "description": "TypeScript client for the Garmin Connect API, for Node and Next.js server runtimes",
   "license": "MIT",
   "type": "module",
-  "engines": { "node": ">=18" },
+  "engines": {
+    "node": ">=18"
+  },
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -15,7 +17,11 @@
       "require": "./dist/index.cjs"
     }
   },
-  "files": ["dist", "README.md", "NOTICE"],
+  "files": [
+    "dist",
+    "README.md",
+    "NOTICE"
+  ],
   "scripts": {
     "build": "tsup",
     "test": "vitest run",
@@ -23,13 +29,16 @@
     "test:live": "vitest run --config vitest.live.config.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src tests",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "login": "tsx scripts/login.ts",
+    "record": "tsx scripts/record-fixtures.ts"
   },
   "dependencies": {},
   "devDependencies": {
     "@types/node": "^22.0.0",
     "msw": "^2.6.0",
     "tsup": "^8.3.0",
+    "tsx": "^4.23.15",
     "typescript": "^5.6.0",
     "vitest": "^2.1.0"
   }
