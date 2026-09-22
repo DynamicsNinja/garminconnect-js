@@ -355,8 +355,14 @@ describe("signatureBaseString", () => {
 });
 
 describe("buildOAuth1Header", () => {
-  // RFC 5849 section 1.2, step "Temporary Credentials" reference signature.
-  it("produces the RFC 5849 section 1.2 temporary-credential signature", () => {
+  // Derived from the RFC 5849 section 1.2 temporary-credential example.
+  // NOTE: the signature below is NOT the one RFC 5849 prints. The RFC's example
+  // omits oauth_version from the signed parameter set; this signer always sends
+  // and signs oauth_version="1.0", matching oauthlib (what Python garth uses
+  // against real Garmin). Dropping oauth_version from this same parameter set
+  // reproduces the RFC's published 74KNZJeDHnMBp0EMJ9ZHt/XKycU= exactly, which
+  // is what confirms the algorithm rather than the literal.
+  it("signs the RFC 5849 section 1.2 temporary-credential request", () => {
     const header = buildOAuth1Header({
       method: "POST",
       url: "https://photos.example.net/initiate",
@@ -366,7 +372,7 @@ describe("buildOAuth1Header", () => {
       timestamp: 137131200,
       bodyParams: { oauth_callback: "http://printer.example.com/ready" },
     });
-    expect(header).toContain('oauth_signature="74KNZJeDHnMBp0EMJ9ZHt%2FXKycU%3D"');
+    expect(header).toContain('oauth_signature="msrTmwtDEKqeVXeJaufuiXOpbJI%3D"');
     expect(header).toMatch(/^OAuth /);
     expect(header).toContain('oauth_consumer_key="dpf43f3p2l4k3l03"');
     expect(header).toContain('oauth_signature_method="HMAC-SHA1"');
