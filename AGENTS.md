@@ -61,6 +61,29 @@ Every identifier above (`GarminClient`, `Garmin`, `FileTokenStore`) is exported 
 | `getSleepData` | `(cdate: string \| Date): Promise<SleepData \| null>` | yes |
 | `getHrvData` | `(cdate: string \| Date): Promise<HrvData \| null>` | yes |
 | `getBodyBattery` | `(startdate: string \| Date, enddate?: string \| Date): Promise<BodyBatteryEntry[]>` | yes |
+| `getBodyBatteryEvents` | `(cdate: string \| Date): Promise<BodyBatteryEvent[] \| null>` | yes |
+| `getFloors` | `(cdate: string \| Date): Promise<FloorsData>` — throws `GarminError` if Garmin returns nothing | yes |
+| `getDailySteps` | `(start: string \| Date, end: string \| Date): Promise<DailyStepsEntry[] \| null>` — auto-chunks ranges over Garmin's 28-day-per-request limit into ≤28-day windows and concatenates; a single request within the limit passes its (possibly `null`) result through unchecked | yes |
+| `getWeeklySteps` | `(end: string \| Date, weeks?: number): Promise<WeeklyStepsEntry[] \| null>` — `weeks` defaults to 52, must be a positive integer | yes |
+| `getWeeklyStress` | `(end: string \| Date, weeks?: number): Promise<WeeklyStressEntry[] \| null>` — same `weeks` default/validation as `getWeeklySteps` | yes |
+| `getWeeklyIntensityMinutes` | `(start: string \| Date, end: string \| Date): Promise<WeeklyIntensityMinutesEntry[] \| null>` | yes |
+| `getStatsAndBody` | `(cdate: string \| Date): Promise<StatsAndBody>` — merges `getUserSummary` with the body-composition `totalAverage` block; inlines the `GET /weight-service/weight/dateRange` call the not-yet-ported `bodyComposition` service would make (see gotchas) | yes |
+| `setBloodPressure` | `(systolic: number, diastolic: number, pulse?: number, when?: Date, notes?: string): Promise<BloodPressureSetResult \| null>` — validates systolic 70-260, diastolic 40-150, pulse (if given) 20-250, all integers; `when` defaults to `new Date()` | **no** — implemented, not live-verified |
+| `getBloodPressure` | `(startdate: string \| Date, enddate?: string \| Date): Promise<BloodPressureRange \| null>` — `enddate` defaults to `startdate` | yes |
+| `deleteBloodPressure` | `(version: number \| string, cdate: string \| Date): Promise<unknown>` — no proven inverse write to round-trip against in this task | **no** — implemented, not live-verified |
+| `addHydrationData` | `(valueInMl: number, when?: Date, cdate?: string \| Date): Promise<HydrationLogResult \| null>` — raw milliliters, magnitude capped at 10000, negative values allowed; no delete endpoint exists, so **not safely round-trippable** | **no** — implemented, not live-verified |
+| `getHydrationData` | `(cdate: string \| Date): Promise<HydrationLogResult \| null>` | yes |
+| `getRespirationData` | `(cdate: string \| Date): Promise<RespirationData \| null>` | yes |
+| `getSpo2Data` | `(cdate: string \| Date): Promise<Spo2Data \| null>` — coerces a string `lastSevenDaysAvgSpO2` to a number | yes |
+| `getIntensityMinutesData` | `(cdate: string \| Date): Promise<IntensityMinutesData \| null>` | yes |
+| `getAllDayStress` | `(cdate: string \| Date): Promise<DailyStressData \| null>` | yes |
+| `getStressData` | `(cdate: string \| Date): Promise<DailyStressData \| null>` — identical URL to `getAllDayStress`, kept as a separate method for upstream API parity | yes |
+| `getAllDayEvents` | `(cdate: string \| Date): Promise<DailyEventsData \| null>` | yes |
+| `getSleepDaily` | `(start: string \| Date, end: string \| Date): Promise<SleepDailyEntry[]>` — Garmin's endpoint has a documented **28-day-per-request limit**; ranges beyond that are auto-chunked, de-duplicated by `calendarDate`, and sorted | yes |
+| `getRhrDay` | `(cdate: string \| Date): Promise<RhrDayData \| null>` | yes |
+| `getRhrDaily` | `(start: string \| Date, end: string \| Date): Promise<RhrDailyEntry[]>` — reshapes `allMetrics.metricsMap` into `[{calendarDate, value}]`, dropping null values | yes |
+| `getCaloriesDaily` | `(start: string \| Date, end: string \| Date): Promise<CaloriesDailyEntry[]>` — merges active (metricId 22) and resting/BMR (metricId 23) series into `[{calendarDate, active, resting, total}]` | yes |
+| `getHrvDataRange` | `(start: string \| Date, end: string \| Date): Promise<HrvDataRange \| null>` | yes |
 | `getActivities` | `(start?: number, limit?: number): Promise<Activity[]>` — defaults `start=0, limit=20` | yes |
 | `getActivity` | `(activityId: number \| string): Promise<Activity>` | yes |
 | `downloadActivity` | `(activityId: number \| string, format?: ActivityDownloadFormat): Promise<Buffer>` — `ActivityDownloadFormat` is `"ORIGINAL" \| "TCX" \| "GPX" \| "KML" \| "CSV"`, default `"ORIGINAL"` | **no** — implemented, not live-verified |
@@ -100,7 +123,7 @@ interface GarminClientOptions {
 
 ## 4. These methods do NOT exist
 
-This is a **partial port**: ~14 of upstream python-garminconnect's ~155 methods. An agent that has
+This is a **partial port**: ~37 of upstream python-garminconnect's 154 public methods. An agent that has
 seen `garminconnect` in training will write calls like `client.get_devices()`,
 `get_training_status()`, or `get_gear()` — none of that exists here. Do not invent methods on
 `Garmin` or `GarminClient` by analogy with upstream names.
@@ -118,11 +141,9 @@ Notably absent (implement via `connectapi` instead — see below):
 - Personal records
 - Connect IQ
 - Women's health, menstrual cycle tracking
-- Hydration
-- Respiration
-- SpO2
-- Blood pressure
-- Body composition upload (as distinct from the weigh-in endpoints that do exist)
+- Body composition read/upload (`getStatsAndBody` inlines one body-composition GET call directly; the
+  dedicated `bodyComposition` service — `getBodyComposition`, `addBodyComposition` — is a separate,
+  not-yet-ported task)
 - Golf
 - Nutrition
 - Segments
@@ -177,6 +198,17 @@ login. This is the intended pattern for serverless MFA, not a workaround.
 
 ## 6. Gotchas
 
+- **`getDailySteps` and `getSleepDaily` auto-chunk ranges over 28 days.** Garmin's underlying
+  endpoints have a documented 28-day-per-request limit; both methods split a longer `(start, end)`
+  range into ≤28-day windows internally and concatenate/de-duplicate the results — callers pass an
+  arbitrary range and don't need to chunk themselves. Both throw `GarminError` if `start > end`.
+- **`getStatsAndBody` depends on a body-composition endpoint the dedicated `bodyComposition`
+  service doesn't wrap yet** (a separate, not-yet-ported task). It inlines a direct
+  `GET /weight-service/weight/dateRange` call rather than delegating to a `getBodyComposition`
+  method that doesn't exist in this version — if/when that service ships, revisit this delegation.
+- **`addHydrationData` has no delete endpoint** — unlike `addWeighIn`/`deleteWeighIn`, a hydration
+  log entry cannot be safely round-tripped away. It is not live-verified for this reason (write-only
+  probes on an empty test account are the only verification performed).
 - **`addWeighIn` vs `getWeighIns` unit asymmetry is real and deliberate.** `addWeighIn(weight,
   unitKey, when?)` sends `weight` RAW, in whatever unit `unitKey` names (`"kg"` or `"lbs"`) — do
   NOT pre-convert to grams; Garmin converts server-side. But `getWeighIns` returns Garmin's stored

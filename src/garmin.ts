@@ -104,6 +104,81 @@ export class Garmin {
   getBodyBattery(startdate: string | Date, enddate?: string | Date) {
     return wellness.getBodyBattery(this, startdate, enddate);
   }
+  getBodyBatteryEvents(cdate: string | Date) {
+    return wellness.getBodyBatteryEvents(this, cdate);
+  }
+  getFloors(cdate: string | Date) {
+    return wellness.getFloors(this, cdate);
+  }
+  getDailySteps(start: string | Date, end: string | Date) {
+    return wellness.getDailySteps(this, start, end);
+  }
+  getWeeklySteps(end: string | Date, weeks?: number) {
+    return wellness.getWeeklySteps(this, end, weeks);
+  }
+  getWeeklyStress(end: string | Date, weeks?: number) {
+    return wellness.getWeeklyStress(this, end, weeks);
+  }
+  getWeeklyIntensityMinutes(start: string | Date, end: string | Date) {
+    return wellness.getWeeklyIntensityMinutes(this, start, end);
+  }
+  getStatsAndBody(cdate: string | Date) {
+    return wellness.getStatsAndBody(this, cdate);
+  }
+  setBloodPressure(
+    systolic: number,
+    diastolic: number,
+    pulse?: number,
+    when?: Date,
+    notes?: string,
+  ) {
+    return wellness.setBloodPressure(this, systolic, diastolic, pulse, when, notes);
+  }
+  getBloodPressure(startdate: string | Date, enddate?: string | Date) {
+    return wellness.getBloodPressure(this, startdate, enddate);
+  }
+  deleteBloodPressure(version: number | string, cdate: string | Date) {
+    return wellness.deleteBloodPressure(this, version, cdate);
+  }
+  addHydrationData(valueInMl: number, when?: Date, cdate?: string | Date) {
+    return wellness.addHydrationData(this, valueInMl, when, cdate);
+  }
+  getHydrationData(cdate: string | Date) {
+    return wellness.getHydrationData(this, cdate);
+  }
+  getRespirationData(cdate: string | Date) {
+    return wellness.getRespirationData(this, cdate);
+  }
+  getSpo2Data(cdate: string | Date) {
+    return wellness.getSpo2Data(this, cdate);
+  }
+  getIntensityMinutesData(cdate: string | Date) {
+    return wellness.getIntensityMinutesData(this, cdate);
+  }
+  getAllDayStress(cdate: string | Date) {
+    return wellness.getAllDayStress(this, cdate);
+  }
+  getStressData(cdate: string | Date) {
+    return wellness.getStressData(this, cdate);
+  }
+  getAllDayEvents(cdate: string | Date) {
+    return wellness.getAllDayEvents(this, cdate);
+  }
+  getSleepDaily(start: string | Date, end: string | Date) {
+    return wellness.getSleepDaily(this, start, end);
+  }
+  getRhrDay(cdate: string | Date) {
+    return wellness.getRhrDay(this, cdate);
+  }
+  getRhrDaily(start: string | Date, end: string | Date) {
+    return wellness.getRhrDaily(this, start, end);
+  }
+  getCaloriesDaily(start: string | Date, end: string | Date) {
+    return wellness.getCaloriesDaily(this, start, end);
+  }
+  getHrvDataRange(start: string | Date, end: string | Date) {
+    return wellness.getHrvDataRange(this, start, end);
+  }
 
   // --- activities ---
   getActivities(start?: number, limit?: number) {

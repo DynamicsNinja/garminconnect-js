@@ -10,12 +10,36 @@ if (!(await client.loadTokens())) {
 }
 const g = new Garmin(client);
 const day = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+const weekAgo = new Date(Date.now() - 7 * 86_400_000).toISOString().slice(0, 10);
 
 // Each task appends its service's READ probes here.
 const services: Record<string, Probe[]> = {
   wellness: [
     { name: "getUserSummary", run: () => g.getUserSummary(day) },
     { name: "getStepsData", run: () => g.getStepsData(day) },
+    { name: "getBodyBatteryEvents", run: () => g.getBodyBatteryEvents(day) },
+    { name: "getFloors", run: () => g.getFloors(day) },
+    { name: "getDailySteps", run: () => g.getDailySteps(weekAgo, day) },
+    { name: "getWeeklySteps", run: () => g.getWeeklySteps(day) },
+    { name: "getWeeklyStress", run: () => g.getWeeklyStress(day) },
+    {
+      name: "getWeeklyIntensityMinutes",
+      run: () => g.getWeeklyIntensityMinutes(weekAgo, day),
+    },
+    { name: "getStatsAndBody", run: () => g.getStatsAndBody(day) },
+    { name: "getBloodPressure", run: () => g.getBloodPressure(weekAgo, day) },
+    { name: "getHydrationData", run: () => g.getHydrationData(day) },
+    { name: "getRespirationData", run: () => g.getRespirationData(day) },
+    { name: "getSpo2Data", run: () => g.getSpo2Data(day) },
+    { name: "getIntensityMinutesData", run: () => g.getIntensityMinutesData(day) },
+    { name: "getAllDayStress", run: () => g.getAllDayStress(day) },
+    { name: "getStressData", run: () => g.getStressData(day) },
+    { name: "getAllDayEvents", run: () => g.getAllDayEvents(day) },
+    { name: "getSleepDaily", run: () => g.getSleepDaily(weekAgo, day) },
+    { name: "getRhrDay", run: () => g.getRhrDay(day) },
+    { name: "getRhrDaily", run: () => g.getRhrDaily(weekAgo, day) },
+    { name: "getCaloriesDaily", run: () => g.getCaloriesDaily(weekAgo, day) },
+    { name: "getHrvDataRange", run: () => g.getHrvDataRange(weekAgo, day) },
   ],
 };
 
