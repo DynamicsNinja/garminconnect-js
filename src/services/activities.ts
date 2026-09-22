@@ -4,9 +4,21 @@ import { formatDate } from "../util/date.js";
 import type {
   Activity,
   ActivitiesForDateResponse,
+  ActivityDetails,
   ActivityDownloadFormat,
+  ActivityExerciseSets,
+  ActivityGear,
+  ActivityHrInTimezones,
+  ActivityPowerInTimezones,
+  ActivitySplits,
+  ActivitySplitSummaries,
+  ActivityTypedSplits,
   ActivityTypesResponse,
+  ActivityWeather,
+  GearActivity,
+  GearLinkResult,
   ImportActivityResult,
+  ProgressSummary,
 } from "../types/activities.js";
 
 export interface ActivitiesHost {
@@ -323,4 +335,233 @@ export async function importActivity(
     }
     throw cause;
   }
+}
+
+// --- per-activity detail sub-resources (Task 4) ---
+
+/** `dict`, passes through unchecked per the inventory. */
+export async function getActivitySplits(
+  host: ActivitiesHost,
+  activityId: number | string,
+): Promise<ActivitySplits | null> {
+  return host.client.connectapi<ActivitySplits>(`/activity-service/activity/${activityId}/splits`);
+}
+
+/** `dict`, passes through unchecked per the inventory. Richer detail than `getActivitySplits` for some activity types (e.g. Bouldering). */
+export async function getActivityTypedSplits(
+  host: ActivitiesHost,
+  activityId: number | string,
+): Promise<ActivityTypedSplits | null> {
+  return host.client.connectapi<ActivityTypedSplits>(
+    `/activity-service/activity/${activityId}/typedsplits`,
+  );
+}
+
+/** `dict`, passes through unchecked per the inventory. */
+export async function getActivitySplitSummaries(
+  host: ActivitiesHost,
+  activityId: number | string,
+): Promise<ActivitySplitSummaries | null> {
+  return host.client.connectapi<ActivitySplitSummaries>(
+    `/activity-service/activity/${activityId}/split_summaries`,
+  );
+}
+
+/** `dict`, passes through unchecked per the inventory. */
+export async function getActivityWeather(
+  host: ActivitiesHost,
+  activityId: number | string,
+): Promise<ActivityWeather | null> {
+  return host.client.connectapi<ActivityWeather>(`/activity-service/activity/${activityId}/weather`);
+}
+
+/** `dict`, passes through unchecked per the inventory. */
+export async function getActivityHrInTimezones(
+  host: ActivitiesHost,
+  activityId: number | string,
+): Promise<ActivityHrInTimezones | null> {
+  return host.client.connectapi<ActivityHrInTimezones>(
+    `/activity-service/activity/${activityId}/hrTimeInZones`,
+  );
+}
+
+/** `dict`, passes through unchecked per the inventory. */
+export async function getActivityPowerInTimezones(
+  host: ActivitiesHost,
+  activityId: number | string,
+): Promise<ActivityPowerInTimezones | null> {
+  return host.client.connectapi<ActivityPowerInTimezones>(
+    `/activity-service/activity/${activityId}/powerTimeInZones`,
+  );
+}
+
+/**
+ * `dict`, passes through unchecked per the inventory. Upstream validates `maxchart` positive and
+ * `maxpoly` non-negative before the call; this port does not re-validate (matching the "no
+ * explicit null handling" posture applied elsewhere in this file for un-reviewed edge cases) —
+ * an invalid value is Garmin's problem to reject, not re-validated client-side here.
+ */
+export async function getActivityDetails(
+  host: ActivitiesHost,
+  activityId: number | string,
+  maxchart = 2000,
+  maxpoly = 4000,
+): Promise<ActivityDetails | null> {
+  return host.client.connectapi<ActivityDetails>(`/activity-service/activity/${activityId}/details`, {
+    params: { maxChartSize: String(maxchart), maxPolylineSize: String(maxpoly) },
+  });
+}
+
+/** `dict`, passes through unchecked per the inventory. */
+export async function getActivityExerciseSets(
+  host: ActivitiesHost,
+  activityId: number | string,
+): Promise<ActivityExerciseSets | null> {
+  return host.client.connectapi<ActivityExerciseSets>(
+    `/activity-service/activity/${activityId}/exerciseSets`,
+  );
+}
+
+/**
+ * UNCERTAIN (inventory): "no explicit null handling, returns raw response".
+ * **Replace-all semantics** — `payload` fully overwrites the existing `exerciseSets` array on
+ * Garmin's side, it is not merged. Garmin validates `exercises[].category`/`exercises[].name`
+ * against its FIT enum server-side (400 "Invalid Sub-Category Passed" on unknown values).
+ */
+export async function setActivityExerciseSets(
+  host: ActivitiesHost,
+  activityId: number | string,
+  payload: ActivityExerciseSets,
+): Promise<unknown> {
+  return host.client.connectapi(`/activity-service/activity/${activityId}/exerciseSets`, {
+    method: "PUT",
+    json: payload,
+  });
+}
+
+/**
+ * Inventory places this row under the "gear" section, not "activities" — reuses `get_gear`'s base
+ * URL (`/gear-service/gear/filterGear`) with an `activityId` query param instead of `userProfilePk`.
+ * Implemented here per the task brief, which assigns the activity/gear-association methods to this
+ * service rather than the (separate, not-yet-ported) dedicated gear service.
+ */
+export async function getActivityGear(
+  host: ActivitiesHost,
+  activityId: number | string,
+): Promise<ActivityGear | null> {
+  return host.client.connectapi<ActivityGear>("/gear-service/gear/filterGear", {
+    params: { activityId },
+  });
+}
+
+const GEAR_ACTIVITIES_MAX_LIMIT = 1000;
+
+/**
+ * Inventory places this row under the "gear" section — see `getActivityGear`'s note.
+ * `limit` is clamped to `GEAR_ACTIVITIES_MAX_LIMIT` (1000), matching upstream. On a 404, upstream
+ * logs a warning and returns `[]` rather than raising; other errors are re-raised as-is.
+ */
+export async function getGearActivities(
+  host: ActivitiesHost,
+  gearUUID: string,
+  limit = 1000,
+): Promise<GearActivity[]> {
+  const cappedLimit = Math.min(limit, GEAR_ACTIVITIES_MAX_LIMIT);
+  try {
+    const data = await host.client.connectapi<GearActivity[]>(
+      `/activitylist-service/activities/${gearUUID}/gear`,
+      { params: { start: 0, limit: cappedLimit } },
+    );
+    return data ?? [];
+  } catch (cause) {
+    if (cause instanceof GarminHttpError && cause.status === 404) {
+      return [];
+    }
+    throw cause;
+  }
+}
+
+/**
+ * Inventory places this row under the "gear" section — see `getActivityGear`'s note.
+ * On 404, re-raised as `GarminConnectionError` with a "gear not found (likely retired/removed)"
+ * message, matching upstream; other errors re-raised as-is.
+ */
+export async function addGearToActivity(
+  host: ActivitiesHost,
+  gearUUID: string,
+  activityId: number | string,
+): Promise<GearLinkResult | null> {
+  try {
+    return await host.client.connectapi<GearLinkResult>(
+      `/gear-service/gear/link/${gearUUID}/activity/${activityId}`,
+      { method: "PUT" },
+    );
+  } catch (cause) {
+    if (cause instanceof GarminHttpError && cause.status === 404) {
+      throw new GarminConnectionError(
+        `Cannot add gear ${gearUUID} to activity ${activityId}: gear not found (likely retired/removed)`,
+        { cause },
+      );
+    }
+    throw cause;
+  }
+}
+
+/**
+ * Inventory places this row under the "gear" section — see `getActivityGear`'s note.
+ * Note: unlinking is also a **PUT**, not a DELETE, matching upstream exactly. Same 404-handling
+ * pattern as `addGearToActivity`, with a "remove ... from activity" message.
+ */
+export async function removeGearFromActivity(
+  host: ActivitiesHost,
+  gearUUID: string,
+  activityId: number | string,
+): Promise<GearLinkResult | null> {
+  try {
+    return await host.client.connectapi<GearLinkResult>(
+      `/gear-service/gear/unlink/${gearUUID}/activity/${activityId}`,
+      { method: "PUT" },
+    );
+  } catch (cause) {
+    if (cause instanceof GarminHttpError && cause.status === 404) {
+      throw new GarminConnectionError(
+        `Cannot remove gear ${gearUUID} from activity ${activityId}: gear not found (likely retired/removed)`,
+        { cause },
+      );
+    }
+    throw cause;
+  }
+}
+
+/** `dict`, passes through unchecked per the inventory. Both dates are routed through `formatDate`. */
+export async function getProgressSummaryBetweenDates(
+  host: ActivitiesHost,
+  startdate: string | Date,
+  enddate: string | Date,
+  metric = "distance",
+  groupbyactivities = true,
+): Promise<ProgressSummary | null> {
+  const startDate = formatDate(startdate);
+  const endDate = formatDate(enddate);
+  return host.client.connectapi<ProgressSummary>("/fitnessstats-service/activity", {
+    params: {
+      startDate,
+      endDate,
+      aggregation: "lifetime",
+      groupByParentActivityType: String(groupbyactivities),
+      metric,
+    },
+  });
+}
+
+/**
+ * UNCERTAIN (inventory): routed through `client.download`, no null-handling visible upstream.
+ * Returns a ZIP file's raw bytes, matching `downloadActivity`'s `ORIGINAL` format.
+ */
+export async function downloadHealthSnapshot(
+  host: ActivitiesHost,
+  requestedDate: string | Date,
+): Promise<Buffer> {
+  const date = formatDate(requestedDate);
+  return host.client.download(`/download-service/files/wellness/${date}`);
 }

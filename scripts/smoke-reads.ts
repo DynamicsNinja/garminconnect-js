@@ -56,6 +56,83 @@ const services: Record<string, Probe[]> = {
       },
     },
     { name: "getActivityTypes", run: () => g.getActivityTypes() },
+    // The following need a real activityId to hit a non-404 path. The test account is normally
+    // empty, so `getLastActivity()` returning `null` (and these resolving to `null` rather than
+    // issuing a request against a made-up id) is the expected, PASSing outcome when run standalone.
+    // Live verification against a real fixture activity is performed in scripts/smoke-writes.ts
+    // (key "activitiesDetail"), which creates and deletes one around these same calls.
+    {
+      name: "getActivitySplits",
+      run: async () => {
+        const last = await g.getLastActivity();
+        return last ? g.getActivitySplits(last.activityId) : null;
+      },
+    },
+    {
+      name: "getActivityTypedSplits",
+      run: async () => {
+        const last = await g.getLastActivity();
+        return last ? g.getActivityTypedSplits(last.activityId) : null;
+      },
+    },
+    {
+      name: "getActivitySplitSummaries",
+      run: async () => {
+        const last = await g.getLastActivity();
+        return last ? g.getActivitySplitSummaries(last.activityId) : null;
+      },
+    },
+    {
+      name: "getActivityWeather",
+      run: async () => {
+        const last = await g.getLastActivity();
+        return last ? g.getActivityWeather(last.activityId) : null;
+      },
+    },
+    {
+      name: "getActivityHrInTimezones",
+      run: async () => {
+        const last = await g.getLastActivity();
+        return last ? g.getActivityHrInTimezones(last.activityId) : null;
+      },
+    },
+    {
+      name: "getActivityPowerInTimezones",
+      run: async () => {
+        const last = await g.getLastActivity();
+        return last ? g.getActivityPowerInTimezones(last.activityId) : null;
+      },
+    },
+    {
+      name: "getActivityDetails",
+      run: async () => {
+        const last = await g.getLastActivity();
+        return last ? g.getActivityDetails(last.activityId) : null;
+      },
+    },
+    {
+      name: "getActivityExerciseSets",
+      run: async () => {
+        const last = await g.getLastActivity();
+        return last ? g.getActivityExerciseSets(last.activityId) : null;
+      },
+    },
+    {
+      name: "getActivityGear",
+      run: async () => {
+        const last = await g.getLastActivity();
+        return last ? g.getActivityGear(last.activityId) : null;
+      },
+    },
+    {
+      name: "getGearActivities",
+      // No real gear UUID exists on the test account (gear has no delete/retire endpoint in this
+      // port, so none was created — see task-4 report); exercised with a bogus UUID to confirm the
+      // URL shape and the "404 -> []" null-behaviour without needing real gear.
+      run: () => g.getGearActivities("00000000-0000-0000-0000-000000000000"),
+    },
+    { name: "getProgressSummaryBetweenDates", run: () => g.getProgressSummaryBetweenDates(weekAgo, day) },
+    { name: "downloadHealthSnapshot", run: () => g.downloadHealthSnapshot(day) },
   ],
 };
 
@@ -70,7 +147,9 @@ let pass = 0, fail = 0;
 for (const p of probes) {
   try {
     const r = await p.run();
-    const shape = r === null ? "null" : Array.isArray(r) ? `array[${r.length}]`
+    const shape = r === null ? "null"
+      : Buffer.isBuffer(r) ? `Buffer(${r.length} bytes)`
+      : Array.isArray(r) ? `array[${r.length}]`
       : typeof r === "object" ? `object(${Object.keys(r).length} keys)` : typeof r;
     console.log(`  PASS  ${p.name.padEnd(34)} ${shape}`);
     pass++;

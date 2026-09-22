@@ -98,7 +98,22 @@ Every identifier above (`GarminClient`, `Garmin`, `FileTokenStore`) is exported 
 | `createManualActivityFromJson` | `(payload: Record<string, unknown>): Promise<unknown>` — sends `payload` to Garmin verbatim, no shape validation; UNCERTAIN upstream null handling | yes (exercised via `createManualActivity`, which delegates to it with no other code path) |
 | `createManualActivity` | `(startDatetime: string, timeZone: string, typeKey: string, distanceKm: number, durationMin: number, activityName: string): Promise<unknown>` — **converts units**: `distanceKm * 1000` → meters, `durationMin * 60` → seconds, before building the request body; `startDatetime` is NOT routed through `formatDate` (it's a full local timestamp, not a bare calendar date) — **must include milliseconds**, e.g. `"2026-09-22T10:00:00.000"` (upstream's documented pattern); omitting them produced a live HTTP 500 `ValueInstantiationException` from Garmin during verification. Live-verified: the converted `summaryDTO.distance`/`summaryDTO.duration` were read back via `getActivity` and matched the expected meters/seconds exactly (5.5km/30min → 5500m/1800s) | yes |
 | `importActivity` | `(file: Blob, filename: string): Promise<ImportActivityResult>` — multipart upload to `/upload-service/upload/{ext}` (extension from `filename`, must be `fit`/`gpx`/`tcx`) with the load-bearing `NK`/`origin`/custom `User-Agent` headers that make Garmin treat it as an import rather than a device sync; a 409 is re-raised as `GarminConnectionError` ("Activity already exists (duplicate): ...") | yes — a synthetic GPX (fake, Null-Island-adjacent coordinates) was uploaded, Garmin processed it asynchronously (~3-6s), the resulting activity was found by polling `getActivities`, then deleted |
-| `downloadActivity` | `(activityId: number \| string, format?: ActivityDownloadFormat): Promise<Buffer>` — `ActivityDownloadFormat` is `"ORIGINAL" \| "TCX" \| "GPX" \| "KML" \| "CSV"`, default `"ORIGINAL"` | **no** — implemented, not live-verified |
+| `downloadActivity` | `(activityId: number \| string, format?: ActivityDownloadFormat): Promise<Buffer>` — `ActivityDownloadFormat` is `"ORIGINAL" \| "TCX" \| "GPX" \| "KML" \| "CSV"`, default `"ORIGINAL"` | yes — all 5 formats downloaded against a synthetic fixture and confirmed non-empty (364-1505 bytes each) |
+| `getActivitySplits` | `(activityId: number \| string): Promise<ActivitySplits \| null>` — passes through unchecked | yes |
+| `getActivityTypedSplits` | `(activityId: number \| string): Promise<ActivityTypedSplits \| null>` — passes through unchecked; richer detail than `getActivitySplits` for some activity types (e.g. Bouldering) | yes |
+| `getActivitySplitSummaries` | `(activityId: number \| string): Promise<ActivitySplitSummaries \| null>` — passes through unchecked | yes |
+| `getActivityWeather` | `(activityId: number \| string): Promise<ActivityWeather \| null>` — passes through unchecked | yes |
+| `getActivityHrInTimezones` | `(activityId: number \| string): Promise<ActivityHrInTimezones \| null>` — passes through unchecked | yes (returned `[]` live — a synthetic manual/GPX fixture carries no HR data) |
+| `getActivityPowerInTimezones` | `(activityId: number \| string): Promise<ActivityPowerInTimezones \| null>` — passes through unchecked | yes (returned `[]` live — same reason) |
+| `getActivityDetails` | `(activityId: number \| string, maxchart?: number, maxpoly?: number): Promise<ActivityDetails \| null>` — defaults `maxchart=2000, maxpoly=4000`, sent as `maxChartSize`/`maxPolylineSize`; passes through unchecked | yes |
+| `getActivityExerciseSets` | `(activityId: number \| string): Promise<ActivityExerciseSets \| null>` — passes through unchecked | yes |
+| `setActivityExerciseSets` | `(activityId: number \| string, payload: ActivityExerciseSets): Promise<unknown>` — **replace-all semantics**, `payload` sent verbatim; UNCERTAIN upstream null handling. See gotchas for the payload shape Garmin actually requires (undocumented upstream) | yes — value read back via `getActivityExerciseSets` after the call and matched exactly (`duration`, `repetitionCount`, `exercises[0].category`) |
+| `getActivityGear` | `(activityId: number \| string): Promise<ActivityGear \| null>` — passes through unchecked; inventory places this row under the "gear" section, not "activities" (see gotchas) | yes |
+| `getGearActivities` | `(gearUUID: string, limit?: number): Promise<GearActivity[]>` — `limit` clamped to 1000; returns `[]` on a 404 instead of throwing; inventory places this row under "gear" | yes — exercised against a syntactically valid but non-existent gearUUID (no real gear exists on the test account; see gotchas), confirmed `[]` on the resulting 404 |
+| `addGearToActivity` | `(gearUUID: string, activityId: number \| string): Promise<GearLinkResult \| null>` — on 404 re-raises as `GarminConnectionError` ("gear not found (likely retired/removed)"); inventory places this row under "gear" | yes — the 404 path and error message were exercised live against a real fixture activity + a non-existent gearUUID (see gotchas for why real gear was not created) |
+| `removeGearFromActivity` | `(gearUUID: string, activityId: number \| string): Promise<GearLinkResult \| null>` — **PUT**, not DELETE; same 404-handling pattern as `addGearToActivity`; inventory places this row under "gear" | yes — same caveat as `addGearToActivity` |
+| `getProgressSummaryBetweenDates` | `(startdate: string \| Date, enddate: string \| Date, metric?: string, groupbyactivities?: boolean): Promise<ProgressSummary \| null>` — defaults `metric="distance", groupbyactivities=true`; both dates routed through `formatDate`; passes through unchecked | yes |
+| `downloadHealthSnapshot` | `(requestedDate: string \| Date): Promise<Buffer>` — routed through `formatDate`; UNCERTAIN upstream null handling, routed through `client.download` | attempted — 404 `NotFoundException` on the test account (no health snapshot exists for any date on an account that has never recorded one); the URL was transcribed verbatim from the inventory and matches the pattern exactly, so this 404 is classified as "no data for this account", not a wrong-URL bug, by the same convention as `getActivity` 404ing for a non-existent id |
 | `getWeighIns` | `(startdate: string \| Date, enddate: string \| Date): Promise<WeighInRange>` | yes |
 | `addWeighIn` | `(weightValue: number, unitKey?: "kg" \| "lbs", when?: Date): Promise<unknown>` — defaults `unitKey="kg"`, `when=new Date()` | yes |
 | `deleteWeighIn` | `(cdate: string \| Date, weightPk: number): Promise<null>` | yes |
@@ -161,7 +176,10 @@ Notably absent (implement via `connectapi` instead — see below):
 - Segments
 - Social/connections
 - The GraphQL passthrough endpoint
-- Activity detail sub-resources: splits, weather, HR/power zones, exercise sets, gear association
+- Gear CRUD itself (`getGear`, `createGear`, `getGearStats`, `getGearDefaults`, `setGearDefault`) —
+  only the activity-association half (`getActivityGear`, `getGearActivities`, `addGearToActivity`,
+  `removeGearFromActivity`) is implemented so far, ported alongside the activities service; the
+  rest is a separate, not-yet-ported task
 
 **What to do instead:** call `client.connectapi<T>(path, options)` directly with the same
 upstream Garmin Connect path. `connectapi` is the general HTTP-with-auth primitive every `Garmin`
@@ -210,6 +228,41 @@ login. This is the intended pattern for serverless MFA, not a workaround.
 
 ## 6. Gotchas
 
+- **`setActivityExerciseSets`'s payload shape is undocumented upstream and stricter than it looks.**
+  The upstream inventory says only "caller-supplied `payload` ... sent as-is." Live testing against
+  the test account found Garmin rejects several plausible shapes before accepting one: it needs
+  `activityId` repeated at the top level, inside each `exerciseSets[]` entry, AND inside each
+  `exercises[]` entry (a bare `{category, name}` exercise object fails with "Activity ID should not
+  be Null in the Exercises Object"); each set needs `setType` (fails with "Set Type in a Set message
+  can not be Null" otherwise); and each set needs a `startTime` (an ISO-ish timestamp; its absence
+  produced a bare 500 `NullPointerException` with no more specific message). The confirmed-working
+  shape is:
+  ```ts
+  {
+    activityId,
+    exerciseSets: [{
+      activityId,
+      duration, repetitionCount, setType: "ACTIVE", startTime,
+      exercises: [{ activityId, category: "SQUAT", subCategory: null }],
+    }],
+  }
+  ```
+  This library does not validate or reshape the caller's payload — it is sent verbatim, matching
+  upstream — this note exists so a caller doesn't have to rediscover the same three 400/500s.
+- **`getActivityGear`, `getGearActivities`, `addGearToActivity`, `removeGearFromActivity` were
+  ported alongside `activities`, not `gear`**, even though the upstream inventory files all four
+  under its "gear" section — the task that ported them targeted the activities service and folded
+  these four in because they take an `activity_id` and are the activity/gear-association surface,
+  not gear CRUD itself (`getGear`/`createGear`/etc., not yet ported). They live in
+  `src/services/activities.ts`, not a `gear.ts` that doesn't exist yet.
+- **`addGearToActivity`/`removeGearFromActivity` are live-verified only on their 404 path, not a
+  full add→read-back→remove round-trip.** This inventory (and upstream `python-garminconnect`) has
+  no delete/retire-gear endpoint at all — gear created via `POST /gear-service/gear/v2` would be
+  permanent on the test account, which would violate "the account ends with zero gear" with no way
+  to comply. Rather than leave orphaned gear behind, verification was done against a syntactically
+  valid but non-existent gearUUID on a real fixture activity, confirming the URL shape and the
+  404-to-`GarminConnectionError` mapping. The success path (adding/removing gear that actually
+  exists) is unverified.
 - **`getDailySteps` and `getSleepDaily` auto-chunk ranges over 28 days.** Garmin's underlying
   endpoints have a documented 28-day-per-request limit; both methods split a longer `(start, end)`
   range into ≤28-day windows internally and concatenate/de-duplicate the results — callers pass an

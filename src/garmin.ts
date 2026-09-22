@@ -3,7 +3,7 @@ import { GarminError } from "./errors.js";
 import * as activities from "./services/activities.js";
 import * as weight from "./services/weight.js";
 import * as wellness from "./services/wellness.js";
-import type { ActivityDownloadFormat } from "./types/activities.js";
+import type { ActivityDownloadFormat, ActivityExerciseSets } from "./types/activities.js";
 
 export interface SocialProfile {
   displayName: string;
@@ -245,6 +245,62 @@ export class Garmin {
   }
   downloadActivity(activityId: number | string, format?: ActivityDownloadFormat) {
     return activities.downloadActivity(this, activityId, format);
+  }
+  getActivitySplits(activityId: number | string) {
+    return activities.getActivitySplits(this, activityId);
+  }
+  getActivityTypedSplits(activityId: number | string) {
+    return activities.getActivityTypedSplits(this, activityId);
+  }
+  getActivitySplitSummaries(activityId: number | string) {
+    return activities.getActivitySplitSummaries(this, activityId);
+  }
+  getActivityWeather(activityId: number | string) {
+    return activities.getActivityWeather(this, activityId);
+  }
+  getActivityHrInTimezones(activityId: number | string) {
+    return activities.getActivityHrInTimezones(this, activityId);
+  }
+  getActivityPowerInTimezones(activityId: number | string) {
+    return activities.getActivityPowerInTimezones(this, activityId);
+  }
+  getActivityDetails(activityId: number | string, maxchart?: number, maxpoly?: number) {
+    return activities.getActivityDetails(this, activityId, maxchart, maxpoly);
+  }
+  getActivityExerciseSets(activityId: number | string) {
+    return activities.getActivityExerciseSets(this, activityId);
+  }
+  setActivityExerciseSets(activityId: number | string, payload: ActivityExerciseSets) {
+    return activities.setActivityExerciseSets(this, activityId, payload);
+  }
+  getActivityGear(activityId: number | string) {
+    return activities.getActivityGear(this, activityId);
+  }
+  getGearActivities(gearUUID: string, limit?: number) {
+    return activities.getGearActivities(this, gearUUID, limit);
+  }
+  addGearToActivity(gearUUID: string, activityId: number | string) {
+    return activities.addGearToActivity(this, gearUUID, activityId);
+  }
+  removeGearFromActivity(gearUUID: string, activityId: number | string) {
+    return activities.removeGearFromActivity(this, gearUUID, activityId);
+  }
+  getProgressSummaryBetweenDates(
+    startdate: string | Date,
+    enddate: string | Date,
+    metric?: string,
+    groupbyactivities?: boolean,
+  ) {
+    return activities.getProgressSummaryBetweenDates(
+      this,
+      startdate,
+      enddate,
+      metric,
+      groupbyactivities,
+    );
+  }
+  downloadHealthSnapshot(requestedDate: string | Date) {
+    return activities.downloadHealthSnapshot(this, requestedDate);
   }
 
   // --- weight ---

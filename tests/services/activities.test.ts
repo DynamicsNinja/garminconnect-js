@@ -62,6 +62,68 @@ const server = setupServer(
     const file = form.get("file") as File;
     return HttpResponse.json({ fileName: file.name, status: "uploaded" });
   }),
+  http.get(`${API}/activity-service/activity/555/splits`, ({ request }) => {
+    record(request);
+    return HttpResponse.json({ lapDTOs: [] });
+  }),
+  http.get(`${API}/activity-service/activity/555/typedsplits`, ({ request }) => {
+    record(request);
+    return HttpResponse.json({ splits: [] });
+  }),
+  http.get(`${API}/activity-service/activity/555/split_summaries`, ({ request }) => {
+    record(request);
+    return HttpResponse.json({ summaries: [] });
+  }),
+  http.get(`${API}/activity-service/activity/555/weather`, ({ request }) => {
+    record(request);
+    return HttpResponse.json({ temp: 20 });
+  }),
+  http.get(`${API}/activity-service/activity/555/hrTimeInZones`, ({ request }) => {
+    record(request);
+    return HttpResponse.json({ zones: [] });
+  }),
+  http.get(`${API}/activity-service/activity/555/powerTimeInZones`, ({ request }) => {
+    record(request);
+    return HttpResponse.json({ zones: [] });
+  }),
+  http.get(`${API}/activity-service/activity/555/details`, ({ request }) => {
+    record(request);
+    return HttpResponse.json({ metricDescriptors: [] });
+  }),
+  http.get(`${API}/activity-service/activity/555/exerciseSets`, ({ request }) => {
+    record(request);
+    return HttpResponse.json({ exerciseSets: [] });
+  }),
+  http.put(`${API}/activity-service/activity/555/exerciseSets`, async ({ request }) => {
+    record(request, await request.clone().json());
+    return HttpResponse.json({ exerciseSets: [{ category: "bench_press" }] });
+  }),
+  http.get(`${API}/gear-service/gear/filterGear`, ({ request }) => {
+    record(request);
+    return HttpResponse.json({ gear: [] });
+  }),
+  http.get(`${API}/activitylist-service/activities/gear-uuid-1/gear`, ({ request }) => {
+    record(request);
+    return HttpResponse.json([{ activityId: 1 }]);
+  }),
+  http.put(`${API}/gear-service/gear/link/gear-uuid-1/activity/555`, ({ request }) => {
+    record(request);
+    return HttpResponse.json({ gearPk: 1 });
+  }),
+  http.put(`${API}/gear-service/gear/unlink/gear-uuid-1/activity/555`, ({ request }) => {
+    record(request);
+    return HttpResponse.json({ gearPk: 1 });
+  }),
+  http.get(`${API}/fitnessstats-service/activity`, ({ request }) => {
+    record(request);
+    return HttpResponse.json({ distance: 1000 });
+  }),
+  http.get(`${API}/download-service/files/wellness/2026-09-22`, ({ request }) => {
+    record(request);
+    return new HttpResponse(new Uint8Array([1, 2, 3, 4]), {
+      headers: { "content-type": "application/zip" },
+    });
+  }),
 );
 
 const tokens: Tokens = {
@@ -400,5 +462,245 @@ describe("importActivity", () => {
       status: "uploaded",
       fileName: "ride.gpx",
     });
+  });
+});
+
+describe("getActivitySplits", () => {
+  it("hits the splits endpoint", async () => {
+    await expect(makeGarmin().getActivitySplits(555)).resolves.toEqual({ lapDTOs: [] });
+    expect(seen[0]!.url).toBe(`${API}/activity-service/activity/555/splits`);
+    expect(seen[0]!.method).toBe("GET");
+  });
+
+  it("passes through null unchecked on a 204", async () => {
+    server.use(
+      http.get(
+        `${API}/activity-service/activity/555/splits`,
+        () => new HttpResponse(null, { status: 204 }),
+      ),
+    );
+    await expect(makeGarmin().getActivitySplits(555)).resolves.toBeNull();
+  });
+});
+
+describe("getActivityTypedSplits", () => {
+  it("hits the typedsplits endpoint", async () => {
+    await expect(makeGarmin().getActivityTypedSplits(555)).resolves.toEqual({ splits: [] });
+    expect(seen[0]!.url).toBe(`${API}/activity-service/activity/555/typedsplits`);
+  });
+});
+
+describe("getActivitySplitSummaries", () => {
+  it("hits the split_summaries endpoint", async () => {
+    await expect(makeGarmin().getActivitySplitSummaries(555)).resolves.toEqual({
+      summaries: [],
+    });
+    expect(seen[0]!.url).toBe(`${API}/activity-service/activity/555/split_summaries`);
+  });
+});
+
+describe("getActivityWeather", () => {
+  it("hits the weather endpoint", async () => {
+    await expect(makeGarmin().getActivityWeather(555)).resolves.toEqual({ temp: 20 });
+    expect(seen[0]!.url).toBe(`${API}/activity-service/activity/555/weather`);
+  });
+});
+
+describe("getActivityHrInTimezones", () => {
+  it("hits the hrTimeInZones endpoint", async () => {
+    await expect(makeGarmin().getActivityHrInTimezones(555)).resolves.toEqual({ zones: [] });
+    expect(seen[0]!.url).toBe(`${API}/activity-service/activity/555/hrTimeInZones`);
+  });
+});
+
+describe("getActivityPowerInTimezones", () => {
+  it("hits the powerTimeInZones endpoint", async () => {
+    await expect(makeGarmin().getActivityPowerInTimezones(555)).resolves.toEqual({ zones: [] });
+    expect(seen[0]!.url).toBe(`${API}/activity-service/activity/555/powerTimeInZones`);
+  });
+});
+
+describe("getActivityDetails", () => {
+  it("sends default maxChartSize/maxPolylineSize as query params", async () => {
+    await expect(makeGarmin().getActivityDetails(555)).resolves.toEqual({
+      metricDescriptors: [],
+    });
+    const url = new URL(seen[0]!.url);
+    expect(url.pathname).toBe("/activity-service/activity/555/details");
+    expect(url.searchParams.get("maxChartSize")).toBe("2000");
+    expect(url.searchParams.get("maxPolylineSize")).toBe("4000");
+  });
+
+  it("sends caller-supplied maxchart/maxpoly", async () => {
+    await makeGarmin().getActivityDetails(555, 100, 0);
+    const url = new URL(seen[0]!.url);
+    expect(url.searchParams.get("maxChartSize")).toBe("100");
+    expect(url.searchParams.get("maxPolylineSize")).toBe("0");
+  });
+});
+
+describe("getActivityExerciseSets", () => {
+  it("hits the exerciseSets endpoint", async () => {
+    await expect(makeGarmin().getActivityExerciseSets(555)).resolves.toEqual({
+      exerciseSets: [],
+    });
+    expect(seen[0]!.url).toBe(`${API}/activity-service/activity/555/exerciseSets`);
+    expect(seen[0]!.method).toBe("GET");
+  });
+});
+
+describe("setActivityExerciseSets", () => {
+  it("PUTs the caller-supplied payload verbatim (replace-all semantics)", async () => {
+    const payload = { exerciseSets: [{ category: "bench_press", name: null }] };
+    await expect(makeGarmin().setActivityExerciseSets(555, payload)).resolves.toEqual({
+      exerciseSets: [{ category: "bench_press" }],
+    });
+    expect(seen[0]!.url).toBe(`${API}/activity-service/activity/555/exerciseSets`);
+    expect(seen[0]!.method).toBe("PUT");
+    expect(seen[0]!.body).toEqual(payload);
+  });
+});
+
+describe("getActivityGear", () => {
+  it("hits filterGear with an activityId query param", async () => {
+    await expect(makeGarmin().getActivityGear(555)).resolves.toEqual({ gear: [] });
+    const url = new URL(seen[0]!.url);
+    expect(url.pathname).toBe("/gear-service/gear/filterGear");
+    expect(url.searchParams.get("activityId")).toBe("555");
+  });
+});
+
+describe("getGearActivities", () => {
+  it("hits the gear activities endpoint with start=0 and the given limit", async () => {
+    await expect(makeGarmin().getGearActivities("gear-uuid-1", 50)).resolves.toEqual([
+      { activityId: 1 },
+    ]);
+    const url = new URL(seen[0]!.url);
+    expect(url.pathname).toBe("/activitylist-service/activities/gear-uuid-1/gear");
+    expect(url.searchParams.get("start")).toBe("0");
+    expect(url.searchParams.get("limit")).toBe("50");
+  });
+
+  it("clamps limit to 1000", async () => {
+    await makeGarmin().getGearActivities("gear-uuid-1", 5000);
+    const url = new URL(seen[0]!.url);
+    expect(url.searchParams.get("limit")).toBe("1000");
+  });
+
+  it("returns [] on a 404 instead of throwing", async () => {
+    server.use(
+      http.get(
+        `${API}/activitylist-service/activities/gear-uuid-1/gear`,
+        () => new HttpResponse("not found", { status: 404 }),
+      ),
+    );
+    await expect(makeGarmin().getGearActivities("gear-uuid-1")).resolves.toEqual([]);
+  });
+
+  it("re-raises a non-404 error", async () => {
+    server.use(
+      http.get(
+        `${API}/activitylist-service/activities/gear-uuid-1/gear`,
+        () => new HttpResponse("boom", { status: 500 }),
+      ),
+    );
+    await expect(makeGarmin().getGearActivities("gear-uuid-1")).rejects.toThrow();
+  });
+});
+
+describe("addGearToActivity", () => {
+  it("PUTs to the link endpoint", async () => {
+    await expect(makeGarmin().addGearToActivity("gear-uuid-1", 555)).resolves.toEqual({
+      gearPk: 1,
+    });
+    expect(seen[0]!.url).toBe(`${API}/gear-service/gear/link/gear-uuid-1/activity/555`);
+    expect(seen[0]!.method).toBe("PUT");
+  });
+
+  it("re-raises a 404 as GarminConnectionError with a not-found message", async () => {
+    server.use(
+      http.put(
+        `${API}/gear-service/gear/link/gear-uuid-1/activity/555`,
+        () => new HttpResponse("not found", { status: 404 }),
+      ),
+    );
+    await expect(makeGarmin().addGearToActivity("gear-uuid-1", 555)).rejects.toThrow(
+      GarminConnectionError,
+    );
+    await expect(makeGarmin().addGearToActivity("gear-uuid-1", 555)).rejects.toThrow(
+      /Cannot add gear gear-uuid-1 to activity 555: gear not found/,
+    );
+  });
+});
+
+describe("removeGearFromActivity", () => {
+  it("PUTs to the unlink endpoint (not a DELETE)", async () => {
+    await expect(makeGarmin().removeGearFromActivity("gear-uuid-1", 555)).resolves.toEqual({
+      gearPk: 1,
+    });
+    expect(seen[0]!.url).toBe(`${API}/gear-service/gear/unlink/gear-uuid-1/activity/555`);
+    expect(seen[0]!.method).toBe("PUT");
+  });
+
+  it("re-raises a 404 as GarminConnectionError with a not-found message", async () => {
+    server.use(
+      http.put(
+        `${API}/gear-service/gear/unlink/gear-uuid-1/activity/555`,
+        () => new HttpResponse("not found", { status: 404 }),
+      ),
+    );
+    await expect(makeGarmin().removeGearFromActivity("gear-uuid-1", 555)).rejects.toThrow(
+      /Cannot remove gear gear-uuid-1 from activity 555: gear not found/,
+    );
+  });
+});
+
+describe("getProgressSummaryBetweenDates", () => {
+  it("formats both dates and sends the default metric/aggregation/groupBy", async () => {
+    await expect(
+      makeGarmin().getProgressSummaryBetweenDates("2026-09-01", "2026-09-22"),
+    ).resolves.toEqual({ distance: 1000 });
+    const url = new URL(seen[0]!.url);
+    expect(url.pathname).toBe("/fitnessstats-service/activity");
+    expect(url.searchParams.get("startDate")).toBe("2026-09-01");
+    expect(url.searchParams.get("endDate")).toBe("2026-09-22");
+    expect(url.searchParams.get("aggregation")).toBe("lifetime");
+    expect(url.searchParams.get("groupByParentActivityType")).toBe("true");
+    expect(url.searchParams.get("metric")).toBe("distance");
+  });
+
+  it("accepts a caller-supplied metric and groupbyactivities", async () => {
+    await makeGarmin().getProgressSummaryBetweenDates(
+      "2026-09-01",
+      "2026-09-22",
+      "duration",
+      false,
+    );
+    const url = new URL(seen[0]!.url);
+    expect(url.searchParams.get("metric")).toBe("duration");
+    expect(url.searchParams.get("groupByParentActivityType")).toBe("false");
+  });
+
+  it("rejects a malformed startdate before making a request", async () => {
+    await expect(
+      makeGarmin().getProgressSummaryBetweenDates("22/09/2026", "2026-09-22"),
+    ).rejects.toThrow(/YYYY-MM-DD/);
+    expect(seen).toHaveLength(0);
+  });
+});
+
+describe("downloadHealthSnapshot", () => {
+  it("downloads the wellness zip for a formatted date", async () => {
+    const buf = await makeGarmin().downloadHealthSnapshot("2026-09-22");
+    expect(Buffer.isBuffer(buf)).toBe(true);
+    expect(buf.equals(Buffer.from([1, 2, 3, 4]))).toBe(true);
+    expect(seen[0]!.url).toBe(`${API}/download-service/files/wellness/2026-09-22`);
+  });
+
+  it("rejects a malformed date before making a request", async () => {
+    await expect(makeGarmin().downloadHealthSnapshot("22/09/2026")).rejects.toThrow(
+      /YYYY-MM-DD/,
+    );
+    expect(seen).toHaveLength(0);
   });
 });

@@ -1,5 +1,11 @@
 import "./load-env.js";
-import { GarminClient, Garmin, FileTokenStore, GarminHttpError } from "../src/index.js";
+import {
+  GarminClient,
+  Garmin,
+  FileTokenStore,
+  GarminHttpError,
+  GarminConnectionError,
+} from "../src/index.js";
 
 type WriteProbe = {
   name: string;
@@ -415,6 +421,295 @@ function activityProbes(): WriteProbe[] {
   ];
 }
 
+function activitiesDetailProbes(): WriteProbe[] {
+  return [
+    {
+      name: "activity detail sub-resource reads against a synthetic fixture (splits/typedSplits/split_summaries/weather/hrTimeInZones/powerTimeInZones/details/exerciseSets/gear)",
+      run: async () => {
+        let activityId: number | undefined;
+        try {
+          const created = (await g.createManualActivity(
+            localTimestampWithMs(new Date()),
+            "UTC",
+            "running",
+            1,
+            5,
+            `garminconnect-js-task4-detail-fixture-${Date.now()}`,
+          )) as { activityId?: number } | null;
+          if (typeof created?.activityId !== "number") {
+            return {
+              ok: false,
+              detail: `createManualActivity did not return a numeric activityId (got ${JSON.stringify(created)})`,
+            };
+          }
+          activityId = created.activityId;
+
+          const calls: [string, () => Promise<unknown>][] = [
+            ["getActivitySplits", () => g.getActivitySplits(activityId!)],
+            ["getActivityTypedSplits", () => g.getActivityTypedSplits(activityId!)],
+            ["getActivitySplitSummaries", () => g.getActivitySplitSummaries(activityId!)],
+            ["getActivityWeather", () => g.getActivityWeather(activityId!)],
+            ["getActivityHrInTimezones", () => g.getActivityHrInTimezones(activityId!)],
+            ["getActivityPowerInTimezones", () => g.getActivityPowerInTimezones(activityId!)],
+            ["getActivityDetails", () => g.getActivityDetails(activityId!)],
+            ["getActivityExerciseSets", () => g.getActivityExerciseSets(activityId!)],
+            ["getActivityGear", () => g.getActivityGear(activityId!)],
+          ];
+
+          const outcomes: string[] = [];
+          let sawWrongUrl = false;
+          for (const [name, call] of calls) {
+            try {
+              const result = await call();
+              const shape =
+                result === null
+                  ? "null"
+                  : Array.isArray(result)
+                    ? `array[${result.length}]`
+                    : typeof result === "object"
+                      ? `object(${Object.keys(result).length} keys)`
+                      : typeof result;
+              outcomes.push(`${name}=${shape}`);
+            } catch (callError) {
+              if (callError instanceof GarminHttpError && callError.status === 404) {
+                sawWrongUrl = true;
+                outcomes.push(`${name}=404(WRONG URL)`);
+              } else {
+                const err = callError as Error;
+                outcomes.push(`${name}=${err.constructor.name}(${err.message.slice(0, 60)})`);
+              }
+            }
+          }
+
+          await g.deleteActivity(activityId);
+          const createdId = activityId;
+          const gone = await pollUntil(async () => {
+            const list = await g.getActivities(0, 10);
+            return !list.some((a) => a.activityId === createdId);
+          }, 10, 3000);
+          activityId = undefined;
+
+          if (sawWrongUrl) {
+            return { ok: false, detail: `one or more calls returned 404 (wrong URL): ${outcomes.join(", ")}` };
+          }
+          if (!gone) {
+            return {
+              ok: false,
+              detail: `all detail calls completed (${outcomes.join(", ")}), but activity ${createdId} still listed after delete + polling`,
+            };
+          }
+          return { ok: true, detail: outcomes.join(", ") };
+        } finally {
+          if (activityId !== undefined) {
+            await cleanupActivity(activityId, "activity detail sub-resource reads");
+          }
+        }
+      },
+    },
+    {
+      name: "setActivityExerciseSets round-trip (read back via getActivityExerciseSets) against a synthetic fixture",
+      run: async () => {
+        let activityId: number | undefined;
+        try {
+          const created = (await g.createManualActivity(
+            localTimestampWithMs(new Date()),
+            "UTC",
+            "strength_training",
+            0,
+            10,
+            `garminconnect-js-task4-exerciseSets-fixture-${Date.now()}`,
+          )) as { activityId?: number } | null;
+          if (typeof created?.activityId !== "number") {
+            return {
+              ok: false,
+              detail: `createManualActivity did not return a numeric activityId (got ${JSON.stringify(created)})`,
+            };
+          }
+          activityId = created.activityId;
+
+          // Discovered live against the test account: Garmin rejects several plausible-looking
+          // shapes before accepting this one — "Activity ID should not be Null in the Exercises
+          // Object" (needs `activityId` repeated inside each set AND each exercise), then "Set
+          // Type in a Set message can not be Null" (needs `setType`), then a 500
+          // NullPointerException until `startTime` was present. None of this is documented in the
+          // upstream inventory (which only says "caller-supplied payload ... sent as-is"); this
+          // exact shape is the one that returned 2xx and read back correctly.
+          const startTime = new Date().toISOString().replace(/\.\d+Z$/, ".0");
+          const expectedDuration = 30;
+          const expectedReps = 10;
+          const expectedCategory = "SQUAT";
+          const payload = {
+            activityId,
+            exerciseSets: [
+              {
+                activityId,
+                duration: expectedDuration,
+                repetitionCount: expectedReps,
+                setType: "ACTIVE",
+                startTime,
+                exercises: [{ activityId, category: expectedCategory, subCategory: null }],
+              },
+            ],
+          };
+          await g.setActivityExerciseSets(activityId, payload);
+          const readBack = (await g.getActivityExerciseSets(activityId)) as {
+            exerciseSets?: {
+              duration?: number;
+              repetitionCount?: number;
+              setType?: string;
+              exercises?: { category?: string }[];
+            }[];
+          } | null;
+
+          await g.deleteActivity(activityId);
+          const createdId = activityId;
+          const gone = await pollUntil(async () => {
+            const list = await g.getActivities(0, 10);
+            return !list.some((a) => a.activityId === createdId);
+          }, 10, 3000);
+          activityId = undefined;
+
+          if (!gone) {
+            return {
+              ok: false,
+              detail: `setActivityExerciseSets PUT accepted, read-back ${JSON.stringify(readBack)}, but activity ${createdId} still listed after delete + polling`,
+            };
+          }
+
+          const storedSet = readBack?.exerciseSets?.[0];
+          const storedCategory = storedSet?.exercises?.[0]?.category;
+          if (
+            storedSet?.duration !== expectedDuration ||
+            storedSet?.repetitionCount !== expectedReps ||
+            storedCategory !== expectedCategory
+          ) {
+            return {
+              ok: false,
+              detail: `sent duration=${expectedDuration}/reps=${expectedReps}/category=${expectedCategory}, Garmin stored ${JSON.stringify(storedSet)}`,
+            };
+          }
+          return {
+            ok: true,
+            detail: `read-back matches what was sent: duration=${storedSet.duration}, repetitionCount=${storedSet.repetitionCount}, exercises[0].category=${storedCategory}`,
+          };
+        } finally {
+          if (activityId !== undefined) {
+            await cleanupActivity(activityId, "setActivityExerciseSets round-trip");
+          }
+        }
+      },
+    },
+    {
+      name: "getProgressSummaryBetweenDates (read-only, no fixture needed)",
+      run: async () => {
+        const today = new Date().toISOString().slice(0, 10);
+        const weekAgo = new Date(Date.now() - 7 * 86_400_000).toISOString().slice(0, 10);
+        const result = await g.getProgressSummaryBetweenDates(weekAgo, today);
+        return { ok: true, detail: `result: ${JSON.stringify(result)}` };
+      },
+    },
+    {
+      name: "gear-association 404 path (addGearToActivity/removeGearFromActivity/getGearActivities against a bogus gearUUID)",
+      // Real gear creation was deliberately skipped: this inventory (and upstream) has no
+      // delete/retire-gear endpoint, so gear created via POST /gear-service/gear/v2 would be
+      // permanent on the test account — violating "the account must end with zero gear" with no
+      // way to comply. Instead this verifies the URL shape and 404 error-mapping against a
+      // syntactically valid but non-existent gearUUID, against a real (fixture) activityId.
+      run: async () => {
+        let activityId: number | undefined;
+        try {
+          const created = (await g.createManualActivity(
+            localTimestampWithMs(new Date()),
+            "UTC",
+            "running",
+            1,
+            5,
+            `garminconnect-js-task4-gear-404-fixture-${Date.now()}`,
+          )) as { activityId?: number } | null;
+          if (typeof created?.activityId !== "number") {
+            return {
+              ok: false,
+              detail: `createManualActivity did not return a numeric activityId (got ${JSON.stringify(created)})`,
+            };
+          }
+          activityId = created.activityId;
+          const bogusGearUuid = "00000000-0000-0000-0000-000000000000";
+
+          let addMessage = "";
+          try {
+            await g.addGearToActivity(bogusGearUuid, activityId);
+            return { ok: false, detail: "addGearToActivity against a bogus gearUUID did not throw" };
+          } catch (addError) {
+            if (!(addError instanceof GarminConnectionError)) {
+              return {
+                ok: false,
+                detail: `addGearToActivity threw ${(addError as Error).constructor.name}, expected GarminConnectionError: ${(addError as Error).message}`,
+              };
+            }
+            addMessage = addError.message;
+          }
+
+          let removeMessage = "";
+          try {
+            await g.removeGearFromActivity(bogusGearUuid, activityId);
+            return { ok: false, detail: "removeGearFromActivity against a bogus gearUUID did not throw" };
+          } catch (removeError) {
+            if (!(removeError instanceof GarminConnectionError)) {
+              return {
+                ok: false,
+                detail: `removeGearFromActivity threw ${(removeError as Error).constructor.name}, expected GarminConnectionError: ${(removeError as Error).message}`,
+              };
+            }
+            removeMessage = removeError.message;
+          }
+
+          const gearActivitiesResult = await g.getGearActivities(bogusGearUuid);
+
+          await g.deleteActivity(activityId);
+          const createdId = activityId;
+          const gone = await pollUntil(async () => {
+            const list = await g.getActivities(0, 10);
+            return !list.some((a) => a.activityId === createdId);
+          }, 10, 3000);
+          activityId = undefined;
+
+          if (!gone) {
+            return {
+              ok: false,
+              detail: `add/remove/getGearActivities all behaved as expected, but activity ${createdId} still listed after delete + polling`,
+            };
+          }
+          if (!Array.isArray(gearActivitiesResult) || gearActivitiesResult.length !== 0) {
+            return {
+              ok: false,
+              detail: `getGearActivities against a bogus gearUUID expected [] on 404, got ${JSON.stringify(gearActivitiesResult)}`,
+            };
+          }
+          return {
+            ok: true,
+            detail: `addGearToActivity -> "${addMessage}"; removeGearFromActivity -> "${removeMessage}"; getGearActivities -> []`,
+          };
+        } finally {
+          if (activityId !== undefined) {
+            await cleanupActivity(activityId, "gear-association 404 path");
+          }
+        }
+      },
+    },
+    {
+      name: "final account state after all activitiesDetail write probes",
+      run: async () => {
+        const clean = await pollUntilNoActivities();
+        const list = await g.getActivities(0, 10);
+        return {
+          ok: clean,
+          detail: `${list.length} activities remain on the account (expected 0)`,
+        };
+      },
+    },
+  ];
+}
+
 // Each subsequent task appends its service's WRITE probes here.
 const services: Record<string, WriteProbe[]> = {
   weight: [
@@ -515,6 +810,7 @@ const services: Record<string, WriteProbe[]> = {
     },
   ],
   activities: activityProbes(),
+  activitiesDetail: activitiesDetailProbes(),
 };
 
 const which = process.argv[2];

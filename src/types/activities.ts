@@ -49,3 +49,62 @@ export type ActivityTypesResponse = ActivityType[];
 export interface ImportActivityResult {
   [key: string]: unknown;
 }
+
+/**
+ * Response shapes for the per-activity detail sub-resources below are undocumented beyond the
+ * inventory's blanket "dict" label — index signatures only, no fields invented. Where a field is
+ * mentioned by name in the upstream inventory's notes (e.g. `exerciseSets`), it is included.
+ */
+export interface ActivitySplits {
+  [key: string]: unknown;
+}
+
+export interface ActivityTypedSplits {
+  [key: string]: unknown;
+}
+
+export interface ActivitySplitSummaries {
+  [key: string]: unknown;
+}
+
+export interface ActivityWeather {
+  [key: string]: unknown;
+}
+
+export interface ActivityHrInTimezones {
+  [key: string]: unknown;
+}
+
+export interface ActivityPowerInTimezones {
+  [key: string]: unknown;
+}
+
+export interface ActivityDetails {
+  [key: string]: unknown;
+}
+
+/** `get_activity_exercise_sets`'s response and `set_activity_exercise_sets`'s payload share this shape. */
+export interface ActivityExerciseSets {
+  exerciseSets?: unknown[];
+  [key: string]: unknown;
+}
+
+/** `GET /gear-service/gear/filterGear?activityId=...` (`get_activity_gear`). */
+export interface ActivityGear {
+  [key: string]: unknown;
+}
+
+/** One entry of `GET /activitylist-service/activities/{gearUUID}/gear` (`get_gear_activities`). */
+export interface GearActivity {
+  [key: string]: unknown;
+}
+
+/** `.json()` result of `PUT /gear-service/gear/link|unlink/{gearUUID}/activity/{activityId}`. */
+export interface GearLinkResult {
+  [key: string]: unknown;
+}
+
+/** `GET /fitnessstats-service/activity` (`get_progress_summary_between_dates`). */
+export interface ProgressSummary {
+  [key: string]: unknown;
+}
