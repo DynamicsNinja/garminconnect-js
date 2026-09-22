@@ -3,6 +3,7 @@
  *   GARMIN_EMAIL=… GARMIN_PASSWORD=… npx tsx scripts/login.ts ./tokens
  * Prompts for an MFA code on stdin when Garmin asks for one.
  */
+import "./load-env.js";
 import { createInterface } from "node:readline/promises";
 import { GarminClient } from "../src/client.js";
 import { FileTokenStore } from "../src/auth/token-store.js";

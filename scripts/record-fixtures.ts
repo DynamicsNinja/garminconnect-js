@@ -3,6 +3,7 @@
  *   npx tsx scripts/record-fixtures.ts ./tokens
  * Requires tokens produced by scripts/login.ts. Output is scrubbed before writing.
  */
+import "./load-env.js";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { GarminClient } from "../src/client.js";

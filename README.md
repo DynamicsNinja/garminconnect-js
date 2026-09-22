@@ -172,6 +172,12 @@ Login follows Garmin's SSO flow, the same one `garth` and python-garminconnect u
 `GarminClient.login(email, password)` exchanges credentials for an OAuth1 token, then exchanges
 that for a short-lived OAuth2 access token. Both are handed to your `TokenStore`.
 
+**Using a `.env` file:** The dev scripts (`npm run login`, `npm run demo`, `npm run record`) 
+automatically load `GARMIN_EMAIL` and `GARMIN_PASSWORD` from a `.env` file in the repo root, 
+if one exists. This avoids storing credentials in shell history. Real environment variables take 
+precedence, so CI and production workflows remain unaffected. The `.env` file is already listed 
+in `.gitignore`.
+
 - **Where tokens are stored:** wherever your `TokenStore` puts them. `FileTokenStore` writes
   `oauth1_token.json` and `oauth2_token.json` to a directory you choose (`./tokens` in the
   examples above), using garth's on-disk format — tokens produced by Python `garth` load here

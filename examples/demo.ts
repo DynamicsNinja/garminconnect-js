@@ -9,6 +9,7 @@
  * a password — if no tokens are found it tells you to run `npm run login`
  * first and exits.
  */
+import "../scripts/load-env.js";
 import { createInterface } from "node:readline/promises";
 import { mkdir, writeFile } from "node:fs/promises";
 import {
