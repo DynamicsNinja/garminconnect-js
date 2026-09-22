@@ -26,4 +26,16 @@ describe("formatDate", () => {
   it("rejects an invalid Date object", () => {
     expect(() => formatDate(new Date("nope"))).toThrow(/valid date/);
   });
+
+  it("rejects a calendar date that JavaScript would silently roll over", () => {
+    // Without the round-trip comparison in formatDate, these would silently
+    // roll forward (e.g. Feb 30 -> Mar 2) instead of throwing.
+    expect(() => formatDate("2026-02-30")).toThrow(/valid date/);
+    expect(() => formatDate("2026-04-31")).toThrow(/valid date/); // April has 30 days
+    expect(() => formatDate("2026-02-29")).toThrow(/valid date/); // 2026 is not a leap year
+  });
+
+  it("accepts Feb 29 in a leap year", () => {
+    expect(formatDate("2028-02-29")).toBe("2028-02-29"); // 2028 is a leap year
+  });
 });

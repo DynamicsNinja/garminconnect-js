@@ -2,7 +2,14 @@ import { GarminError } from "../errors.js";
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
-/** Normalizes to the `YYYY-MM-DD` form Garmin expects. */
+/**
+ * Normalizes to the `YYYY-MM-DD` form Garmin expects.
+ *
+ * `Date` objects are formatted in UTC, not the local timezone. Garmin's API
+ * consumes UTC calendar dates, so this is correct — but it is a foot-gun for
+ * a caller in a negative UTC offset: passing `new Date()` late in their local
+ * day can format as tomorrow's date, because it is already tomorrow in UTC.
+ */
 export function formatDate(value: string | Date): string {
   if (value instanceof Date) {
     if (Number.isNaN(value.getTime())) {

@@ -72,4 +72,60 @@ describe("Garmin profile resolution", () => {
     await Promise.all([g.displayName(), g.displayName(), g.fullName()]);
     expect(profileCalls).toBe(1);
   });
+
+  it("resets the cache after a failed fetch, allowing a retry on the same instance", async () => {
+    // 400 is not a retried status, so this fails the logical call after
+    // exactly one HTTP request; { once: true } means the SECOND call falls
+    // through to the healthy default handler registered above.
+    server.use(
+      http.get(
+        "https://connectapi.garmin.com/userprofile-service/socialProfile",
+        () => {
+          profileCalls++;
+          return HttpResponse.json({ message: "bad request" }, { status: 400 });
+        },
+        { once: true },
+      ),
+    );
+    const g = makeGarmin();
+
+    await expect(g.displayName()).rejects.toThrow();
+    // Proves the failed promise was NOT cached forever: a second call on the
+    // same instance retries the fetch and succeeds.
+    await expect(g.displayName()).resolves.toBe("abc-display-name");
+    expect(profileCalls).toBe(2);
+  });
+
+  it("rejects every concurrent caller when the shared profile fetch fails", async () => {
+    server.use(
+      http.get(
+        "https://connectapi.garmin.com/userprofile-service/socialProfile",
+        () => {
+          profileCalls++;
+          return HttpResponse.json({ message: "bad request" }, { status: 400 });
+        },
+        { once: true },
+      ),
+    );
+    const g = makeGarmin();
+
+    const results = await Promise.allSettled([g.displayName(), g.fullName()]);
+    expect(results[0]?.status).toBe("rejected");
+    expect(results[1]?.status).toBe("rejected");
+    // Both callers shared the one in-flight fetch, not one hanging behind it.
+    expect(profileCalls).toBe(1);
+  });
+
+  it("throws when Garmin returns no profile body", async () => {
+    server.use(
+      http.get(
+        "https://connectapi.garmin.com/userprofile-service/socialProfile",
+        () => new HttpResponse(null, { status: 204 }),
+        { once: true },
+      ),
+    );
+    const g = makeGarmin();
+
+    await expect(g.getUserProfile()).rejects.toThrow(/no user profile/);
+  });
 });
