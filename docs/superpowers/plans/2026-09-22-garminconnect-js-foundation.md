@@ -2563,20 +2563,28 @@ export class GarminClient {
       throw new GarminAuthError("Refresh token expired; log in again");
     }
 
-    // Collapse concurrent refreshes into one exchange.
-    this.#refreshing ??= (async () => {
+    // Collapse concurrent refreshes into one exchange. Capture the promise into
+    // a local: re-reading the field after an await would race the finally below.
+    const refreshing = (this.#refreshing ??= (async () => {
       try {
         const oauth2 = await exchange(tokens.oauth1, this.#ssoContext);
         await this.#persist({ oauth1: tokens.oauth1, oauth2 });
       } catch (cause) {
-        await this.tokenStore.clear();
-        this.#tokens = null;
-        throw new GarminAuthError("Token refresh failed; log in again", { cause });
+        // Clear ONLY when the credentials are genuinely dead. An unconditional
+        // clear here means a DNS blip, a timeout or a 503 during refresh deletes
+        // the user's stored tokens (files on disk, with FileTokenStore) and
+        // forces an interactive re-login despite a perfectly valid refresh token.
+        if (cause instanceof GarminAuthError) {
+          await this.tokenStore.clear();
+          this.#tokens = null;
+          throw new GarminAuthError("Token refresh rejected; log in again", { cause });
+        }
+        throw cause;
       } finally {
         this.#refreshing = null;
       }
-    })();
-    await this.#refreshing;
+    })());
+    await refreshing;
 
     const refreshed = this.#tokens;
     if (!refreshed) throw new GarminAuthError("Token refresh failed; log in again");
