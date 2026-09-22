@@ -108,19 +108,31 @@ export class Fetcher {
 
   async #toError(res: Response, url: string): Promise<Error> {
     const body = await res.text().catch(() => "");
+    // Strip the query string: it can carry secrets (e.g. a Garmin service
+    // ticket) that must not end up in error messages, logs or stack traces.
+    const safeUrl = this.#redactUrl(url);
     if (res.status === 429) {
       const raw = res.headers.get("retry-after");
       const retryAfter = raw && !Number.isNaN(Number(raw)) ? Number(raw) : undefined;
-      return new GarminRateLimitError(`Rate limited by Garmin at ${url}`, retryAfter);
+      return new GarminRateLimitError(`Rate limited by Garmin at ${safeUrl}`, retryAfter);
     }
     if (res.status === 401 || res.status === 403) {
-      return new GarminAuthError(`Not authorized for ${url} (${res.status})`);
+      return new GarminAuthError(`Not authorized for ${safeUrl} (${res.status})`);
     }
     return new GarminHttpError(
-      `Request to ${url} failed with ${res.status}`,
+      `Request to ${safeUrl} failed with ${res.status}`,
       res.status,
-      url,
+      safeUrl,
       body,
     );
+  }
+
+  #redactUrl(url: string): string {
+    try {
+      const u = new URL(url);
+      return `${u.origin}${u.pathname}`;
+    } catch {
+      return url;
+    }
   }
 }

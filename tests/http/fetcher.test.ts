@@ -144,4 +144,23 @@ describe("Fetcher", () => {
       body: "kaboom",
     });
   });
+
+  it("strips the query string (e.g. a service ticket) from error messages and url", async () => {
+    const fetchImpl = vi.fn(async () => new Response("kaboom", { status: 418 }));
+    const f = new Fetcher({ fetchImpl: fetchImpl as unknown as typeof fetch });
+    await expect(
+      f.request("https://x.test/a?ticket=SECRET"),
+    ).rejects.toMatchObject({
+      status: 418,
+      url: "https://x.test/a",
+    });
+    try {
+      await f.request("https://x.test/a?ticket=SECRET");
+      throw new Error("expected request to throw");
+    } catch (err) {
+      const message = (err as Error).message;
+      expect(message).not.toContain("SECRET");
+      expect(message).not.toContain("?");
+    }
+  });
 });

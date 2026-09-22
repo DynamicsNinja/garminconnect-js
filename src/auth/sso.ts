@@ -1,4 +1,4 @@
-import { GarminAuthError } from "../errors.js";
+import { GarminAuthError, GarminError } from "../errors.js";
 import type { Fetcher } from "../http/fetcher.js";
 import type { SerializedCookie } from "../http/cookie-jar.js";
 import { fetchConsumer } from "./consumer.js";
@@ -46,6 +46,23 @@ function ssoUrl(domain: string, path: string): string {
   return `https://sso.${domain}/sso${path}`;
 }
 
+/**
+ * Garmin's SSO endpoints sit behind Cloudflare. A challenged request comes
+ * back as HTTP 200 with an HTML body instead of JSON, and `res.json()`
+ * throws a bare `SyntaxError` that callers can't branch on. Convert that
+ * into the same `GarminAuthError` taxonomy as every other auth failure.
+ */
+async function parseJson<T>(res: Response): Promise<T> {
+  try {
+    return (await res.json()) as T;
+  } catch (cause) {
+    throw new GarminAuthError(
+      "SSO returned a non-JSON response (Cloudflare challenge?)",
+      { cause },
+    );
+  }
+}
+
 function requireSuccess(body: SsoResponse): SsoResponse {
   const type = body.responseStatus?.type ?? "UNKNOWN";
   if (type !== SSO_SUCCESSFUL) {
@@ -83,7 +100,7 @@ export async function login(
     headers: SSO_PAGE_HEADERS,
     json: { username: email, password, rememberMe: false, captchaToken: "" },
   });
-  const body = (await res.json()) as SsoResponse;
+  const body = await parseJson<SsoResponse>(res);
   const type = body.responseStatus?.type;
 
   if (type === SSO_MFA_REQUIRED) {
@@ -91,6 +108,8 @@ export async function login(
       state: "mfa_required",
       mfaState: {
         loginParams: params,
+        // Upstream garth (sso.py) does `mfa_info.get("mfaLastMethodUsed")
+        // or "email"` — this default mirrors that behavior, not a guess.
         mfaMethod: body.customerMfaInfo?.mfaLastMethodUsed ?? "email",
         cookies: ctx.fetcher.jar.toJSON(),
         domain: ctx.domain,
@@ -114,8 +133,10 @@ export async function completeLogin(
       headers: { ...SSO_PAGE_HEADERS, "Sec-Fetch-Site": "same-origin" },
       referer: true,
     });
-  } catch {
-    // Non-fatal; login works without it.
+  } catch (err) {
+    // Non-fatal; login works without it. But only swallow known Garmin/HTTP
+    // failures — a programmer error (e.g. a TypeError) should still surface.
+    if (!(err instanceof GarminError)) throw err;
   }
 
   const oauth1 = await getOauth1Token(ticket, ctx);
@@ -146,6 +167,10 @@ export async function getOauth1Token(
     headers: { authorization, "User-Agent": OAUTH_USER_AGENT },
   });
 
+  // The response is form-urlencoded, not JSON, so there's no JSON.parse to
+  // fail here — but a Cloudflare HTML challenge body parses via
+  // URLSearchParams into zero recognized keys, so the missing-token check
+  // below already turns that into a GarminAuthError.
   const parsed = new URLSearchParams(await res.text());
   const oauth_token = parsed.get("oauth_token");
   const oauth_token_secret = parsed.get("oauth_token_secret");
@@ -193,5 +218,5 @@ export async function exchange(
     body: new URLSearchParams(bodyParams).toString(),
   });
 
-  return setExpirations((await res.json()) as RawOAuth2Token);
+  return setExpirations(await parseJson<RawOAuth2Token>(res));
 }
