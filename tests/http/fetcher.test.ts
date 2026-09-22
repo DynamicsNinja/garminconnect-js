@@ -4,7 +4,6 @@ import {
   GarminAuthError,
   GarminConnectionError,
   GarminHttpError,
-  GarminRateLimitError,
 } from "../../src/errors.js";
 
 function jsonResponse(body: unknown, init: ResponseInit = {}) {

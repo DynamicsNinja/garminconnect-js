@@ -1,0 +1,44 @@
+import { readdir, readFile } from "node:fs/promises";
+import path from "node:path";
+import { describe, expect, it } from "vitest";
+
+async function listTsFiles(dir: string): Promise<string[]> {
+  const entries = await readdir(dir, { withFileTypes: true });
+  const files: string[] = [];
+  for (const entry of entries) {
+    const entryPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...(await listTsFiles(entryPath)));
+    } else if (entry.isFile() && entry.name.endsWith(".ts")) {
+      files.push(entryPath);
+    }
+  }
+  return files;
+}
+
+describe("package contract", () => {
+  it("declares zero runtime dependencies", async () => {
+    const pkg = JSON.parse(await readFile("package.json", "utf8"));
+    expect(pkg.dependencies ?? {}).toEqual({});
+  });
+
+  it("requires Node 18 or newer", async () => {
+    const pkg = JSON.parse(await readFile("package.json", "utf8"));
+    expect(pkg.engines.node).toBe(">=18");
+  });
+
+  it("exports types before import and require", async () => {
+    const pkg = JSON.parse(await readFile("package.json", "utf8"));
+    expect(Object.keys(pkg.exports["."])[0]).toBe("types");
+  });
+
+  it("does not import React or DOM-only globals anywhere in src", async () => {
+    const files = await listTsFiles("src");
+    for (const file of files) {
+      const source = await readFile(file, "utf8");
+      expect(source, `${file} must stay server-only`).not.toMatch(
+        /from "react"|\bdocument\.|\bwindow\./,
+      );
+    }
+  });
+});

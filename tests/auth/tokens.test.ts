@@ -32,7 +32,7 @@ describe("setExpirations", () => {
 });
 
 describe("isExpired", () => {
-  const token = { ...raw, expires_at: 1_000, refresh_token_expires_at: 2_000 } as OAuth2Token;
+  const token: OAuth2Token = { ...raw, expires_at: 1_000, refresh_token_expires_at: 2_000 };
 
   it("is false well before expiry", () => {
     expect(isExpired(token, 60, 900_000)).toBe(false);

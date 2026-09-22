@@ -1,0 +1,15 @@
+garminconnect-js
+
+This project is a TypeScript port of two MIT-licensed Python projects:
+
+  python-garminconnect — https://github.com/cyberjunky/python-garminconnect
+    Copyright (c) Ron Klinkien and contributors
+
+  garth — https://github.com/matin/garth
+    Copyright (c) Matin Tamizi and contributors
+
+The endpoint surface follows python-garminconnect. The SSO and OAuth flow
+follows garth. Neither project is affiliated with this one.
+
+Garmin and Garmin Connect are trademarks of Garmin Ltd. This project is not
+affiliated with, endorsed by, or supported by Garmin.
