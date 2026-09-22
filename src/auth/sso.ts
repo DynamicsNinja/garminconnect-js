@@ -43,7 +43,7 @@ interface SsoResponse {
 }
 
 function ssoUrl(domain: string, path: string): string {
-  return `https://sso.${domain}/sso${path}`;
+  return `https://sso.${domain}${path}`;
 }
 
 /**

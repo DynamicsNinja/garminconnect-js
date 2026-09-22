@@ -41,6 +41,32 @@ describe("login — success path", () => {
       "exchange",
     ]);
   });
+
+  it(
+    "composes the exact sign-in and login URLs — no /sso prefix segment " +
+      "(regression: a handler that pattern-matches a wrong URL proves nothing; " +
+      "assert the literal composed URL instead)",
+    async () => {
+      const ctx = { fetcher: new Fetcher(), domain: "garmin.com" };
+      await login("a@b.test", "pw", ctx);
+
+      const signIn = harness.requests.find((r) => r.step === "sign-in");
+      const loginReq = harness.requests.find((r) => r.step === "login");
+      const embed = harness.requests.find((r) => r.step === "embed");
+
+      expect(signIn?.url.split("?")[0]).toBe(
+        "https://sso.garmin.com/mobile/sso/en/sign-in",
+      );
+      expect(loginReq?.url.split("?")[0]).toBe(
+        "https://sso.garmin.com/mobile/api/login",
+      );
+      // The embed step legitimately contains "/sso" as part of its own path
+      // (/portal/sso/embed), not as a subdomain-prefix duplicate.
+      expect(embed?.url.split("?")[0]).toBe(
+        "https://sso.garmin.com/portal/sso/embed",
+      );
+    },
+  );
 });
 
 describe("login — rejection", () => {

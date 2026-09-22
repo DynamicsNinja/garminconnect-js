@@ -63,14 +63,14 @@ export function makeSsoServer(scenario: SsoScenario = {}) {
       return HttpResponse.json({ consumer_key: "ck", consumer_secret: "cs" });
     }),
 
-    http.get("https://sso.garmin.com/sso/mobile/sso/en/sign-in", async ({ request }) => {
+    http.get("https://sso.garmin.com/mobile/sso/en/sign-in", async ({ request }) => {
       await capture("sign-in", request);
       return new HttpResponse("<html></html>", {
         headers: { "set-cookie": "SESSION=seed; Path=/" },
       });
     }),
 
-    http.post("https://sso.garmin.com/sso/mobile/api/login", async ({ request }) => {
+    http.post("https://sso.garmin.com/mobile/api/login", async ({ request }) => {
       await capture("login", request);
       if (outcome === "success") {
         return HttpResponse.json({
@@ -95,7 +95,7 @@ export function makeSsoServer(scenario: SsoScenario = {}) {
       });
     }),
 
-    http.post("https://sso.garmin.com/sso/mobile/api/mfa/verifyCode", async ({ request }) => {
+    http.post("https://sso.garmin.com/mobile/api/mfa/verifyCode", async ({ request }) => {
       const captured = await capture("mfa", request);
       const body = captured.json as { mfaVerificationCode: string };
       if (scenario.mfaCode && body.mfaVerificationCode !== scenario.mfaCode) {
@@ -109,7 +109,7 @@ export function makeSsoServer(scenario: SsoScenario = {}) {
       });
     }),
 
-    http.get("https://sso.garmin.com/sso/portal/sso/embed", async ({ request }) => {
+    http.get("https://sso.garmin.com/portal/sso/embed", async ({ request }) => {
       await capture("embed", request);
       return new HttpResponse("", { headers: { "set-cookie": "LB=node1; Path=/" } });
     }),
