@@ -1,1 +1,17 @@
 export * from "./errors.js";
+export { GarminClient, type ApiOptions, type GarminClientOptions } from "./client.js";
+export { Garmin, type SocialProfile } from "./garmin.js";
+export {
+  FileTokenStore,
+  MemoryTokenStore,
+  type TokenStore,
+} from "./auth/token-store.js";
+export type {
+  OAuth1Token,
+  OAuth2Token,
+  Tokens,
+} from "./auth/tokens.js";
+export type { LoginResult, MfaState } from "./auth/sso.js";
+export type * from "./types/wellness.js";
+export type * from "./types/activities.js";
+export type * from "./types/weight.js";

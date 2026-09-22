@@ -1,5 +1,9 @@
 import type { GarminClient } from "./client.js";
 import { GarminError } from "./errors.js";
+import * as activities from "./services/activities.js";
+import * as weight from "./services/weight.js";
+import * as wellness from "./services/wellness.js";
+import type { ActivityDownloadFormat } from "./types/activities.js";
 
 export interface SocialProfile {
   displayName: string;
@@ -44,5 +48,51 @@ export class Garmin {
 
   async unitSystem(): Promise<string | undefined> {
     return (await this.getUserProfile()).measurementSystem;
+  }
+
+  // --- wellness ---
+  getUserSummary(cdate: string | Date) {
+    return wellness.getUserSummary(this, cdate);
+  }
+  /** Alias kept for parity with python-garminconnect's get_stats. */
+  getStats(cdate: string | Date) {
+    return wellness.getUserSummary(this, cdate);
+  }
+  getStepsData(cdate: string | Date) {
+    return wellness.getStepsData(this, cdate);
+  }
+  getHeartRates(cdate: string | Date) {
+    return wellness.getHeartRates(this, cdate);
+  }
+  getSleepData(cdate: string | Date) {
+    return wellness.getSleepData(this, cdate);
+  }
+  getHrvData(cdate: string | Date) {
+    return wellness.getHrvData(this, cdate);
+  }
+  getBodyBattery(startdate: string | Date, enddate?: string | Date) {
+    return wellness.getBodyBattery(this, startdate, enddate);
+  }
+
+  // --- activities ---
+  getActivities(start?: number, limit?: number) {
+    return activities.getActivities(this, start, limit);
+  }
+  getActivity(activityId: number | string) {
+    return activities.getActivity(this, activityId);
+  }
+  downloadActivity(activityId: number | string, format?: ActivityDownloadFormat) {
+    return activities.downloadActivity(this, activityId, format);
+  }
+
+  // --- weight ---
+  getWeighIns(startdate: string | Date, enddate: string | Date) {
+    return weight.getWeighIns(this, startdate, enddate);
+  }
+  addWeighIn(weightValue: number, unitKey?: "kg" | "lbs") {
+    return weight.addWeighIn(this, weightValue, unitKey);
+  }
+  deleteWeighIn(cdate: string | Date, weightPk: number) {
+    return weight.deleteWeighIn(this, cdate, weightPk);
   }
 }

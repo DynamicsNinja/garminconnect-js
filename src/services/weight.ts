@@ -1,0 +1,55 @@
+import type { GarminClient } from "../client.js";
+import { formatDate } from "../util/date.js";
+import type { WeighInRange } from "../types/weight.js";
+
+export interface WeightHost {
+  readonly client: GarminClient;
+}
+
+const GRAMS_PER_LB = 453.592;
+
+export async function getWeighIns(
+  host: WeightHost,
+  startdate: string | Date,
+  enddate: string | Date,
+): Promise<WeighInRange> {
+  const start = formatDate(startdate);
+  const end = formatDate(enddate);
+  const data = await host.client.connectapi<WeighInRange>(
+    `/weight-service/weight/range/${start}/${end}`,
+    { params: { includeAll: "true" } },
+  );
+  return data ?? {};
+}
+
+export async function addWeighIn(
+  host: WeightHost,
+  weight: number,
+  unitKey: "kg" | "lbs" = "kg",
+): Promise<unknown> {
+  // Garmin stores weight in grams regardless of the unit the caller used.
+  const grams =
+    unitKey === "kg" ? Math.round(weight * 1000) : Math.round(weight * GRAMS_PER_LB);
+  return host.client.connectapi("/weight-service/user-weight", {
+    method: "POST",
+    json: {
+      dateTimestamp: new Date().toISOString().slice(0, 19) + ".00",
+      gmtTimestamp: new Date().toISOString().slice(0, 19) + ".00",
+      unitKey,
+      sourceType: "MANUAL",
+      value: grams,
+    },
+  });
+}
+
+export async function deleteWeighIn(
+  host: WeightHost,
+  cdate: string | Date,
+  weightPk: number,
+): Promise<null> {
+  await host.client.connectapi(
+    `/weight-service/weight/${formatDate(cdate)}/byversion/${weightPk}`,
+    { method: "DELETE" },
+  );
+  return null;
+}
