@@ -2905,7 +2905,7 @@ git commit -m "feat: add Garmin facade with cached profile resolution and date h
   - `getStats(cdate: string | Date): Promise<UserSummary>` (alias of `getUserSummary`)
   - `getStepsData(cdate: string | Date): Promise<StepsEntry[]>`
   - `getHeartRates(cdate: string | Date): Promise<HeartRateData>`
-  - `getSleepData(cdate: string | Date): Promise<SleepData>`
+  - `getSleepData(cdate: string | Date): Promise<SleepData | null>`
   - `getHrvData(cdate: string | Date): Promise<HrvData | null>`
   - `getBodyBattery(startdate: string | Date, enddate?: string | Date): Promise<BodyBatteryEntry[]>`
   - `getActivities(start?: number, limit?: number): Promise<Activity[]>`
@@ -3311,17 +3311,20 @@ export async function getHeartRates(
   return data;
 }
 
+// Returns null rather than throwing when Garmin has no data, mirroring
+// upstream's get_sleep_data (which has no null check). Match upstream's null
+// behaviour PER METHOD when porting the rest — get_heart_rates, by contrast,
+// does raise. A night the user did not wear the watch is an ordinary result,
+// not an error.
 export async function getSleepData(
   host: WellnessHost,
   cdate: string | Date,
-): Promise<SleepData> {
+): Promise<SleepData | null> {
   const date = formatDate(cdate);
-  const data = await host.client.connectapi<SleepData>(
+  return host.client.connectapi<SleepData>(
     `/wellness-service/wellness/dailySleepData/${await host.displayName()}`,
     { params: { date, nonSleepBufferMinutes: 60 } },
   );
-  if (!data) throw new GarminError("No sleep data received from Garmin");
-  return data;
 }
 
 export async function getHrvData(
