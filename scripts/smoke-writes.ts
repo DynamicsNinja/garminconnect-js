@@ -990,10 +990,14 @@ function gearProbes(): WriteProbe[] {
   let sharedGearUuidDashed: string | undefined;
   let sharedGearUuidNoDash: string | undefined;
 
-  /** Finds the shared fixture in `getGear`'s list — its `uuid` field has no hyphens. */
+  /**
+   * Finds the shared fixture in `getGear`'s list — its `uuid` field has no hyphens. No cast is
+   * needed here: `getGear` is correctly typed as `Gear[] | null` (Task 7 fix-round-1 — it was
+   * previously mistyped as a single object, which this probe had to cast around).
+   */
   async function findSharedGear(): Promise<Record<string, unknown> | undefined> {
     const profile = await g.getUserProfile();
-    const list = (await g.getGear(profile.profileId)) as Record<string, unknown>[] | null;
+    const list = await g.getGear(profile.profileId);
     return (list ?? []).find((item) => item["uuid"] === sharedGearUuidNoDash);
   }
 

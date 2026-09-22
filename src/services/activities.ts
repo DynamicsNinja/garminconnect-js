@@ -443,13 +443,17 @@ export async function setActivityExerciseSets(
  * Inventory places this row under the "gear" section, not "activities" — reuses `get_gear`'s base
  * URL (`/gear-service/gear/filterGear`) with an `activityId` query param instead of `userProfilePk`.
  * Implemented here per the task brief, which assigns the activity/gear-association methods to this
- * service rather than the (separate, not-yet-ported) dedicated gear service.
+ * service rather than the dedicated gear service (`src/services/gear.ts`, ported in Task 7).
+ *
+ * Returns an ARRAY (`ActivityGear[]`), not a single object — confirmed live in Task 7's
+ * fix-round-1 (see `ActivityGear`'s doc comment in `src/types/activities.ts`); this was fixed from
+ * an earlier `ActivityGear | null` signature that mistyped it as a single object.
  */
 export async function getActivityGear(
   host: ActivitiesHost,
   activityId: number | string,
-): Promise<ActivityGear | null> {
-  return host.client.connectapi<ActivityGear>("/gear-service/gear/filterGear", {
+): Promise<ActivityGear[] | null> {
+  return host.client.connectapi<ActivityGear[]>("/gear-service/gear/filterGear", {
     params: { activityId },
   });
 }

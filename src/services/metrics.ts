@@ -1,6 +1,7 @@
 import { GarminError } from "../errors.js";
 import type { GarminClient } from "../client.js";
 import { formatDate } from "../util/date.js";
+import { validateSportKey } from "../util/validate.js";
 import type {
   CyclingFtpResult,
   EnduranceScoreResult,
@@ -34,17 +35,6 @@ function toUtcMidnight(dateStr: string): Date {
 /** Exact day count between two `YYYY-MM-DD` strings (end minus start). */
 function daysBetween(startStr: string, endStr: string): number {
   return Math.round((toUtcMidnight(endStr).getTime() - toUtcMidnight(startStr).getTime()) / MS_PER_DAY);
-}
-
-const SPORT_KEY_RE = /^[A-Z_]+$/;
-
-/** Mirrors upstream `_validate_sport_key`: upper-cased, must match `^[A-Z_]+$`. */
-function validateSportKey(sport: string): string {
-  const normalized = sport.toUpperCase();
-  if (!SPORT_KEY_RE.test(normalized)) {
-    throw new GarminError(`Invalid sport key: "${sport}"`);
-  }
-  return normalized;
 }
 
 const FTP_AGGREGATIONS = new Set(["daily", "weekly", "monthly", "yearly"]);

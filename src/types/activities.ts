@@ -89,7 +89,14 @@ export interface ActivityExerciseSets {
   [key: string]: unknown;
 }
 
-/** `GET /gear-service/gear/filterGear?activityId=...` (`get_activity_gear`). */
+/**
+ * One entry of `GET /gear-service/gear/filterGear?activityId=...` (`get_activity_gear`). The
+ * endpoint returns a JSON ARRAY of these, not a single object — confirmed live in Task 7's
+ * fix-round-1 (the sibling `userProfilePk`-filtered call on the same base URL, `get_gear`, was
+ * already found to return an array; a follow-up live call with `activityId` confirmed the same
+ * shape), despite the inventory listing its return type as "dict". `getActivityGear` below returns
+ * `ActivityGear[] | null` accordingly.
+ */
 export interface ActivityGear {
   [key: string]: unknown;
 }

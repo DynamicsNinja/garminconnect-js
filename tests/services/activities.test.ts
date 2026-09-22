@@ -100,7 +100,7 @@ const server = setupServer(
   }),
   http.get(`${API}/gear-service/gear/filterGear`, ({ request }) => {
     record(request);
-    return HttpResponse.json({ gear: [] });
+    return HttpResponse.json([{ gearPk: 1, uuid: "gear-uuid-1" }]);
   }),
   http.get(`${API}/activitylist-service/activities/gear-uuid-1/gear`, ({ request }) => {
     record(request);
@@ -562,11 +562,13 @@ describe("setActivityExerciseSets", () => {
 });
 
 describe("getActivityGear", () => {
-  it("hits filterGear with an activityId query param", async () => {
-    await expect(makeGarmin().getActivityGear(555)).resolves.toEqual({ gear: [] });
+  it("hits filterGear with an activityId query param and returns an array of gear entries", async () => {
+    const result = await makeGarmin().getActivityGear(555);
     const url = new URL(seen[0]!.url);
     expect(url.pathname).toBe("/gear-service/gear/filterGear");
     expect(url.searchParams.get("activityId")).toBe("555");
+    expect(Array.isArray(result)).toBe(true);
+    expect(result).toEqual([{ gearPk: 1, uuid: "gear-uuid-1" }]);
   });
 });
 

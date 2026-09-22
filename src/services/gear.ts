@@ -1,6 +1,7 @@
 import { GarminConnectionError, GarminError, GarminHttpError } from "../errors.js";
 import type { GarminClient } from "../client.js";
 import { formatDate } from "../util/date.js";
+import { validateSportKey } from "../util/validate.js";
 import type { Gear, GearDefaults, GearStats } from "../types/gear.js";
 
 /**
@@ -11,18 +12,6 @@ import type { Gear, GearDefaults, GearStats } from "../types/gear.js";
  */
 export interface GearHost {
   readonly client: GarminClient;
-}
-
-const SPORT_KEY_RE = /^[A-Z_]+$/;
-
-/** Mirrors upstream `_validate_sport_key`: upper-cased, must match `^[A-Z_]+$`. Duplicated from
- * `src/services/metrics.ts` (not exported there) rather than introducing a cross-service import. */
-function validateSportKey(key: string): string {
-  const normalized = key.toUpperCase();
-  if (!SPORT_KEY_RE.test(normalized)) {
-    throw new GarminError(`Invalid sport/gear-type key: "${key}"`);
-  }
-  return normalized;
 }
 
 const UUID_HEX_RE = /^[0-9a-fA-F]+$/;
@@ -42,16 +31,18 @@ function validateUuid(uuid: string): string {
  * function's comment in `src/services/activities.ts`.
  *
  * Upstream's own docstring flags a possible deprecation: Garmin's web client calls
- * `/gear-service/gear/v2/list`, not this `filterGear` path — see the task report for the live
- * verdict on whether `filterGear` still works.
+ * `/gear-service/gear/v2/list`, not this `filterGear` path. Live-verified in Task 7: `filterGear`
+ * returns 200 with a JSON array (empty before any gear exists, non-empty once it does) — NOT
+ * deprecated/broken. See the task-7 report for the full evidence.
  *
- * `null_behaviour`: passes through unchecked (no throw, no coalescing).
+ * `null_behaviour`: passes through unchecked (no throw, no coalescing) — but the payload IS an
+ * array of gear entries, not a single object; `Gear` (see `src/types/gear.ts`) types one entry.
  */
 export async function getGear(
   host: GearHost,
   userProfileNumber: number | string,
-): Promise<Gear | null> {
-  return host.client.connectapi<Gear>("/gear-service/gear/filterGear", {
+): Promise<Gear[] | null> {
+  return host.client.connectapi<Gear[]>("/gear-service/gear/filterGear", {
     params: { userProfilePk: userProfileNumber },
   });
 }
@@ -83,6 +74,14 @@ function convertMaxUsageDurationMin(min: number): number {
  * converted min -> seconds (`round(min * 60)`, must floor to >= 1). Both floors throw
  * `GarminError` (mirroring upstream's `ValueError`) rather than silently sending 0.
  *
+ * **Verification status differs between the two conversions.** The distance direction is
+ * live-verified by a create -> read-back round-trip (5 km sent -> `getGear`'s `maximumMeters: 5000`
+ * read back, see the task-7 report). The duration direction is NOT live-verified the same way — no
+ * Garmin read endpoint (`getGear`, `getGearStats`, or `createGear`'s own response) has ever been
+ * observed to return a duration field at all, on any gear item created during that investigation.
+ * It rests on upstream source review and the unit tests in `tests/services/gear.test.ts` alone.
+ *
+
  * `gearType`/`usageType` are normalized upper-case via `validateSportKey`, matching upstream's
  * `_validate_sport_key`. Only `gearType="SHOES"` / `usageType="DISTANCE"` are confirmed against a
  * real account per upstream's docstring; other values are unverified guesses at Garmin's
@@ -157,13 +156,14 @@ export async function getGearStats(host: GearHost, gearUUID: string): Promise<Ge
 
 /**
  * Upstream `get_gear_defaults`. `null_behaviour`: passes through unchecked (no throw, no
- * coalescing).
+ * coalescing) — the payload is an array of `{uuid, activityTypePk, defaultGear}`-shaped entries
+ * (live-verified in Task 7, see `GearDefaults` in `src/types/gear.ts`), not a single object.
  */
 export async function getGearDefaults(
   host: GearHost,
   userProfileNumber: number | string,
-): Promise<GearDefaults | null> {
-  return host.client.connectapi<GearDefaults>(
+): Promise<GearDefaults[] | null> {
+  return host.client.connectapi<GearDefaults[]>(
     `/gear-service/gear/user/${userProfileNumber}/activityTypes`,
   );
 }

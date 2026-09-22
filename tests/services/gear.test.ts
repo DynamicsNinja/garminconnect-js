@@ -95,13 +95,11 @@ afterEach(() => {
 });
 
 describe("getGear", () => {
-  it("hits filterGear with userProfilePk", async () => {
-    await expect(makeGarmin().getGear(1)).resolves.toEqual([
-      { gearPk: 1, displayName: "Trail Shoes" },
-    ]);
-    const url = new URL(seen[0]!.url);
-    expect(url.pathname).toBe("/gear-service/gear/filterGear");
-    expect(url.searchParams.get("userProfilePk")).toBe("1");
+  it("hits filterGear with userProfilePk and returns an array of gear entries", async () => {
+    const result = await makeGarmin().getGear(1);
+    expect(seen[0]!.url).toBe(`${API}/gear-service/gear/filterGear?userProfilePk=1`);
+    expect(Array.isArray(result)).toBe(true);
+    expect(result).toEqual([{ gearPk: 1, displayName: "Trail Shoes" }]);
   });
 });
 
@@ -230,11 +228,11 @@ describe("getGearStats", () => {
 });
 
 describe("getGearDefaults", () => {
-  it("hits /gear-service/gear/user/{userProfileNumber}/activityTypes", async () => {
-    await expect(makeGarmin().getGearDefaults(1)).resolves.toEqual([
-      { activityTypeKey: "running" },
-    ]);
+  it("hits /gear-service/gear/user/{userProfileNumber}/activityTypes and returns an array", async () => {
+    const result = await makeGarmin().getGearDefaults(1);
     expect(seen[0]!.url).toBe(`${API}/gear-service/gear/user/1/activityTypes`);
+    expect(Array.isArray(result)).toBe(true);
+    expect(result).toEqual([{ activityTypeKey: "running" }]);
   });
 });
 
