@@ -154,8 +154,7 @@ export async function getLactateThreshold(
         ? (powerRaw as Record<string, unknown>)
         : {};
     const merged: Record<string, unknown> = {};
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- mirrors upstream's unguarded iteration; see the doc comment above
-    for (const entry of speedAndHeartRateRaw as any) {
+    for (const entry of speedAndHeartRateRaw as Iterable<unknown>) {
       const record = entry as Record<string, unknown>;
       for (const [key, value] of Object.entries(record)) {
         if (key === "heartRate" || key === "hearRate") continue;
