@@ -134,6 +134,33 @@ const services: Record<string, Probe[]> = {
     { name: "getProgressSummaryBetweenDates", run: () => g.getProgressSummaryBetweenDates(weekAgo, day) },
     { name: "downloadHealthSnapshot", run: () => g.downloadHealthSnapshot(day) },
   ],
+  metrics: [
+    { name: "getMaxMetrics", run: () => g.getMaxMetrics(day) },
+    { name: "getMaxMetricsRange", run: () => g.getMaxMetricsRange(weekAgo, day) },
+    { name: "getFunctionalThresholdPowerRange", run: () => g.getFunctionalThresholdPowerRange(weekAgo, day) },
+    // Both branches of getLactateThreshold are exercised live: default (latest=true), then the
+    // latest=false range branch, which requires startDate.
+    { name: "getLactateThreshold (latest=true)", run: () => g.getLactateThreshold() },
+    { name: "getLactateThreshold (latest=false)", run: () => g.getLactateThreshold(false, weekAgo, day) },
+    { name: "getTrainingReadiness", run: () => g.getTrainingReadiness(day) },
+    { name: "getMorningTrainingReadiness", run: () => g.getMorningTrainingReadiness(day) },
+    // Both branches of getEnduranceScore.
+    { name: "getEnduranceScore (single day)", run: () => g.getEnduranceScore(day) },
+    { name: "getEnduranceScore (range)", run: () => g.getEnduranceScore(weekAgo, day) },
+    { name: "getRunningTolerance", run: () => g.getRunningTolerance(weekAgo, day) },
+    // Both branches of getRacePredictions.
+    { name: "getRacePredictions (no params)", run: () => g.getRacePredictions() },
+    { name: "getRacePredictions (all params)", run: () => g.getRacePredictions(weekAgo, day, "daily") },
+    { name: "getTrainingStatus", run: () => g.getTrainingStatus(day) },
+    { name: "getFitnessAgeData", run: () => g.getFitnessAgeData(day) },
+    // Both branches of getHillScore.
+    { name: "getHillScore (single day)", run: () => g.getHillScore(day) },
+    { name: "getHillScore (range)", run: () => g.getHillScore(weekAgo, day) },
+    { name: "getCyclingFtp", run: () => g.getCyclingFtp() },
+    { name: "getHeartRateZones", run: () => g.getHeartRateZones() },
+    { name: "getPowerZones", run: () => g.getPowerZones() },
+    { name: "getPowerZonesForSport", run: () => g.getPowerZonesForSport("CYCLING") },
+  ],
 };
 
 const which = process.argv[2];

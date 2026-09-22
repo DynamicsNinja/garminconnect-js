@@ -117,6 +117,22 @@ Every identifier above (`GarminClient`, `Garmin`, `FileTokenStore`) is exported 
 | `getWeighIns` | `(startdate: string \| Date, enddate: string \| Date): Promise<WeighInRange>` | yes |
 | `addWeighIn` | `(weightValue: number, unitKey?: "kg" \| "lbs", when?: Date): Promise<unknown>` — defaults `unitKey="kg"`, `when=new Date()` | yes |
 | `deleteWeighIn` | `(cdate: string \| Date, weightPk: number): Promise<null>` | yes |
+| `getMaxMetrics` | `(cdate: string \| Date): Promise<MaxMetricsResult \| null>` — the date is repeated twice in the path (start=end=cdate); passes through unchecked | yes |
+| `getMaxMetricsRange` | `(start: string \| Date, end: string \| Date): Promise<MaxMetricsResult \| null>` — throws `GarminError` if `start > end`; passes through unchecked | yes |
+| `getFunctionalThresholdPowerRange` | `(start: string \| Date, end: string \| Date, sport?: string, aggregation?: string): Promise<FtpRangeResult \| null>` — defaults `sport="RUNNING"`, `aggregation="daily"`; `sport` upper-cased and validated (`^[A-Z_]+$`); `aggregation` restricted to `{daily,weekly,monthly,yearly}`; passes through unchecked | yes |
+| `getLactateThreshold` | `(latest?: boolean, startDate?: string \| Date, endDate?: string \| Date, aggregation?: string): Promise<LactateThresholdLatest \| LactateThresholdRange>` — defaults `latest=true`, `aggregation="daily"`. TWO DIFFERENT branches, see gotchas: `latest=true` returns `{speed_and_heart_rate, power}` from two GETs; `latest=false` (requires `startDate`, throws otherwise) returns `{speed, heart_rate, power}` from three GETs | yes — both branches |
+| `getTrainingReadiness` | `(cdate: string \| Date): Promise<TrainingReadinessEntry[] \| null>` — passes through unchecked | yes |
+| `getMorningTrainingReadiness` | `(cdate: string \| Date): Promise<TrainingReadinessEntry \| null>` — delegates to `getTrainingReadiness`, no HTTP call of its own; filters for `inputContext === "AFTER_WAKEUP_RESET"`, falls back to the first entry; `null` for a falsy or empty result | yes |
+| `getEnduranceScore` | `(startdate: string \| Date, enddate?: string \| Date): Promise<EnduranceScoreResult \| null>` — TWO branches by presence of `enddate`, see gotchas: no `enddate` hits the single-day endpoint; with `enddate` hits `.../stats` with hard-coded `aggregation="weekly"` | yes — both branches |
+| `getRunningTolerance` | `(startdate: string \| Date, enddate: string \| Date, aggregation?: string): Promise<RunningToleranceEntry[] \| null>` — defaults `aggregation="weekly"`; restricted to `{daily,weekly}` (narrower than the FTP/lactate methods); passes through unchecked | yes |
+| `getRacePredictions` | `(startdate?: string \| Date, enddate?: string \| Date, type?: "daily" \| "monthly"): Promise<RacePredictionsResult \| null>` — TWO branches, all-or-nothing params (throws on a partial combination), see gotchas: no params hits `.../latest/{displayName}`; all three hit `.../{type}/{displayName}`, capped at a 366-day span | yes — both branches |
+| `getTrainingStatus` | `(cdate: string \| Date): Promise<TrainingStatusResult \| null>` — passes through unchecked | yes |
+| `getFitnessAgeData` | `(cdate: string \| Date): Promise<FitnessAgeResult \| null>` — passes through unchecked | yes |
+| `getHillScore` | `(startdate: string \| Date, enddate?: string \| Date): Promise<HillScoreResult \| null>` — TWO branches by presence of `enddate`, same shape as `getEnduranceScore` but the range branch hard-codes `aggregation="daily"` (NOT `"weekly"` — do not conflate the two), see gotchas | yes — both branches |
+| `getCyclingFtp` | `(): Promise<CyclingFtpResult \| null>` — latest value only; use `getFunctionalThresholdPowerRange` for history | yes |
+| `getHeartRateZones` | `(): Promise<HeartRateZoneEntry[] \| null>` — passes through unchecked | yes |
+| `getPowerZones` | `(): Promise<PowerZoneEntry[] \| null>` — passes through unchecked | yes |
+| `getPowerZonesForSport` | `(sport: string): Promise<PowerZonesForSportResult \| null>` — `sport` upper-cased and validated the same way as `getFunctionalThresholdPowerRange` | yes |
 
 `Garmin` exposes the underlying client as `readonly client: GarminClient`.
 
@@ -150,10 +166,10 @@ interface GarminClientOptions {
 
 ## 4. These methods do NOT exist
 
-This is a **partial port**: ~37 of upstream python-garminconnect's 154 public methods. An agent that has
-seen `garminconnect` in training will write calls like `client.get_devices()`,
-`get_training_status()`, or `get_gear()` — none of that exists here. Do not invent methods on
-`Garmin` or `GarminClient` by analogy with upstream names.
+This is a **partial port**: ~53 of upstream python-garminconnect's 154 public methods. An agent that has
+seen `garminconnect` in training will write calls like `client.get_devices()` or `client.get_gear()`
+— none of that exists here. Do not invent methods on `Garmin` or `GarminClient` by analogy with
+upstream names.
 
 Notably absent (implement via `connectapi` instead — see below):
 
@@ -162,9 +178,6 @@ Notably absent (implement via `connectapi` instead — see below):
 - Devices and device settings
 - Badges and challenges (including virtual challenges)
 - Goals
-- Training status / training readiness
-- Race predictions
-- Endurance score, hill score
 - Personal records
 - Connect IQ
 - Women's health, menstrual cycle tracking
@@ -310,6 +323,27 @@ login. This is the intended pattern for serverless MFA, not a workaround.
   other non-2xx, carries `status: number`, `url: string`, `body: string`). Error messages have
   query strings redacted — a Garmin service ticket rides in the query string, so don't expect the
   full URL in a caught error's message.
+- **`getLactateThreshold` has two branches with genuinely different response shapes** — the
+  `latest` boolean picks between them, not a variant of the same call. `latest=true` (default)
+  fires two GETs (`.../latestLactateThreshold` and `.../powerToWeight/latest/{today}`) and returns
+  `{speed_and_heart_rate, power}`; `latest=false` fires three GETs (speed range, heart-rate range,
+  and a delegated `getFunctionalThresholdPowerRange` call) and returns `{speed, heart_rate,
+  power}` — and it throws unless `startDate` is supplied. The two branches also use DIFFERENT sport
+  literals: the latest-branch power call sends the literal `sport=Running` (mixed case, not run
+  through sport-key normalization — this is upstream's literal value), while the range branch sends
+  fully-uppercase `sport=RUNNING`. Do not "clean up" the mixed-case one to match the other.
+- **`getEnduranceScore` and `getHillScore` both branch on whether `enddate` is supplied**, and both
+  hard-code an `aggregation` value on their range branch that is NOT the same value: endurance
+  score's range branch hard-codes `"weekly"`; hill score's hard-codes `"daily"`. Conflating the two
+  silently sends the wrong aggregation to Garmin.
+- **`getRacePredictions` is all-or-nothing on `startdate`/`enddate`/`type`** — supplying one or two
+  of the three throws; supplying none hits the `.../latest/{displayName}` endpoint; supplying all
+  three hits `.../{type}/{displayName}` and additionally caps the span at 366 days. `type` must be
+  `"daily"` or `"monthly"`.
+- **`getFunctionalThresholdPowerRange` and `getPowerZonesForSport` both normalize `sport`** by
+  upper-casing it and validating it matches `^[A-Z_]+$` (`"cycling"` becomes `"CYCLING"`; `"run1"`
+  throws) — this is the one sport-key validation shared across methods; the literal
+  `sport=Running` in `getLactateThreshold`'s latest branch (above) deliberately bypasses it.
 
 ## 7. Anti-patterns
 

@@ -1,6 +1,7 @@
 import type { GarminClient } from "./client.js";
 import { GarminError } from "./errors.js";
 import * as activities from "./services/activities.js";
+import * as metrics from "./services/metrics.js";
 import * as weight from "./services/weight.js";
 import * as wellness from "./services/wellness.js";
 import type { ActivityDownloadFormat, ActivityExerciseSets } from "./types/activities.js";
@@ -312,5 +313,69 @@ export class Garmin {
   }
   deleteWeighIn(cdate: string | Date, weightPk: number) {
     return weight.deleteWeighIn(this, cdate, weightPk);
+  }
+
+  // --- metrics ---
+  getMaxMetrics(cdate: string | Date) {
+    return metrics.getMaxMetrics(this, cdate);
+  }
+  getMaxMetricsRange(start: string | Date, end: string | Date) {
+    return metrics.getMaxMetricsRange(this, start, end);
+  }
+  getFunctionalThresholdPowerRange(
+    start: string | Date,
+    end: string | Date,
+    sport?: string,
+    aggregation?: string,
+  ) {
+    return metrics.getFunctionalThresholdPowerRange(this, start, end, sport, aggregation);
+  }
+  getLactateThreshold(
+    latest?: boolean,
+    startDate?: string | Date,
+    endDate?: string | Date,
+    aggregation?: string,
+  ) {
+    return metrics.getLactateThreshold(this, latest, startDate, endDate, aggregation);
+  }
+  getTrainingReadiness(cdate: string | Date) {
+    return metrics.getTrainingReadiness(this, cdate);
+  }
+  getMorningTrainingReadiness(cdate: string | Date) {
+    return metrics.getMorningTrainingReadiness(this, cdate);
+  }
+  getEnduranceScore(startdate: string | Date, enddate?: string | Date) {
+    return metrics.getEnduranceScore(this, startdate, enddate);
+  }
+  getRunningTolerance(startdate: string | Date, enddate: string | Date, aggregation?: string) {
+    return metrics.getRunningTolerance(this, startdate, enddate, aggregation);
+  }
+  getRacePredictions(
+    startdate?: string | Date,
+    enddate?: string | Date,
+    type?: "daily" | "monthly",
+  ) {
+    return metrics.getRacePredictions(this, startdate, enddate, type);
+  }
+  getTrainingStatus(cdate: string | Date) {
+    return metrics.getTrainingStatus(this, cdate);
+  }
+  getFitnessAgeData(cdate: string | Date) {
+    return metrics.getFitnessAgeData(this, cdate);
+  }
+  getHillScore(startdate: string | Date, enddate?: string | Date) {
+    return metrics.getHillScore(this, startdate, enddate);
+  }
+  getCyclingFtp() {
+    return metrics.getCyclingFtp(this);
+  }
+  getHeartRateZones() {
+    return metrics.getHeartRateZones(this);
+  }
+  getPowerZones() {
+    return metrics.getPowerZones(this);
+  }
+  getPowerZonesForSport(sport: string) {
+    return metrics.getPowerZonesForSport(this, sport);
   }
 }
