@@ -276,6 +276,7 @@ describe("wellness: new endpoints", () => {
     const when = new Date("2026-09-22T10:00:00.000Z");
     await makeGarmin().setBloodPressure(120, 80, undefined, when, "felt fine");
     expect(seen[0]!.method).toBe("POST");
+    expect(seen[0]!.url).toBe(`${API}/bloodpressure-service/bloodpressure`);
     const body = seen[0]!.body as Record<string, unknown>;
     expect(body).toMatchObject({ systolic: 120, diastolic: 80, sourceType: "MANUAL", notes: "felt fine" });
     expect(body.pulse).toBeUndefined();
@@ -284,6 +285,7 @@ describe("wellness: new endpoints", () => {
 
   it("setBloodPressure includes pulse when given", async () => {
     await makeGarmin().setBloodPressure(120, 80, 65);
+    expect(seen[0]!.url).toBe(`${API}/bloodpressure-service/bloodpressure`);
     const body = seen[0]!.body as Record<string, unknown>;
     expect(body.pulse).toBe(65);
   });
@@ -331,6 +333,7 @@ describe("wellness: new endpoints", () => {
   it("addHydrationData sends valueInML raw and derives cdate from now when both omitted", async () => {
     await makeGarmin().addHydrationData(500);
     expect(seen[0]!.method).toBe("PUT");
+    expect(seen[0]!.url).toBe(`${API}/usersummary-service/usersummary/hydration/log`);
     const body = seen[0]!.body as Record<string, unknown>;
     expect(body.valueInML).toBe(500);
     expect(typeof body.calendarDate).toBe("string");
@@ -338,6 +341,7 @@ describe("wellness: new endpoints", () => {
 
   it("addHydrationData uses local midnight when only cdate is given", async () => {
     await makeGarmin().addHydrationData(250, undefined, "2026-09-22");
+    expect(seen[0]!.url).toBe(`${API}/usersummary-service/usersummary/hydration/log`);
     const body = seen[0]!.body as Record<string, unknown>;
     expect(body.calendarDate).toBe("2026-09-22");
     expect(body.timestampLocal).toBe("2026-09-22T00:00:00.00");
@@ -357,6 +361,7 @@ describe("wellness: new endpoints", () => {
 
   it("addHydrationData allows negative values", async () => {
     await makeGarmin().addHydrationData(-200, undefined, "2026-09-22");
+    expect(seen[0]!.url).toBe(`${API}/usersummary-service/usersummary/hydration/log`);
     const body = seen[0]!.body as Record<string, unknown>;
     expect(body.valueInML).toBe(-200);
   });

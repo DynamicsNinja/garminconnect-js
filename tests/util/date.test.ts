@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatDate } from "../../src/util/date.js";
+import { formatDate, formatGmtTimestamp, formatLocalTimestamp } from "../../src/util/date.js";
 
 describe("formatDate", () => {
   it("passes a well-formed string through", () => {
@@ -37,5 +37,45 @@ describe("formatDate", () => {
 
   it("accepts Feb 29 in a leap year", () => {
     expect(formatDate("2028-02-29")).toBe("2028-02-29"); // 2028 is a leap year
+  });
+});
+
+describe("formatLocalTimestamp / formatGmtTimestamp", () => {
+  it("formats a local wall-clock timestamp with zero-padded fields", () => {
+    const when = new Date(2026, 0, 5, 9, 3, 7); // local Jan 5 2026, 09:03:07 (month is 0-indexed)
+    expect(formatLocalTimestamp(when)).toBe("2026-01-05T09:03:07.00");
+  });
+
+  it("formats a GMT/UTC timestamp from the same instant", () => {
+    const when = new Date("2026-09-22T23:30:07.000Z");
+    expect(formatGmtTimestamp(when)).toBe("2026-09-22T23:30:07.00");
+  });
+
+  it("local and GMT formatting diverge for the same instant on a non-UTC machine", () => {
+    // A single fixed instant, read both ways, so this is deterministic
+    // regardless of which timezone the test runs under: it only asserts a
+    // difference when the process timezone actually has a nonzero offset,
+    // detected at runtime rather than assumed.
+    const when = new Date("2026-09-22T23:30:07.000Z");
+    const local = formatLocalTimestamp(when);
+    const gmt = formatGmtTimestamp(when);
+    expect(gmt).toBe("2026-09-22T23:30:07.00");
+    if (when.getTimezoneOffset() !== 0) {
+      expect(local).not.toBe(gmt);
+    } else {
+      expect(local).toBe(gmt);
+    }
+  });
+
+  it("formatLocalTimestamp uses the local calendar date, not the UTC one", () => {
+    // Constructed from local getters, so this is inherently about the
+    // machine's local timezone; assert self-consistency against the same
+    // getters rather than a hard-coded string.
+    const when = new Date(2026, 8, 22, 0, 30, 0); // local Sep 22 2026, 00:30:00
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const expected =
+      `${when.getFullYear()}-${pad(when.getMonth() + 1)}-${pad(when.getDate())}` +
+      `T${pad(when.getHours())}:${pad(when.getMinutes())}:${pad(when.getSeconds())}.00`;
+    expect(formatLocalTimestamp(when)).toBe(expected);
   });
 });

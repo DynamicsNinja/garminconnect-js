@@ -1,29 +1,9 @@
 import type { GarminClient } from "../client.js";
-import { formatDate } from "../util/date.js";
+import { formatDate, formatGmtTimestamp, formatLocalTimestamp } from "../util/date.js";
 import type { WeighInRange } from "../types/weight.js";
 
 export interface WeightHost {
   readonly client: GarminClient;
-}
-
-const pad = (n: number): string => String(n).padStart(2, "0");
-
-/**
- * Local wall-clock time formatted as Garmin's `dateTimestamp` expects
- * (`YYYY-MM-DDTHH:mm:ss.00`, no offset). Deliberately built from the local
- * getters (`getFullYear`/`getHours`/...), not `toISOString()`, which is
- * always UTC.
- */
-function formatLocalTimestamp(d: Date): string {
-  return (
-    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` +
-    `T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}.00`
-  );
-}
-
-/** UTC instant formatted as Garmin's `gmtTimestamp` expects. */
-function formatGmtTimestamp(d: Date): string {
-  return d.toISOString().slice(0, 19) + ".00";
 }
 
 /**

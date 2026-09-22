@@ -1,6 +1,6 @@
 import { GarminAuthError, GarminError } from "../errors.js";
 import type { GarminClient } from "../client.js";
-import { formatDate } from "../util/date.js";
+import { formatDate, formatGmtTimestamp, formatLocalTimestamp } from "../util/date.js";
 import type {
   BloodPressureRange,
   BloodPressureSetResult,
@@ -252,20 +252,6 @@ export async function getStatsAndBody(
   return { ...stats, ...totalAverage };
 }
 
-const pad = (n: number): string => String(n).padStart(2, "0");
-
-/** Local wall-clock time formatted as Garmin's `*TimestampLocal` fields expect. */
-function formatLocalTs(d: Date): string {
-  return (
-    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` +
-    `T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}.00`
-  );
-}
-
-/** UTC instant formatted as Garmin's `*TimestampGMT` fields expect. */
-function formatGmtTs(d: Date): string {
-  return d.toISOString().slice(0, 19) + ".00";
-}
 
 /**
  * `pulse` is optional — Garmin's own UI allows a blood-pressure entry
@@ -297,8 +283,8 @@ export async function setBloodPressure(
   return host.client.connectapi<BloodPressureSetResult>("/bloodpressure-service/bloodpressure", {
     method: "POST",
     json: {
-      measurementTimestampLocal: formatLocalTs(when),
-      measurementTimestampGMT: formatGmtTs(when),
+      measurementTimestampLocal: formatLocalTimestamp(when),
+      measurementTimestampGMT: formatGmtTimestamp(when),
       systolic,
       diastolic,
       sourceType: "MANUAL",
@@ -365,20 +351,20 @@ export async function addHydrationData(
   if (when === undefined && cdate === undefined) {
     const now = new Date();
     date = formatDate(now);
-    timestampLocal = formatLocalTs(now);
+    timestampLocal = formatLocalTimestamp(now);
   } else if (when === undefined) {
     date = formatDate(cdate as string | Date);
     timestampLocal = `${date}T00:00:00.00`;
   } else if (cdate === undefined) {
     date = formatDate(when);
-    timestampLocal = formatLocalTs(when);
+    timestampLocal = formatLocalTimestamp(when);
   } else {
     date = formatDate(cdate);
     const derivedDate = formatDate(when);
     if (derivedDate !== date) {
       throw new GarminError("timestamp's date does not match cdate");
     }
-    timestampLocal = formatLocalTs(when);
+    timestampLocal = formatLocalTimestamp(when);
   }
   return host.client.connectapi<HydrationLogResult>(
     "/usersummary-service/usersummary/hydration/log",
