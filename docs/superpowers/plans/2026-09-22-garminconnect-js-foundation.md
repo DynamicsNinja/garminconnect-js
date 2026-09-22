@@ -1961,16 +1961,13 @@ export async function resumeLogin(
   code: string,
   options: { fetcher?: Fetcher } = {},
 ): Promise<{ state: "success"; oauth1: OAuth1Token; oauth2: OAuth2Token }> {
-  const fetcher =
-    options.fetcher ?? new Fetcher({ jar: CookieJar.fromJSON(mfaState.cookies) });
-  if (options.fetcher) {
-    // Restore the login session's cookies into the caller's fetcher.
-    for (const cookie of mfaState.cookies) {
-      fetcher.jar.setFromResponse(`https://${cookie.domain}${cookie.path}`, [
-        `${cookie.name}=${cookie.value}; Path=${cookie.path}`,
-      ]);
-    }
-  }
+  // One restoration path for both branches. Do NOT replay these as synthetic
+  // Set-Cookie headers: that round-trip drops secure/expires and downgrades a
+  // Domain=.garmin.com cookie to host-only, so it would stop reaching
+  // connectapi.garmin.com — and the caller-supplied-fetcher branch is exactly
+  // the one GarminClient.resumeLogin takes. mergeFromJSON preserves every field.
+  const fetcher = options.fetcher ?? new Fetcher();
+  fetcher.jar.mergeFromJSON(mfaState.cookies);
   const ctx: SsoContext = { fetcher, domain: mfaState.domain };
 
   const res = await fetcher.request(ssoUrl(ctx.domain, "/mobile/api/mfa/verifyCode"), {
