@@ -52,6 +52,9 @@ for (const [name, fetchOne] of captures) {
 console.log(
   "\nReminder: these fixtures were derived from a REAL Garmin account. " +
     `${out}/ is gitignored by default so nothing here is committed automatically. ` +
-    "scrub() is a safety net, not a guarantee — inspect every file yourself before " +
-    "choosing to stage or commit any of them.",
+    "scrub() is a safety net, not a guarantee — it redacts by FIELD NAME, so " +
+    "free-text fields such as description/comment/notes (and activity titles) are " +
+    "NOT content-scanned for names or places. Inspect every file yourself, paying " +
+    "particular attention to any free-text field, before choosing to stage or " +
+    "commit any of them.",
 );

@@ -98,4 +98,38 @@ describe("scrub", () => {
     scrub(input);
     expect(input).toEqual(snapshot);
   });
+
+  it("zeroes Garmin's positionLat/positionLong track-point convention", () => {
+    expect(scrub({ positionLat: 46.0511, positionLong: 14.5051 })).toEqual({
+      positionLat: 0,
+      positionLong: 0,
+    });
+  });
+
+  it("zeroes coordinate keys via segment matching, not whole-word matching", () => {
+    expect(scrub({ directLatitude: 46.05 })).toEqual({ directLatitude: 0 });
+  });
+
+  it("zeroes positionLat/positionLong nested in a polyline array", () => {
+    expect(
+      scrub({ geoPolylineDTO: { polyline: [{ positionLat: 46.05, positionLong: 14.5 }] } }),
+    ).toEqual({
+      geoPolylineDTO: { polyline: [{ positionLat: 0, positionLong: 0 }] },
+    });
+  });
+
+  it("replaces birth date fields", () => {
+    expect(scrub({ birthDate: "1990-05-02", dob: "1990-05-02" })).toEqual({
+      birthDate: "1970-01-01",
+      dob: "1970-01-01",
+    });
+  });
+
+  it("replaces gender", () => {
+    expect(scrub({ gender: "FEMALE" })).toEqual({ gender: "unspecified" });
+  });
+
+  it("replaces a bare owner field", () => {
+    expect(scrub({ owner: "Real Person" })).toEqual({ owner: "Test User" });
+  });
 });
