@@ -41,6 +41,22 @@ const services: Record<string, Probe[]> = {
     { name: "getCaloriesDaily", run: () => g.getCaloriesDaily(weekAgo, day) },
     { name: "getHrvDataRange", run: () => g.getHrvDataRange(weekAgo, day) },
   ],
+  activities: [
+    { name: "countActivities", run: () => g.countActivities() },
+    { name: "getActivities", run: () => g.getActivities(0, 5) },
+    { name: "getActivitiesForDate", run: () => g.getActivitiesForDate(day) },
+    { name: "getActivitiesByDate", run: () => g.getActivitiesByDate(weekAgo, day) },
+    { name: "getLastActivity", run: () => g.getLastActivity() },
+    {
+      name: "getActivity",
+      run: async () => {
+        const last = await g.getLastActivity();
+        if (!last) return null;
+        return g.getActivity(last.activityId);
+      },
+    },
+    { name: "getActivityTypes", run: () => g.getActivityTypes() },
+  ],
 };
 
 const which = process.argv[2];

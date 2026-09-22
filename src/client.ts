@@ -219,7 +219,7 @@ export class GarminClient {
     file: Blob,
     filename: string,
     path = "/upload-service/upload",
-    options: Pick<ApiOptions, "timeoutMs"> = {},
+    options: Pick<ApiOptions, "timeoutMs" | "headers"> = {},
   ): Promise<unknown> {
     const tokens = await this.#ensureFresh();
     const form = new FormData();
@@ -230,8 +230,13 @@ export class GarminClient {
       body: form,
       timeoutMs: options.timeoutMs ?? TRANSFER_DEFAULT_TIMEOUT_MS,
       headers: {
-        authorization: authorizationHeader(tokens.oauth2),
+        // Defaults first, then caller headers (e.g. `importActivity`'s
+        // load-bearing `NK`/`origin`/`User-Agent` overrides), then the
+        // transport's own auth header last so it can never be replaced —
+        // same ordering rule as `#apiRequest`.
         "User-Agent": API_USER_AGENT,
+        ...options.headers,
+        authorization: authorizationHeader(tokens.oauth2),
       },
     });
     return this.#parseBody(res);

@@ -181,11 +181,67 @@ export class Garmin {
   }
 
   // --- activities ---
+  countActivities() {
+    return activities.countActivities(this);
+  }
   getActivities(start?: number, limit?: number) {
     return activities.getActivities(this, start, limit);
   }
+  getActivitiesForDate(fordate: string | Date) {
+    return activities.getActivitiesForDate(this, fordate);
+  }
+  getActivitiesByDate(
+    startdate: string | Date,
+    enddate?: string | Date,
+    activitytype?: string,
+    sortorder?: string,
+  ) {
+    return activities.getActivitiesByDate(this, startdate, enddate, activitytype, sortorder);
+  }
+  getLastActivity() {
+    return activities.getLastActivity(this);
+  }
   getActivity(activityId: number | string) {
     return activities.getActivity(this, activityId);
+  }
+  getActivityTypes() {
+    return activities.getActivityTypes(this);
+  }
+  deleteActivity(activityId: number | string) {
+    return activities.deleteActivity(this, activityId);
+  }
+  setActivityName(activityId: number | string, activityName: string) {
+    return activities.setActivityName(this, activityId, activityName);
+  }
+  setActivityType(activityId: number | string, typeId: number, typeKey: string, parentTypeId: number) {
+    return activities.setActivityType(this, activityId, typeId, typeKey, parentTypeId);
+  }
+  setActivityDescription(activityId: number | string, description: string) {
+    return activities.setActivityDescription(this, activityId, description);
+  }
+  createManualActivityFromJson(payload: Record<string, unknown>) {
+    return activities.createManualActivityFromJson(this, payload);
+  }
+  createManualActivity(
+    startDatetime: string,
+    timeZone: string,
+    typeKey: string,
+    distanceKm: number,
+    durationMin: number,
+    activityName: string,
+  ) {
+    return activities.createManualActivity(
+      this,
+      startDatetime,
+      timeZone,
+      typeKey,
+      distanceKm,
+      durationMin,
+      activityName,
+    );
+  }
+  importActivity(file: Blob, filename: string) {
+    return activities.importActivity(this, file, filename);
   }
   downloadActivity(activityId: number | string, format?: ActivityDownloadFormat) {
     return activities.downloadActivity(this, activityId, format);
