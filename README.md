@@ -84,9 +84,11 @@ python-garminconnect exposes 154 public methods across ~14 categories. As of thi
 [`docs/upstream-method-inventory.md`](docs/upstream-method-inventory.md) has a real `Garmin`
 counterpart, mechanically checked by `tests/parity.test.ts` on every test run (it reflects on
 `Garmin.prototype` and re-parses the inventory each time, so this claim cannot silently drift out
-of date). `Garmin.prototype` has 157 methods — 3 more than 154, because a few (`getStats`,
-`getInProgressBadges`, `getStatsAndBody`) are upstream-documented aliases/derived helpers layered
-on other real endpoints, not separate HTTP calls.
+of date). `Garmin.prototype` has 157 methods — 3 more than 154. The extras are `getUserProfile`,
+`displayName` and `userName`: port-local helpers with no upstream row of their own.
+`getUserProfile` reads `/userprofile-service/socialProfile` (upstream's similarly-named
+`get_user_profile` is a different endpoint, satisfied here by `getUserSettings`), and the other
+two are cached accessors over it.
 
 **Full method-by-method detail — signatures, live-verification status per method, and every known
 gotcha — lives in [`AGENTS.md`](AGENTS.md) section 3**, not here; this table is a summary. It's
@@ -156,9 +158,12 @@ Garmin's own consent-status check — it isn't a `python-garminconnect` method e
 read it directly:
 
 ```ts
-const consent = await client.connectapi<{ enabled?: boolean }>(
+// Response shape below is LIVE-OBSERVED, not assumed. There is no `enabled` field:
+// the signal is `userOption`, which reads "opt-in" once consent has been granted.
+const consent = await client.connectapi<{ userOption?: string }>(
   "/gdprconsent-service/feature/UPLOAD",
 );
+const uploadConsentGranted = consent?.userOption === "opt-in";
 ```
 
 If your first write against an EU account 412s, check this before assuming your request is wrong.

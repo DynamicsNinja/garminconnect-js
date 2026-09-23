@@ -18,7 +18,7 @@ import type {
   GearActivity,
   GearLinkResult,
   ImportActivityResult,
-  PersonalRecord,
+  PersonalRecords,
   ProgressSummary,
   UploadActivityResult,
 } from "../types/activities.js";
@@ -581,13 +581,19 @@ export async function downloadHealthSnapshot(
  * (`getActivity`'s date-scoped sibling methods already key off `displayName()`). `null_behaviour`:
  * passes through unchecked, per the inventory.
  */
-export async function getPersonalRecord(host: ActivitiesHost): Promise<PersonalRecord | null> {
+export async function getPersonalRecord(host: ActivitiesHost): Promise<PersonalRecords | null> {
   const displayName = await host.displayName();
-  return host.client.connectapi<PersonalRecord>(
+  return host.client.connectapi<PersonalRecords>(
     `/personalrecord-service/personalrecord/prs/${displayName}`,
   );
 }
 
+/**
+ * Upstream validates `upload_activity` and `import_activity` against the same `ActivityUploadFormat`
+ * enum, so this alias is not a placeholder for a future divergence — it exists to make the shared
+ * constraint explicit at both call sites rather than having one method reach into a constant named
+ * for the other.
+ */
 const UPLOAD_ACTIVITY_EXTENSIONS = IMPORT_ACTIVITY_EXTENSIONS;
 
 /**

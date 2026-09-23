@@ -69,7 +69,16 @@ export interface UploadActivityResult {
  * call) — not modeled as fields here since the test account has zero personal records, but
  * recorded for a caller reading the raw response.
  */
-export type PersonalRecord = Record<string, unknown>[];
+/** One personal-record row. Shape unobserved — the test account has no records. */
+export type PersonalRecord = Record<string, unknown>;
+
+/**
+ * What `getPersonalRecord` actually returns: an ARRAY, despite the inventory's `dict` label and
+ * despite upstream's singular method name (live-observed as `array[0]`). Named plural so the call
+ * site cannot be misread as returning a single record — the same singular-row/plural-result split
+ * applied to `Gear` and `GearDefaults` in Task 7.
+ */
+export type PersonalRecords = PersonalRecord[];
 
 /**
  * Response shapes for the per-activity detail sub-resources below are undocumented beyond the
