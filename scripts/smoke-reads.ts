@@ -91,6 +91,7 @@ const services: Record<string, Probe[]> = {
       },
     },
     { name: "getActivityTypes", run: () => g.getActivityTypes() },
+    { name: "getPersonalRecord", run: () => g.getPersonalRecord() },
     // The following need a real activityId to hit a non-404 path. The test account is normally
     // empty, so `getLastActivity()` returning `null` (and these resolving to `null` rather than
     // issuing a request against a made-up id) is the expected, PASSing outcome when run standalone.
@@ -393,6 +394,22 @@ const services: Record<string, Probe[]> = {
           : g.getAdaptiveTrainingPlanById(planId);
       },
     },
+  ],
+  misc: [
+    { name: "getLifestyleLoggingData", run: () => g.getLifestyleLoggingData(day) },
+    // requestReload is a WRITE (asks Garmin to reload/recompute a day) — deliberately never
+    // probed here per this task's SAFETY section; see AGENTS.md and the task report.
+    // queryGarminGraphql's composed URL is this task's highest-risk item (upstream's own
+    // constant has no leading slash; this client's connectapi joins by string concatenation, not
+    // URL-relative joining — see src/services/misc.ts). A minimal introspection-shaped query is
+    // enough to prove the URL is reachable (a 200/400 from Garmin's gateway, not a 404 or a
+    // malformed-host connection failure).
+    {
+      name: "queryGarminGraphql",
+      run: () => g.queryGarminGraphql({ query: "{ __typename }" }),
+    },
+    // logout is intentionally NEVER probed here — see AGENTS.md and the repo-wide safety note:
+    // it would clear ./tokens, the live session every other probe in this file depends on.
   ],
 };
 

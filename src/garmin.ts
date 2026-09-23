@@ -8,6 +8,7 @@ import * as gear from "./services/gear.js";
 import * as goals from "./services/goals.js";
 import * as golf from "./services/golf.js";
 import * as metrics from "./services/metrics.js";
+import * as misc from "./services/misc.js";
 import * as nutrition from "./services/nutrition.js";
 import * as trainingPlans from "./services/trainingPlans.js";
 import * as weight from "./services/weight.js";
@@ -269,6 +270,12 @@ export class Garmin {
   }
   importActivity(file: Blob, filename: string) {
     return activities.importActivity(this, file, filename);
+  }
+  uploadActivity(file: Blob, filename: string) {
+    return activities.uploadActivity(this, file, filename);
+  }
+  getPersonalRecord() {
+    return activities.getPersonalRecord(this);
   }
   downloadActivity(activityId: number | string, format?: ActivityDownloadFormat) {
     return activities.downloadActivity(this, activityId, format);
@@ -723,5 +730,19 @@ export class Garmin {
   }
   getAdaptiveTrainingPlanById(planId: number | string) {
     return trainingPlans.getAdaptiveTrainingPlanById(this, planId);
+  }
+
+  // --- misc ---
+  getLifestyleLoggingData(cdate: string | Date) {
+    return misc.getLifestyleLoggingData(this, cdate);
+  }
+  requestReload(cdate: string | Date) {
+    return misc.requestReload(this, cdate);
+  }
+  queryGarminGraphql(query: Record<string, unknown>) {
+    return misc.queryGarminGraphql(this, query);
+  }
+  logout() {
+    return misc.logout(this);
   }
 }

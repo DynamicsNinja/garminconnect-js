@@ -99,6 +99,8 @@ Every identifier above (`GarminClient`, `Garmin`, `FileTokenStore`) is exported 
 | `createManualActivityFromJson`     | `(payload: Record<string, unknown>): Promise<unknown>` — sends `payload` to Garmin verbatim, no shape validation; UNCERTAIN upstream null handling                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | yes (exercised via `createManualActivity`, which delegates to it with no other code path)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | `createManualActivity`             | `(startDatetime: string, timeZone: string, typeKey: string, distanceKm: number, durationMin: number, activityName: string): Promise<unknown>` — **converts units**: `distanceKm * 1000` → meters, `durationMin * 60` → seconds, before building the request body; `startDatetime` is NOT routed through `formatDate` (it's a full local timestamp, not a bare calendar date) — **must include milliseconds**, e.g. `"2026-09-22T10:00:00.000"` (upstream's documented pattern); omitting them produced a live HTTP 500 `ValueInstantiationException` from Garmin during verification. Live-verified: the converted `summaryDTO.distance`/`summaryDTO.duration` were read back via `getActivity` and matched the expected meters/seconds exactly (5.5km/30min → 5500m/1800s) | yes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `importActivity`                   | `(file: Blob, filename: string): Promise<ImportActivityResult>` — multipart upload to `/upload-service/upload/{ext}` (extension from `filename`, must be `fit`/`gpx`/`tcx`) with the load-bearing `NK`/`origin`/custom `User-Agent` headers that make Garmin treat it as an import rather than a device sync; a 409 is re-raised as `GarminConnectionError` ("Activity already exists (duplicate): ...")                                                                                                                                                                                                                                                                                                                                                                    | yes — a synthetic GPX (fake, Null-Island-adjacent coordinates) was uploaded, Garmin processed it asynchronously (~3-6s), the resulting activity was found by polling `getActivities`, then deleted                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `uploadActivity`                   | `(file: Blob, filename: string): Promise<UploadActivityResult \| null>` — multipart upload to the PLAIN `/upload-service/upload` path, no extension suffix and none of `importActivity`'s load-bearing import headers (ordinary device-sync-shaped upload, distinct from `importActivity`'s spoofed-client import); UNCERTAIN upstream null handling. No inventory task ever ported this row — discovered missing by `tests/parity.test.ts` during this task's reconciliation pass and closed here | **no** — implemented and unit-tested only; not exercised live in this task (out of scope; see report) |
+| `getPersonalRecord`                | `(): Promise<PersonalRecord \| null>` — GETs `/personalrecord-service/personalrecord/prs/{displayName}`; no args; passes through unchecked. `PersonalRecord` is `Record<string, unknown>[]` — **the upstream inventory's `returns` column says "dict"; live-verified WRONG**, the test account returned `array[0]`. Same discovery/closure story as `uploadActivity` above (no inventory task ever ported this row; closed in Task 15's reconciliation pass) | yes — `array[0]` on the (record-less) test account, confirming the URL and the corrected array shape; the per-record row shape is unverified |
 | `downloadActivity`                 | `(activityId: number \| string, format?: ActivityDownloadFormat): Promise<Buffer>` — `ActivityDownloadFormat` is `"ORIGINAL" \| "TCX" \| "GPX" \| "KML" \| "CSV"`, default `"ORIGINAL"`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | yes — all 5 formats downloaded against a synthetic fixture and confirmed non-empty (364-1505 bytes each)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | `getActivitySplits`                | `(activityId: number \| string): Promise<ActivitySplits \| null>` — passes through unchecked                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | yes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `getActivityTypedSplits`           | `(activityId: number \| string): Promise<ActivityTypedSplits \| null>` — passes through unchecked; richer detail than `getActivitySplits` for some activity types (e.g. Bouldering)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | yes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
@@ -200,6 +202,10 @@ Every identifier above (`GarminClient`, `Garmin`, `FileTokenStore`) is exported 
 | `getTrainingPlans` | `(): Promise<TrainingPlansResult \| null>` — GETs `/trainingplan-service/trainingplan/plans`; no params; passes through unchecked | yes — a live ENVELOPE object on the test account: `{ trainingPlanList: [], searchFilter: {...} }`. Note the shape — the plans are under `trainingPlanList`, NOT at the top level, so treating the result as an array yields nothing (a smoke probe made exactly that mistake and could never find an id). The test account has no actual plans, so the per-plan row shape inside the list is unverified |
 | `getTrainingPlanById` | `(planId: number \| string): Promise<TrainingPlanDetail \| null>` — GETs `/trainingplan-service/trainingplan/phased/{planId}`; passes through unchecked | **no** — the test account has no training plans, so no real `planId` exists; fabricating one was rejected per this project's standing rule (a low fabricated id can name another user's record on some Garmin services, and a probe that can never succeed should SKIP rather than print a misleading PASS/FAIL). `scripts/smoke-reads.ts` SKIPs this and re-reads `getTrainingPlans().trainingPlanList` for a real id on every run, so it upgrades itself to a real check the moment an account has a plan. (It did NOT do this as first written — it tested the envelope for `Array.isArray`, which is always false, so the skip was unconditional and permanent. Fixed; the promise in this row is now true.) Upstream additionally runs `_validate_positive_integer(int(plan_id))` on `planId`, which this port deliberately does NOT replicate — every other id in this library (`activityId`, `workoutId`, `weightPk`, …) is interpolated raw, and making training plans the lone exception would be a worse inconsistency than the missing guard |
 | `getAdaptiveTrainingPlanById` | `(planId: number \| string): Promise<AdaptiveTrainingPlanDetail \| null>` — GETs `/trainingplan-service/trainingplan/fbt-adaptive/{planId}`, a distinct sub-path from `getTrainingPlanById`'s `phased` path; passes through unchecked | **no** — same reason and same skip mechanism as `getTrainingPlanById` |
+| `getLifestyleLoggingData` | `(cdate: string \| Date): Promise<LifestyleLoggingData \| null>` — GETs `/lifestylelogging-service/dailyLog/{cdate}`; passes through unchecked. Grouped under `misc` per the plan's explicit instruction, even though it superficially resembles a wellness-daily endpoint | yes — a live 200 on the test account confirms the URL; field-level shape is undocumented |
+| `requestReload` | `(cdate: string \| Date): Promise<ReloadRequestResult \| null>` — POSTs `/wellness-service/wellness/epoch/request/{cdate}` with no JSON body; asks Garmin to reload/recompute a day's data (Garmin offloads older data, so this forces it back); UNCERTAIN upstream null handling | **no** — a WRITE with no safe read-back; explicitly excluded from live verification per this task's SAFETY section (do not execute against the live account without the controller's go-ahead). Implemented as a straightforward pass-through per the standing rule for UNCERTAIN rows |
+| `queryGarminGraphql` | `(query: Record<string, unknown>): Promise<GraphqlResult \| null>` — POSTs the caller's GraphQL body verbatim to `/graphql-gateway/graphql`; UNCERTAIN upstream null handling (upstream calls `.json()` directly with no null-check). **The composed URL is this task's highest-risk item**: upstream's own constant is `"graphql-gateway/graphql"`, no leading slash, unlike every other constant in `gc.py` — but this port's `connectapi` composes the request URL by plain string concatenation (`` `https://connectapi.${domain}${path}` ``), not `URL`-relative joining, so omitting the leading slash here would silently glue onto the hostname (`connectapi.garmin.comgraphql-gateway/graphql`) rather than 404 — the usual "a 404 means the URL is wrong" heuristic would not even catch it. The leading slash is therefore hardcoded and deliberate; `tests/services/misc.test.ts` pins the literal composed URL | yes — a minimal `{"query": "{ __typename }"}` POST against the live account returned an HTTP 200 (a GraphQL-shaped error body, not a 404), confirming the composed URL is reachable; the schema itself is undocumented and out of scope |
+| `logout` | `(): Promise<void>` — clears the configured `TokenStore` (`host.client.tokenStore.clear()`); makes **no HTTP call**, matching upstream exactly (the token is never revoked server-side). Does NOT clear the in-memory tokens already held by the calling `GarminClient` instance — there is no public API to do that, and this method's host is deliberately scoped to `{ client }` only. **NEVER call this against a `FileTokenStore` pointed at `./tokens`** — see the repo-wide safety note this task shipped with | yes — unit-tested against both `MemoryTokenStore` and a temp-directory `FileTokenStore` (confirms the on-disk files are actually deleted); intentionally never run against `./tokens` or any live-session store |
 
 `Garmin` exposes the underlying client as `readonly client: GarminClient`.
 
@@ -231,59 +237,54 @@ interface GarminClientOptions {
 
 `readonly domain: string` (`"garmin.com"` or `"garmin.cn"`) and `readonly tokenStore: TokenStore` are also public on `GarminClient`.
 
-## 4. These methods do NOT exist
+## 4. These methods do NOT exist (mostly)
 
-This is a **partial port**: 151 of upstream python-garminconnect's ~154 public methods (count taken from `Garmin.prototype`, and kept honest by the drift guard in `tests/agents-md.test.ts`; a handful of the 151 are aliases or derived helpers — `getStats`, `displayName`, `getInProgressBadges` — rather than distinct endpoints). An agent that has
-seen `garminconnect` in training will write calls like `client.get_personal_records()` — that does not exist
-here. Do not invent methods on `Garmin` or `GarminClient` by analogy with upstream names. (Gear IS now
-fully ported — `getGear`, `createGear`, `getGearStats`, `getGearDefaults`, `setGearDefault` in
-`src/services/gear.ts`, plus the activity-association methods in `src/services/activities.ts` — so
-`client.get_gear()`-style calls DO have a TypeScript equivalent now, just camelCased and possibly
-signature-shifted; check section 3 rather than assuming it is still absent. Devices IS now fully
-ported too — `getDevices`, `getDeviceSettings`, `getPrimaryTrainingDevice`, `getDeviceSolarData`,
-`getDeviceAlarms`, `getDeviceLastUsed` in `src/services/devices.ts` — so `client.get_devices()`
-has a TypeScript equivalent now as well. Goals IS now ported too — `getGoals` in
-`src/services/goals.ts` — so `client.get_goals()`-style calls DO have a TypeScript equivalent
-(`Garmin.getGoals()`) now; see section 3. Golf IS now ported too — `getGolfSummary`,
-`getGolfScorecard`, `getGolfShotData`, `getGolfClubStats`, `getGolfUserStats` in
-`src/services/golf.ts` — so `client.get_golf_summary()`-style calls DO have a TypeScript
-equivalent now as well; see section 3. Nutrition and training plans are now ported too —
-`getNutritionDailyFoodLog`, `getNutritionDailyMeals`, `getNutritionDailySettings` in
-`src/services/nutrition.ts`, and `getTrainingPlans`, `getTrainingPlanById`,
-`getAdaptiveTrainingPlanById` in `src/services/trainingPlans.ts` — so `client.get_training_plans()`-
-and `client.get_nutrition_daily_food_log()`-style calls DO have a TypeScript equivalent now as
-well; see section 3.)
+As of Task 15 (the plan's final task), this is now a **complete port**: 157 methods of upstream
+python-garminconnect's full 154-method public surface — every `python_name` row in
+`docs/upstream-method-inventory.md` has a real `Garmin` counterpart, mechanically asserted by
+`tests/parity.test.ts` (which reflects on `Garmin.prototype` and parses the inventory at test-run
+time, so it cannot silently drift back out of sync). `Garmin.prototype` has 157 methods, 3 more
+than 154, because `getStats`, `getInProgressBadges`, and `getStatsAndBody` are upstream-documented
+aliases/derived helpers layered on top of other real endpoints, not distinct HTTP calls, and are
+counted separately from the 154 in this project's own accounting — kept honest by the count check
+in `tests/agents-md.test.ts`'s drift guard.
 
-Notably absent (implement via `connectapi` instead — see below):
+An agent that has seen `garminconnect` in training will still write calls like
+`client.get_personal_records()` (snake_case) — that specific spelling does not exist here; it is
+`garmin.getPersonalRecord()` (see section 3). **Do not invent methods on `Garmin` or
+`GarminClient` by analogy with upstream Python names — always check section 3 for the real,
+camelCased, possibly signature-shifted TypeScript name first.** Three upstream names in particular
+resolve to a DIFFERENT method than a naive camelCase transliteration would suggest — see the
+`SATISFIED_UNDER_DIFFERENT_NAME` table in `tests/parity.test.ts` and the `getUserProfile`/
+`fullName`/`unitSystem` rows in section 3: `get_full_name` → `fullName()`, `get_unit_system` →
+`unitSystem()`, `get_user_profile` → `getUserSettings()` (NOT `getUserProfile()`, which is this
+port's own PRE-EXISTING, unrelated method hitting `/userprofile-service/socialProfile`).
 
-- Personal records
-- Connect IQ
-- Segments
-- Social/connections
-- The GraphQL passthrough endpoint
-
-**What to do instead:** call `client.connectapi<T>(path, options)` directly with the same
-upstream Garmin Connect path. `connectapi` is the general HTTP-with-auth primitive every `Garmin`
-method above is built on — it is not private, and using it for gaps is the intended pattern, not
-a workaround. Find the right path by reading upstream's `garminconnect/__init__.py`
-(https://github.com/cyberjunky/python-garminconnect) — every method there names the endpoint path
-it calls; translate that path into a `connectapi` call here. Define your own response type; this
-library has no type for endpoints it doesn't implement.
+**Genuinely absent** (never inventoried as an upstream python-garminconnect public method at all —
+these are Garmin Connect features with no corresponding row in the 154-method inventory, meaning
+no task in this plan ever targeted them): Connect IQ store browsing, route/course segments,
+social/friends connections, and any other Garmin Connect web feature outside upstream's own
+documented surface. **What to do instead:** call `client.connectapi<T>(path, options)` directly
+with the real Garmin Connect endpoint path. `connectapi` is the general HTTP-with-auth primitive
+every `Garmin` method above is built on — it is not private, and using it for a gap like this is
+the intended pattern, not a workaround. Define your own response type; this library has no type
+for endpoints it doesn't implement.
 
 ```ts
-// Example: upstream get_personal_records() hits
-// /personalrecord-service/personalrecord/prs/{displayName} — genuinely absent here.
-const displayName = await garmin.displayName();
-const prs = await client.connectapi<unknown[]>(
-  `/personalrecord-service/personalrecord/prs/${displayName}`,
+// Example: the EU upload-consent flag (see section 6's "EU upload consent" gotcha) — read here
+// because no Garmin method wraps it; it is not an upstream python-garminconnect method at all,
+// just a real Garmin Connect endpoint this library's own write paths can 412 against.
+const consent = await client.connectapi<{ enabled?: boolean }>(
+  "/gdprconsent-service/feature/UPLOAD",
 );
 ```
 
-This example has now been retargeted twice, because the endpoint it demonstrated got ported
-underneath it — first `get_devices`, then `get_goals`. `tests/agents-md.test.ts` now fails if the
-example names an endpoint that a real `Garmin` method covers, so it cannot go stale silently again.
-**If you retarget it, copy any load-bearing headers the real endpoint needs** — the `get_goals`
-version of this snippet omitted `Sec-Fetch-Site`, which would have silently returned `[]`.
+This example has been retargeted three times now, because the endpoint it previously demonstrated
+kept getting ported underneath it — `get_devices`, then `get_goals`, then `get_personal_records`
+(closed in this same task). `tests/agents-md.test.ts` fails if the example names an endpoint that
+a real `Garmin` method already covers, so it cannot go stale silently again. **If you retarget it,
+copy any load-bearing headers the real endpoint needs** — the `get_goals` version of this snippet
+once omitted `Sec-Fetch-Site`, which would have silently returned `[]`.
 
 ## 5. Auth model
 
@@ -567,6 +568,60 @@ power}` — and it throws unless `startDate` is supplied. The two branches also 
   worth more suspicion than a 404 would be. Two hypotheses remain — "no such scorecard" and
   "endpoint retired" — and no evidence available on an account with no golf data can separate them.
   A single real scorecard id settles it in one call.
+- **EU upload consent: every write can 412 on an EU account until consent is granted.** Garmin
+  returns `412 PreconditionFailedException: "The user is from EU location, but upload consent is
+  not yet granted or revoked"` for EVERY write endpoint (`addWeighIn`, `importActivity`,
+  `createManualActivity`, workout uploads, gear writes, all of them) on an EU-region account that
+  has not granted upload consent in Garmin Connect's UI. This was hit live during this plan's
+  development. It is an **account-state precondition, not a library bug** — the request shape and
+  URL are correct, Garmin is refusing the write until the account owner clicks through a consent
+  flow. It is fixed by granting consent in Garmin Connect (Settings), not by changing any code
+  here. Garmin's own web client reads this flag from `GET /gc-api/gdprconsent-service/feature/
+  UPLOAD`, which upstream python-garminconnect does not wrap and neither does this port; a caller
+  hitting an opaque 412 on their first write can check it directly via `client.connectapi(
+  "/gdprconsent-service/feature/UPLOAD")` (see section 4's worked `connectapi` example, which uses
+  this exact endpoint) before assuming their code is wrong.
+- **`getPersonalRecord` and `uploadActivity` (upstream `get_personal_record`/`upload_activity`)
+  were never assigned to any task brief in this plan** — Task 15's `tests/parity.test.ts` is what
+  actually found them missing, not a task brief that said "port these." They were implemented in
+  Task 15 itself (the plan's final task) to close the gap rather than leave a permanently-failing
+  parity test with nobody left to fix it. `getPersonalRecord` is live-verified (`array[0]` on the
+  test account; the inventory's "dict" label for it is WRONG, same standing finding as everywhere
+  else that label has been checked). `uploadActivity` is unit-tested only, deliberately NOT
+  live-verified in this task — see its `AGENTS.md` row and the Task 15 report for why (out of the
+  task's stated scope, and a second, un-reviewed multipart write endpoint was judged lower priority
+  than shipping the reconciliation this task actually exists for).
+- **`uploadActivity` vs `importActivity` — do not conflate the two.** Both are multipart uploads to
+  an `/upload-service/upload...` path, and it is easy to assume they're the same call with a
+  different name. They are not: `importActivity` hits `/upload-service/upload/{ext}` WITH the
+  load-bearing `NK`/`origin`/custom `User-Agent` headers that make Garmin treat it as an import
+  (spoofing a different client); `uploadActivity` hits the plain `/upload-service/upload` path
+  (no extension suffix) with NONE of those headers — Garmin's ordinary device-sync-shaped upload.
+  Swapping which one gets the special headers would change which code path Garmin's backend takes
+  for the upload, silently.
+- **`queryGarminGraphql`'s leading slash is the single highest-risk line this task shipped.**
+  Upstream's own endpoint constant is `"graphql-gateway/graphql"` — no leading slash, unlike every
+  other endpoint constant in `gc.py`. This client's `GarminClient#apiRequest` composes the request
+  URL by plain string concatenation (`` `https://connectapi.${domain}${path}` ``), not
+  `URL`-relative joining, so reusing upstream's constant verbatim (no leading slash) would silently
+  produce `https://connectapi.garmin.comgraphql-gateway/graphql` — a malformed hostname, which
+  fails as a DNS/connection error, NOT as the 404 this project's other four wrong-URL incidents all
+  surfaced as. `src/services/misc.ts` hardcodes the leading slash
+  (`"/graphql-gateway/graphql"`); `tests/services/misc.test.ts` pins the literal composed URL; a
+  live probe (`npm run smoke -- misc`) confirmed a real HTTP response (not a connection failure)
+  from `https://connectapi.garmin.com/graphql-gateway/graphql`.
+- **`logout()` clears the configured `TokenStore` only — it does NOT clear the in-memory tokens
+  already held by the calling `GarminClient` instance.** There is no public `clearTokens()` on
+  `GarminClient` (only `setTokens`/`getTokens`), and `logout`'s host interface (`MiscHost`) is
+  deliberately scoped to `{ client }` per this task's brief — reaching into `GarminClient`'s
+  private `#tokens` field was out of scope. A process that calls `logout()` and then keeps issuing
+  requests through the SAME `GarminClient`/`Garmin` instance will keep succeeding until the
+  in-memory OAuth2 token expires (~27h) or a refresh is attempted after the OAuth1 token also goes
+  stale. Discard the `GarminClient` instance after `logout()`; do not keep using it.
+- **`logout()` was never probed against `./tokens` in this task, deliberately** (see the SAFETY
+  section this task shipped with). It is unit-tested against `MemoryTokenStore` and a temp-dir
+  `FileTokenStore` only. `scripts/smoke-reads.ts`'s `misc` probe list does not include it, and
+  never should.
 
 ## 7. Anti-patterns
 

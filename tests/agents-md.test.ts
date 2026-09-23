@@ -103,12 +103,20 @@ describe("AGENTS.md drift guard", () => {
    */
   it("states the correct method count in section 4", () => {
     const actual = garminMethodNames().length;
-    const match = /partial port\*\*: (\d+) of upstream/.exec(agentsMd);
+    // Wording intentionally changed in Task 15: the port went from "partial" (151 of ~154) to
+    // "complete" (all 154 upstream rows satisfied, 157 real Garmin.prototype methods — 3 more
+    // than 154 because a handful are upstream-documented aliases/derived helpers layered on top
+    // of other real endpoints, counted separately from the 154 in this project's accounting).
+    // Both phrasings are accepted so this regex does not have to be edited again if the port ever
+    // legitimately regresses to "partial" (e.g. a method removed) — either way, the NUMBER on
+    // that line must equal `Garmin.prototype`'s real method count.
+    const match = /(?:partial|complete) port\*\*: (\d+)(?: methods)? of upstream/.exec(agentsMd);
     expect(
       match,
-      'AGENTS.md section 4 no longer contains a "**partial port**: <N> of upstream" sentence. ' +
-        "Restore it (or update this test if the wording intentionally changed) — it is the " +
-        "figure an agent uses to judge how much of upstream is reachable without connectapi.",
+      'AGENTS.md section 4 no longer contains a "**partial port**: <N> of upstream" or ' +
+        '"**complete port**: <N> of upstream" sentence. Restore it (or update this test if the ' +
+        "wording intentionally changed again) — it is the figure an agent uses to judge how much " +
+        "of upstream is reachable without connectapi.",
     ).not.toBeNull();
     expect(
       Number(match?.[1]),

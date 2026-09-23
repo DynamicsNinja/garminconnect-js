@@ -51,6 +51,27 @@ export interface ImportActivityResult {
 }
 
 /**
+ * Result of `POST /upload-service/upload` (`upload_activity`) — the plain, non-import upload
+ * (distinct endpoint and headers from `importActivity`, see that function's doc comment). Upstream
+ * returns "Any (raw client response)"; UNCERTAIN null handling. Undocumented shape.
+ */
+export interface UploadActivityResult {
+  [key: string]: unknown;
+}
+
+/**
+ * `GET /personalrecord-service/personalrecord/prs/{displayName}` (`get_personal_record`). Passes
+ * through unchecked. **The upstream inventory's `returns` column says "dict"; live-verified
+ * WRONG against the Garmin test account (`array[0]`) — another instance of this project's
+ * standing "the returns column is unreliable" finding.** Per upstream's notes, for
+ * `activityType === "running"`, `typeId` maps 1=1km, 2=1mile, 3=5km, 4=10km, 5=half marathon,
+ * 6=marathon, 7=longest run (distance in meters; duration would need a separate `getActivity`
+ * call) — not modeled as fields here since the test account has zero personal records, but
+ * recorded for a caller reading the raw response.
+ */
+export type PersonalRecord = Record<string, unknown>[];
+
+/**
  * Response shapes for the per-activity detail sub-resources below are undocumented beyond the
  * inventory's blanket "dict" label — index signatures only, no fields invented. Where a field is
  * mentioned by name in the upstream inventory's notes (e.g. `exerciseSets`), it is included.

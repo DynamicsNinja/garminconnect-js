@@ -62,6 +62,16 @@ const server = setupServer(
     const file = form.get("file") as File;
     return HttpResponse.json({ fileName: file.name, status: "uploaded" });
   }),
+  http.post(`${API}/upload-service/upload`, async ({ request }) => {
+    record(request);
+    const form = await request.formData();
+    const file = form.get("file") as File;
+    return HttpResponse.json({ fileName: file.name, status: "uploaded" });
+  }),
+  http.get(`${API}/personalrecord-service/personalrecord/prs/abc-display`, ({ request }) => {
+    record(request);
+    return HttpResponse.json([{ typeId: 3, activityType: "running", value: 1234 }]);
+  }),
   http.get(`${API}/activity-service/activity/555/splits`, ({ request }) => {
     record(request);
     return HttpResponse.json({ lapDTOs: [] });
@@ -462,6 +472,43 @@ describe("importActivity", () => {
       status: "uploaded",
       fileName: "ride.gpx",
     });
+  });
+});
+
+describe("uploadActivity", () => {
+  it("uploads to the plain /upload-service/upload path with no import headers", async () => {
+    const blob = new Blob([new Uint8Array([1, 2, 3])]);
+    const result = await makeGarmin().uploadActivity(blob, "ride.gpx");
+    expect(result).toEqual({ fileName: "ride.gpx", status: "uploaded" });
+    expect(seen[0]!.url).toBe(`${API}/upload-service/upload`);
+    expect(seen[0]!.method).toBe("POST");
+    expect(seen[0]!.headers!["nk"]).toBeUndefined();
+    expect(seen[0]!.headers!["origin"]).toBeUndefined();
+  });
+
+  it("throws GarminError for an unsupported extension without making a request", async () => {
+    const blob = new Blob([new Uint8Array([1])]);
+    await expect(makeGarmin().uploadActivity(blob, "ride.exe")).rejects.toThrow(
+      /Unsupported activity file format/,
+    );
+    expect(seen).toHaveLength(0);
+  });
+
+  it("throws GarminError when the filename has no extension", async () => {
+    const blob = new Blob([new Uint8Array([1])]);
+    await expect(makeGarmin().uploadActivity(blob, "ride")).rejects.toThrow(
+      /Cannot determine file extension/,
+    );
+    expect(seen).toHaveLength(0);
+  });
+});
+
+describe("getPersonalRecord", () => {
+  it("hits personalrecord-service/personalrecord/prs/{displayName}", async () => {
+    const result = await makeGarmin().getPersonalRecord();
+    expect(seen[0]!.url).toBe(`${API}/personalrecord-service/personalrecord/prs/abc-display`);
+    expect(seen[0]!.method).toBe("GET");
+    expect(result).toEqual([{ typeId: 3, activityType: "running", value: 1234 }]);
   });
 });
 

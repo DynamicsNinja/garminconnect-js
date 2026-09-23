@@ -79,34 +79,45 @@ Goodbye.
 
 ## 📊 API coverage
 
-python-garminconnect exposes 154+ methods across 14 categories. This port is younger and
-**does not claim parity** — here is exactly what exists today, honestly counted.
+python-garminconnect exposes 154 public methods across ~14 categories. As of this version,
+`garminconnect-js` ports **all 154 of them** — every `python_name` in
+[`docs/upstream-method-inventory.md`](docs/upstream-method-inventory.md) has a real `Garmin`
+counterpart, mechanically checked by `tests/parity.test.ts` on every test run (it reflects on
+`Garmin.prototype` and re-parses the inventory each time, so this claim cannot silently drift out
+of date). `Garmin.prototype` has 157 methods — 3 more than 154, because a few (`getStats`,
+`getInProgressBadges`, `getStatsAndBody`) are upstream-documented aliases/derived helpers layered
+on other real endpoints, not separate HTTP calls.
 
-### Implemented and verified against a live Garmin account (14 methods)
+**Full method-by-method detail — signatures, live-verification status per method, and every known
+gotcha — lives in [`AGENTS.md`](AGENTS.md) section 3**, not here; this table is a summary. It's
+also the file an AI coding agent working against this library should read first.
 
-| Category | Methods |
-|---|---|
-| User & Profile (2) | `getUserProfile`, `unitSystem` |
-| Daily Health (7) | `getUserSummary`, `getStats` *(alias)*, `getStepsData`, `getHeartRates`, `getSleepData`, `getHrvData`, `getBodyBattery` |
-| Activities (2) | `getActivities` *(paginated)*, `getActivity` |
-| Body Composition (3) | `getWeighIns`, `addWeighIn`, `deleteWeighIn` |
+| Category | Methods | Live-verified reads | Notes |
+|---|---|---|---|
+| Wellness (steps, heart rate, sleep, HRV, stress, SpO2, respiration, hydration, blood pressure, …) | 30 | almost all | `setBloodPressure`, `deleteBloodPressure`, `addHydrationData` implemented but not live-verified (writes without a safe round-trip on this account) |
+| Activities (list/search/detail, splits, weather, manual creation, import/upload, exercise sets, personal records) | 28 | most | destructive/one-shot writes (`deleteActivity`, `setActivityName`/`Type`/`Description`, `createManualActivity`, `importActivity`) verified via create→verify→delete round-trips against a disposable test account; `uploadActivity` and `downloadHealthSnapshot` are exceptions — see AGENTS.md |
+| Metrics (training status, race predictions, FTP, lactate threshold, heart-rate/power zones, endurance/hill score, …) | 16 | yes | all branches (including the two-branch methods like `getLactateThreshold`) live-verified |
+| Workouts (CRUD, per-sport upload, scheduling, device push) | 18 | most | `pushWorkoutToDevice` attempted but unverifiable — the test account has no paired device |
+| Gear (CRUD, activity association, defaults, stats) | 9 | most | `setGearDefault`'s success path could not be made to work live against any tried input — see AGENTS.md |
+| Devices | 6 | partial | the test account has no paired device, so `getDeviceSettings`/`getDeviceSolarData` are unit-tested only |
+| Badges & Challenges | 8 | yes | |
+| Body composition & weight | 8 | yes | `addBodyComposition` (FIT-file upload) is implemented but not live-verified |
+| Women's health (menstrual cycle, pregnancy) | 11 | reads only | the 5 write methods are deliberately never live-tested against any account — irreversible health-data writes; unit-tested only |
+| Golf | 5 | yes (golf-less account) | scorecard/shot-detail response shapes are unverified — the test account has no recorded rounds |
+| User profile, goals, nutrition, training plans, misc (lifestyle log, reload request, GraphQL passthrough, logout) | 4+1+3+3+4 | mostly | `requestReload` (a write) and `logout` are deliberately never run against the live token store — see below |
 
-Confirmed in this session: login, on-disk token persistence, and automatic OAuth2 refresh all
-work end to end against a real account, and each method above returned real data.
+**Deliberately unverified, by policy, not oversight:** any write with no safe way to undo it on a
+real account (`addHydrationData`, `updateMenstrualDailyLog` and its four siblings, `requestReload`,
+`pushWorkoutToDevice`'s final POST), plus `logout()` — calling it against the token store backing
+this repo's own live tests would force an interactive MFA re-login, so it is unit-tested against
+`MemoryTokenStore`/a temp-dir `FileTokenStore` only. None of this is a gap in effort; it's the
+project's standing rule that a live *write* probe only runs when it can be verified (read the
+value back) and undone.
 
-### Implemented, not yet exercised live (2 methods)
-
-| Category | Methods | Status |
-|---|---|---|
-| File Transfer | `downloadActivity`, `client.upload()` | Built and covered by the local test harness (mocked HTTP). Not yet run against Garmin's live upload/download endpoints. |
-
-### Not yet implemented — roadmap (~145 methods)
-
-Mirroring python-garminconnect's remaining category breadth, none of these exist here yet:
-Devices & Gear, Workouts & Training Plans, Challenges & Badges, Goals, Personal Records,
-Segments, Blood Pressure, Hydration, Menstrual Cycle Tracking, Social/Connections, Women's
-Health, Gear Maintenance, Virtual Challenges, and the Garmin Connect notification/messaging
-surface. Contributions that add any of these are welcome — see [Contributing](#-contributing).
+**EU accounts:** every write endpoint can return `412 PreconditionFailedException` ("The user is
+from EU location, but upload consent is not yet granted or revoked") until upload consent is
+granted in Garmin Connect's own settings UI. This is an account-state precondition, not a bug in
+this library — see [Known limitations](#eu-upload-consent-412) below.
 
 ## ℹ️ About
 
@@ -114,16 +125,43 @@ surface. Contributions that add any of these are welcome — see [Contributing](
 [connect.garmin.com](https://connect.garmin.com) so you can use it in your own Node or Next.js
 server code, without scraping HTML or reverse-engineering the mobile app yourself.
 
-Data categories covered today:
+Data categories covered today (see [API coverage](#-api-coverage) for the full, honest breakdown):
 
-- User profile and unit-system preferences
-- Daily wellness: step counts, heart rate, sleep, HRV, Body Battery
-- Activities: list, pagination, single-activity detail
-- Body composition: weigh-in history, adding and deleting a weigh-in
+- User profile, unit-system preferences, goals
+- Daily wellness: step counts, heart rate, sleep, HRV, stress, SpO2, respiration, hydration,
+  blood pressure, body battery
+- Activities: list, search, detail, splits, weather, manual creation, GPX/TCX/FIT import, gear
+  association, personal records
+- Body composition and weigh-ins
+- Training metrics: training status, race predictions, FTP, lactate threshold, HR/power zones
+- Workouts: CRUD, per-sport builders, scheduling, device push
+- Gear: CRUD, activity association, defaults, maintenance stats
+- Devices, badges & challenges, women's health, golf, nutrition, training plans
+- The raw GraphQL gateway passthrough and other `connectapi` escape-hatch use cases
 
 **Compatibility:** requires **Node.js 18+**. This library is server-only — see
 [Node runtime only](#-node-runtime-only) below for why. It has no runtime dependencies and does
 not run in a browser or on an Edge runtime.
+
+### <a id="eu-upload-consent-412"></a>Known limitation: EU upload consent (412)
+
+Garmin returns `412 PreconditionFailedException: "The user is from EU location, but upload
+consent is not yet granted or revoked"` for **every write** (`addWeighIn`, `importActivity`,
+`createManualActivity`, workout uploads, gear writes — all of them) on an EU-region account that
+has not clicked through Garmin Connect's upload-consent flow. This was hit live during this
+project's own development. It is an account-state precondition, not a library bug: the request
+shape and URL are correct, and Garmin's server is refusing the write until the account owner
+grants consent in Garmin Connect's own settings UI. There is no method in this library that wraps
+Garmin's own consent-status check — it isn't a `python-garminconnect` method either — but you can
+read it directly:
+
+```ts
+const consent = await client.connectapi<{ enabled?: boolean }>(
+  "/gdprconsent-service/feature/UPLOAD",
+);
+```
+
+If your first write against an EU account 412s, check this before assuming your request is wrong.
 
 Garmin Connect has no public, documented API. Everything here talks to the same endpoints
 [connect.garmin.com](https://connect.garmin.com) and the Garmin Connect mobile app use, so
@@ -232,8 +270,8 @@ export async function POST(req: Request) {
 ```
 
 Treat `mfaState` as a short-lived secret: encrypt it at rest and delete it once used. The MFA
-path is implemented and unit-tested but, unlike the 14 methods above, has not been exercised
-against a real MFA-enabled account in this session.
+path is implemented and unit-tested; see [`AGENTS.md`](AGENTS.md) section 5 for its live-testing
+status.
 
 ### What running it locally does
 
@@ -258,7 +296,7 @@ Concretely:
 npm test
 ```
 
-189 tests across 15 files, all against mocked HTTP (via `msw`) — no network access and no
+521 tests across 35 files, all against mocked HTTP (via `msw`) — no network access and no
 credentials required. Covers auth/SSO/MFA, token storage and refresh, the HTTP fetcher's retry
 and error handling, every service method, and the public build output.
 
@@ -275,14 +313,17 @@ Before opening a PR:
 
 - [ ] `npm run typecheck` passes with no `any` and `strict` mode intact.
 - [ ] `npm run lint` passes.
-- [ ] `npm test` passes (and stays at 189+ green tests — add tests for anything you add).
+- [ ] `npm test` passes (and stays green — add tests for anything you add).
+- [ ] `tests/parity.test.ts` still passes — if you're adding a `connectapi`-only endpoint upstream
+      also has as a public method, port it as a real `Garmin` method instead, or that test will
+      fail (by design).
 - [ ] New endpoints follow the existing `services/*` + `Garmin` method pattern, with a typed
       response interface in `types/`.
 - [ ] Commits follow [Conventional Commits](https://www.conventionalcommits.org/).
 - [ ] No real credentials, tokens, personal names, emails, or GPS coordinates in anything
       committed — recorded fixtures must go through `scrub()` and be manually inspected before
       staging, per the reminder `npm run record` prints.
-- [ ] If you're closing a roadmap gap from [API coverage](#-api-coverage), update the table
+- [ ] If you're changing what's implemented, update the [API coverage](#-api-coverage) table
       above rather than leaving it stale.
 
 ## 💻 Code examples

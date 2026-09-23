@@ -18,11 +18,15 @@ import type {
   GearActivity,
   GearLinkResult,
   ImportActivityResult,
+  PersonalRecord,
   ProgressSummary,
+  UploadActivityResult,
 } from "../types/activities.js";
 
 export interface ActivitiesHost {
   readonly client: GarminClient;
+  /** Only needed by `getPersonalRecord`, which URLs by display name like the date-scoped methods. */
+  displayName(): Promise<string>;
 }
 
 /** Upstream `count_activities`: returns the envelope's `totalCount`, not the whole response. */
@@ -568,4 +572,61 @@ export async function downloadHealthSnapshot(
 ): Promise<Buffer> {
   const date = formatDate(requestedDate);
   return host.client.download(`/download-service/files/wellness/${date}`);
+}
+
+/**
+ * Upstream `get_personal_record`. No inventory task ever ported this row — discovered missing by
+ * `tests/parity.test.ts` during Task 15's reconciliation pass and closed here rather than left
+ * failing, since it is a simple unauthenticated-by-args GET with a direct precedent
+ * (`getActivity`'s date-scoped sibling methods already key off `displayName()`). `null_behaviour`:
+ * passes through unchecked, per the inventory.
+ */
+export async function getPersonalRecord(host: ActivitiesHost): Promise<PersonalRecord | null> {
+  const displayName = await host.displayName();
+  return host.client.connectapi<PersonalRecord>(
+    `/personalrecord-service/personalrecord/prs/${displayName}`,
+  );
+}
+
+const UPLOAD_ACTIVITY_EXTENSIONS = IMPORT_ACTIVITY_EXTENSIONS;
+
+/**
+ * Upstream `upload_activity`. Like `get_personal_record`, no inventory task ever ported this row;
+ * closed here during Task 15's reconciliation pass rather than left as a permanent parity-test
+ * failure.
+ *
+ * **Distinct from `importActivity`**: this hits the PLAIN `/upload-service/upload` path with no
+ * file-extension suffix and none of `importActivity`'s load-bearing `NK`/`origin`/custom
+ * `User-Agent` headers — upstream's own `upload_activity` is the ordinary device-sync-shaped
+ * upload, while `import_activity` (already ported) is the one that spoofs a different client to
+ * make Garmin treat it as an import. Do not conflate the two; sending the import headers here (or
+ * omitting them from `importActivity`) would swap their observed behaviour.
+ *
+ * Upstream's signature takes a filesystem path (`activity_path: str`) and reads the file itself.
+ * This port follows the same Blob-based convention `importActivity` already established (this
+ * library targets a server runtime, not a CLI with a trusted local filesystem convention) rather
+ * than adding a second, inconsistent file-path-based entry point — a caller on Node can still
+ * build a `Blob` from a file trivially (`new Blob([await readFile(path)])`).
+ *
+ * UNCERTAIN upstream null handling (upstream returns "Any (raw client response)" with no explicit
+ * null-guard): implemented as a straightforward pass-through, matching this project's standing
+ * rule for UNCERTAIN rows.
+ */
+export async function uploadActivity(
+  host: ActivitiesHost,
+  file: Blob,
+  filename: string,
+): Promise<UploadActivityResult | null> {
+  const dotIndex = filename.lastIndexOf(".");
+  if (dotIndex <= 0 || dotIndex === filename.length - 1) {
+    throw new GarminError(`Cannot determine file extension from "${filename}"`);
+  }
+  const extension = filename.slice(dotIndex + 1).toLowerCase();
+  if (!UPLOAD_ACTIVITY_EXTENSIONS.has(extension)) {
+    throw new GarminError(
+      `Unsupported activity file format ".${extension}" — expected fit, gpx, or tcx`,
+    );
+  }
+  const result = await host.client.upload(file, filename);
+  return (result as UploadActivityResult | null) ?? null;
 }
