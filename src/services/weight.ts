@@ -1,6 +1,6 @@
 import type { GarminClient } from "../client.js";
 import { formatDate, formatGmtTimestamp, formatLocalTimestamp } from "../util/date.js";
-import type { WeighInRange } from "../types/weight.js";
+import type { DailyWeighIns, WeighInRange } from "../types/weight.js";
 
 export interface WeightHost {
   readonly client: GarminClient;
@@ -67,4 +67,78 @@ export async function deleteWeighIn(
     { method: "DELETE" },
   );
   return null;
+}
+
+/**
+ * Same raw-value, no-conversion rule as `addWeighIn` above — `weight` is
+ * sent as-is in `value`, in whatever unit `unitKey` names. This method's
+ * only difference from `addWeighIn` is that the caller supplies the local
+ * and GMT timestamp strings directly (matching upstream's
+ * `add_weigh_in_with_timestamps(weight, unitKey, dateTimestamp, gmtTimestamp)`)
+ * instead of a single `Date` this library derives both from. When either
+ * timestamp string is omitted, it is derived from `when` (defaulting to
+ * `new Date()`) via the same `formatLocalTimestamp`/`formatGmtTimestamp`
+ * helpers `addWeighIn` uses.
+ */
+export async function addWeighInWithTimestamps(
+  host: WeightHost,
+  weight: number,
+  unitKey: "kg" | "lbs" = "kg",
+  dateTimestamp?: string,
+  gmtTimestamp?: string,
+  when: Date = new Date(),
+): Promise<unknown> {
+  return host.client.connectapi("/weight-service/user-weight", {
+    method: "POST",
+    json: {
+      dateTimestamp: dateTimestamp ?? formatLocalTimestamp(when),
+      gmtTimestamp: gmtTimestamp ?? formatGmtTimestamp(when),
+      unitKey,
+      sourceType: "MANUAL",
+      value: weight,
+    },
+  });
+}
+
+export async function getDailyWeighIns(
+  host: WeightHost,
+  cdate: string | Date,
+): Promise<DailyWeighIns | null> {
+  return host.client.connectapi<DailyWeighIns>(
+    `/weight-service/weight/dayview/${formatDate(cdate)}`,
+    { params: { includeAll: "true" } },
+  );
+}
+
+/**
+ * Multi-step, no HTTP path of its own — mirrors upstream's `delete_weigh_ins`:
+ * fetches the day's weigh-ins via `getDailyWeighIns`, then:
+ *  - if there are none, returns `null` (upstream logs a warning);
+ *  - if there is more than one and `deleteAll` is not `true`, also returns
+ *    `null` without deleting anything (upstream logs a warning instead of
+ *    guessing which entry the caller meant);
+ *  - otherwise deletes every entry on that date via `deleteWeighIn` and
+ *    returns the count deleted.
+ *
+ * IRREVERSIBLE: every weigh-in recorded on `cdate` is gone once this
+ * resolves. Never call this against a date you did not populate yourself.
+ */
+export async function deleteWeighIns(
+  host: WeightHost,
+  cdate: string | Date,
+  deleteAll = false,
+): Promise<number | null> {
+  const date = formatDate(cdate);
+  const day = await getDailyWeighIns(host, date);
+  const entries = day?.dateWeightList ?? [];
+  if (entries.length === 0) return null;
+  if (entries.length > 1 && !deleteAll) return null;
+
+  let deleted = 0;
+  for (const entry of entries) {
+    if (typeof entry.samplePk !== "number") continue;
+    await deleteWeighIn(host, date, entry.samplePk);
+    deleted++;
+  }
+  return deleted;
 }

@@ -2,6 +2,7 @@ import type { GarminClient } from "./client.js";
 import { GarminError } from "./errors.js";
 import * as activities from "./services/activities.js";
 import * as badges from "./services/badges.js";
+import * as bodyComposition from "./services/bodyComposition.js";
 import * as gear from "./services/gear.js";
 import * as metrics from "./services/metrics.js";
 import * as weight from "./services/weight.js";
@@ -10,6 +11,7 @@ import * as workouts from "./services/workouts.js";
 import * as womensHealth from "./services/womensHealth.js";
 import type { ActivityDownloadFormat, ActivityExerciseSets } from "./types/activities.js";
 import type { WorkoutInput } from "./types/workouts.js";
+import type { WeightScaleFields } from "./util/fit.js";
 
 export interface SocialProfile {
   displayName: string;
@@ -384,6 +386,42 @@ export class Garmin {
   }
   deleteWeighIn(cdate: string | Date, weightPk: number) {
     return weight.deleteWeighIn(this, cdate, weightPk);
+  }
+  addWeighInWithTimestamps(
+    weightValue: number,
+    unitKey?: "kg" | "lbs",
+    dateTimestamp?: string,
+    gmtTimestamp?: string,
+    when?: Date,
+  ) {
+    return weight.addWeighInWithTimestamps(
+      this,
+      weightValue,
+      unitKey,
+      dateTimestamp,
+      gmtTimestamp,
+      when,
+    );
+  }
+  getDailyWeighIns(cdate: string | Date) {
+    return weight.getDailyWeighIns(this, cdate);
+  }
+  /** Irreversible — see `src/services/weight.ts` for the multi-entry/`deleteAll` semantics. */
+  deleteWeighIns(cdate: string | Date, deleteAll?: boolean) {
+    return weight.deleteWeighIns(this, cdate, deleteAll);
+  }
+
+  // --- bodyComposition ---
+  getBodyComposition(startdate: string | Date, enddate?: string | Date) {
+    return bodyComposition.getBodyComposition(this, startdate, enddate);
+  }
+  /**
+   * `add_body_composition` is UNCERTAIN in the inventory — see
+   * `src/services/bodyComposition.ts` for what was (and wasn't) resolved by
+   * reading upstream's `fit.py` directly.
+   */
+  addBodyComposition(weight: number, extra?: WeightScaleFields & { timestamp?: string }) {
+    return bodyComposition.addBodyComposition(this, weight, extra);
   }
 
   // --- metrics ---

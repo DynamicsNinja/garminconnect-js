@@ -67,7 +67,7 @@ Every identifier above (`GarminClient`, `Garmin`, `FileTokenStore`) is exported 
 | `getWeeklySteps` | `(end: string \| Date, weeks?: number): Promise<WeeklyStepsEntry[] \| null>` — `weeks` defaults to 52, must be a positive integer | yes |
 | `getWeeklyStress` | `(end: string \| Date, weeks?: number): Promise<WeeklyStressEntry[] \| null>` — same `weeks` default/validation as `getWeeklySteps` | yes |
 | `getWeeklyIntensityMinutes` | `(start: string \| Date, end: string \| Date): Promise<WeeklyIntensityMinutesEntry[] \| null>` | yes |
-| `getStatsAndBody` | `(cdate: string \| Date): Promise<StatsAndBody>` — merges `getUserSummary` with the body-composition `totalAverage` block; inlines the `GET /weight-service/weight/dateRange` call the not-yet-ported `bodyComposition` service would make (see gotchas) | yes |
+| `getStatsAndBody` | `(cdate: string \| Date): Promise<StatsAndBody>` — merges `getUserSummary` with the body-composition `totalAverage` block, delegating to `getBodyComposition` (bodyComposition service) for the latter | yes |
 | `setBloodPressure` | `(systolic: number, diastolic: number, pulse?: number, when?: Date, notes?: string): Promise<BloodPressureSetResult \| null>` — validates systolic 70-260, diastolic 40-150, pulse (if given) 20-250, all integers; `when` defaults to `new Date()` | **no** — implemented, not live-verified |
 | `getBloodPressure` | `(startdate: string \| Date, enddate?: string \| Date): Promise<BloodPressureRange \| null>` — `enddate` defaults to `startdate` | yes |
 | `deleteBloodPressure` | `(version: number \| string, cdate: string \| Date): Promise<unknown>` — no proven inverse write to round-trip against in this task | **no** — implemented, not live-verified |
@@ -130,6 +130,11 @@ Every identifier above (`GarminClient`, `Garmin`, `FileTokenStore`) is exported 
 | `getWeighIns` | `(startdate: string \| Date, enddate: string \| Date): Promise<WeighInRange>` | yes |
 | `addWeighIn` | `(weightValue: number, unitKey?: "kg" \| "lbs", when?: Date): Promise<unknown>` — defaults `unitKey="kg"`, `when=new Date()` | yes |
 | `deleteWeighIn` | `(cdate: string \| Date, weightPk: number): Promise<null>` | yes |
+| `addWeighInWithTimestamps` | `(weightValue: number, unitKey?: "kg" \| "lbs", dateTimestamp?: string, gmtTimestamp?: string, when?: Date): Promise<unknown>` — same raw-value, no-conversion rule as `addWeighIn`; `dateTimestamp`/`gmtTimestamp` are sent verbatim if given, else derived from `when` (defaults `new Date()`) the same way `addWeighIn` derives its pair | yes — round-tripped live (write → `getWeighIns` read-back confirmed the stored value → `deleteWeighIn`); see gotchas for both directions observed |
+| `getDailyWeighIns` | `(cdate: string \| Date): Promise<DailyWeighIns \| null>` — GETs `/weight-service/weight/dayview/{cdate}?includeAll=true`; passes through unchecked | yes |
+| `deleteWeighIns` | `(cdate: string \| Date, deleteAll?: boolean): Promise<number \| null>` — no HTTP path of its own: calls `getDailyWeighIns`, then loops `deleteWeighIn` per entry; returns `null` (deletes nothing) if there are zero entries, or more than one entry and `deleteAll` is not `true`; otherwise deletes every entry that day and returns the count. **IRREVERSIBLE** — deletes ALL weigh-ins recorded on `cdate` when it proceeds | yes — exercised live against weigh-ins created by the same probe run only; see gotchas |
+| `getBodyComposition` | `(startdate: string \| Date, enddate?: string \| Date): Promise<BodyCompositionRange \| null>` — GETs `/weight-service/weight/dateRange`; `enddate` defaults to `startdate`; throws `GarminError` if `startdate > enddate`; passes through unchecked. `getStatsAndBody` (wellness service) now delegates to this instead of inlining its own copy of the same call | yes |
+| `addBodyComposition` | `(weight: number, extra?: WeightScaleFields & { timestamp?: string }): Promise<unknown>` — builds a `.fit` binary in memory (`src/util/fit.ts`, ported from upstream `fit.py`'s `FitEncoderWeight`) and uploads it via `client.upload` to `/upload-service/upload`; `weight` validated positive/finite, throws `GarminError` otherwise; UNCERTAIN upstream null handling (passes `client.upload`'s result through unchecked, matching upstream's unchecked `self.client.post(...)`) | **no** — not live-verified; see gotchas for what was and wasn't resolved by reading `fit.py` |
 | `getMaxMetrics` | `(cdate: string \| Date): Promise<MaxMetricsResult \| null>` — the date is repeated twice in the path (start=end=cdate); passes through unchecked | yes |
 | `getMaxMetricsRange` | `(start: string \| Date, end: string \| Date): Promise<MaxMetricsResult \| null>` — throws `GarminError` if `start > end`; passes through unchecked | yes |
 | `getFunctionalThresholdPowerRange` | `(start: string \| Date, end: string \| Date, sport?: string, aggregation?: string): Promise<FtpRangeResult \| null>` — defaults `sport="RUNNING"`, `aggregation="daily"`; `sport` upper-cased and validated (`^[A-Z_]+$`); `aggregation` restricted to `{daily,weekly,monthly,yearly}`; passes through unchecked | yes |
@@ -226,9 +231,6 @@ Notably absent (implement via `connectapi` instead — see below):
 - Goals
 - Personal records
 - Connect IQ
-- Body composition read/upload (`getStatsAndBody` inlines one body-composition GET call directly; the
-  dedicated `bodyComposition` service — `getBodyComposition`, `addBodyComposition` — is a separate,
-  not-yet-ported task)
 - Golf
 - Nutrition
 - Segments
@@ -370,10 +372,6 @@ login. This is the intended pattern for serverless MFA, not a workaround.
   endpoints have a documented 28-day-per-request limit; both methods split a longer `(start, end)`
   range into ≤28-day windows internally and concatenate/de-duplicate the results — callers pass an
   arbitrary range and don't need to chunk themselves. Both throw `GarminError` if `start > end`.
-- **`getStatsAndBody` depends on a body-composition endpoint the dedicated `bodyComposition`
-  service doesn't wrap yet** (a separate, not-yet-ported task). It inlines a direct
-  `GET /weight-service/weight/dateRange` call rather than delegating to a `getBodyComposition`
-  method that doesn't exist in this version — if/when that service ships, revisit this delegation.
 - **`addHydrationData` has no delete endpoint** — unlike `addWeighIn`/`deleteWeighIn`, a hydration
   log entry cannot be safely round-tripped away. It is not live-verified for this reason (write-only
   probes on an empty test account are the only verification performed).
@@ -383,6 +381,32 @@ login. This is the intended pattern for serverless MFA, not a workaround.
   values in GRAMS regardless of recording unit — divide by 1000 to get kg on read. Applying the
   same conversion to both directions is the single most common bug here (a prior version of this
   library shipped exactly that bug and silently multiplied a stored weight by 1000).
+- **`addWeighInWithTimestamps` follows the identical raw-value rule as `addWeighIn`** — do not
+  pre-convert `weight` to grams or any other unit. Confirmed live from BOTH directions: a 72.55 kg
+  write (`addWeighIn`) read back as exactly 72.55 kg (72550 g), and a 160 lbs write
+  (`addWeighInWithTimestamps`, `unitKey: "lbs"`) read back as 72.574 kg (72574 g) — Garmin's own
+  server-side lbs->kg conversion, not one performed by this library. Sending a pre-converted figure
+  client-side would have doubled up on that conversion or produced the historical "value * 1000"
+  corruption; neither happened.
+- **`deleteWeighIns` is irreversible and deletes EVERY weigh-in on the given date.** It was
+  live-verified only against weigh-ins created by the same probe run in `scripts/smoke-writes.ts`
+  (never against pre-existing data) — create, confirm present, delete via `deleteWeighIns`, confirm
+  the account has zero weigh-ins left. Do not call it against a date you did not populate yourself.
+- **`addBodyComposition` / `src/util/fit.ts` — the inventory's UNCERTAIN row was investigated by
+  reading upstream's `garminconnect/fit.py` directly** (not just the inventory notes), because the
+  inventory only covered `garminconnect/__init__.py`. Finding: `FitEncoderWeight.write_weight_scale`
+  DOES scale `weight` (and several other fields) before packing it into the FIT binary — `weight` is
+  packed as `uint16(round(weight_kg * 100))` — but this is a property of the FIT `weight_scale`
+  message format itself (an official Garmin FIT SDK field defined with 1/100 resolution), not an
+  application-level unit conversion bug like `addWeighIn`'s historical one. `gc.py` performs no
+  kg<->lbs conversion anywhere in this path, so `weight` here is assumed to be kilograms, same as
+  upstream assumes. `src/util/fit.ts` is a new, from-scratch port of just the pieces
+  `add_body_composition` needs (`FitEncoder`'s header/CRC/message-block machinery plus
+  `write_file_info`/`write_file_creator`/`write_device_info`/`write_weight_scale`) — it is internal,
+  not part of the public API surface beyond the exported `WeightScaleFields` type. **NOT
+  live-verified**: no FIT upload round-trip against the test account's `getBodyComposition` or
+  `getWeighIns` read endpoints was performed, so whether Garmin's server actually accepts and stores
+  the bytes this encoder produces is unconfirmed live — only source-verified against `fit.py`.
 - **`getSleepData` returns `SleepData | null`** — `null` is Garmin's ordinary "no data for that
   date" response, not an error; do not wrap it in a try/catch expecting a throw. `getHrvData` is
   the same. Other methods differ per endpoint (e.g. `getUserSummary`, `getHeartRates`,

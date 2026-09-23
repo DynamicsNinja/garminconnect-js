@@ -1,6 +1,7 @@
 import { GarminAuthError, GarminError } from "../errors.js";
 import type { GarminClient } from "../client.js";
 import { formatDate, formatGmtTimestamp, formatLocalTimestamp } from "../util/date.js";
+import { getBodyComposition } from "./bodyComposition.js";
 import type {
   BloodPressureRange,
   BloodPressureSetResult,
@@ -228,11 +229,10 @@ export async function getWeeklyIntensityMinutes(
 /**
  * Upstream `get_stats_and_body` calls `get_stats(cdate)` (== `getUserSummary`
  * here) then `get_body_composition(cdate)` and merges `stats` with
- * `body.get("totalAverage", {})`. The `bodyComposition` service is a
- * separate, not-yet-ported task in this project, so rather than depend on a
- * module that doesn't exist yet, this inlines the same
- * `GET /weight-service/weight/dateRange` call `getBodyComposition` would
- * make. Replace with a delegated call once bodyComposition ships.
+ * `body.get("totalAverage", {})`. Delegates to `getBodyComposition` from the
+ * `bodyComposition` service (Task 10) rather than inlining its own
+ * `GET /weight-service/weight/dateRange` call, as an earlier version of this
+ * function did before that service existed.
  */
 export async function getStatsAndBody(
   host: WellnessHost,
@@ -241,13 +241,11 @@ export async function getStatsAndBody(
   const date = formatDate(cdate);
   const [stats, body] = await Promise.all([
     getUserSummary(host, date),
-    host.client.connectapi<{ totalAverage?: unknown }>("/weight-service/weight/dateRange", {
-      params: { startDate: date, endDate: date },
-    }),
+    getBodyComposition(host, date),
   ]);
   const totalAverage =
     body && typeof body === "object" && body.totalAverage && typeof body.totalAverage === "object"
-      ? (body.totalAverage as Record<string, unknown>)
+      ? body.totalAverage
       : {};
   return { ...stats, ...totalAverage };
 }

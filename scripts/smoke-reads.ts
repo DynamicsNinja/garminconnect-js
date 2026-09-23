@@ -233,6 +233,11 @@ const services: Record<string, Probe[]> = {
     { name: "getMenstrualReports", run: () => g.getMenstrualReports(day) },
     { name: "getPregnancySummary", run: () => g.getPregnancySummary() },
   ],
+  weight: [
+    { name: "getWeighIns", run: () => g.getWeighIns(weekAgo, day) },
+    { name: "getDailyWeighIns", run: () => g.getDailyWeighIns(day) },
+    { name: "getBodyComposition", run: () => g.getBodyComposition(weekAgo, day) },
+  ],
 };
 
 const which = process.argv[2];

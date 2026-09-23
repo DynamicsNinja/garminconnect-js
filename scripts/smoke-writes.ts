@@ -1205,6 +1205,137 @@ const services: Record<string, WriteProbe[]> = {
         }
       },
     },
+    {
+      name: "addWeighInWithTimestamps/deleteWeighIn round-trip",
+      run: async () => {
+        // Deliberately uses "lbs" (not "kg", already covered above) to exercise the raw-value,
+        // no-conversion rule from the OTHER unit: 160 lbs sent raw must come back from
+        // getWeighIns as ~72.57 kg (Garmin's own server-side lbs->kg conversion), not as 160000 g
+        // (which would mean this library had wrongly converted lbs to "grams" client-side) and not
+        // as 72570 g misread as some other figure.
+        const value = 160;
+        const unitKey = "lbs";
+        const expectedKg = 72.5747792; // 160 lb * 0.45359237 kg/lb
+        const when = new Date();
+        const dateStr = when.toISOString().slice(0, 10);
+        const dateTimestamp = `${dateStr}T09:00:00.00`;
+        const gmtTimestamp = `${dateStr}T09:00:00.00`;
+        let created = false;
+
+        const findEntry = async () => {
+          const range = await g.getWeighIns(dateStr, dateStr);
+          const summaries = range.dailyWeightSummaries ?? [];
+          const daySummary = summaries.find(
+            (s) => (s as { summaryDate?: string })["summaryDate"] === dateStr,
+          ) as { allWeightMetrics?: { weight?: number; samplePk?: number }[] } | undefined;
+          const entries = daySummary?.allWeightMetrics ?? [];
+          return entries.find((e) => {
+            const grams = e.weight;
+            return typeof grams === "number" && Math.abs(grams / 1000 - expectedKg) < 0.01;
+          });
+        };
+
+        try {
+          await g.addWeighInWithTimestamps(value, unitKey, dateTimestamp, gmtTimestamp);
+          created = true;
+
+          const entry = await findEntry();
+          if (!entry || typeof entry.weight !== "number" || typeof entry.samplePk !== "number") {
+            return {
+              ok: false,
+              detail: `wrote ${value}${unitKey} but could not find a stored entry near ${expectedKg.toFixed(2)}kg on ${dateStr}`,
+            };
+          }
+          const storedKg = entry.weight / 1000;
+
+          const weightPk = entry.samplePk;
+          await g.deleteWeighIn(dateStr, weightPk);
+          const gone = await pollUntil(async () => !(await findEntry()));
+          created = false;
+
+          if (!gone) {
+            return {
+              ok: false,
+              detail: `stored ${storedKg}kg (raw value sent, Garmin converted lbs->kg server-side), but delete did not remove samplePk ${weightPk} after polling`,
+            };
+          }
+          return {
+            ok: true,
+            detail: `wrote ${value}${unitKey} RAW (no client-side conversion), Garmin stored ${storedKg}kg (${entry.weight}g) — confirms server-side conversion, deleted, confirmed gone`,
+          };
+        } finally {
+          if (created) {
+            try {
+              const entry = await findEntry();
+              if (entry && typeof entry.samplePk === "number") {
+                await g.deleteWeighIn(dateStr, entry.samplePk);
+              }
+            } catch (cleanupError) {
+              console.error(
+                `  WARNING: cleanup failed for "addWeighInWithTimestamps/deleteWeighIn round-trip": ${(cleanupError as Error).message}`,
+              );
+            }
+          }
+        }
+      },
+    },
+    {
+      name: "deleteWeighIns (multi-entry, deleteAll) round-trip",
+      run: async () => {
+        // IRREVERSIBLE and deletes ALL weigh-ins for the date it targets — this probe therefore
+        // creates every entry it deletes, on today's date, and only ever cleans up entries this
+        // same run created. Never point this at a date with pre-existing data.
+        const dateStr = new Date().toISOString().slice(0, 10);
+        const values = [61.1, 61.2] as const;
+        let created = 0;
+
+        const countEntries = async () => {
+          const day = await g.getDailyWeighIns(dateStr);
+          return day?.dateWeightList?.length ?? 0;
+        };
+
+        try {
+          for (const value of values) {
+            await g.addWeighIn(value, "kg", new Date());
+            created++;
+          }
+
+          await pollUntil(async () => (await countEntries()) >= values.length);
+          const before = await countEntries();
+          if (before < values.length) {
+            return {
+              ok: false,
+              detail: `created ${values.length} weigh-ins but only ${before} are visible on ${dateStr} before delete`,
+            };
+          }
+
+          const deletedCount = await g.deleteWeighIns(dateStr, true);
+          created = 0; // deleteWeighIns removed everything on this date, including any strays
+
+          const after = await pollUntil(async () => (await countEntries()) === 0);
+          if (!after) {
+            return {
+              ok: false,
+              detail: `deleteWeighIns(dateStr, true) reported deleting ${String(deletedCount)}, but entries remain on ${dateStr} after polling`,
+            };
+          }
+          return {
+            ok: true,
+            detail: `created ${before} weigh-ins on ${dateStr}, deleteWeighIns(deleteAll=true) deleted ${String(deletedCount)}, confirmed 0 remain`,
+          };
+        } finally {
+          if (created > 0) {
+            try {
+              await g.deleteWeighIns(dateStr, true);
+            } catch (cleanupError) {
+              console.error(
+                `  WARNING: cleanup failed for "deleteWeighIns (multi-entry, deleteAll) round-trip": ${(cleanupError as Error).message}`,
+              );
+            }
+          }
+        }
+      },
+    },
   ],
   activities: activityProbes(),
   activitiesDetail: activitiesDetailProbes(),
