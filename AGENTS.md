@@ -266,18 +266,43 @@ It exists to make the four documented traps unreachable:
 | a rest in seconds is `fixed.rest`, not `time` | `.rest(15)` picks `fixed.rest`; `.rest({ time: 15 })` still gives `time` |
 | pace targets are descending m/s speeds | `target: { pace: { minPerKm: [4.5, 5] } }` converts and inverts |
 
-Steps: `.warmup` `.cooldown` `.interval` `.recovery` `.main` `.other` `.rest`, each taking
-`{ distance | time | reps | lapButton | restSeconds }` (exactly one) plus optional `target`,
-`stroke`/`drill`/`equipment` (swim), `exercise`/`weightKg` (strength/HIIT) and `notes`.
-Blocks: `.repeat(n, fn)` and `.repeatForSeconds(s, fn)` (the latter sets `numberOfIterations: null`).
-Multi-sport: `.leg(sport, fn)` per leg — using it switches the workout to `multi_sport`.
+**Steps**: `.warmup` `.cooldown` `.interval` `.recovery` `.main` `.other` `.rest` — all 8 of
+Garmin's step types (`repeat` is the block form below).
+
+**End conditions**, exactly one per step, all live-verified:
+`distance` (m) · `time` (s) · `reps` · `lapButton` · `restSeconds` (`fixed.rest`) · `calories` ·
+`heartRateBpm` · `powerWatts` · `fixedRepetition` (pool lengths).
+
+**Targets** via `target`, and a second simultaneous one via `secondaryTarget`:
+`pace: { minPerKm | minPerMile }` · `speedMetresPerSecond` · `powerZone` · `powerWatts` ·
+`heartRateZone` · `heartRateBpm` · `cadence` · `gradePercent` · `resistance` ·
+`swimCssOffsetSeconds`.
+Note power and heart rate each have TWO forms under the SAME target key — a configured zone
+(`powerZone`/`heartRateZone`, stored as `zoneNumber`) or an explicit range (`powerWatts`/
+`heartRateBpm`, stored as a value pair). Both are live-verified. `secondaryTarget` maps onto the
+`secondaryTargetType`/`secondaryTargetValueOne`/`secondaryZoneNumber` family, which is what the
+bike designer calls "Secondary Target"; the fields are omitted entirely when unused.
+
+Watch the one naming overlap: at the TOP level of a step, `heartRateBpm`/`powerWatts` are numbers
+and mean END CONDITIONS; inside `target`, they are ranges and mean TARGETS.
+
+**Swim**: `stroke` (10 values) · `drill` (3) · `equipment` (5), plus `poolLength`/`poolLengthUnit`
+on the workout. **Strength/HIIT**: `exercise: { category, name? }` — a category alone is accepted —
+and `weightKg`. **Any step**: `notes`.
+
+**Blocks**: `.repeat(n, fn)` and `.repeatForSeconds(s, fn)` (the latter sets
+`numberOfIterations: null`). Blocks nest, including a count-based repeat inside a time-based one.
+**Multi-sport**: `.leg(sport, fn)` per leg — using it switches the workout to `multi_sport`.
 
 `WorkoutSport` deliberately EXCLUDES walking and hiking, because Garmin has no workout sport type
 for either (see the gotcha on `uploadWalkingWorkout`). Guards throw `GarminError` for: no end
 condition, two end conditions, an empty workout, an empty repeat, an empty name, a non-positive
 repeat count, and mixing single-sport steps with multi-sport legs.
 
-Verified live across **all twelve sports** by `scripts/smoke-builder.ts` (`npm run smoke:builder`):
+Verified live across **all twelve sports** by `scripts/smoke-builder.ts` (`npm run smoke:builder`),
+using deliberately complex workouts — a 13-step swim, a 10-step strength session with nested
+repeats and four exercises, a three-leg brick, and a HIIT set with a count-based repeat nested
+inside a time-based one:
 each is built, uploaded, READ BACK and deleted, asserting the stored sport key, globally unique
 stepOrders throughout the tree, and a field specific to what is being tested — the pace target's
 descending m/s pair, power zone's `zoneNumber`, swim's `poolLength`/drill/paddles/`fixed.rest`,

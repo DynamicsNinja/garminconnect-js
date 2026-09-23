@@ -138,6 +138,80 @@ describe("buildWorkout", () => {
     expect(step["weightUnit"]).toMatchObject({ unitKey: "kilogram" });
   });
 
+  it("emits a secondary target under the secondary* field family", () => {
+    const w = buildWorkout("x", { sport: "cycling" })
+      .interval({ time: 600, target: { powerZone: 3 }, secondaryTarget: { cadence: [85, 95] } })
+      .build();
+    const step = w.workoutSegments[0]!.workoutSteps[0] as ExecutableWorkoutStep;
+    expect(step["targetType"]).toMatchObject({ workoutTargetTypeKey: "power.zone" });
+    expect(step["zoneNumber"]).toBe(3);
+    expect(step["secondaryTargetType"]).toMatchObject({ workoutTargetTypeKey: "cadence" });
+    expect(step["secondaryTargetValueOne"]).toBe(85);
+    expect(step["secondaryTargetValueTwo"]).toBe(95);
+    // The primary fields must not be reused for the secondary target.
+    expect(step["targetValueOne"]).toBeUndefined();
+  });
+
+  it("omits secondary fields entirely when no secondary target is given", () => {
+    const w = buildWorkout("x", { sport: "cycling" }).interval({ time: 60 }).build();
+    const step = w.workoutSegments[0]!.workoutSteps[0] as ExecutableWorkoutStep;
+    expect("secondaryTargetType" in step).toBe(false);
+  });
+
+  it("supports both the ZONE and the explicit RANGE form of power and heart rate", () => {
+    // Same target key either way — the difference is zoneNumber vs a value pair. Both live-verified.
+    const w = buildWorkout("x", { sport: "cycling" })
+      .interval({ time: 60, target: { powerZone: 4 } })
+      .interval({ time: 60, target: { powerWatts: [200, 250] } })
+      .interval({ time: 60, target: { heartRateZone: 3 } })
+      .interval({ time: 60, target: { heartRateBpm: [140, 155] } })
+      .build();
+    const [pz, pw, hz, hb] = w.workoutSegments[0]!.workoutSteps as ExecutableWorkoutStep[];
+
+    expect(pz!["targetType"]).toMatchObject({ workoutTargetTypeKey: "power.zone" });
+    expect(pz!["zoneNumber"]).toBe(4);
+    expect(pw!["targetType"]).toMatchObject({ workoutTargetTypeKey: "power.zone" });
+    expect([pw!["targetValueOne"], pw!["targetValueTwo"]]).toEqual([200, 250]);
+    expect(pw!["zoneNumber"]).toBeUndefined();
+
+    expect(hz!["zoneNumber"]).toBe(3);
+    expect([hb!["targetValueOne"], hb!["targetValueTwo"]]).toEqual([140, 155]);
+  });
+
+  it("supports grade, resistance and swim CSS offset targets", () => {
+    const w = buildWorkout("x", { sport: "swimming", poolLength: 25 })
+      .interval({ distance: 100, target: { gradePercent: [2, 5] } })
+      .interval({ distance: 100, target: { resistance: [7, 4] } })
+      .interval({ distance: 100, target: { swimCssOffsetSeconds: 5 } })
+      .build();
+    const [grade, res, css] = w.workoutSegments[0]!.workoutSteps as ExecutableWorkoutStep[];
+    expect(grade!["targetType"]).toMatchObject({ workoutTargetTypeKey: "grade" });
+    expect([grade!["targetValueOne"], grade!["targetValueTwo"]]).toEqual([2, 5]);
+    // Ranges are normalised low-to-high regardless of the order given.
+    expect([res!["targetValueOne"], res!["targetValueTwo"]]).toEqual([4, 7]);
+    expect(css!["targetType"]).toMatchObject({ workoutTargetTypeKey: "swim.css.offset" });
+    expect(css!["targetValueOne"]).toBe(5);
+  });
+
+  it("supports the calories, heart-rate, power and fixed-repetition end conditions", () => {
+    const w = buildWorkout("x", { sport: "running" })
+      .interval({ calories: 300 })
+      .interval({ heartRateBpm: 160 })
+      .interval({ powerWatts: 250 })
+      .interval({ fixedRepetition: 4 })
+      .build();
+    const keys = (w.workoutSegments[0]!.workoutSteps as ExecutableWorkoutStep[]).map((s) =>
+      (s["endCondition"] as Record<string, unknown>)["conditionTypeKey"],
+    );
+    expect(keys).toEqual(["calories", "heart.rate", "power", "fixed.repetition"]);
+  });
+
+  it("still rejects two end conditions when one of them is a new one", () => {
+    expect(() =>
+      buildWorkout("x", { sport: "running" }).interval({ calories: 300, time: 60 }).build(),
+    ).toThrow(/exactly one/);
+  });
+
   describe("guards", () => {
     it("rejects a step with no end condition", () => {
       expect(() => buildWorkout("x", { sport: "running" }).interval({}).build()).toThrow(GarminError);

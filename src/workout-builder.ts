@@ -99,7 +99,7 @@ const EQUIPMENT: Record<EquipmentKey, number> = {
   snorkel: 5,
 };
 
-/** How a step ends. Supply exactly one. */
+/** How a step ends. Supply exactly one. Every option here is live-verified. */
 export interface StepEnd {
   /** Metres. */
   distance?: number;
@@ -111,6 +111,14 @@ export interface StepEnd {
   lapButton?: boolean;
   /** A fixed rest in SECONDS — becomes `fixed.rest`, not `time`. */
   restSeconds?: number;
+  /** Ends once this many calories are burned. */
+  calories?: number;
+  /** Ends when heart rate reaches this many BPM. */
+  heartRateBpm?: number;
+  /** Ends when power reaches this many watts. */
+  powerWatts?: number;
+  /** Swim: ends after this many pool lengths (`fixed.repetition`). */
+  fixedRepetition?: number;
 }
 
 /**
@@ -123,12 +131,30 @@ export type StepTarget =
   | { pace: { minPerKm: [number, number] } }
   | { pace: { minPerMile: [number, number] } }
   | { speedMetresPerSecond: [number, number] }
+  /** A configured power zone, by number. Stores `zoneNumber`. */
   | { powerZone: number }
+  /** An explicit watt range. Stores value pairs under the SAME `power.zone` target key. */
+  | { powerWatts: [number, number] }
+  /** A configured heart-rate zone, by number. Stores `zoneNumber`. */
   | { heartRateZone: number }
-  | { cadence: [number, number] };
+  /** An explicit BPM range. Stores value pairs under the SAME `heart.rate.zone` target key. */
+  | { heartRateBpm: [number, number] }
+  | { cadence: [number, number] }
+  /** Percent incline range. */
+  | { gradePercent: [number, number] }
+  /** Trainer resistance range. */
+  | { resistance: [number, number] }
+  /** Swim: seconds offset from critical swim speed. */
+  | { swimCssOffsetSeconds: number };
 
 export interface StepOptions extends StepEnd {
   target?: StepTarget;
+  /**
+   * A second, simultaneous target — Garmin's bike designer calls this "Secondary Target". Stores
+   * `secondaryTargetType` plus `secondaryTargetValueOne`/`Two` or `secondaryZoneNumber`.
+   * e.g. hold a power zone AND a cadence range at once.
+   */
+  secondaryTarget?: StepTarget;
   /** Swim only. */
   stroke?: StrokeKey;
   /** Swim only. */
@@ -150,38 +176,65 @@ const paceToMps = (minPerKm: number) => 1000 / (minPerKm * 60);
 const milePaceToMps = (minPerMile: number) => 1609.344 / (minPerMile * 60);
 
 function endOf(o: StepEnd): { endCondition: WorkoutTypeRef; endConditionValue?: number } {
-  const given = [
-    o.distance !== undefined && "distance",
-    o.time !== undefined && "time",
-    o.reps !== undefined && "reps",
-    o.lapButton === true && "lapButton",
-    o.restSeconds !== undefined && "restSeconds",
-  ].filter(Boolean);
-  if (given.length === 0) {
+  const options: [keyof StepEnd, number, string][] = [
+    ["distance", COND.DISTANCE, "distance"],
+    ["time", COND.TIME, "time"],
+    ["reps", COND.REPS, "reps"],
+    ["restSeconds", COND.FIXED_REST, "fixed.rest"],
+    ["calories", COND.CALORIES, "calories"],
+    ["heartRateBpm", COND.HEART_RATE, "heart.rate"],
+    ["powerWatts", COND.POWER, "power"],
+    ["fixedRepetition", COND.FIXED_REPETITION, "fixed.repetition"],
+  ];
+  const chosen = options.filter(([k]) => o[k] !== undefined);
+  const lapButton = o.lapButton === true;
+  const total = chosen.length + (lapButton ? 1 : 0);
+
+  if (total === 0) {
     throw new GarminError(
-      "Workout step needs an end condition: one of distance, time, reps, lapButton or restSeconds",
+      "Workout step needs an end condition: one of distance, time, reps, lapButton, restSeconds, " +
+        "calories, heartRateBpm, powerWatts or fixedRepetition",
     );
   }
-  if (given.length > 1) {
-    throw new GarminError(`Workout step has ${given.length} end conditions (${given.join(", ")}); supply exactly one`);
+  if (total > 1) {
+    const names = [...chosen.map(([k]) => k), ...(lapButton ? ["lapButton"] : [])];
+    throw new GarminError(
+      `Workout step has ${total} end conditions (${names.join(", ")}); supply exactly one`,
+    );
   }
-  if (o.distance !== undefined) return { endCondition: ref(COND.DISTANCE, "distance"), endConditionValue: o.distance };
-  if (o.time !== undefined) return { endCondition: ref(COND.TIME, "time"), endConditionValue: o.time };
-  if (o.reps !== undefined) return { endCondition: ref(COND.REPS, "reps"), endConditionValue: o.reps };
-  if (o.restSeconds !== undefined) {
-    return { endCondition: ref(COND.FIXED_REST, "fixed.rest"), endConditionValue: o.restSeconds };
-  }
-  return { endCondition: ref(COND.LAP_BUTTON, "lap.button") };
+  if (lapButton) return { endCondition: ref(COND.LAP_BUTTON, "lap.button") };
+  const [key, id, name] = chosen[0]!;
+  return { endCondition: ref(id, name), endConditionValue: o[key] as number };
 }
 
-function targetOf(t: StepTarget | undefined): Record<string, unknown> {
-  const none = {
-    targetType: { workoutTargetTypeId: TARGET.NO_TARGET, workoutTargetTypeKey: "no.target", displayOrder: 1 },
-  };
-  if (!t) return none;
-  const type = (id: number, key: string) => ({
-    targetType: { workoutTargetTypeId: id, workoutTargetTypeKey: key, displayOrder: id },
+/**
+ * Encodes a target into the field names Garmin expects. `secondary` switches to the
+ * `secondaryTargetType` / `secondaryTargetValueOne` / `secondaryZoneNumber` family, which is the
+ * "Secondary Target" the bike designer exposes.
+ *
+ * Note that HR and power each have TWO encodings under the SAME target key: a configured zone
+ * (`zoneNumber`) or an explicit range (value pair). Both are live-verified.
+ */
+function targetOf(t: StepTarget | undefined, secondary = false): Record<string, unknown> {
+  const typeField = secondary ? "secondaryTargetType" : "targetType";
+  const oneField = secondary ? "secondaryTargetValueOne" : "targetValueOne";
+  const twoField = secondary ? "secondaryTargetValueTwo" : "targetValueTwo";
+  const zoneField = secondary ? "secondaryZoneNumber" : "zoneNumber";
+
+  const typed = (id: number, key: string) => ({
+    [typeField]: { workoutTargetTypeId: id, workoutTargetTypeKey: key, displayOrder: id },
   });
+  const range = (id: number, key: string, [a, b]: [number, number], descending = false) => ({
+    ...typed(id, key),
+    [oneField]: descending ? Math.max(a, b) : Math.min(a, b),
+    [twoField]: descending ? Math.min(a, b) : Math.max(a, b),
+  });
+  const zone = (id: number, key: string, n: number) => ({ ...typed(id, key), [zoneField]: n });
+
+  if (!t) {
+    // A secondary "no target" is meaningless — omit the fields entirely rather than send nulls.
+    return secondary ? {} : typed(TARGET.NO_TARGET, "no.target");
+  }
 
   if ("pace" in t) {
     // Garmin wants SPEEDS, faster (larger) first — so the fast end of the pace range, which is the
@@ -190,22 +243,17 @@ function targetOf(t: StepTarget | undefined): Record<string, unknown> {
       "minPerKm" in t.pace
         ? [paceToMps(t.pace.minPerKm[0]), paceToMps(t.pace.minPerKm[1])]
         : [milePaceToMps(t.pace.minPerMile[0]), milePaceToMps(t.pace.minPerMile[1])];
-    return { ...type(TARGET.PACE_ZONE, "pace.zone"), targetValueOne: fast, targetValueTwo: slow };
+    return { ...typed(TARGET.PACE_ZONE, "pace.zone"), [oneField]: fast, [twoField]: slow };
   }
-  if ("speedMetresPerSecond" in t) {
-    const [a, b] = t.speedMetresPerSecond;
-    return {
-      ...type(TARGET.SPEED_ZONE, "speed.zone"),
-      targetValueOne: Math.max(a, b),
-      targetValueTwo: Math.min(a, b),
-    };
-  }
-  if ("powerZone" in t) return { ...type(TARGET.POWER_ZONE, "power.zone"), zoneNumber: t.powerZone };
-  if ("heartRateZone" in t) {
-    return { ...type(TARGET.HEART_RATE_ZONE, "heart.rate.zone"), zoneNumber: t.heartRateZone };
-  }
-  const [lo, hi] = t.cadence;
-  return { ...type(TARGET.CADENCE, "cadence"), targetValueOne: Math.min(lo, hi), targetValueTwo: Math.max(lo, hi) };
+  if ("speedMetresPerSecond" in t) return range(TARGET.SPEED_ZONE, "speed.zone", t.speedMetresPerSecond, true);
+  if ("powerZone" in t) return zone(TARGET.POWER_ZONE, "power.zone", t.powerZone);
+  if ("powerWatts" in t) return range(TARGET.POWER_ZONE, "power.zone", t.powerWatts);
+  if ("heartRateZone" in t) return zone(TARGET.HEART_RATE_ZONE, "heart.rate.zone", t.heartRateZone);
+  if ("heartRateBpm" in t) return range(TARGET.HEART_RATE_ZONE, "heart.rate.zone", t.heartRateBpm);
+  if ("cadence" in t) return range(TARGET.CADENCE, "cadence", t.cadence);
+  if ("gradePercent" in t) return range(TARGET.GRADE, "grade", t.gradePercent);
+  if ("resistance" in t) return range(TARGET.RESISTANCE, "resistance", t.resistance);
+  return { ...typed(TARGET.SWIM_CSS_OFFSET, "swim.css.offset"), [oneField]: t.swimCssOffsetSeconds };
 }
 
 /** Shared step-adding surface, used both at the top level and inside a `repeat()`. */
@@ -222,6 +270,7 @@ export class WorkoutStepList {
       endCondition,
       ...(endConditionValue !== undefined && { endConditionValue }),
       ...targetOf(o.target),
+      ...targetOf(o.secondaryTarget, true),
       ...(o.stroke && {
         strokeType: { strokeTypeId: STROKES[o.stroke], strokeTypeKey: o.stroke, displayOrder: STROKES[o.stroke] },
       }),
