@@ -181,7 +181,7 @@ const describe = (steps: Record<string, unknown>[], indent = ""): void => {
     }
     const bits = [
       String(key(s["stepType"], "stepTypeKey")).padEnd(9),
-      `${String(s["endConditionValue"] ?? "")} ${String(key(s["endCondition"], "conditionTypeKey"))}`.padEnd(22),
+      `${s["endConditionValue"] === undefined ? "" : String(s["endConditionValue"])} ${String(key(s["endCondition"], "conditionTypeKey"))}`.padEnd(22),
       key(s["strokeType"], "strokeTypeKey") ? `stroke=${String(key(s["strokeType"], "strokeTypeKey"))}` : "",
       key(s["drillType"], "drillTypeKey") ? `drill=${String(key(s["drillType"], "drillTypeKey"))}` : "",
       key(s["equipmentType"], "equipmentTypeKey")
