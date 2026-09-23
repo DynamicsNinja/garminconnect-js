@@ -6,6 +6,8 @@ import { Garmin } from "../../src/garmin.js";
 import type { Tokens } from "../../src/auth/tokens.js";
 import type { WorkoutInput } from "../../src/types/workouts.js";
 
+import { WORKOUT_SPORT_TYPE_ID } from "../../src/types/workouts.js";
+
 const API = "https://connectapi.garmin.com";
 const seen: { url: string; method: string; body?: unknown }[] = [];
 
@@ -197,6 +199,41 @@ describe("workouts service", () => {
     expect(seen[0]!.url).toBe(`${API}/workout-service/workout`);
     expect(seen[0]!.method).toBe("POST");
     expect(seen[0]!.body).toEqual(payload);
+  });
+
+  it("uploadWorkout forwards a MULTI-SPORT workout verbatim, segments and all", async () => {
+    // Shape captured from Garmin's own workout designer on 2026-09-23 and round-tripped live:
+    // one workout, top-level sportType multi_sport, each segment carrying its own sportType.
+    // Garmin preserved both segments and isSessionTransitionEnabled on read-back.
+    //
+    // NOTE stepOrder is GLOBAL across segments — 1 then 2, not 1 then 1. Numbering per-segment
+    // gets a 400 "The workout steps need to have unique step orders". This test encodes the
+    // working numbering so the example in the JSDoc cannot drift away from it.
+    const g = makeGarmin();
+    const payload = {
+      workoutName: "Brick",
+      sportType: { sportTypeId: WORKOUT_SPORT_TYPE_ID.MULTI_SPORT, sportTypeKey: "multi_sport", displayOrder: 5 },
+      estimatedDurationInSecs: 3000,
+      isSessionTransitionEnabled: true,
+      workoutSegments: [
+        {
+          segmentOrder: 1,
+          sportType: { sportTypeId: WORKOUT_SPORT_TYPE_ID.RUNNING, sportTypeKey: "running", displayOrder: 1 },
+          workoutSteps: [{ stepOrder: 1, type: "ExecutableStepDTO" }],
+        },
+        {
+          segmentOrder: 2,
+          sportType: { sportTypeId: WORKOUT_SPORT_TYPE_ID.CYCLING, sportTypeKey: "cycling", displayOrder: 2 },
+          workoutSteps: [{ stepOrder: 2, type: "ExecutableStepDTO" }],
+        },
+      ],
+    };
+    await g.uploadWorkout(payload);
+    expect(seen[0]!.url).toBe(`${API}/workout-service/workout`);
+    expect(seen[0]!.body).toEqual(payload);
+    const body = seen[0]!.body as typeof payload;
+    expect(body.workoutSegments.map((x) => x.sportType.sportTypeKey)).toEqual(["running", "cycling"]);
+    expect(body.workoutSegments.flatMap((x) => x.workoutSteps.map((st) => st.stepOrder))).toEqual([1, 2]);
   });
 
   it("uploadWorkout accepts an array body", async () => {

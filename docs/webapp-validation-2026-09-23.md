@@ -153,6 +153,35 @@ latter two, so those probes would have skipped forever even with a plan enrolled
 rather than by review. Fixed, and the phased probe now checks the category and skips with that
 reason rather than failing permanently.
 
+### 7. Workout designer: multi-sport already works, and the constants are confirmed
+
+Built a two-leg multisport workout (Run + Bike, transitions on) in Garmin's designer and captured
+`POST /workout-service/workout` — the same path `uploadWorkout` uses. The structure:
+
+```json
+{ "sportType": {"sportTypeId": 10, "sportTypeKey": "multi_sport", "displayOrder": 5},
+  "isSessionTransitionEnabled": true,
+  "workoutSegments": [
+    {"segmentOrder": 1, "sportType": {"sportTypeKey": "running", ...}, "workoutSteps": [...]},
+    {"segmentOrder": 2, "sportType": {"sportTypeKey": "cycling", ...}, "workoutSteps": [...]}]}
+```
+
+That is the array this library already models, so **multi-sport needed no new code** — round-tripped
+through `uploadWorkout`: created, read back with both segments and the transition flag intact,
+deleted.
+
+**`stepOrder` is GLOBAL across segments.** Numbering each leg's steps from 1 is rejected with
+`400 "The workout steps need to have unique step orders, or all be unset and rely on submission
+structure order."` Found the obvious way — by doing it wrong first.
+
+**Every id in `WORKOUT_SPORT_TYPE_ID` etc. is now confirmed against real Garmin output**, where
+before they were transcribed from upstream's `workout.py` alone: `multi_sport: 10`,
+step `interval: 3`, condition `distance: 3` / `time: 2`, target `no.target: 1`.
+
+The designer also offers **Cardio, HIIT, Yoga, Pilates, Mobility, Rucking and Custom** — eight types
+(with Multisport) that the six `upload<Sport>Workout` helpers do not cover. All reachable via
+`uploadWorkout` with an explicit `sportType`.
+
 ## Path differences worth knowing
 
 Every row below was called through `client.connectapi` and returned 200 — so these are live,

@@ -66,6 +66,39 @@ export async function downloadWorkout(host: WorkoutsHost, workoutId: number | st
  * (upstream: `ValueError`). UNCERTAIN (inventory): no explicit null handling on the response
  * beyond this input validation.
  */
+/**
+ * MULTI-SPORT WORKOUTS ARE SUPPORTED by this method, though no helper wraps them.
+ *
+ * Confirmed 2026-09-23 by building one in Garmin's own workout designer, capturing the POST, and
+ * then round-tripping the same shape through this method: created, read back with both segments
+ * and the transition flag intact, deleted. A multi-sport workout is a single workout whose
+ * top-level `sportType` is `multi_sport` (`WORKOUT_SPORT_TYPE_ID.MULTI_SPORT`, id 10) and whose
+ * `workoutSegments` each carry their OWN `sportType` — the array this library already models.
+ *
+ * ```ts
+ * await garmin.uploadWorkout({
+ *   workoutName: "Brick",
+ *   sportType: { sportTypeId: WORKOUT_SPORT_TYPE_ID.MULTI_SPORT, sportTypeKey: "multi_sport", displayOrder: 5 },
+ *   estimatedDurationInSecs: 3000,
+ *   isSessionTransitionEnabled: true, // the designer's "Transitions" toggle
+ *   workoutSegments: [
+ *     { segmentOrder: 1, sportType: { sportTypeId: 1, sportTypeKey: "running", displayOrder: 1 }, workoutSteps: [ ... ] },
+ *     { segmentOrder: 2, sportType: { sportTypeId: 2, sportTypeKey: "cycling", displayOrder: 2 }, workoutSteps: [ ... ] },
+ *   ],
+ * });
+ * ```
+ *
+ * **`stepOrder` IS GLOBAL ACROSS SEGMENTS, not per-segment.** Numbering each segment's steps from 1
+ * is the obvious mistake and Garmin rejects it with
+ * `400 "The workout steps need to have unique step orders, or all be unset and rely on submission
+ * structure order."` Either number every step uniquely across the whole workout, or omit
+ * `stepOrder` entirely and let submission order decide.
+ *
+ * The designer also offers workout types this library has no helper for — Cardio, HIIT, Yoga,
+ * Pilates, Mobility, Rucking, Custom and Multisport. All are reachable here by passing the matching
+ * `sportType` explicitly; `WORKOUT_SPORT_TYPE_ID` already exports the ids, and they were confirmed
+ * against a real designer-produced payload.
+ */
 export async function uploadWorkout(
   host: WorkoutsHost,
   workoutJson: Record<string, unknown> | unknown[] | string,

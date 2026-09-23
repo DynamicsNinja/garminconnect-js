@@ -591,6 +591,23 @@ unitKey, when?)` sends `weight` RAW, in whatever unit `unitKey` names (`"kg"` or
   smoke harness previously guessed the latter two and therefore skipped these probes forever, even
   with a plan enrolled; that is the third instance of a "skip that can never become a pass" in this
   project, and the first found by having real data rather than by review.
+- **MULTI-SPORT workouts work through `uploadWorkout`, and `stepOrder` is GLOBAL across segments.**
+  Built one in Garmin's own workout designer, captured the POST, and round-tripped the same shape
+  through this library: created, read back with both segments AND `isSessionTransitionEnabled`
+  intact, deleted. A multi-sport workout is one workout whose top-level `sportType` is `multi_sport`
+  (id 10) and whose `workoutSegments` each carry their own `sportType` — the array this library
+  already models, so no new method was needed.
+  The trap: **numbering each segment's steps from 1 is rejected** with
+  `400 "The workout steps need to have unique step orders, or all be unset and rely on submission
+  structure order."` Step orders are unique across the WHOLE workout (1, then 2, …), or omit them
+  entirely. See `uploadWorkout`'s JSDoc for a worked example.
+- **The designer offers eight workout types this library has no helper for** — Cardio, HIIT, Yoga,
+  Pilates, Mobility, Rucking, Custom and Multisport. The six `upload<Sport>Workout` helpers mirror
+  upstream and cover only Running/Cycling/Swimming/Walking/Hiking/Strength. All the rest are
+  reachable through `uploadWorkout` by passing `sportType` explicitly; `WORKOUT_SPORT_TYPE_ID`
+  exports the ids and **every id in it was confirmed against a real designer-produced payload** on
+  2026-09-23 (`multi_sport: 10`, step `interval: 3`, condition `distance: 3` / `time: 2`, target
+  `no.target: 1`). Those constants were previously transcribed from upstream source only.
 - **`getSleepData` returns `SleepData | null`** — `null` is Garmin's ordinary "no data for that
   date" response, not an error; do not wrap it in a try/catch expecting a throw. `getHrvData` is
   the same. Other methods differ per endpoint (e.g. `getUserSummary`, `getHeartRates`,
