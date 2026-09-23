@@ -178,23 +178,35 @@ the display names the web UI shows — "Barbell Overhead Press" is stored as
 exercises; the reliable way to find a `name` is to build one step in the web designer and read the
 workout back.
 
-**An invalid category fails the whole upload** with `400 "Invalid category"` — not just that step.
-There is no endpoint that lists them, so these 31 were confirmed one at a time against a live
-account:
+**`category` is type-constrained**, because an invalid one fails the **whole upload** with
+`400 "Invalid category"` — not just the offending step — and no endpoint lists the valid values.
+They were determined exhaustively against a live account by submitting each candidate alone.
+
+The accepted set is exactly the **FIT SDK `exercise_category` enum** plus **six Garmin Connect
+additions** — 40 in total, exported as `WORKOUT_EXERCISE_CATEGORIES`:
 
 ```
-CARDIO  PLANK  SQUAT  PUSH_UP  LUNGE  CRUNCH  CURL  ROW  BENCH_PRESS  SHOULDER_PRESS
-DEADLIFT  PULL_UP  HIP_RAISE  CORE  TOTAL_BODY  WARM_UP  STRETCH  FLYE  TRICEPS_EXTENSION
-SHRUG  CALF_RAISE  CHOP  CARRY  SIT_UP  RUN  BIKE  BANDED_EXERCISES  LATERAL_RAISE
-LEG_CURL  LEG_RAISE  OLYMPIC_LIFT
+BENCH_PRESS  CALF_RAISE  CARDIO  CARRY  CHOP  CORE  CRUNCH  CURL  DEADLIFT  FLYE
+HIP_RAISE  HIP_STABILITY  HIP_SWING  HYPEREXTENSION  LATERAL_RAISE  LEG_CURL  LEG_RAISE
+LUNGE  OLYMPIC_LIFT  PLANK  PLYO  PULL_UP  PUSH_UP  ROW  SHOULDER_PRESS
+SHOULDER_STABILITY  SHRUG  SIT_UP  SQUAT  TOTAL_BODY  TRICEPS_EXTENSION  WARM_UP  RUN
+UNKNOWN                                                        ← the FIT enum ends here
+BIKE  STRETCH  BANDED_EXERCISES  BATTLE_ROPE  SLED  SUSPENSION ← Garmin Connect additions
 ```
 
-Rejected, and worth knowing because they look plausible: **`COOL_DOWN`** (though `WARM_UP` is
-valid), **`YOGA`**, **`PILATES`** and **`MOBILITY`**. Those last three are *sports*, not exercise
-categories — a yoga or mobility workout uses plain timed steps with the pose in `notes`.
+49 other plausible names were tested and **all rejected**, including the ones you are most likely to
+reach for:
 
-`weightKg` is stored in kilograms and round-trips with small drift — 60 may come back as 59.99. Do
-not assert exact equality on a weight you sent.
+| Rejected | Why it surprises |
+|---|---|
+| `COOL_DOWN` | `WARM_UP` is valid — the pair is asymmetric |
+| `YOGA` `PILATES` `MOBILITY` | These are *sports*, not exercise categories |
+| `BURPEE` `KETTLEBELL` `MOUNTAIN_CLIMBER` `JUMP_ROPE` | Common movements, but not categories |
+| `CHEST` `LEGS` `ABS` `BICEPS` | Muscle groups are not categories |
+| `CLEAN` `SNATCH` `THRUSTER` | Specific lifts belong in `name`, under `OLYMPIC_LIFT` |
+
+Because the type is a union, a wrong category is a **compile error** rather than a failed upload.
+If Garmin adds one before this library catches up, cast it: `category: "NEW_ONE" as ExerciseCategory`.
 
 ### Multi-sport
 

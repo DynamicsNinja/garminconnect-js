@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildWorkout } from "../src/workout-builder.js";
+import { WORKOUT_EXERCISE_CATEGORIES } from "../src/types/workouts.js";
 import { GarminError } from "../src/errors.js";
 import type { ExecutableWorkoutStep, RepeatWorkoutGroup } from "../src/types/workouts.js";
 
@@ -230,6 +231,33 @@ describe("buildWorkout", () => {
       .build();
     const step = w.workoutSegments[0]!.workoutSteps[0] as ExecutableWorkoutStep;
     expect([step["targetValueOne"], step["targetValueTwo"]]).toEqual([2, 5]);
+  });
+
+  it("constrains exercise categories to the 40 Garmin actually accepts", () => {
+    // Verified exhaustively live: every FIT SDK exercise_category member plus six Connect
+    // additions is accepted, and 49 other plausible names are rejected. This matters more than a
+    // typical enum because an invalid category fails the ENTIRE upload, not just its step.
+    expect(WORKOUT_EXERCISE_CATEGORIES).toHaveLength(40);
+    // The FIT enum's boundaries, and the Connect-only extras.
+    expect(WORKOUT_EXERCISE_CATEGORIES).toContain("BENCH_PRESS");
+    expect(WORKOUT_EXERCISE_CATEGORIES).toContain("RUN");
+    expect(WORKOUT_EXERCISE_CATEGORIES).toContain("UNKNOWN");
+    expect(WORKOUT_EXERCISE_CATEGORIES).toContain("SUSPENSION");
+    // Confirmed-invalid values must NOT creep in. COOL_DOWN is the trap: WARM_UP is valid.
+    for (const bad of ["COOL_DOWN", "YOGA", "PILATES", "MOBILITY", "BURPEE", "KETTLEBELL", "CHEST"]) {
+      expect(WORKOUT_EXERCISE_CATEGORIES as readonly string[]).not.toContain(bad);
+    }
+    expect(new Set(WORKOUT_EXERCISE_CATEGORIES).size).toBe(WORKOUT_EXERCISE_CATEGORIES.length);
+  });
+
+  it("accepts every valid category through the builder", () => {
+    for (const category of WORKOUT_EXERCISE_CATEGORIES) {
+      const w = buildWorkout("x", { sport: "strength_training" })
+        .interval({ reps: 5, exercise: { category } })
+        .build();
+      const step = w.workoutSegments[0]!.workoutSteps[0] as ExecutableWorkoutStep;
+      expect(step["category"]).toBe(category);
+    }
   });
 
   describe("guards", () => {

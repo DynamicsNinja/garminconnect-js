@@ -100,6 +100,67 @@ export const WORKOUT_SWIM_INSTRUCTION_TYPE_ID = {
   DESCEND: 10,
 } as const;
 
+/**
+ * Every exercise category Garmin's workout service accepts, verified exhaustively against a live
+ * account on 2026-09-23 by submitting each candidate on its own and keeping only those that were
+ * accepted.
+ *
+ * The set turns out to be exactly the FIT SDK's `exercise_category` enum (the first 34 entries
+ * here, in enum order) plus six Garmin Connect additions. 49 other plausible names — `COOL_DOWN`,
+ * `BURPEE`, `KETTLEBELL`, `MOBILITY`, `YOGA`, `PILATES`, muscle-group names like `CHEST` and
+ * `LEGS`, and lift names like `CLEAN` and `SNATCH` — were all rejected.
+ *
+ * This matters more than a normal enum because **an invalid category fails the WHOLE upload** with
+ * `400 "Invalid category"`, not just the offending step, and no endpoint lists the valid values.
+ */
+export const WORKOUT_EXERCISE_CATEGORIES = [
+  // --- FIT SDK `exercise_category`, in enum order ---
+  "BENCH_PRESS",
+  "CALF_RAISE",
+  "CARDIO",
+  "CARRY",
+  "CHOP",
+  "CORE",
+  "CRUNCH",
+  "CURL",
+  "DEADLIFT",
+  "FLYE",
+  "HIP_RAISE",
+  "HIP_STABILITY",
+  "HIP_SWING",
+  "HYPEREXTENSION",
+  "LATERAL_RAISE",
+  "LEG_CURL",
+  "LEG_RAISE",
+  "LUNGE",
+  "OLYMPIC_LIFT",
+  "PLANK",
+  "PLYO",
+  "PULL_UP",
+  "PUSH_UP",
+  "ROW",
+  "SHOULDER_PRESS",
+  "SHOULDER_STABILITY",
+  "SHRUG",
+  "SIT_UP",
+  "SQUAT",
+  "TOTAL_BODY",
+  "TRICEPS_EXTENSION",
+  "WARM_UP",
+  "RUN",
+  "UNKNOWN",
+  // --- Garmin Connect additions, beyond the FIT enum ---
+  "BIKE",
+  "STRETCH",
+  "BANDED_EXERCISES",
+  "BATTLE_ROPE",
+  "SLED",
+  "SUSPENSION",
+] as const;
+
+/** One of the 40 categories Garmin accepts. See `WORKOUT_EXERCISE_CATEGORIES`. */
+export type ExerciseCategory = (typeof WORKOUT_EXERCISE_CATEGORIES)[number];
+
 /** Step intensity — `workoutIntensityTypes`. */
 export const WORKOUT_INTENSITY_TYPE_ID = {
   ACTIVE: 1,

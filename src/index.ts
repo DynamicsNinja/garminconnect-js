@@ -40,6 +40,7 @@ export {
   WORKOUT_EQUIPMENT_TYPE_ID,
   WORKOUT_SWIM_INSTRUCTION_TYPE_ID,
   WORKOUT_INTENSITY_TYPE_ID,
+  WORKOUT_EXERCISE_CATEGORIES,
 } from "./types/workouts.js";
 export type * from "./types/womensHealth.js";
 export type * from "./types/badges.js";

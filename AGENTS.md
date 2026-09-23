@@ -298,14 +298,19 @@ and mean END CONDITIONS; inside `target`, they are ranges and mean TARGETS.
 on the workout. **Strength/HIIT**: `exercise: { category, name? }` — a category alone is accepted —
 and `weightKg`. **Any step**: `notes`.
 
-**An invalid exercise category fails the WHOLE upload** with `400 "Invalid category"`, not just that
-step, and no endpoint lists them. These 31 are confirmed valid against a live account: `CARDIO`
-`PLANK` `SQUAT` `PUSH_UP` `LUNGE` `CRUNCH` `CURL` `ROW` `BENCH_PRESS` `SHOULDER_PRESS` `DEADLIFT`
-`PULL_UP` `HIP_RAISE` `CORE` `TOTAL_BODY` `WARM_UP` `STRETCH` `FLYE` `TRICEPS_EXTENSION` `SHRUG`
-`CALF_RAISE` `CHOP` `CARRY` `SIT_UP` `RUN` `BIKE` `BANDED_EXERCISES` `LATERAL_RAISE` `LEG_CURL`
-`LEG_RAISE` `OLYMPIC_LIFT`. Confirmed INVALID despite looking plausible: `COOL_DOWN` (while
-`WARM_UP` is fine), `YOGA`, `PILATES`, `MOBILITY` — those three are sports, not categories, so a
-yoga/pilates/mobility workout uses plain timed steps with the detail in `notes`.
+**Exercise `category` is TYPE-CONSTRAINED to 40 values**, because an invalid one fails the WHOLE
+upload with `400 "Invalid category"` — not just that step — and no endpoint lists them. Determined
+exhaustively against a live account: the accepted set is exactly the FIT SDK `exercise_category`
+enum plus six Connect additions, exported as `WORKOUT_EXERCISE_CATEGORIES`:
+`BENCH_PRESS` `CALF_RAISE` `CARDIO` `CARRY` `CHOP` `CORE` `CRUNCH` `CURL` `DEADLIFT` `FLYE`
+`HIP_RAISE` `HIP_STABILITY` `HIP_SWING` `HYPEREXTENSION` `LATERAL_RAISE` `LEG_CURL` `LEG_RAISE`
+`LUNGE` `OLYMPIC_LIFT` `PLANK` `PLYO` `PULL_UP` `PUSH_UP` `ROW` `SHOULDER_PRESS`
+`SHOULDER_STABILITY` `SHRUG` `SIT_UP` `SQUAT` `TOTAL_BODY` `TRICEPS_EXTENSION` `WARM_UP` `RUN`
+`UNKNOWN` (FIT ends here) `BIKE` `STRETCH` `BANDED_EXERCISES` `BATTLE_ROPE` `SLED` `SUSPENSION`.
+49 other plausible names were tested and ALL rejected — notably `COOL_DOWN` (while `WARM_UP` is
+valid), `YOGA`/`PILATES`/`MOBILITY` (sports, not categories), muscle groups like `CHEST`/`LEGS`, and
+lift names like `CLEAN`/`SNATCH` (those belong in `name` under `OLYMPIC_LIFT`). A yoga, pilates or
+mobility workout therefore uses plain timed steps with the detail in `notes`.
 
 **Blocks**: `.repeat(n, fn)` and `.repeatForSeconds(s, fn)` (the latter sets
 `numberOfIterations: null`). Blocks nest, including a count-based repeat inside a time-based one.

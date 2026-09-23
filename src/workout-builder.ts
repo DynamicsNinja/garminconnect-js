@@ -40,6 +40,7 @@ import {
   WORKOUT_TARGET_TYPE_ID as TARGET,
 } from "./types/workouts.js";
 import type {
+  ExerciseCategory,
   ExecutableWorkoutStep,
   RepeatWorkoutGroup,
   WorkoutInput,
@@ -161,8 +162,13 @@ export interface StepOptions extends StepEnd {
   drill?: DrillKey;
   /** Swim only. */
   equipment?: EquipmentKey;
-  /** Strength/HIIT. Both values are Garmin's SCREAMING_SNAKE_CASE keys, not display names. */
-  exercise?: { category: string; name?: string };
+  /**
+   * Strength/HIIT. `category` is constrained to the 40 values Garmin accepts, because an invalid
+   * one fails the ENTIRE upload with `400 "Invalid category"`, not just this step. `name` is the
+   * specific exercise — Garmin's SCREAMING_SNAKE_CASE key, not the display name the web UI shows —
+   * and is optional; a category on its own is accepted.
+   */
+  exercise?: { category: ExerciseCategory; name?: string };
   /** Strength/HIIT, in kilograms. Garmin stores kg and round-trips with small drift. */
   weightKg?: number;
   /** Free-text note shown on the device. */
