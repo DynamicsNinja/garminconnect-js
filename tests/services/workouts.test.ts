@@ -306,6 +306,35 @@ describe("workouts service", () => {
     expect(seen[0]!.body).toEqual(payload);
   });
 
+  it("WORKOUT_SPORT_TYPE_ID matches Garmin's live enum, and flags the two broken ids", () => {
+    // Read from GET /workout-service/workout/types -> workoutSportTypes on 2026-09-23.
+    // Garmin's list is exactly: 1,2,3,4,5,6,7,8,9,10,11,13 — no walking, no hiking.
+    expect({
+      running: WORKOUT_SPORT_TYPE_ID.RUNNING,
+      cycling: WORKOUT_SPORT_TYPE_ID.CYCLING,
+      other: WORKOUT_SPORT_TYPE_ID.OTHER,
+      swimming: WORKOUT_SPORT_TYPE_ID.SWIMMING,
+      strength: WORKOUT_SPORT_TYPE_ID.STRENGTH_TRAINING,
+      cardio: WORKOUT_SPORT_TYPE_ID.CARDIO_TRAINING,
+      yoga: WORKOUT_SPORT_TYPE_ID.YOGA,
+      pilates: WORKOUT_SPORT_TYPE_ID.PILATES,
+      hiit: WORKOUT_SPORT_TYPE_ID.HIIT,
+      multiSport: WORKOUT_SPORT_TYPE_ID.MULTI_SPORT,
+      mobility: WORKOUT_SPORT_TYPE_ID.MOBILITY,
+      rucking: WORKOUT_SPORT_TYPE_ID.RUCKING,
+    }).toEqual({
+      running: 1, cycling: 2, other: 3, swimming: 4, strength: 5, cardio: 6,
+      yoga: 7, pilates: 8, hiit: 9, multiSport: 10, mobility: 11, rucking: 13,
+    });
+
+    // WALKING/HIKING are inherited from upstream and are NOT workout sport types. Garmin accepts
+    // them and stores sportTypeId 0 / sportTypeKey null — a workout with no sport. They are kept
+    // for parity; this asserts they remain OUTSIDE the valid set so nobody "tidies" them into it.
+    const valid = new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13]);
+    expect(valid.has(WORKOUT_SPORT_TYPE_ID.WALKING)).toBe(false);
+    expect(valid.has(WORKOUT_SPORT_TYPE_ID.HIKING)).toBe(false);
+  });
+
   it("uploadWorkout accepts an array body", async () => {
     const g = makeGarmin();
     const payload = [{ a: 1 }];

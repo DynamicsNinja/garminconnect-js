@@ -34,6 +34,12 @@ export {
   WORKOUT_STEP_TYPE_ID,
   WORKOUT_CONDITION_TYPE_ID,
   WORKOUT_TARGET_TYPE_ID,
+  // Swim/intensity enums, read live from `GET /workout-service/workout/types` — not in upstream.
+  WORKOUT_STROKE_TYPE_ID,
+  WORKOUT_DRILL_TYPE_ID,
+  WORKOUT_EQUIPMENT_TYPE_ID,
+  WORKOUT_SWIM_INSTRUCTION_TYPE_ID,
+  WORKOUT_INTENSITY_TYPE_ID,
 } from "./types/workouts.js";
 export type * from "./types/womensHealth.js";
 export type * from "./types/badges.js";

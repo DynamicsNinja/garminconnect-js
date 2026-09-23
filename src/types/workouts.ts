@@ -35,10 +35,77 @@ export const WORKOUT_SPORT_TYPE_ID = {
   HIIT: 9,
   MULTI_SPORT: 10,
   MOBILITY: 11,
-  // Not part of upstream's `SportType` class (a gap in upstream itself) but
-  // used as literal values by `WalkingWorkout`/`HikingWorkout`'s defaults.
+  /** Live-only: present in Garmin's enum, absent from upstream entirely. */
+  RUCKING: 13,
+  /**
+   * BROKEN — these two ids are NOT workout sport types.
+   *
+   * They come from upstream's `WalkingWorkout`/`HikingWorkout` defaults, where they appear to have
+   * been taken from Garmin's ACTIVITY-type ids by mistake. Garmin's own workout enum
+   * (`GET /workout-service/workout/types` -> `workoutSportTypes`) lists only
+   * 1,2,3,4,5,6,7,8,9,10,11,13 — there is no walking or hiking workout sport type at all.
+   *
+   * Sending 17 or 18 does NOT error. Garmin accepts the POST and stores
+   * `{sportTypeId: 0, sportTypeKey: null, displayOrder: 0}` — a workout with NO sport type.
+   * Confirmed live 2026-09-23 by creating one with each helper and reading it back.
+   *
+   * `uploadWalkingWorkout`/`uploadHikingWorkout` are kept for upstream parity and still send these.
+   * If you want a usable template for a walk or a hike, call `uploadWorkout` with `OTHER` (3) or
+   * `CARDIO_TRAINING` (6) instead.
+   */
   WALKING: 17,
   HIKING: 18,
+} as const;
+
+/**
+ * Swim stroke types — `GET /workout-service/workout/types` -> `workoutStrokeTypes`, read live
+ * 2026-09-23. Not modelled upstream. Used as a step's `strokeType`.
+ */
+export const WORKOUT_STROKE_TYPE_ID = {
+  ANY_STROKE: 1,
+  BACKSTROKE: 2,
+  BREASTSTROKE: 3,
+  DRILL: 4,
+  FLY: 5,
+  FREE: 6,
+  INDIVIDUAL_MEDLEY: 7,
+  MIXED: 8,
+  INDIVIDUAL_MEDLEY_BY_ROUND: 9,
+  REVERSE_INDIVIDUAL_MEDLEY_BY_ROUND: 10,
+} as const;
+
+/** Swim drill types — `workoutDrillTypes`. Used as a step's `drillType`. */
+export const WORKOUT_DRILL_TYPE_ID = { KICK: 1, PULL: 2, DRILL: 3 } as const;
+
+/** Swim equipment — `workoutEquipmentTypes`. Used as a step's `equipmentType`. */
+export const WORKOUT_EQUIPMENT_TYPE_ID = {
+  FINS: 1,
+  KICKBOARD: 2,
+  PADDLES: 3,
+  PULL_BUOY: 4,
+  SNORKEL: 5,
+} as const;
+
+/** Swim instruction intensities — `workoutSwimInstructionTypes`. */
+export const WORKOUT_SWIM_INSTRUCTION_TYPE_ID = {
+  RECOVERY: 1,
+  VERY_EASY: 2,
+  EASY: 3,
+  MODERATE: 4,
+  HARD: 5,
+  VERY_HARD: 6,
+  ALL_OUT: 7,
+  FAST: 8,
+  ASCEND: 9,
+  DESCEND: 10,
+} as const;
+
+/** Step intensity — `workoutIntensityTypes`. */
+export const WORKOUT_INTENSITY_TYPE_ID = {
+  ACTIVE: 1,
+  REST: 2,
+  WARMUP: 3,
+  COOLDOWN: 4,
 } as const;
 
 /** `StepType` IDs — from `/workout-service/workout/types`. */
@@ -65,6 +132,22 @@ export const WORKOUT_CONDITION_TYPE_ID = {
   FIXED_REST: 8,
   FIXED_REPETITION: 9,
   REPS: 10,
+  // 11-24 exist in Garmin's live enum but not upstream. Read from
+  // `GET /workout-service/workout/types` -> `workoutConditionTypes` on 2026-09-23.
+  TRAINING_PEAKS_TSS: 11,
+  REPETITION_TIME: 12,
+  TIME_AT_VALID_CDA: 13,
+  POWER_LAST_LAP: 14,
+  MAX_POWER_LAST_LAP: 15,
+  REPETITION_SWIM_CSS_OFFSET: 16,
+  VELOCITY_LOSS: 17,
+  CUSTOM_VELOCITY: 18,
+  VBT_VELOCITY_ZONE: 19,
+  VELOCITY_MIN: 20,
+  PEAK_VELOCITY_MIN: 21,
+  PEAK_VELOCITY_LOSS: 22,
+  CUSTOM_PEAK_VELOCITY: 23,
+  POWER_LOSS: 24,
 } as const;
 
 /** `TargetType` IDs. */
@@ -79,6 +162,25 @@ export const WORKOUT_TARGET_TYPE_ID = {
   HEART_RATE_LAP: 8,
   POWER_LAP: 9,
   RESISTANCE: 15,
+  // 10-27 (minus those above) exist in Garmin's live enum but not upstream. Read from
+  // `GET /workout-service/workout/types` -> `workoutTargetTypes` on 2026-09-23.
+  POWER_3S: 10,
+  POWER_10S: 11,
+  POWER_30S: 12,
+  SPEED_LAP: 13,
+  SWIM_STROKE: 14,
+  POWER_CURVE: 16,
+  SWIM_CSS_OFFSET: 17,
+  SWIM_INSTRUCTION: 18,
+  INSTRUCTION: 19,
+  VELOCITY_LOSS: 20,
+  CUSTOM_VELOCITY: 21,
+  VBT_VELOCITY_ZONE: 22,
+  POWER_LOSS: 23,
+  VELOCITY_MIN: 24,
+  PEAK_VELOCITY_MIN: 25,
+  PEAK_VELOCITY_LOSS: 26,
+  CUSTOM_PEAK_VELOCITY: 27,
 } as const;
 
 /** A generic `{id, key, displayOrder}`-shaped reference object used throughout workout JSON. */

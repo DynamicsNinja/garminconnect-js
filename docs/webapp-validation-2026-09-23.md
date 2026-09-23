@@ -205,6 +205,45 @@ Also settled: **`displayOrder` is cosmetic.** A strength workout was accepted id
 `displayOrder: 4` (Garmin's own value) and `5` (this library's) — so the mismatch between them is
 not a bug.
 
+### 9. Every workout type, and a real bug in two of them
+
+Built Run, Strength, Multisport, Pool Swim and Bike in the designer; created the remaining seven
+sport types through the API. Findings:
+
+**`GET /workout-service/workout/types` is the authoritative enum source** — nine enums in one
+response, not wrapped by this port or upstream. It confirmed every id this library already had, and
+revealed five it did not model. Now exported: `WORKOUT_STROKE_TYPE_ID` (10),
+`WORKOUT_DRILL_TYPE_ID` (3), `WORKOUT_EQUIPMENT_TYPE_ID` (5),
+`WORKOUT_SWIM_INSTRUCTION_TYPE_ID` (10), `WORKOUT_INTENSITY_TYPE_ID` (4), plus `RUCKING: 13` and
+the full 24 condition / 27 target sets.
+
+**BUG: `uploadWalkingWorkout` and `uploadHikingWorkout` create a workout with NO sport.**
+Garmin's `workoutSportTypes` is `1,2,3,4,5,6,7,8,9,10,11,13` — **no walking, no hiking.** Upstream's
+17 and 18 look like ACTIVITY-type ids mistaken for workout sport types. Garmin accepts them anyway
+and stores `{sportTypeId: 0, sportTypeKey: null, displayOrder: 0}`.
+
+| Helper | Sent | Stored |
+|---|---|---|
+| `uploadWalkingWorkout` | 17 | `sportTypeId: 0, sportTypeKey: null` |
+| `uploadHikingWorkout` | 18 | `sportTypeId: 0, sportTypeKey: null` |
+
+Both had been marked live-verified — because the POST returned 2xx. Only reading the stored value
+back exposed it. Kept for parity, now documented as broken, with `OTHER` (3) / `CARDIO_TRAINING` (6)
+as the workaround.
+
+All seven other types round-tripped correctly: `other`, `cardio_training`, `yoga`, `pilates`,
+`hiit`, `mobility`, `rucking`.
+
+**Swim** carries top-level `poolLength` + `poolLengthUnit`, and steps carry `strokeType`,
+`drillType`, `equipmentType`; rests use `endCondition: fixed.rest`.
+
+**Bike** exposes a SECONDARY target. A `power.zone` primary stored `zoneNumber: 1` with null target
+values, while the `cadence` secondary stored `80`/`90` — so **zone targets use `zoneNumber`, range
+targets use `targetValueOne`/`Two`**.
+
+**`displayOrder` is server-normalised** — values sent were rewritten by Garmin, confirming it is
+cosmetic.
+
 ## Path differences worth knowing
 
 Every row below was called through `client.connectapi` and returned 200 — so these are live,
