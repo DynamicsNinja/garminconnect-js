@@ -3,6 +3,7 @@ import { GarminError } from "./errors.js";
 import * as activities from "./services/activities.js";
 import * as badges from "./services/badges.js";
 import * as bodyComposition from "./services/bodyComposition.js";
+import * as devices from "./services/devices.js";
 import * as gear from "./services/gear.js";
 import * as metrics from "./services/metrics.js";
 import * as weight from "./services/weight.js";
@@ -349,6 +350,26 @@ export class Garmin {
   }
   setGearDefault(activityType: string, gearUUID: string, defaultGear?: boolean) {
     return gear.setGearDefault(this, activityType, gearUUID, defaultGear);
+  }
+
+  // --- devices ---
+  getDevices() {
+    return devices.getDevices(this);
+  }
+  getDeviceSettings(deviceId: number | string) {
+    return devices.getDeviceSettings(this, deviceId);
+  }
+  getPrimaryTrainingDevice() {
+    return devices.getPrimaryTrainingDevice(this);
+  }
+  getDeviceSolarData(deviceId: number | string, startdate: string | Date, enddate?: string | Date) {
+    return devices.getDeviceSolarData(this, deviceId, startdate, enddate);
+  }
+  getDeviceAlarms() {
+    return devices.getDeviceAlarms(this);
+  }
+  getDeviceLastUsed() {
+    return devices.getDeviceLastUsed(this);
   }
 
   // --- badges & challenges ---

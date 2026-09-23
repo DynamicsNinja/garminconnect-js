@@ -206,6 +206,34 @@ const services: Record<string, Probe[]> = {
     // valid hex UUID with no matching gear exercises the "404 -> {}" branch honestly.
     { name: "getGearStats (no matching gear)", run: () => g.getGearStats("deadbeef00000000deadbeef00000000") },
   ],
+  devices: [
+    { name: "getDevices", run: () => g.getDevices() },
+    { name: "getPrimaryTrainingDevice", run: () => g.getPrimaryTrainingDevice() },
+    { name: "getDeviceLastUsed", run: () => g.getDeviceLastUsed() },
+    // getDeviceAlarms fans out over getDevices() internally; on an account with zero paired
+    // devices this legitimately resolves to `[]` without issuing any per-device request.
+    { name: "getDeviceAlarms", run: () => g.getDeviceAlarms() },
+    // getDeviceSettings/getDeviceSolarData need a real device id from getDevices(). The test
+    // account has no paired device, so `null` here (skipping the call entirely) is the expected
+    // PASS, not a failure — distinguishing "endpoint works, no device to probe with" from
+    // "wrong URL", which would surface as a GarminHttpError instead.
+    {
+      name: "getDeviceSettings",
+      run: async () => {
+        const list = await g.getDevices();
+        const deviceId = list?.[0]?.deviceId;
+        return deviceId === undefined ? null : g.getDeviceSettings(deviceId);
+      },
+    },
+    {
+      name: "getDeviceSolarData",
+      run: async () => {
+        const list = await g.getDevices();
+        const deviceId = list?.[0]?.deviceId;
+        return deviceId === undefined ? null : g.getDeviceSolarData(deviceId, weekAgo, day);
+      },
+    },
+  ],
   badges: [
     { name: "getEarnedBadges", run: () => g.getEarnedBadges() },
     { name: "getAvailableBadges", run: () => g.getAvailableBadges() },

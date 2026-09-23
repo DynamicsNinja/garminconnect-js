@@ -1,5 +1,6 @@
 import { GarminError } from "../errors.js";
 import type { GarminClient } from "../client.js";
+import * as devices from "./devices.js";
 import { formatDate } from "../util/date.js";
 import {
   WORKOUT_SPORT_TYPE_ID,
@@ -248,11 +249,10 @@ export async function uploadStrengthWorkout(
 // ---------------------------------------------------------------------------
 
 /**
- * Multi-step, matching upstream exactly: resolves a missing `deviceId` via
- * `/device-service/deviceservice/mylastused`'s `userDeviceId` (upstream:
- * `get_device_last_used()["userDeviceId"]` — a plain dict index that would
- * KeyError on a missing key; translated here as a `GarminError` throw rather
- * than letting `undefined.userDeviceId` crash), and a missing `workoutId` via
+ * Multi-step, matching upstream exactly: resolves a missing `deviceId` via the devices service's
+ * `getDeviceLastUsed()`'s `userDeviceId` (upstream: `get_device_last_used()["userDeviceId"]` — a
+ * plain dict index that would KeyError on a missing key; translated here as a `GarminError` throw
+ * rather than letting `undefined.userDeviceId` crash), and a missing `workoutId` via
  * the first result of `getWorkouts(0, 1)` (throws `GarminError` matching
  * upstream's `ValueError("No workouts found to push.")` if the account has no
  * workouts). `messageName` always comes from `getWorkoutById(workoutId)`'s
@@ -295,9 +295,7 @@ export async function pushWorkoutToDevice(
 }
 
 async function resolveLastUsedDeviceId(host: WorkoutsHost): Promise<number | string> {
-  const device = await host.client.connectapi<{ userDeviceId?: number | string }>(
-    "/device-service/deviceservice/mylastused",
-  );
+  const device = await devices.getDeviceLastUsed(host);
   const id = device?.userDeviceId;
   if (id === undefined) {
     throw new GarminError("No last-used device found (userDeviceId missing) to push workout to");

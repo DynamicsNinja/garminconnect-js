@@ -169,6 +169,12 @@ Every identifier above (`GarminClient`, `Garmin`, `FileTokenStore`) is exported 
 | `getNextScheduledWorkout` | `(): Promise<CalendarItem \| {}>` — computed from two `getScheduledWorkouts` calls (this month + next, handling Dec->Jan rollover); returns `{}` if nothing matches, never throws | yes |
 | `scheduleWorkout` | `(workoutId: number \| string, dateStr: string \| Date): Promise<WorkoutRecord \| null>` — `dateStr` routed through `formatDate`; UNCERTAIN upstream null handling | yes |
 | `unscheduleWorkout` | `(scheduledWorkoutId: number \| string): Promise<unknown>` — removes the calendar entry without deleting the workout template; irreversible; UNCERTAIN upstream null handling | yes |
+| `getDevices` | `(): Promise<Device[] \| null>` — passes through unchecked; undocumented per-device shape, `deviceId` is the field the other device methods key off of | yes |
+| `getDeviceSettings` | `(deviceId: number \| string): Promise<DeviceSettings \| null>` — `deviceId` coerced to an int, validated positive, re-stringified before being placed in the path; passes through unchecked. Two-call sequence: get a `deviceId` from a `getDevices()` entry first, then pass it here | yes |
+| `getPrimaryTrainingDevice` | `(): Promise<PrimaryTrainingDevice \| null>` — passes through unchecked | yes |
+| `getDeviceSolarData` | `(deviceId: number \| string, startdate: string \| Date, enddate?: string \| Date): Promise<unknown[]>` — the only raising method in this group: throws `GarminConnectionError` if the response is falsy or missing the `deviceSolarInput` key; returns `resp.deviceSolarInput`, NOT the envelope. `enddate` defaults to `startdate`, and `singleDayView` is sent `"true"` exactly when `enddate` was omitted | yes |
+| `getDeviceAlarms` | `(): Promise<unknown[]>` — no HTTP path of its own: calls `getDevices()` once, then `getDeviceSettings(device.deviceId)` once per device (N+1 fan-out, sequential, ported faithfully — do not parallelize), concatenating each device's `alarms`; a device with no alarms contributes nothing, never throws for that case | yes |
+| `getDeviceLastUsed` | `(): Promise<DeviceLastUsed \| null>` — passes through unchecked; also used internally by `pushWorkoutToDevice` to resolve a missing `deviceId` | yes |
 
 | `getMenstrualDataForDate` | `(fordate: string \| Date): Promise<MenstrualDayView \| null>` — passes through unchecked | yes |
 | `getMenstrualCalendarData` | `(startdate: string \| Date, enddate: string \| Date): Promise<MenstrualCalendarData \| null>` — passes through unchecked; Garmin rejects windows of 92+ inclusive days per upstream's docstring, not enforced here (caller's responsibility, matching upstream) | yes |
@@ -214,20 +220,21 @@ interface GarminClientOptions {
 
 ## 4. These methods do NOT exist
 
-This is a **partial port**: ~77 of upstream python-garminconnect's 154 public methods. An agent that has
-seen `garminconnect` in training will write calls like `client.get_devices()` — that does not exist
+This is a **partial port**: ~83 of upstream python-garminconnect's 154 public methods. An agent that has
+seen `garminconnect` in training will write calls like `client.get_goals()` — that does not exist
 here. Do not invent methods on `Garmin` or `GarminClient` by analogy with upstream names. (Gear IS now
 fully ported — `getGear`, `createGear`, `getGearStats`, `getGearDefaults`, `setGearDefault` in
 `src/services/gear.ts`, plus the activity-association methods in `src/services/activities.ts` — so
 `client.get_gear()`-style calls DO have a TypeScript equivalent now, just camelCased and possibly
-signature-shifted; check section 3 rather than assuming it is still absent.)
+signature-shifted; check section 3 rather than assuming it is still absent. Devices IS now fully
+ported too — `getDevices`, `getDeviceSettings`, `getPrimaryTrainingDevice`, `getDeviceSolarData`,
+`getDeviceAlarms`, `getDeviceLastUsed` in `src/services/devices.ts` — so `client.get_devices()`
+has a TypeScript equivalent now as well.)
 
 Notably absent (implement via `connectapi` instead — see below):
 
 - Training plans (workouts themselves are implemented — see section 3 — but the separate
   `trainingPlans` service is not)
-- Devices and device settings (except the one-off `mylastused` lookup `pushWorkoutToDevice`
-  makes internally — there is no public `getDeviceLastUsed`)
 - Goals
 - Personal records
 - Connect IQ
