@@ -241,6 +241,10 @@ interface GarminClientOptions {
 
 ### `buildWorkout` (src/workout-builder.ts) — a fluent workout builder
 
+> Everything an agent needs is in this section; it does not depend on any other file. The
+> human-facing guide with worked examples for every sport is [`WORKOUTS.md`](WORKOUTS.md), which
+> ships in the package, and runnable versions are in `examples/workout-gallery.ts`.
+
 **NOT upstream parity** and NOT a method on `Garmin`; a standalone export. `uploadWorkout` still
 accepts raw JSON unchanged — `build()` returns the very same `WorkoutInput` you would write by hand.
 
@@ -294,8 +298,10 @@ and `weightKg`. **Any step**: `notes`.
 `numberOfIterations: null`). Blocks nest, including a count-based repeat inside a time-based one.
 **Multi-sport**: `.leg(sport, fn)` per leg — using it switches the workout to `multi_sport`.
 
-`WorkoutSport` deliberately EXCLUDES walking and hiking, because Garmin has no workout sport type
-for either (see the gotcha on `uploadWalkingWorkout`). Guards throw `GarminError` for: no end
+**Sports** (`WorkoutSport`): `running` `cycling` `swimming` `strength_training` `cardio_training`
+`hiit` `yoga` `pilates` `mobility` `rucking` `other` `multi_sport`.
+It deliberately EXCLUDES walking and hiking, because Garmin has no workout sport type for either
+(see the gotcha on `uploadWalkingWorkout`) — so the builder cannot reproduce that bug. Guards throw `GarminError` for: no end
 condition, two end conditions, an empty workout, an empty repeat, an empty name, a non-positive
 repeat count, and mixing single-sport steps with multi-sport legs.
 

@@ -324,7 +324,7 @@ export class WorkoutStepList {
     if (!Number.isInteger(times) || times < 1) {
       throw new GarminError(`repeat() needs a positive whole number of iterations, got ${times}`);
     }
-    return this.pushRepeat(build, {
+    return this.#pushRepeat(build, {
       numberOfIterations: times,
       endCondition: ref(COND.ITERATIONS, "iterations"),
     });
@@ -338,14 +338,14 @@ export class WorkoutStepList {
     if (!(seconds > 0)) {
       throw new GarminError(`repeatForSeconds() needs a positive duration, got ${seconds}`);
     }
-    return this.pushRepeat(build, {
+    return this.#pushRepeat(build, {
       numberOfIterations: null,
       endCondition: ref(COND.TIME, "time"),
       endConditionValue: seconds,
     });
   }
 
-  private pushRepeat(
+  #pushRepeat(
     build: (block: WorkoutStepList) => unknown,
     tail: Partial<RepeatWorkoutGroup>,
   ): this {

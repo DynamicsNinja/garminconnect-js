@@ -438,6 +438,40 @@ Garmin service** — verified only against the local test harness.
 | `GarminConnectionError` | Network failure or timeout, after retries — **and** a few semantic HTTP statuses that some services deliberately re-raise as this class, mirroring upstream: **every** HTTP error from `importActivity` (not just its 409 "Activity already exists" — a 400 or 413 is wrapped the same way), the 404 ("gear not found (likely retired/removed)") from `addGearToActivity`, `removeGearFromActivity` and `setGearDefault`, and a missing `deviceSolarInput` from `getDeviceSolarData`. Those are permanent, not transient — do not blanket-retry on this class; check the message or the `cause`. |
 | `GarminHttpError` | Any other non-2xx. Carries `status`, `url`, `body`. |
 
+## 🏊 Building workouts
+
+Creating a Garmin workout by hand means writing deeply nested JSON with several non-obvious rules —
+step numbering that runs across repeat blocks, enum references that must agree in three places, and
+pace targets expressed as descending metres-per-second. `buildWorkout` handles all of that:
+
+```ts
+import { buildWorkout } from "garminconnect-js";
+
+const workout = buildWorkout("4 x 1 km", { sport: "running" })
+  .warmup({ time: 600, target: { heartRateZone: 2 } })
+  .repeat(4, (set) =>
+    set
+      .interval({
+        distance: 1000,
+        target: { pace: { minPerKm: [4.5, 5] } },
+        secondaryTarget: { cadence: [176, 184] },
+      })
+      .recovery({ time: 120 }),
+  )
+  .cooldown({ lapButton: true })
+  .build();
+
+await garmin.uploadWorkout(workout);
+```
+
+It covers all twelve sports, every step and end-condition type, primary and secondary targets,
+nested and time-boxed repeats, swim strokes/drills/equipment, strength exercises and weights, and
+multi-sport bricks. `uploadWorkout` still accepts raw JSON, so the builder is optional.
+
+**→ [`WORKOUTS.md`](WORKOUTS.md) is the full guide**, with a worked example for every sport and a
+reference for every option. Runnable versions of those examples live in
+[`examples/workout-gallery.ts`](examples/workout-gallery.ts).
+
 ## 📚 Additional resources & acknowledgements
 
 - [connect.garmin.com](https://connect.garmin.com) — the service this library talks to.
