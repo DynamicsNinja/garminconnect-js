@@ -298,28 +298,57 @@ and mean END CONDITIONS; inside `target`, they are ranges and mean TARGETS.
 on the workout. **Strength/HIIT**: `exercise: { category, name? }` — a category alone is accepted —
 and `weightKg`. **Any step**: `notes`.
 
-**Exercise `category` is TYPE-CONSTRAINED to 50 values**, because an invalid one fails the WHOLE
+**Exercise `category` is TYPE-CONSTRAINED to 53 values**, because an invalid one fails the WHOLE
 upload with `400 "Invalid category"` — not just that step. The set is the FIT SDK
-`exercise_category` enum (34) plus 16 Connect additions, exported as `WORKOUT_EXERCISE_CATEGORIES`:
+`exercise_category` enum (34) plus 19 Connect additions, exported as `WORKOUT_EXERCISE_CATEGORIES`:
 FIT — `BENCH_PRESS` `CALF_RAISE` `CARDIO` `CARRY` `CHOP` `CORE` `CRUNCH` `CURL` `DEADLIFT` `FLYE`
 `HIP_RAISE` `HIP_STABILITY` `HIP_SWING` `HYPEREXTENSION` `LATERAL_RAISE` `LEG_CURL` `LEG_RAISE`
 `LUNGE` `OLYMPIC_LIFT` `PLANK` `PLYO` `PULL_UP` `PUSH_UP` `ROW` `SHOULDER_PRESS`
 `SHOULDER_STABILITY` `SHRUG` `SIT_UP` `SQUAT` `TOTAL_BODY` `TRICEPS_EXTENSION` `WARM_UP` `RUN`
 `UNKNOWN`; Connect — `BANDED_EXERCISES` `BATTLE_ROPE` `SLED` `SUSPENSION` `SANDBAG` `SLEDGE_HAMMER`
 `TIRE` `LADDER` `BIKE_OUTDOOR` `INDOOR_BIKE` `RUN_INDOOR` `ELLIPTICAL` `STAIR_STEPPER`
-`FLOOR_CLIMB` `BIKE` `STRETCH`. (`BIKE`/`STRETCH`/`UNKNOWN` work via the API but are absent from the
-web picker.) 49 other plausible names were tested and ALL rejected — notably `COOL_DOWN` (while
-`WARM_UP` is valid), `YOGA`/`PILATES`/`MOBILITY` (sports, not categories), muscle groups like
-`CHEST`/`LEGS`, and lift names like `CLEAN`/`SNATCH` (those go in `name` under `OLYMPIC_LIFT`). A
-yoga, pilates or mobility workout therefore uses plain timed steps with the detail in `notes`.
+`FLOOR_CLIMB` `BIKE` `STRETCH` `INDOOR_ROW` `POSE` `MOVE`. (`BIKE`/`STRETCH`/`UNKNOWN` work via the
+API but are absent from the web picker; `POSE` — yoga poses — `MOVE` — pilates/mobility moves — and
+`INDOOR_ROW` are in no picker either and were found in Garmin's translations bundle.) 49 other
+plausible names were tested and ALL rejected — notably `COOL_DOWN` (while `WARM_UP` is valid),
+`YOGA`/`PILATES`/`MOBILITY` (sports, not categories), muscle groups like `CHEST`/`LEGS`, and lift
+names like `CLEAN`/`SNATCH` (those go in `name` under `OLYMPIC_LIFT`).
 
 **Exercise `name` FAILS SILENTLY, unlike `category`.** An unrecognised name is NOT rejected — it is
 stored as an EMPTY STRING and the upload succeeds. The same happens when the name is real but
-belongs to another category (`{category: "SQUAT", name: "BARBELL_BENCH_PRESS"}` stores `""`). If the
-specific exercise matters, read the workout back and assert `exerciseName` is non-empty. Garmin's
-picker holds 1548 names across 47 categories, bundled into the web app and served by no API, so
-this library does not ship them; find a key from the picker's `data-exercise-key` attribute or by
-selecting one in the designer and reading the workout back.
+belongs to another category (`{category: "SQUAT", name: "BARBELL_BENCH_PRESS"}` stores `""`).
+
+**Use the `garminconnect-js/exercises` subpath to make that a compile error.** It is a SEPARATE
+entry point holding all **1830 verified names across 51 categories**; importing the package root
+pulls in none of it (~60 KB), so there is no cost to callers who don't need it.
+
+```ts
+import { buildWorkout } from "garminconnect-js";
+import { exercise, isExerciseName, EXERCISES } from "garminconnect-js/exercises";
+
+buildWorkout("Legs", { sport: "strength_training" })
+  .interval({ reps: 8, exercise: exercise("SQUAT", "BARBELL_BACK_SQUAT") })
+  .interval({ reps: 8, exercise: exercise("SQUAT", "BARBELL_BENCH_PRESS") }) // compile error
+  .build();
+
+isExerciseName("SQUAT", name); // runtime check, for names that are only strings at runtime
+EXERCISES.SQUAT;               // readonly string[] — all 106 squat variants
+```
+
+- `exercise(category, name)` returns `{ category, name }`, the exact shape a step's `exercise`
+  option takes. It is the identity function at runtime — the checking is entirely in the types.
+- `ExerciseName<"SQUAT">` is the name union for one category; `ExerciseCategoryWithNames` is the
+  key union of `EXERCISES`.
+- `STRETCH` and `UNKNOWN` are valid categories with NO names in Garmin's catalogue, so they are
+  absent from `EXERCISES` — pass them as a bare `{ category }`. `WORKOUT_EXERCISE_CATEGORIES` in
+  the package root remains the full list of 53.
+- Provenance: candidates came from Garmin's own translations bundle
+  (`connect.garmin.com/web-translations/exercise_types/exercise_types.properties`, public, no
+  auth); `scripts/verify-exercises.ts` then uploaded every one to a live account and kept only the
+  names Garmin echoed back unchanged. 44 were rejected that way. Nine real keys begin with an
+  underscore (`_3_WAY_CALF_RAISE`) — that is not a typo, and the form without it is rejected.
+- If you bypass the subpath and pass a raw string, read the workout back and assert
+  `exerciseName` is non-empty.
 
 **Blocks**: `.repeat(n, fn)` and `.repeatForSeconds(s, fn)` (the latter sets
 `numberOfIterations: null`). Blocks nest, including a count-based repeat inside a time-based one.

@@ -130,6 +130,29 @@ describe("workout builder documentation", () => {
     }
   });
 
+  it("documents the exercises subpath in both files, the README and package.json", () => {
+    // The subpath is invisible unless it is written down: it is a second entry point, not a name
+    // on the root export, so nothing in an editor's autocomplete will ever suggest it.
+    for (const doc of [
+      ["AGENTS.md", AGENTS],
+      ["WORKOUTS.md", WORKOUTS],
+      ["README.md", README],
+    ] as const) {
+      expect(doc[1], `${doc[0]} must name the subpath`).toContain("garminconnect-js/exercises");
+      expect(doc[1], `${doc[0]} must show the exercise() helper`).toMatch(/exercise\("SQUAT"/);
+    }
+    for (const doc of [
+      ["AGENTS.md", AGENTS],
+      ["WORKOUTS.md", WORKOUTS],
+    ] as const) {
+      for (const name of ["EXERCISES", "isExerciseName", "ExerciseName", "STRETCH"]) {
+        expect(doc[1], `${doc[0]} does not mention ${name}`).toContain(name);
+      }
+    }
+    const pkg = JSON.parse(read("package.json")) as { exports: Record<string, unknown> };
+    expect(pkg.exports["./exercises"]).toBeDefined();
+  });
+
   it("makes the human guide discoverable from the README and shipped in the package", () => {
     // A guide nobody can find is the same as no guide.
     expect(README, "README must link to WORKOUTS.md").toContain("WORKOUTS.md");

@@ -468,6 +468,16 @@ It covers all twelve sports, every step and end-condition type, primary and seco
 nested and time-boxed repeats, swim strokes/drills/equipment, strength exercises and weights, and
 multi-sport bricks. `uploadWorkout` still accepts raw JSON, so the builder is optional.
 
+For strength work, Garmin accepts an unknown exercise `name` and silently stores it as an empty
+string — no error, just a step with no exercise. All 1830 verified names ship as a separate entry
+point so that becomes a compile error, and so callers who don't need them never pay for them:
+
+```ts
+import { exercise } from "garminconnect-js/exercises";
+
+.interval({ reps: 8, exercise: exercise("SQUAT", "BARBELL_BACK_SQUAT"), weightKg: 60 })
+```
+
 **→ [`WORKOUTS.md`](WORKOUTS.md) is the full guide**, with a worked example for every sport and a
 reference for every option. Runnable versions of those examples live in
 [`examples/workout-gallery.ts`](examples/workout-gallery.ts).

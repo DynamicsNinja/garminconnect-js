@@ -141,7 +141,10 @@ describe("AGENTS.md drift guard", () => {
    */
   it("does not demonstrate connectapi for an endpoint a real Garmin method already covers", () => {
     const section = agentsMd.slice(agentsMd.indexOf("## 4. These methods do NOT exist"));
-    const example = /```ts\n([\s\S]*?)```/.exec(section)?.[1] ?? "";
+    // `\r?\n`, not `\n`: this repo checks out with CRLF on Windows, and a guard that only matched
+    // LF would silently stop guarding anything there — the example would parse as "" and the path
+    // check below would pass over nothing.
+    const example = /```ts\r?\n([\s\S]*?)```/.exec(section)?.[1] ?? "";
     expect(example, "Section 4's TypeScript example block is missing.").not.toBe("");
 
     // Deliberately broad: an earlier version required a `-service`/`-gateway` suffix, which would

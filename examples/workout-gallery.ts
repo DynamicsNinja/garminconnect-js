@@ -13,6 +13,10 @@
  */
 import { buildWorkout } from "../src/index.js";
 import type { WorkoutInput } from "../src/index.js";
+// The catalogue is a separate entry point (`garminconnect-js/exercises` once installed). Using
+// `exercise()` instead of a bare string turns a wrong or mis-categorised exercise name into a
+// compile error, rather than an upload Garmin accepts and stores with an empty `exerciseName`.
+import { exercise } from "../src/exercises.js";
 
 /** Running intervals with a secondary cadence target. */
 const runningIntervals = (): WorkoutInput =>
@@ -68,12 +72,12 @@ const swimMixedSet = (): WorkoutInput =>
 /** Strength with nested sets and a category-only exercise. */
 const strengthLowerBody = (): WorkoutInput =>
   buildWorkout("Lower body", { sport: "strength_training" })
-    .warmup({ time: 300, exercise: { category: "CARDIO", name: "CARDIO" } })
+    .warmup({ time: 300, exercise: exercise("CARDIO", "JUMPING_JACKS") })
     .repeat(3, (set) =>
       set
         .interval({
           reps: 8,
-          exercise: { category: "SQUAT", name: "BARBELL_BACK_SQUAT" },
+          exercise: exercise("SQUAT", "BARBELL_BACK_SQUAT"),
           weightKg: 60,
         })
         .rest(90),
@@ -82,10 +86,10 @@ const strengthLowerBody = (): WorkoutInput =>
       set
         .interval({
           reps: 10,
-          exercise: { category: "BENCH_PRESS", name: "BARBELL_BENCH_PRESS" },
+          exercise: exercise("BENCH_PRESS", "BARBELL_BENCH_PRESS"),
           weightKg: 40,
         })
-        .interval({ reps: 12, exercise: { category: "ROW", name: "BARBELL_ROW" }, weightKg: 35 })
+        .interval({ reps: 12, exercise: exercise("ROW", "BARBELL_ROW"), weightKg: 35 })
         .rest(120),
     )
     .interval({ reps: 20, exercise: { category: "PLANK" } })

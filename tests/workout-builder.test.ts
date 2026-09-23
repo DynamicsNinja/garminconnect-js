@@ -233,11 +233,11 @@ describe("buildWorkout", () => {
     expect([step["targetValueOne"], step["targetValueTwo"]]).toEqual([2, 5]);
   });
 
-  it("constrains exercise categories to the 40 Garmin actually accepts", () => {
-    // Verified exhaustively live: every FIT SDK exercise_category member plus 16 Connect additions
+  it("constrains exercise categories to the 53 Garmin actually accepts", () => {
+    // Verified exhaustively live: every FIT SDK exercise_category member plus 19 Connect additions
     // is accepted, and 49 other plausible names are rejected. This matters more than a typical
     // enum because an invalid category fails the ENTIRE upload, not just its step.
-    expect(WORKOUT_EXERCISE_CATEGORIES).toHaveLength(50);
+    expect(WORKOUT_EXERCISE_CATEGORIES).toHaveLength(53);
     // The FIT enum's boundaries, and the Connect-only extras.
     expect(WORKOUT_EXERCISE_CATEGORIES).toContain("BENCH_PRESS");
     expect(WORKOUT_EXERCISE_CATEGORIES).toContain("RUN");
@@ -246,6 +246,11 @@ describe("buildWorkout", () => {
     // Equipment/modality categories, found in the web picker and then confirmed against the API.
     for (const c of ["BIKE_OUTDOOR", "INDOOR_BIKE", "RUN_INDOOR", "ELLIPTICAL", "STAIR_STEPPER",
                      "FLOOR_CLIMB", "LADDER", "SANDBAG", "SLEDGE_HAMMER", "TIRE"]) {
+      expect(WORKOUT_EXERCISE_CATEGORIES as readonly string[]).toContain(c);
+    }
+    // In no picker at all — these three came from Garmin's `exercise_types` translations bundle
+    // and were then confirmed against the API.
+    for (const c of ["POSE", "MOVE", "INDOOR_ROW"]) {
       expect(WORKOUT_EXERCISE_CATEGORIES as readonly string[]).toContain(c);
     }
     // Confirmed-invalid values must NOT creep in. COOL_DOWN is the trap: WARM_UP is valid.

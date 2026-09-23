@@ -180,7 +180,7 @@ workout back.
 
 **`category` is type-constrained**, because an invalid one fails the **whole upload** with
 `400 "Invalid category"` — not just the offending step. The accepted set is the **FIT SDK
-`exercise_category` enum** plus **16 Garmin Connect additions** — 50 in total, exported as
+`exercise_category` enum** plus **19 Garmin Connect additions** — 53 in total, exported as
 `WORKOUT_EXERCISE_CATEGORIES`. Each was confirmed against a live account.
 
 ```
@@ -190,12 +190,17 @@ FIT SDK enum (34)
   LUNGE  OLYMPIC_LIFT  PLANK  PLYO  PULL_UP  PUSH_UP  ROW  SHOULDER_PRESS
   SHOULDER_STABILITY  SHRUG  SIT_UP  SQUAT  TOTAL_BODY  TRICEPS_EXTENSION  WARM_UP  RUN  UNKNOWN
 
-Garmin Connect additions (16)
+Garmin Connect additions (19)
   BANDED_EXERCISES  BATTLE_ROPE  SLED  SUSPENSION  SANDBAG  SLEDGE_HAMMER  TIRE  LADDER
   BIKE_OUTDOOR  INDOOR_BIKE  RUN_INDOOR  ELLIPTICAL  STAIR_STEPPER  FLOOR_CLIMB  BIKE  STRETCH
+  INDOOR_ROW  POSE  MOVE
 ```
 
 `BIKE`, `STRETCH` and `UNKNOWN` are accepted by the API but are not offered in the web picker.
+`POSE` (yoga poses), `MOVE` (pilates and mobility moves) and `INDOOR_ROW` are in no picker either —
+they came from Garmin's translations bundle and were then confirmed against the API. `POSE` and
+`MOVE` are worth knowing about: they are how a yoga or pilates step names an actual pose or move
+rather than describing it in `notes`.
 
 49 other plausible names were tested and **all rejected**, including the ones you are most likely to
 reach for:
@@ -221,11 +226,60 @@ If Garmin adds one before this library catches up, cast it: `category: "NEW_ONE"
 So `category` fails loudly and `name` fails quietly. If the exercise matters to you, **read the
 workout back and check `exerciseName` is non-empty.**
 
-Garmin's picker holds **1548 exercise names across 47 categories** (`PLANK` alone has 131, `SQUAT`
-104, `LUNGE` 93). They are bundled into the web app rather than served by any API, so this library
-does not ship them. To find a key, open the exercise picker in Garmin's workout designer and read
-the `data-exercise-key` attribute off the option — or pick it in the UI, save, and read the workout
-back through `getWorkoutById`.
+### The name list ships separately: `garminconnect-js/exercises`
+
+All **1830 verified names across 51 categories** are published as a **separate entry point**, so
+the ~60 KB of catalogue only reaches people who ask for it. Importing the package root pulls in
+none of it.
+
+```ts
+import { buildWorkout } from "garminconnect-js";
+import { exercise } from "garminconnect-js/exercises";
+
+buildWorkout("Lower body", { sport: "strength_training" })
+  .repeat(3, (set) =>
+    set
+      .interval({ reps: 8, exercise: exercise("SQUAT", "BARBELL_BACK_SQUAT"), weightKg: 60 })
+      .rest(90),
+  )
+  .build();
+```
+
+Write the wrong name, or the right name under the wrong category, and it no longer sails through to
+Garmin to be blanked — it stops at `tsc`:
+
+```ts
+exercise("SQUAT", "BARBELL_BENCH_PRESS");
+//                ~~~~~~~~~~~~~~~~~~~~~ not assignable to ExerciseName<"SQUAT">
+```
+
+`exercise()` is the identity function at runtime; the checking is entirely in the types, so it
+costs nothing.
+
+**The rest of the module**
+
+| Export | What it is |
+|---|---|
+| `EXERCISES` | `{ SQUAT: readonly ["BARBELL_BACK_SQUAT", ...], ... }` — the whole catalogue, for building a picker of your own |
+| `exercise(category, name)` | the compile-checked pair above |
+| `isExerciseName(category, name)` | `boolean` — the runtime check, for names that arrive as plain strings from a database, a form or a user |
+| `ExerciseName<C>` | the name union for one category |
+| `ExerciseCategoryWithNames` | the key union of `EXERCISES` |
+
+Two valid categories, `STRETCH` and `UNKNOWN`, have no exercise names at all in Garmin's catalogue,
+so they are not keys of `EXERCISES`. Pass them as a bare `{ category: "STRETCH" }` with no name.
+
+**Where the list comes from.** Garmin's own translations bundle — a public, unauthenticated file at
+`connect.garmin.com/web-translations/exercise_types/exercise_types.properties` — lists candidates.
+Every one was then uploaded to a live account and read back, and only the names Garmin echoed
+unchanged were kept; 44 candidates were dropped that way, mostly the file's per-category generic
+label (`SQUAT_SQUAT` and friends), which is not an exercise. Nine real keys begin with an
+underscore, like `_3_WAY_CALF_RAISE` — that is the genuine key, and the form without it is
+rejected.
+
+If you would rather not take the dependency, a key is also readable from the workout designer: open
+the exercise picker and read the `data-exercise-key` attribute off an option, or pick it in the UI,
+save, and read the workout back with `getWorkoutById`.
 
 ### Multi-sport
 

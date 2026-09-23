@@ -36,7 +36,13 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
-    }
+    },
+    "./exercises": {
+      "types": "./dist/exercises.d.ts",
+      "import": "./dist/exercises.js",
+      "require": "./dist/exercises.cjs"
+    },
+    "./package.json": "./package.json"
   },
   "files": [
     "dist",
@@ -63,7 +69,8 @@
     "smoke": "tsx scripts/smoke-reads.ts",
     "smoke:write": "tsx scripts/smoke-writes.ts",
     "smoke:builder": "tsx scripts/smoke-builder.ts",
-    "smoke:matrix": "tsx scripts/smoke-builder-matrix.ts"
+    "smoke:matrix": "tsx scripts/smoke-builder-matrix.ts",
+    "verify:exercises": "tsx scripts/verify-exercises.ts"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
@@ -76,5 +83,12 @@
     "typescript": "^5.6.0",
     "typescript-eslint": "^8.70.1",
     "vitest": "^2.1.0"
+  },
+  "typesVersions": {
+    "*": {
+      "exercises": [
+        "./dist/exercises.d.ts"
+      ]
+    }
   }
 }

@@ -173,9 +173,21 @@ export const WORKOUT_EXERCISE_CATEGORIES = [
   "SANDBAG",
   "SLEDGE_HAMMER",
   "TIRE",
+  "INDOOR_ROW",
+  // Yoga poses and pilates/mobility moves. Neither appears in the strength exercise picker — they
+  // came from Garmin's `exercise_types` translations bundle and were then confirmed against the
+  // API, which accepts both and stores their names intact.
+  "POSE",
+  "MOVE",
 ] as const;
 
-/** One of the 40 categories Garmin accepts. See `WORKOUT_EXERCISE_CATEGORIES`. */
+/**
+ * One of the 53 categories Garmin accepts. See `WORKOUT_EXERCISE_CATEGORIES`.
+ *
+ * The exercise NAMES valid within each category ship separately, in
+ * `garminconnect-js/exercises` — see that module for why the two halves are validated so
+ * differently.
+ */
 export type ExerciseCategory = (typeof WORKOUT_EXERCISE_CATEGORIES)[number];
 
 /** Step intensity — `workoutIntensityTypes`. */

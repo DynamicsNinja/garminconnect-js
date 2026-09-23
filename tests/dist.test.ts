@@ -101,3 +101,52 @@ describeBuilt("built package (dist)", () => {
     expect((cjs["WORKOUT_SPORT_TYPE_ID"] as Record<string, number>)["RUNNING"]).toBe(1);
   });
 });
+
+/**
+ * The `garminconnect-js/exercises` subpath, checked against `dist` rather than `src`.
+ *
+ * `package.json` can promise a subpath that tsup never emitted, and the root bundle can quietly
+ * absorb the catalogue through some transitive import — neither shows up in a source-level test.
+ */
+const EX_ESM = path.join(DIST, "exercises.js");
+const EX_CJS = path.join(DIST, "exercises.cjs");
+const EX_DTS = path.join(DIST, "exercises.d.ts");
+const exBuilt = existsSync(EX_ESM) && existsSync(EX_CJS) && existsSync(EX_DTS);
+const describeExercises = exBuilt ? describe : describe.skip;
+
+describeExercises("built exercises subpath (dist)", () => {
+  const expectedFiles = ["exercises.js", "exercises.cjs", "exercises.d.ts", "exercises.d.cts"];
+
+  it("emits every file package.json's ./exercises export points at", () => {
+    for (const f of expectedFiles) {
+      expect(existsSync(path.join(DIST, f)), `dist/${f} is missing`).toBe(true);
+    }
+  });
+
+  it("keeps the catalogue out of the root bundle", () => {
+    // The whole reason for a second entry point. If the root ever pulls this in, the subpath is
+    // pure overhead and every consumer pays ~60 KB for data most will never touch.
+    for (const f of ["index.js", "index.cjs", "index.d.ts"]) {
+      expect(readFileSync(path.join(DIST, f), "utf8"), `dist/${f} must not carry the catalogue`)
+        .not.toContain("BARBELL_BACK_SQUAT");
+    }
+    expect(readFileSync(EX_ESM, "utf8")).toContain("BARBELL_BACK_SQUAT");
+  });
+
+  it("exports the same working API from CJS and ESM", async () => {
+    const require = createRequire(import.meta.url);
+    const cjs = require(EX_CJS) as Record<string, unknown>;
+    const esm = (await import(/* @vite-ignore */ pathToFileURL(EX_ESM).href)) as Record<
+      string,
+      unknown
+    >;
+    for (const mod of [cjs, esm]) {
+      const data = mod["EXERCISES"] as Record<string, readonly string[]>;
+      expect(data["SQUAT"]).toContain("BARBELL_BACK_SQUAT");
+      expect((mod["exercise"] as (c: string, n: string) => unknown)("SQUAT", "BARBELL_BACK_SQUAT"))
+        .toEqual({ category: "SQUAT", name: "BARBELL_BACK_SQUAT" });
+      expect((mod["isExerciseName"] as (c: string, n: string) => boolean)("SQUAT", "NOPE"))
+        .toBe(false);
+    }
+  });
+});

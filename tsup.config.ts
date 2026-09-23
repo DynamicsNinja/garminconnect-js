@@ -1,7 +1,10 @@
 import { defineConfig } from "tsup";
 
 export default defineConfig({
-  entry: ["src/index.ts"],
+  // Two entry points. `src/exercises.ts` is ~60 KB of catalogue data that most callers never
+  // need, so it is published as the `garminconnect-js/exercises` subpath rather than folded into
+  // the root bundle — importing the root pulls in none of it.
+  entry: ["src/index.ts", "src/exercises.ts"],
   format: ["esm", "cjs"],
   // The emitted `.d.ts` references `Buffer` in four public signatures
   // (`GarminClient.download`, `downloadActivity`, `downloadWorkout`,
