@@ -121,6 +121,102 @@ const brick = (): WorkoutInput =>
     )
     .build();
 
+/**
+ * Cardio circuit: three rounds of four stations, each a different exercise, with a longer break
+ * between rounds. Uses only categories Garmin accepts — see the note in WORKOUTS.md.
+ */
+const cardioCircuit = (): WorkoutInput =>
+  buildWorkout("Circuit", { sport: "cardio_training" })
+    .warmup({ time: 300, exercise: { category: "WARM_UP" } })
+    .repeat(3, (round) =>
+      round
+        .interval({ time: 45, exercise: { category: "PUSH_UP" }, notes: "station 1" })
+        .rest(15)
+        .interval({ time: 45, exercise: { category: "SQUAT" }, notes: "station 2" })
+        .rest(15)
+        .interval({ time: 45, exercise: { category: "PLANK" }, notes: "station 3" })
+        .rest(15)
+        .interval({ time: 45, exercise: { category: "LUNGE" }, notes: "station 4" })
+        .rest(60),
+    )
+    .cooldown({ time: 300, target: { heartRateZone: 1 } })
+    .build();
+
+/**
+ * Yoga flow: timed holds, no exercise field. YOGA is NOT a valid exercise category — the sport is
+ * yoga, but each step is simply a timed segment, with the pose named in `notes`.
+ */
+const yogaFlow = (): WorkoutInput =>
+  buildWorkout("Morning flow", { sport: "yoga" })
+    .warmup({ time: 180, notes: "child's pose, breathing" })
+    .repeat(3, (round) =>
+      round
+        .interval({ time: 60, notes: "sun salutation A" })
+        .interval({ time: 60, notes: "sun salutation B" })
+        .rest(30),
+    )
+    .repeat(2, (side) =>
+      side
+        .interval({ time: 45, notes: "warrior II — hold" })
+        .interval({ time: 45, notes: "triangle — hold" })
+        .rest(20),
+    )
+    .cooldown({ time: 300, notes: "savasana" })
+    .build();
+
+/** Pilates: a mix of timed holds and rep-counted work, using real core categories. */
+const pilatesSession = (): WorkoutInput =>
+  buildWorkout("Mat pilates", { sport: "pilates" })
+    .warmup({ time: 240, notes: "breathing and alignment" })
+    .repeat(2, (set) =>
+      set
+        .interval({ reps: 20, exercise: { category: "CRUNCH" }, notes: "the hundred" })
+        .interval({ time: 60, exercise: { category: "PLANK" } })
+        .interval({ reps: 15, exercise: { category: "LEG_RAISE" }, notes: "single leg circles" })
+        .rest(45),
+    )
+    .interval({ reps: 12, exercise: { category: "HIP_RAISE" }, notes: "shoulder bridge" })
+    .cooldown({ time: 180, notes: "spine stretch" })
+    .build();
+
+/** Mobility: timed holds per side, using the STRETCH category. */
+const mobilityRoutine = (): WorkoutInput =>
+  buildWorkout("Hips and thoracic", { sport: "mobility" })
+    .warmup({ time: 120, notes: "easy movement" })
+    .repeat(2, (side) =>
+      side
+        .interval({ time: 45, exercise: { category: "STRETCH" }, notes: "90/90 hip — left" })
+        .interval({ time: 45, exercise: { category: "STRETCH" }, notes: "90/90 hip — right" })
+        .interval({ time: 60, exercise: { category: "STRETCH" }, notes: "thoracic opener" })
+        .rest(30),
+    )
+    .cooldown({ time: 120, notes: "breathe" })
+    .build();
+
+/**
+ * Rucking: a weighted hike. Garmin has no per-workout load field, so the pack weight goes in the
+ * name and notes; the effort is controlled with heart-rate and grade targets.
+ */
+const ruckMarch = (): WorkoutInput =>
+  buildWorkout("20 kg ruck", { sport: "rucking" })
+    .warmup({ distance: 800, target: { heartRateZone: 1 }, notes: "20 kg pack — settle in" })
+    .repeat(4, (leg) =>
+      leg
+        .interval({ distance: 1600, target: { heartRateZone: 3 }, notes: "sustained" })
+        .recovery({ time: 180, target: { heartRateBpm: [110, 130] } }),
+    )
+    .interval({ distance: 1000, target: { gradePercent: [4, 8] }, notes: "hill section" })
+    .cooldown({ distance: 800, target: { heartRateZone: 1 } })
+    .build();
+
+/** A generic `other` template, driven entirely by the lap button. */
+const genericLapDriven = (): WorkoutInput =>
+  buildWorkout("Open session", { sport: "other" })
+    .warmup({ lapButton: true, notes: "press lap when ready" })
+    .repeat(5, (block) => block.interval({ lapButton: true }).rest({ lapButton: true }))
+    .cooldown({ lapButton: true })
+    .build();
+
 /** The remaining end conditions, which have no natural home in the sport examples above. */
 const endConditionSampler = (): WorkoutInput =>
   buildWorkout("End conditions", { sport: "other" })
@@ -142,6 +238,12 @@ const gallery: [string, () => WorkoutInput][] = [
   ["strength lower body", strengthLowerBody],
   ["hiit amrap", hiitAmrap],
   ["brick", brick],
+  ["cardio circuit", cardioCircuit],
+  ["yoga flow", yogaFlow],
+  ["pilates session", pilatesSession],
+  ["mobility routine", mobilityRoutine],
+  ["ruck march", ruckMarch],
+  ["generic lap-driven", genericLapDriven],
   ["end-condition sampler", endConditionSampler],
 ];
 

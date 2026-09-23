@@ -175,8 +175,23 @@ Pool length goes on the **workout**; stroke, drill and equipment go on the **ste
 `category` alone is accepted; `name` is optional. Both are Garmin's SCREAMING_SNAKE_CASE keys, not
 the display names the web UI shows — "Barbell Overhead Press" is stored as
 `category: "SHOULDER_PRESS", exerciseName: "OVERHEAD_BARBELL_PRESS"`. Garmin's picker has 548
-exercises; the reliable way to find a key is to build one step in the web designer and read the
+exercises; the reliable way to find a `name` is to build one step in the web designer and read the
 workout back.
+
+**An invalid category fails the whole upload** with `400 "Invalid category"` — not just that step.
+There is no endpoint that lists them, so these 31 were confirmed one at a time against a live
+account:
+
+```
+CARDIO  PLANK  SQUAT  PUSH_UP  LUNGE  CRUNCH  CURL  ROW  BENCH_PRESS  SHOULDER_PRESS
+DEADLIFT  PULL_UP  HIP_RAISE  CORE  TOTAL_BODY  WARM_UP  STRETCH  FLYE  TRICEPS_EXTENSION
+SHRUG  CALF_RAISE  CHOP  CARRY  SIT_UP  RUN  BIKE  BANDED_EXERCISES  LATERAL_RAISE
+LEG_CURL  LEG_RAISE  OLYMPIC_LIFT
+```
+
+Rejected, and worth knowing because they look plausible: **`COOL_DOWN`** (though `WARM_UP` is
+valid), **`YOGA`**, **`PILATES`** and **`MOBILITY`**. Those last three are *sports*, not exercise
+categories — a yoga or mobility workout uses plain timed steps with the pose in `notes`.
 
 `weightKg` is stored in kilograms and round-trips with small drift — 60 may come back as 59.99. Do
 not assert exact equality on a weight you sent.
@@ -269,6 +284,115 @@ buildWorkout("Lower body", { sport: "strength_training" })
       .rest(120),
   )
   .interval({ reps: 20, exercise: { category: "PLANK" } })
+  .cooldown({ lapButton: true })
+  .build();
+```
+
+### Cardio circuit
+
+Three rounds of four stations, each a different exercise.
+
+```ts
+buildWorkout("Circuit", { sport: "cardio_training" })
+  .warmup({ time: 300, exercise: { category: "WARM_UP" } })
+  .repeat(3, (round) =>
+    round
+      .interval({ time: 45, exercise: { category: "PUSH_UP" }, notes: "station 1" })
+      .rest(15)
+      .interval({ time: 45, exercise: { category: "SQUAT" }, notes: "station 2" })
+      .rest(15)
+      .interval({ time: 45, exercise: { category: "PLANK" }, notes: "station 3" })
+      .rest(15)
+      .interval({ time: 45, exercise: { category: "LUNGE" }, notes: "station 4" })
+      .rest(60),
+  )
+  .cooldown({ time: 300, target: { heartRateZone: 1 } })
+  .build();
+```
+
+### Yoga flow
+
+No `exercise` field — `YOGA` is not a valid category. The sport is yoga; each step is a timed
+segment with the pose in `notes`.
+
+```ts
+buildWorkout("Morning flow", { sport: "yoga" })
+  .warmup({ time: 180, notes: "child's pose, breathing" })
+  .repeat(3, (round) =>
+    round
+      .interval({ time: 60, notes: "sun salutation A" })
+      .interval({ time: 60, notes: "sun salutation B" })
+      .rest(30),
+  )
+  .repeat(2, (side) =>
+    side
+      .interval({ time: 45, notes: "warrior II — hold" })
+      .interval({ time: 45, notes: "triangle — hold" })
+      .rest(20),
+  )
+  .cooldown({ time: 300, notes: "savasana" })
+  .build();
+```
+
+### Pilates — timed holds mixed with rep counts
+
+```ts
+buildWorkout("Mat pilates", { sport: "pilates" })
+  .warmup({ time: 240, notes: "breathing and alignment" })
+  .repeat(2, (set) =>
+    set
+      .interval({ reps: 20, exercise: { category: "CRUNCH" }, notes: "the hundred" })
+      .interval({ time: 60, exercise: { category: "PLANK" } })
+      .interval({ reps: 15, exercise: { category: "LEG_RAISE" }, notes: "single leg circles" })
+      .rest(45),
+  )
+  .interval({ reps: 12, exercise: { category: "HIP_RAISE" }, notes: "shoulder bridge" })
+  .cooldown({ time: 180, notes: "spine stretch" })
+  .build();
+```
+
+### Mobility — holds per side
+
+```ts
+buildWorkout("Hips and thoracic", { sport: "mobility" })
+  .warmup({ time: 120, notes: "easy movement" })
+  .repeat(2, (side) =>
+    side
+      .interval({ time: 45, exercise: { category: "STRETCH" }, notes: "90/90 hip — left" })
+      .interval({ time: 45, exercise: { category: "STRETCH" }, notes: "90/90 hip — right" })
+      .interval({ time: 60, exercise: { category: "STRETCH" }, notes: "thoracic opener" })
+      .rest(30),
+  )
+  .cooldown({ time: 120, notes: "breathe" })
+  .build();
+```
+
+### Rucking
+
+Garmin has no per-workout load field, so the pack weight goes in the name and `notes`; effort is
+controlled with heart-rate and grade targets.
+
+```ts
+buildWorkout("20 kg ruck", { sport: "rucking" })
+  .warmup({ distance: 800, target: { heartRateZone: 1 }, notes: "20 kg pack — settle in" })
+  .repeat(4, (leg) =>
+    leg
+      .interval({ distance: 1600, target: { heartRateZone: 3 }, notes: "sustained" })
+      .recovery({ time: 180, target: { heartRateBpm: [110, 130] } }),
+  )
+  .interval({ distance: 1000, target: { gradePercent: [4, 8] }, notes: "hill section" })
+  .cooldown({ distance: 800, target: { heartRateZone: 1 } })
+  .build();
+```
+
+### A lap-button-driven open session
+
+Useful when the structure is in your head and you just want the watch to count laps.
+
+```ts
+buildWorkout("Open session", { sport: "other" })
+  .warmup({ lapButton: true, notes: "press lap when ready" })
+  .repeat(5, (block) => block.interval({ lapButton: true }).rest({ lapButton: true }))
   .cooldown({ lapButton: true })
   .build();
 ```

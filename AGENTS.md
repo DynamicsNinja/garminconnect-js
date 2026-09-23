@@ -298,6 +298,15 @@ and mean END CONDITIONS; inside `target`, they are ranges and mean TARGETS.
 on the workout. **Strength/HIIT**: `exercise: { category, name? }` — a category alone is accepted —
 and `weightKg`. **Any step**: `notes`.
 
+**An invalid exercise category fails the WHOLE upload** with `400 "Invalid category"`, not just that
+step, and no endpoint lists them. These 31 are confirmed valid against a live account: `CARDIO`
+`PLANK` `SQUAT` `PUSH_UP` `LUNGE` `CRUNCH` `CURL` `ROW` `BENCH_PRESS` `SHOULDER_PRESS` `DEADLIFT`
+`PULL_UP` `HIP_RAISE` `CORE` `TOTAL_BODY` `WARM_UP` `STRETCH` `FLYE` `TRICEPS_EXTENSION` `SHRUG`
+`CALF_RAISE` `CHOP` `CARRY` `SIT_UP` `RUN` `BIKE` `BANDED_EXERCISES` `LATERAL_RAISE` `LEG_CURL`
+`LEG_RAISE` `OLYMPIC_LIFT`. Confirmed INVALID despite looking plausible: `COOL_DOWN` (while
+`WARM_UP` is fine), `YOGA`, `PILATES`, `MOBILITY` — those three are sports, not categories, so a
+yoga/pilates/mobility workout uses plain timed steps with the detail in `notes`.
+
 **Blocks**: `.repeat(n, fn)` and `.repeatForSeconds(s, fn)` (the latter sets
 `numberOfIterations: null`). Blocks nest, including a count-based repeat inside a time-based one.
 **Multi-sport**: `.leg(sport, fn)` per leg — using it switches the workout to `multi_sport`.
