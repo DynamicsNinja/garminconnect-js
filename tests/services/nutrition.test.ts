@@ -13,15 +13,6 @@ function record(request: Request, body?: unknown) {
 }
 
 const server = setupServer(
-  http.get(`${API}/userprofile-service/socialProfile`, () =>
-    HttpResponse.json({
-      displayName: "abc-display",
-      userName: "testuser",
-      fullName: "Test User",
-      profileId: 1,
-    }),
-  ),
-
   http.get(`${API}/nutrition-service/food/logs/2026-09-22`, ({ request }) => {
     record(request);
     return HttpResponse.json({ totalCalories: 1800 });

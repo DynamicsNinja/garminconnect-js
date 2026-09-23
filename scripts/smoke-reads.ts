@@ -11,6 +11,11 @@ type Probe = { name: string; run: () => Promise<unknown> };
  * visually identical to "the endpoint returned null". A code review found two device methods
  * promoted to "live-verified: yes" in AGENTS.md on exactly that evidence. A skip must never be
  * able to render as a pass.
+ *
+ * The printed wording is "the endpoint under test was never called", not "no request was sent":
+ * some probes legitimately issue a PRECONDITION request (fetching a list to find a real id) and
+ * then skip. What a skip guarantees is that the method being probed was not exercised — that is
+ * the claim the rest of the harness relies on, so it is the one the text should make.
  */
 class Skipped {
   constructor(readonly reason: string) {}
@@ -25,6 +30,22 @@ if (!(await client.loadTokens())) {
 const g = new Garmin(client);
 const day = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
 const weekAgo = new Date(Date.now() - 7 * 86_400_000).toISOString().slice(0, 10);
+
+/**
+ * The first training plan's id, or `undefined` when the account has none. Cached: two probes need
+ * it, and re-fetching would spend an extra live round trip to recompute the same answer.
+ */
+let trainingPlanIdLookup: Promise<number | string | undefined> | undefined;
+function firstTrainingPlanId(): Promise<number | string | undefined> {
+  trainingPlanIdLookup ??= (async () => {
+    const plans = await g.getTrainingPlans();
+    const list = plans?.trainingPlanList;
+    if (!Array.isArray(list) || list.length === 0) return undefined;
+    const first = list[0] as { planId?: number | string; id?: number | string };
+    return first.planId ?? first.id;
+  })();
+  return trainingPlanIdLookup;
+}
 
 // Each task appends its service's READ probes here.
 const services: Record<string, Probe[]> = {
@@ -343,34 +364,33 @@ const services: Record<string, Probe[]> = {
   ],
   trainingPlans: [
     { name: "getTrainingPlans", run: () => g.getTrainingPlans() },
-    // getTrainingPlanById/getAdaptiveTrainingPlanById need a real planId. getTrainingPlans() is
-    // probed first above; if it ever returns a non-empty list on this account, pull a real id from
-    // it rather than fabricating one (same rationale as golf's scorecardId skip: plan ids may be
-    // globally scoped, and a fabricated id proves nothing about the endpoint).
+    // getTrainingPlanById/getAdaptiveTrainingPlanById need a real planId, and the account has none.
+    //
+    // The id is pulled out of `getTrainingPlans().trainingPlanList` — NOT out of the top-level
+    // value. An earlier version did `Array.isArray(plans) ? plans : []`, but that endpoint returns
+    // an ENVELOPE, so the array branch could never be taken: the probe skipped unconditionally,
+    // including on an account that HAS plans, while the docs promised it would auto-upgrade to a
+    // real check. A skip that can never become a pass is the same defect class as a probe that can
+    // never stop failing.
+    //
+    // The field name inside a plan row (`planId` vs `id`) is still a guess — no plan has ever been
+    // observed — so both are tried. That part genuinely cannot be settled on this account.
     {
       name: "getTrainingPlanById",
       run: async () => {
-        const plans = await g.getTrainingPlans();
-        const list = Array.isArray(plans) ? plans : [];
-        const first = list[0] as { planId?: number | string; id?: number | string } | undefined;
-        const planId = first?.planId ?? first?.id;
-        if (planId === undefined) {
-          return skip("no training plans on the test account — needs a real planId");
-        }
-        return g.getTrainingPlanById(planId);
+        const planId = await firstTrainingPlanId();
+        return planId === undefined
+          ? skip("no training plans on the test account — needs a real planId")
+          : g.getTrainingPlanById(planId);
       },
     },
     {
       name: "getAdaptiveTrainingPlanById",
       run: async () => {
-        const plans = await g.getTrainingPlans();
-        const list = Array.isArray(plans) ? plans : [];
-        const first = list[0] as { planId?: number | string; id?: number | string } | undefined;
-        const planId = first?.planId ?? first?.id;
-        if (planId === undefined) {
-          return skip("no training plans on the test account — needs a real planId");
-        }
-        return g.getAdaptiveTrainingPlanById(planId);
+        const planId = await firstTrainingPlanId();
+        return planId === undefined
+          ? skip("no training plans on the test account — needs a real planId")
+          : g.getAdaptiveTrainingPlanById(planId);
       },
     },
   ],
@@ -388,7 +408,7 @@ for (const p of probes) {
   try {
     const r = await p.run();
     if (r instanceof Skipped) {
-      console.log(`  SKIP  ${p.name.padEnd(34)} ${r.reason} (NOT verified — no request was sent)`);
+      console.log(`  SKIP  ${p.name.padEnd(34)} ${r.reason} (NOT verified — the endpoint under test was never called)`);
       skipped++;
       continue;
     }

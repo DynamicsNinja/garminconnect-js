@@ -13,15 +13,6 @@ function record(request: Request, body?: unknown) {
 }
 
 const server = setupServer(
-  http.get(`${API}/userprofile-service/socialProfile`, () =>
-    HttpResponse.json({
-      displayName: "abc-display",
-      userName: "testuser",
-      fullName: "Test User",
-      profileId: 1,
-    }),
-  ),
-
   http.get(`${API}/trainingplan-service/trainingplan/plans`, ({ request }) => {
     record(request);
     return HttpResponse.json({ plans: [] });
