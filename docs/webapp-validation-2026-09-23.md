@@ -133,6 +133,26 @@ The same probe pinned the enum: `usageType` is one of `NONE` / `DISTANCE` / `DUR
 read from `/gear-service/gear/v2/usagetypes`. Previously documented as "unverified guesses".
 `"TIME"` is rejected with `400 Invalid value 'TIME' for usageType`.
 
+### 6. Training plans: enrolling via the UI unlocked one of the two by-id methods
+
+Enrolled the test account in a Garmin Coach 5K plan (Training & Planning -> Garmin Coach Plans ->
+Schedule). With a real plan present:
+
+| Method | Result |
+|---|---|
+| `getAdaptiveTrainingPlanById` | **32-key object — verified** |
+| `getTrainingPlanById` | `400 "Not a phased plan."` |
+
+So the two are not interchangeable. `/phased/{id}` needs `trainingPlanCategory === "PHASED"`, and a
+Garmin Coach plan is `STATIC`. The 400 is a precise server answer, not a wrong URL — the success
+path stays unconfirmed because no route to a phased plan was found in the web UI.
+
+**The id field is `trainingPlanId`**, not `planId` or `id`. The smoke harness had been guessing the
+latter two, so those probes would have skipped forever even with a plan enrolled — the third
+"skip that can never become a pass" in this project, and the first caught by having real data
+rather than by review. Fixed, and the phased probe now checks the category and skips with that
+reason rather than failing permanently.
+
 ## Path differences worth knowing
 
 Every row below was called through `client.connectapi` and returned 200 — so these are live,
@@ -191,10 +211,10 @@ hatch.
 
 Of the 13 methods not fully verified at the start of this pass, 4 were closed
 (`requestReload`, `createGear`, `getGoals`, plus the five women's-health writes earlier). The
-remaining 9 all need hardware or data that cannot be manufactured on this account: a paired device
+remaining ones need hardware or data that cannot be manufactured on this account: a paired device
 (`getDeviceSettings`, `getDeviceSolarData`, `getDeviceAlarms` fan-out, `pushWorkoutToDevice`,
-`downloadHealthSnapshot`), a Garmin Golf scorecard (`getGolfScorecard`, `getGolfShotData`), or an
-enrolled training plan (`getTrainingPlanById`, `getAdaptiveTrainingPlanById`).
+`downloadHealthSnapshot`), a Garmin Golf scorecard (`getGolfScorecard`, `getGolfShotData`), or a
+PHASED training plan (`getTrainingPlanById` — the adaptive sibling is now verified).
 
 ## Method
 

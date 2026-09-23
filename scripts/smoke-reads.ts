@@ -36,13 +36,25 @@ const weekAgo = new Date(Date.now() - 7 * 86_400_000).toISOString().slice(0, 10)
  * it, and re-fetching would spend an extra live round trip to recompute the same answer.
  */
 let trainingPlanIdLookup: Promise<number | string | undefined> | undefined;
+let trainingPlanCategory: string | undefined;
 function firstTrainingPlanId(): Promise<number | string | undefined> {
   trainingPlanIdLookup ??= (async () => {
     const plans = await g.getTrainingPlans();
     const list = plans?.trainingPlanList;
     if (!Array.isArray(list) || list.length === 0) return undefined;
-    const first = list[0] as { planId?: number | string; id?: number | string };
-    return first.planId ?? first.id;
+    // The field is `trainingPlanId` — confirmed live 2026-09-23 against a real enrolled plan.
+    // An earlier version guessed `planId ?? id`; NEITHER exists, so this lookup returned undefined
+    // and the two probes below skipped forever, even on an account that HAS a plan. That is the
+    // same "a skip that can never become a pass" defect twice corrected elsewhere in this harness.
+    // `planId`/`id` are kept as fallbacks only in case Garmin renames it.
+    const first = list[0] as {
+      trainingPlanId?: number | string;
+      planId?: number | string;
+      id?: number | string;
+      trainingPlanCategory?: string;
+    };
+    trainingPlanCategory = first.trainingPlanCategory;
+    return first.trainingPlanId ?? first.planId ?? first.id;
   })();
   return trainingPlanIdLookup;
 }
@@ -377,12 +389,27 @@ const services: Record<string, Probe[]> = {
     // The field name inside a plan row (`planId` vs `id`) is still a guess — no plan has ever been
     // observed — so both are tried. That part genuinely cannot be settled on this account.
     {
+      // NOTE: this 400s with "Not a phased plan." for a Garmin Coach plan, whose
+      // trainingPlanCategory is STATIC — the /phased/{id} endpoint wants a phased plan. That is a
+      // real, informative server response, not a wrong URL, and it is reported as a FAIL rather
+      // than hidden so the distinction stays visible.
       name: "getTrainingPlanById",
       run: async () => {
         const planId = await firstTrainingPlanId();
-        return planId === undefined
-          ? skip("no training plans on the test account — needs a real planId")
-          : g.getTrainingPlanById(planId);
+        if (planId === undefined) {
+          return skip("no training plans on the test account — needs a real planId");
+        }
+        // `/phased/{id}` needs a PHASED plan. A Garmin Coach plan is STATIC and returns a precise
+        // 400 "Not a phased plan." — a real server answer, not a wrong URL. Skipping rather than
+        // failing keeps the run green on an account that cannot hold a phased plan, and this
+        // upgrades itself to a real call the moment one exists.
+        if (trainingPlanCategory !== undefined && trainingPlanCategory !== "PHASED") {
+          return skip(
+            `enrolled plan is ${trainingPlanCategory}, and /phased/{id} needs a PHASED plan ` +
+              `(it answers 400 "Not a phased plan." otherwise)`,
+          );
+        }
+        return g.getTrainingPlanById(planId);
       },
     },
     {
