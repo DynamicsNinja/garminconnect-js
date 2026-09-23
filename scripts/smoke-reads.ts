@@ -3,6 +3,20 @@ import { GarminClient, Garmin, FileTokenStore } from "../src/index.js";
 
 type Probe = { name: string; run: () => Promise<unknown> };
 
+/**
+ * Returned by a probe that could not issue its request at all — a precondition the test account
+ * cannot satisfy (no paired device, no gear, no activity of the required kind).
+ *
+ * This exists because a probe that never fetched anything used to print as `PASS ... null`,
+ * visually identical to "the endpoint returned null". A code review found two device methods
+ * promoted to "live-verified: yes" in AGENTS.md on exactly that evidence. A skip must never be
+ * able to render as a pass.
+ */
+class Skipped {
+  constructor(readonly reason: string) {}
+}
+const skip = (reason: string) => new Skipped(reason);
+
 const client = new GarminClient({ tokenStore: new FileTokenStore("./tokens") });
 if (!(await client.loadTokens())) {
   console.error("No tokens. Run `npm run login` first.");
@@ -214,15 +228,17 @@ const services: Record<string, Probe[]> = {
     // devices this legitimately resolves to `[]` without issuing any per-device request.
     { name: "getDeviceAlarms", run: () => g.getDeviceAlarms() },
     // getDeviceSettings/getDeviceSolarData need a real device id from getDevices(). The test
-    // account has no paired device, so `null` here (skipping the call entirely) is the expected
-    // PASS, not a failure — distinguishing "endpoint works, no device to probe with" from
-    // "wrong URL", which would surface as a GarminHttpError instead.
+    // account has no paired device, and NO endpoint in upstream or this port can register one, so
+    // these two report SKIP — never PASS. They are genuinely unverified against Garmin, and
+    // AGENTS.md says so. Pair a device with the account and these start reporting for real.
     {
       name: "getDeviceSettings",
       run: async () => {
         const list = await g.getDevices();
         const deviceId = list?.[0]?.deviceId;
-        return deviceId === undefined ? null : g.getDeviceSettings(deviceId);
+        return deviceId === undefined
+          ? skip("no paired device on the test account")
+          : g.getDeviceSettings(deviceId);
       },
     },
     {
@@ -230,7 +246,9 @@ const services: Record<string, Probe[]> = {
       run: async () => {
         const list = await g.getDevices();
         const deviceId = list?.[0]?.deviceId;
-        return deviceId === undefined ? null : g.getDeviceSolarData(deviceId, weekAgo, day);
+        return deviceId === undefined
+          ? skip("no paired device on the test account")
+          : g.getDeviceSolarData(deviceId, weekAgo, day);
       },
     },
   ],
@@ -275,10 +293,15 @@ if (!probes) {
   process.exit(1);
 }
 
-let pass = 0, fail = 0;
+let pass = 0, fail = 0, skipped = 0;
 for (const p of probes) {
   try {
     const r = await p.run();
+    if (r instanceof Skipped) {
+      console.log(`  SKIP  ${p.name.padEnd(34)} ${r.reason} (NOT verified — no request was sent)`);
+      skipped++;
+      continue;
+    }
     const shape = r === null ? "null"
       : Buffer.isBuffer(r) ? `Buffer(${r.length} bytes)`
       : Array.isArray(r) ? `array[${r.length}]`
@@ -291,5 +314,7 @@ for (const p of probes) {
     fail++;
   }
 }
-console.log(`\n${pass} passed, ${fail} failed`);
+console.log(
+  `\n${pass} passed, ${fail} failed` + (skipped > 0 ? `, ${skipped} SKIPPED (not verified)` : ""),
+);
 if (fail > 0) process.exitCode = 1;
