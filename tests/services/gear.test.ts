@@ -207,6 +207,45 @@ describe("createGear", () => {
   });
 });
 
+describe("deleteGear", () => {
+  it("DELETEs gear/v2/{uuid} and re-hyphenates a bare 32-char uuid", async () => {
+    // The live trap: getGear returns uuids WITHOUT hyphens, and the endpoint 404s on that form.
+    // Passing the bare form must still produce the hyphenated URL.
+    server.use(
+      http.delete(
+        `${API}/gear-service/gear/v2/a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6`,
+        ({ request }) => {
+          record(request);
+          return new HttpResponse(null, { status: 204 });
+        },
+      ),
+    );
+    const result = await makeGarmin().deleteGear("a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6");
+    expect(seen[0]!.method).toBe("DELETE");
+    expect(seen[0]!.url).toBe(`${API}/gear-service/gear/v2/a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6`);
+    expect(result).toBeNull();
+  });
+
+  it("passes an already-hyphenated uuid through unchanged", async () => {
+    server.use(
+      http.delete(
+        `${API}/gear-service/gear/v2/a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6`,
+        ({ request }) => {
+          record(request);
+          return new HttpResponse(null, { status: 204 });
+        },
+      ),
+    );
+    await makeGarmin().deleteGear("a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6");
+    expect(seen[0]!.url).toBe(`${API}/gear-service/gear/v2/a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6`);
+  });
+
+  it("rejects a non-hex uuid before issuing a request", async () => {
+    await expect(makeGarmin().deleteGear("not-a-uuid!!")).rejects.toThrow(GarminError);
+    expect(seen).toHaveLength(0);
+  });
+});
+
 describe("getGearStats", () => {
   it("hits /gear-service/gear/stats/{gearUUID}", async () => {
     await expect(makeGarmin().getGearStats("aabbccdd")).resolves.toEqual({ totalDistance: 1000 });

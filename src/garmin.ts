@@ -370,6 +370,13 @@ export class Garmin {
   getGearStats(gearUUID: string) {
     return gear.getGearStats(this, gearUUID);
   }
+  /**
+   * NOT upstream parity — upstream has no delete-gear method. Endpoint discovered by observing
+   * Garmin's own web client; see `src/services/gear.ts`. IRREVERSIBLE.
+   */
+  deleteGear(gearUUID: string) {
+    return gear.deleteGear(this, gearUUID);
+  }
   getGearDefaults(userProfileNumber: number | string) {
     return gear.getGearDefaults(this, userProfileNumber);
   }

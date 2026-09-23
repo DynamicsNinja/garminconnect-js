@@ -189,3 +189,34 @@ export async function setGearDefault(
     throw cause;
   }
 }
+
+/**
+ * `DELETE /gear-service/gear/v2/{gearUUID}` — permanently removes a gear item and its activity
+ * history. Resolves to `null` on success (Garmin answers 204).
+ *
+ * **NOT a port of upstream python-garminconnect** — upstream has no delete-gear method, which is
+ * why this project spent its entire build documenting gear fixtures as permanent residue. The
+ * endpoint was found on 2026-09-23 by watching Garmin's own web client delete a gear item
+ * (`connect.garmin.com/app/gear` -> gear detail -> ⋮ -> Delete), and then verified through this
+ * client against the test account.
+ *
+ * **The UUID must be HYPHENATED.** This is the trap: `getGear` returns `uuid` WITHOUT hyphens
+ * (`bf86b328b51f...`), and passing that form back here returns 404 — confirmed live, both ways.
+ * `createGear`'s own response uses the hyphenated form. This function re-inserts the hyphens for
+ * you when given the 32-character bare form, so either shape works; the 404 only bites callers who
+ * hand-roll the URL.
+ *
+ * IRREVERSIBLE: Garmin's own confirmation dialog warns it "will permanently remove this gear and
+ * its activity history". There is no undo.
+ */
+export async function deleteGear(host: GearHost, gearUUID: string): Promise<unknown> {
+  const uuid = validateUuid(gearUUID);
+  const bare = uuid.replace(/-/g, "");
+  const hyphenated =
+    bare.length === 32
+      ? `${bare.slice(0, 8)}-${bare.slice(8, 12)}-${bare.slice(12, 16)}-${bare.slice(16, 20)}-${bare.slice(20)}`
+      : uuid;
+  return host.client.connectapi(`/gear-service/gear/v2/${pathSegment(hyphenated)}`, {
+    method: "DELETE",
+  });
+}
