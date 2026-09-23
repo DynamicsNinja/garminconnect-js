@@ -312,12 +312,29 @@ const services: Record<string, Probe[]> = {
     { name: "getGolfClubStats", run: () => g.getGolfClubStats() },
     { name: "getGolfUserStats", run: () => g.getGolfUserStats() },
     // getGolfScorecard/getGolfShotData need a real scorecardId, and the test account has never
-    // recorded a round of golf, so no real id exists to probe with. Upstream's own docstring notes
-    // a single-item detail endpoint CAN legitimately 404 for "no such scorecard" (unlike a list
-    // endpoint), so a fabricated id here is an honest probe of the URL shape, not a fake pass —
-    // whatever comes back (404 or otherwise) is reported verbatim rather than skipped.
-    { name: "getGolfScorecard (no real scorecard)", run: () => g.getGolfScorecard(1) },
-    { name: "getGolfShotData (no real scorecard)", run: () => g.getGolfShotData(1) },
+    // recorded a round of golf, so no real id exists. These are SKIPPED rather than probed with a
+    // fabricated id, for three reasons:
+    //
+    //  1. A fabricated id proves almost nothing. `getGolfScorecard(1)` returned `200 {}` — that
+    //     shows the path parses, not that the endpoint works, yet it printed as a PASS.
+    //  2. `getGolfShotData(1)` returned 410 Gone, so it printed FAIL — and the harness sets a
+    //     non-zero exit code when anything fails. A probe that can never pass makes the whole
+    //     golf smoke run permanently red, which is how a suite gets ignored.
+    //  3. Scorecard ids in gcs-golfcommunity look globally scoped rather than per-account, so a
+    //     low fabricated id like `1` could name some other user's real scorecard. Read-only and
+    //     harmless here, but not a habit to keep.
+    //
+    // The 410 observation is preserved in AGENTS.md's gotchas and the task-13 report, which is
+    // where an unresolved anomaly belongs — not encoded in the harness as an expected pass, which
+    // would then break for the opposite reason if Garmin ever changed it.
+    {
+      name: "getGolfScorecard",
+      run: async () => skip("no recorded round of golf on the test account — needs a real scorecardId"),
+    },
+    {
+      name: "getGolfShotData",
+      run: async () => skip("no recorded round of golf on the test account — needs a real scorecardId"),
+    },
   ],
 };
 

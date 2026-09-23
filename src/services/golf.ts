@@ -57,6 +57,8 @@ export async function getGolfScorecard(
 }
 
 const HOLE_NUMBER_RE = /^\d+$/;
+const MIN_HOLE = 1;
+const MAX_HOLE = 18;
 
 /**
  * Mirrors upstream `_validate_hole_numbers`: strips spaces, accepts commas or hyphens as
@@ -66,6 +68,12 @@ const HOLE_NUMBER_RE = /^\d+$/;
  * upstream logs a warning and requests all 18 holes unfiltered in that case; this port drops the
  * filter the same way and lets the caller's own logging (if any) note it, rather than adding a
  * console.warn a library shouldn't own.
+ *
+ * Every token must be a hole in 1-18, matching upstream's
+ * `HOLE_NUMBERS_REGEX = ^([1-9]|1[0-8])([,-]([1-9]|1[0-8]))*$`. The range check runs BEFORE the
+ * >9 drop-filter, and the ordering is load-bearing: without it, a typo like `"19"` or `"100"` would
+ * fall into the >9 branch and silently fetch ALL EIGHTEEN holes instead of raising. A caller's
+ * mistake must fail loudly, not quietly widen the query's scope.
  */
 function normalizeHoleNumbers(holeNumbers: string): string | undefined {
   const stripped = holeNumbers.replace(/\s+/g, "");
@@ -77,7 +85,13 @@ function normalizeHoleNumbers(holeNumbers: string): string | undefined {
     if (!HOLE_NUMBER_RE.test(token)) {
       throw new GarminError(`Invalid hole_numbers: "${holeNumbers}"`);
     }
-    return Number(token);
+    const n = Number(token);
+    if (n < MIN_HOLE || n > MAX_HOLE) {
+      throw new GarminError(
+        `Invalid hole_numbers: "${holeNumbers}" — holes must be ${MIN_HOLE}-${MAX_HOLE}, got ${n}`,
+      );
+    }
+    return n;
   });
   if (numbers.some((n) => n > 9)) {
     return undefined;

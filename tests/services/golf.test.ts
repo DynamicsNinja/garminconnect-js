@@ -145,6 +145,27 @@ describe("getGolfShotData", () => {
     await expect(makeGarmin().getGolfShotData(123, "abc")).rejects.toThrow(GarminError);
     expect(seen).toHaveLength(0);
   });
+
+  it("throws on an out-of-range hole number instead of silently fetching all 18", async () => {
+    // The ordering of the two checks is the point. A typo like "19" or "100" is numerically >9, so
+    // without an explicit 1-18 range check it would fall into the drop-the-filter branch above and
+    // quietly widen the request to every hole — a wrong-scope query that looks like a success.
+    // Upstream's HOLE_NUMBERS_REGEX rejects these; so must this.
+    for (const bad of ["19", "25", "100", "0", "1,19"]) {
+      await expect(makeGarmin().getGolfShotData(123, bad)).rejects.toThrow(GarminError);
+    }
+    expect(seen).toHaveLength(0);
+  });
+
+  it("accepts the boundary holes 1 and 18", async () => {
+    await makeGarmin().getGolfShotData(123, "1");
+    expect(seen[0]!.url).toBe(
+      `${API}/gcs-golfcommunity/api/v2/shot/scorecard/123/hole?hole-numbers=1`,
+    );
+    // 18 is in range but >9, so the documented drop-the-filter branch applies — it must NOT throw.
+    await makeGarmin().getGolfShotData(123, "18");
+    expect(seen[1]!.url).toBe(`${API}/gcs-golfcommunity/api/v2/shot/scorecard/123/hole`);
+  });
 });
 
 describe("getGolfClubStats", () => {

@@ -130,7 +130,10 @@ describe("AGENTS.md drift guard", () => {
     const example = /```ts\n([\s\S]*?)```/.exec(section)?.[1] ?? "";
     expect(example, "Section 4's TypeScript example block is missing.").not.toBe("");
 
-    const paths = [...example.matchAll(/["'`](\/[a-z0-9-]+-(?:service|gateway)\/[^"'`$]*)/gi)]
+    // Deliberately broad: an earlier version required a `-service`/`-gateway` suffix, which would
+    // have let a path like `/gcs-golfcommunity/api/v2/...` slip past the check entirely. Any
+    // absolute path in the example is a candidate.
+    const paths = [...example.matchAll(/["'`](\/[a-z0-9][a-z0-9/-]*\/[^"'`${}\s]*)/gi)]
       .map((m) => m[1])
       .filter((p): p is string => p !== undefined);
     expect(
