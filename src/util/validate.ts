@@ -16,3 +16,30 @@ export function validateSportKey(sport: string): string {
   }
   return normalized;
 }
+
+/**
+ * Mirrors upstream `_validate_non_negative_integer`. Extracted here (from `badges.ts`, where it was
+ * first written and live-verified) when `goals.ts` needed the same rule — third-copy prevention,
+ * same reason `validateSportKey` lives here.
+ */
+export function validateNonNegativeInteger(value: number, paramName: string): number {
+  if (!Number.isInteger(value)) {
+    throw new GarminError(`${paramName} must be an integer`);
+  }
+  if (value < 0) {
+    throw new GarminError(`${paramName} must be non-negative, got: ${value}`);
+  }
+  return value;
+}
+
+/** Mirrors upstream `_validate_positive_integer`. See `validateNonNegativeInteger` above. */
+export function validatePositiveInteger(value: number, paramName: string): number {
+  if (!Number.isInteger(value)) {
+    throw new GarminError(`${paramName} must be an integer`);
+  }
+  if (value <= 0) {
+    throw new GarminError(`${paramName} must be a positive integer, got: ${value}`);
+  }
+  return value;
+}
+

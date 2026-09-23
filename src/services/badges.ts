@@ -1,4 +1,3 @@
-import { GarminError } from "../errors.js";
 import type { GarminClient } from "../client.js";
 import type {
   AdhocChallenge,
@@ -8,31 +7,10 @@ import type {
   InprogressVirtualChallenge,
   NonCompletedBadgeChallenge,
 } from "../types/badges.js";
+import { validateNonNegativeInteger, validatePositiveInteger } from "../util/validate.js";
 
 export interface BadgesHost {
   readonly client: GarminClient;
-}
-
-/** Mirrors upstream `_validate_non_negative_integer`. */
-function validateNonNegativeInteger(value: number, paramName: string): number {
-  if (!Number.isInteger(value)) {
-    throw new GarminError(`${paramName} must be an integer`);
-  }
-  if (value < 0) {
-    throw new GarminError(`${paramName} must be non-negative, got: ${value}`);
-  }
-  return value;
-}
-
-/** Mirrors upstream `_validate_positive_integer`. */
-function validatePositiveInteger(value: number, paramName: string): number {
-  if (!Number.isInteger(value)) {
-    throw new GarminError(`${paramName} must be an integer`);
-  }
-  if (value <= 0) {
-    throw new GarminError(`${paramName} must be a positive integer, got: ${value}`);
-  }
-  return value;
 }
 
 /** Upstream `get_earned_badges`. Passes through unchecked — stays nullable, not coalesced. */

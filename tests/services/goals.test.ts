@@ -118,4 +118,18 @@ describe("getGoals", () => {
     await expect(makeGarmin().getGoals("bogus")).rejects.toThrow(GarminError);
     expect(seen).toHaveLength(0);
   });
+
+  it("throws before any request for limit = 0, which would otherwise fire 2000 live calls", async () => {
+    // `start` advances by `limit` each page, so limit=0 never advances: every request would be
+    // identical and the loop would run to the 2000-page cap against a real account before
+    // throwing. Upstream guards this with _validate_positive_integer; so does this port.
+    await expect(makeGarmin().getGoals("active", 0, 0)).rejects.toThrow(GarminError);
+    expect(seen).toHaveLength(0);
+  });
+
+  it("throws before any request for a negative start or a non-integer limit", async () => {
+    await expect(makeGarmin().getGoals("active", -1)).rejects.toThrow(GarminError);
+    await expect(makeGarmin().getGoals("active", 0, 1.5)).rejects.toThrow(GarminError);
+    expect(seen).toHaveLength(0);
+  });
 });

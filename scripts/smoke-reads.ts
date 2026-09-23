@@ -290,9 +290,16 @@ const services: Record<string, Probe[]> = {
     { name: "getUserprofileSettings", run: () => g.getUserprofileSettings() },
   ],
   goals: [
-    // The test account is empty (no goals). A 200 with `[]` is a real, positive result: it proves
-    // the URL, query params, and the load-bearing Sec-Fetch-Site header are correct — it does NOT
-    // exercise the multi-page continuation branch or the 2000-page abort path (unit-tested only).
+    // The test account is empty (no goals). A 200 with `[]` proves the URL and query params are
+    // right and that Garmin accepts the request with the Sec-Fetch-Site header present.
+    //
+    // It does NOT prove the header WORKS, and nothing runnable here can. The header exists to stop
+    // goal-service silently returning `[]` for newer custom goal types (upstream #431) — so on an
+    // account with no goals, "header present" and "header dropped" produce byte-identical results.
+    // The unit test in tests/services/goals.test.ts asserts the header on the real outgoing
+    // Request, which is the strongest check available; the header's effect rests on upstream
+    // source review alone. Also NOT exercised here: the multi-page continuation branch (unit-tested)
+    // and the 2000-page abort path (not covered anywhere).
     { name: "getGoals (active)", run: () => g.getGoals("active") },
     { name: "getGoals (future)", run: () => g.getGoals("future") },
     { name: "getGoals (past)", run: () => g.getGoals("past") },

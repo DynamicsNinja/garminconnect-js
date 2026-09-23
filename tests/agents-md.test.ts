@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { Garmin } from "../src/garmin.js";
@@ -93,5 +93,67 @@ describe("AGENTS.md drift guard", () => {
         "confusing runtime TypeError instead of a compile error, because the doc told it " +
         "the method was real.",
     ).toEqual([]);
+  });
+
+  /**
+   * Section 4's headline count drifted twice before this test existed: it was incremented by each
+   * task's author on top of a figure nobody re-derived, reaching "~83" when the real surface was
+   * 134, then "136" when it was 140. A freshly-edited wrong number looks more trustworthy than a
+   * stale one, and the two directional checks above only compare NAMES — never the count.
+   */
+  it("states the correct method count in section 4", () => {
+    const actual = garminMethodNames().length;
+    const match = /partial port\*\*: (\d+) of upstream/.exec(agentsMd);
+    expect(
+      match,
+      'AGENTS.md section 4 no longer contains a "**partial port**: <N> of upstream" sentence. ' +
+        "Restore it (or update this test if the wording intentionally changed) — it is the " +
+        "figure an agent uses to judge how much of upstream is reachable without connectapi.",
+    ).not.toBeNull();
+    expect(
+      Number(match?.[1]),
+      `AGENTS.md section 4 claims ${match?.[1]} methods; Garmin.prototype actually has ${actual}. ` +
+        "Update the number (both places on that line) rather than incrementing the old one.",
+    ).toBe(actual);
+  });
+
+  /**
+   * Section 4's worked example teaches the `connectapi` escape hatch, so it must demonstrate an
+   * endpoint this library genuinely does NOT wrap. It has been retargeted twice after the endpoint
+   * it named got ported underneath it (`get_devices`, then `get_goals`) — each time leaving a
+   * snippet that told agents to hand-roll a call a real method already covered. The `get_goals`
+   * version was worse than redundant: it omitted that endpoint's load-bearing `Sec-Fetch-Site`
+   * header, so copying it would have silently returned `[]`.
+   */
+  it("does not demonstrate connectapi for an endpoint a real Garmin method already covers", () => {
+    const section = agentsMd.slice(agentsMd.indexOf("## 4. These methods do NOT exist"));
+    const example = /```ts\n([\s\S]*?)```/.exec(section)?.[1] ?? "";
+    expect(example, "Section 4's TypeScript example block is missing.").not.toBe("");
+
+    const paths = [...example.matchAll(/["'`](\/[a-z0-9-]+-(?:service|gateway)\/[^"'`$]*)/gi)]
+      .map((m) => m[1])
+      .filter((p): p is string => p !== undefined);
+    expect(
+      paths.length,
+      `No endpoint path found in section 4's example:\n${example}`,
+    ).toBeGreaterThan(0);
+
+    // Every service module's source, concatenated: if the example's path prefix appears there, a
+    // real method already wraps it and the example is teaching the wrong thing.
+    const servicesDir = fileURLToPath(new URL("../src/services", import.meta.url));
+    const sources = readdirSync(servicesDir)
+      .filter((f) => f.endsWith(".ts"))
+      .map((f) => readFileSync(`${servicesDir}/${f}`, "utf8"))
+      .join("\n");
+
+    for (const path of paths) {
+      const prefix = path.split("/").slice(0, 3).join("/");
+      expect(
+        sources.includes(prefix),
+        `Section 4's connectapi example uses "${path}", but "${prefix}" is already wrapped by a ` +
+          "real method in src/services. The example must demonstrate a genuinely absent endpoint " +
+          "— pick one from the 'Notably absent' list and verify it against upstream first.",
+      ).toBe(false);
+    }
   });
 });
