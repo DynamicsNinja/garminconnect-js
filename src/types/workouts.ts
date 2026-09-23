@@ -105,10 +105,14 @@ export const WORKOUT_SWIM_INSTRUCTION_TYPE_ID = {
  * account on 2026-09-23 by submitting each candidate on its own and keeping only those that were
  * accepted.
  *
- * The set turns out to be exactly the FIT SDK's `exercise_category` enum (the first 34 entries
- * here, in enum order) plus six Garmin Connect additions. 49 other plausible names — `COOL_DOWN`,
- * `BURPEE`, `KETTLEBELL`, `MOBILITY`, `YOGA`, `PILATES`, muscle-group names like `CHEST` and
- * `LEGS`, and lift names like `CLEAN` and `SNATCH` — were all rejected.
+ * The set is the FIT SDK's `exercise_category` enum (the first 34 entries here, in enum order) plus
+ * 16 Garmin Connect additions — 50 in total. The Connect ones were found by reading the web
+ * exercise picker's `data-category-key` attributes and then confirming each against the API. 49
+ * other plausible names were tested and ALL rejected: `COOL_DOWN` (though `WARM_UP` is valid),
+ * `BURPEE`, `KETTLEBELL`, `MOBILITY`, `YOGA`, `PILATES`, muscle groups like `CHEST` and `LEGS`, and
+ * lift names like `CLEAN` and `SNATCH` (those belong in the exercise `name`, under `OLYMPIC_LIFT`).
+ *
+ * `BIKE`, `STRETCH` and `UNKNOWN` are accepted by the API but are NOT offered in the web picker.
  *
  * This matters more than a normal enum because **an invalid category fails the WHOLE upload** with
  * `400 "Invalid category"`, not just the offending step, and no endpoint lists the valid values.
@@ -150,12 +154,25 @@ export const WORKOUT_EXERCISE_CATEGORIES = [
   "RUN",
   "UNKNOWN",
   // --- Garmin Connect additions, beyond the FIT enum ---
+  // The first three are accepted by the API but are NOT offered in the web exercise picker.
   "BIKE",
   "STRETCH",
   "BANDED_EXERCISES",
   "BATTLE_ROPE",
   "SLED",
   "SUSPENSION",
+  // Equipment- and modality-specific categories, read from the web picker's `data-category-key`
+  // and then each confirmed against the API.
+  "BIKE_OUTDOOR",
+  "INDOOR_BIKE",
+  "RUN_INDOOR",
+  "ELLIPTICAL",
+  "STAIR_STEPPER",
+  "FLOOR_CLIMB",
+  "LADDER",
+  "SANDBAG",
+  "SLEDGE_HAMMER",
+  "TIRE",
 ] as const;
 
 /** One of the 40 categories Garmin accepts. See `WORKOUT_EXERCISE_CATEGORIES`. */

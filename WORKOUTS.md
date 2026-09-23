@@ -179,20 +179,23 @@ exercises; the reliable way to find a `name` is to build one step in the web des
 workout back.
 
 **`category` is type-constrained**, because an invalid one fails the **whole upload** with
-`400 "Invalid category"` — not just the offending step — and no endpoint lists the valid values.
-They were determined exhaustively against a live account by submitting each candidate alone.
-
-The accepted set is exactly the **FIT SDK `exercise_category` enum** plus **six Garmin Connect
-additions** — 40 in total, exported as `WORKOUT_EXERCISE_CATEGORIES`:
+`400 "Invalid category"` — not just the offending step. The accepted set is the **FIT SDK
+`exercise_category` enum** plus **16 Garmin Connect additions** — 50 in total, exported as
+`WORKOUT_EXERCISE_CATEGORIES`. Each was confirmed against a live account.
 
 ```
-BENCH_PRESS  CALF_RAISE  CARDIO  CARRY  CHOP  CORE  CRUNCH  CURL  DEADLIFT  FLYE
-HIP_RAISE  HIP_STABILITY  HIP_SWING  HYPEREXTENSION  LATERAL_RAISE  LEG_CURL  LEG_RAISE
-LUNGE  OLYMPIC_LIFT  PLANK  PLYO  PULL_UP  PUSH_UP  ROW  SHOULDER_PRESS
-SHOULDER_STABILITY  SHRUG  SIT_UP  SQUAT  TOTAL_BODY  TRICEPS_EXTENSION  WARM_UP  RUN
-UNKNOWN                                                        ← the FIT enum ends here
-BIKE  STRETCH  BANDED_EXERCISES  BATTLE_ROPE  SLED  SUSPENSION ← Garmin Connect additions
+FIT SDK enum (34)
+  BENCH_PRESS  CALF_RAISE  CARDIO  CARRY  CHOP  CORE  CRUNCH  CURL  DEADLIFT  FLYE
+  HIP_RAISE  HIP_STABILITY  HIP_SWING  HYPEREXTENSION  LATERAL_RAISE  LEG_CURL  LEG_RAISE
+  LUNGE  OLYMPIC_LIFT  PLANK  PLYO  PULL_UP  PUSH_UP  ROW  SHOULDER_PRESS
+  SHOULDER_STABILITY  SHRUG  SIT_UP  SQUAT  TOTAL_BODY  TRICEPS_EXTENSION  WARM_UP  RUN  UNKNOWN
+
+Garmin Connect additions (16)
+  BANDED_EXERCISES  BATTLE_ROPE  SLED  SUSPENSION  SANDBAG  SLEDGE_HAMMER  TIRE  LADDER
+  BIKE_OUTDOOR  INDOOR_BIKE  RUN_INDOOR  ELLIPTICAL  STAIR_STEPPER  FLOOR_CLIMB  BIKE  STRETCH
 ```
+
+`BIKE`, `STRETCH` and `UNKNOWN` are accepted by the API but are not offered in the web picker.
 
 49 other plausible names were tested and **all rejected**, including the ones you are most likely to
 reach for:
@@ -207,6 +210,22 @@ reach for:
 
 Because the type is a union, a wrong category is a **compile error** rather than a failed upload.
 If Garmin adds one before this library catches up, cast it: `category: "NEW_ONE" as ExerciseCategory`.
+
+### Exercise `name` fails SILENTLY — this is the one to watch
+
+> A `name` Garmin does not recognise is **not** rejected. It is stored as an **empty string**, and
+> the upload succeeds. The same happens if the name is real but belongs to a different `category` —
+> `{ category: "SQUAT", name: "BARBELL_BENCH_PRESS" }` stores as `""`. You get a workout whose step
+> has a category but no exercise, with no error anywhere.
+
+So `category` fails loudly and `name` fails quietly. If the exercise matters to you, **read the
+workout back and check `exerciseName` is non-empty.**
+
+Garmin's picker holds **1548 exercise names across 47 categories** (`PLANK` alone has 131, `SQUAT`
+104, `LUNGE` 93). They are bundled into the web app rather than served by any API, so this library
+does not ship them. To find a key, open the exercise picker in Garmin's workout designer and read
+the `data-exercise-key` attribute off the option — or pick it in the UI, save, and read the workout
+back through `getWorkoutById`.
 
 ### Multi-sport
 
