@@ -120,6 +120,11 @@ Pass `target`, and optionally `secondaryTarget` for a second simultaneous one.
 Power and heart rate each have **two forms under the same target key** — a configured zone, or an
 explicit range. Both are verified; pick whichever you mean.
 
+> **`gradePercent` works as a primary target only.** As a `secondaryTarget`, Garmin stores its first
+> value multiplied by ten and leaves the second alone — `[2, 5]` reads back as `[20, 5]`. Verified
+> over six pairs. The builder throws rather than send a value it knows will be mangled; dividing by
+> ten to compensate would break the day Garmin fixes it. Use grade as the primary `target`.
+
 > **Naming overlap worth knowing.** At the top level of a step, `heartRateBpm` and `powerWatts` are
 > single numbers and mean *end conditions*. Inside `target`, they are ranges and mean *targets*.
 

@@ -251,7 +251,24 @@ function targetOf(t: StepTarget | undefined, secondary = false): Record<string, 
   if ("heartRateZone" in t) return zone(TARGET.HEART_RATE_ZONE, "heart.rate.zone", t.heartRateZone);
   if ("heartRateBpm" in t) return range(TARGET.HEART_RATE_ZONE, "heart.rate.zone", t.heartRateBpm);
   if ("cadence" in t) return range(TARGET.CADENCE, "cadence", t.cadence);
-  if ("gradePercent" in t) return range(TARGET.GRADE, "grade", t.gradePercent);
+  if ("gradePercent" in t) {
+    // REJECTED as a secondary target, because Garmin does not round-trip it there: the stored
+    // `secondaryTargetValueOne` comes back MULTIPLIED BY TEN while `secondaryTargetValueTwo` is
+    // untouched. Confirmed over six pairs on 2026-09-23 — [2,5]->[20,5], [1,10]->[10,10],
+    // [3,7]->[30,7], [4,4]->[40,4], [6,12]->[60,12], [0,1]->[0,1]. As a PRIMARY target grade is
+    // exact, so this is a Garmin-side inconsistency in the secondary slot, not a bug here.
+    //
+    // Silently sending a value that comes back tenfold is worse than refusing, and dividing by ten
+    // to compensate would be guesswork that breaks the day Garmin fixes it.
+    if (secondary) {
+      throw new GarminError(
+        "gradePercent cannot be used as a secondaryTarget: Garmin stores its first value multiplied " +
+          "by ten there (sending [2, 5] reads back as [20, 5]), so it does not round-trip. Use it as " +
+          "the primary `target` instead, where it is exact.",
+      );
+    }
+    return range(TARGET.GRADE, "grade", t.gradePercent);
+  }
   if ("resistance" in t) return range(TARGET.RESISTANCE, "resistance", t.resistance);
   return { ...typed(TARGET.SWIM_CSS_OFFSET, "swim.css.offset"), [oneField]: t.swimCssOffsetSeconds };
 }

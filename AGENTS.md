@@ -281,6 +281,10 @@ Garmin's step types (`repeat` is the block form below).
 `pace: { minPerKm | minPerMile }` · `speedMetresPerSecond` · `powerZone` · `powerWatts` ·
 `heartRateZone` · `heartRateBpm` · `cadence` · `gradePercent` · `resistance` ·
 `swimCssOffsetSeconds`.
+`gradePercent` is accepted as a PRIMARY target only. As a `secondaryTarget` Garmin stores its first
+value MULTIPLIED BY TEN and the second unchanged (`[2, 5]` reads back `[20, 5]`, verified over six
+pairs), so the builder throws instead of sending it. Grade as the primary target is exact.
+
 Note power and heart rate each have TWO forms under the SAME target key — a configured zone
 (`powerZone`/`heartRateZone`, stored as `zoneNumber`) or an explicit range (`powerWatts`/
 `heartRateBpm`, stored as a value pair). Both are live-verified. `secondaryTarget` maps onto the

@@ -212,6 +212,26 @@ describe("buildWorkout", () => {
     ).toThrow(/exactly one/);
   });
 
+  it("rejects gradePercent as a SECONDARY target, because Garmin stores it x10 there", () => {
+    // Found by the combination matrix: sent [2,5], stored [20,5]; [3,7] -> [30,7]; [6,12] -> [60,12].
+    // The first value is multiplied by ten and the second is not. As a PRIMARY target grade is
+    // exact, so this is Garmin's inconsistency in the secondary slot, not ours. Refusing beats
+    // silently sending a value that reads back tenfold, and dividing by ten to compensate would
+    // break the day Garmin fixes it.
+    expect(() =>
+      buildWorkout("x", { sport: "cycling" })
+        .interval({ time: 60, target: { cadence: [80, 90] }, secondaryTarget: { gradePercent: [2, 5] } })
+        .build(),
+    ).toThrow(/gradePercent cannot be used as a secondaryTarget/);
+
+    // The same target as PRIMARY is fine and must stay fine.
+    const w = buildWorkout("x", { sport: "cycling" })
+      .interval({ time: 60, target: { gradePercent: [2, 5] }, secondaryTarget: { cadence: [80, 90] } })
+      .build();
+    const step = w.workoutSegments[0]!.workoutSteps[0] as ExecutableWorkoutStep;
+    expect([step["targetValueOne"], step["targetValueTwo"]]).toEqual([2, 5]);
+  });
+
   describe("guards", () => {
     it("rejects a step with no end condition", () => {
       expect(() => buildWorkout("x", { sport: "running" }).interval({}).build()).toThrow(GarminError);

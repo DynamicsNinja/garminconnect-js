@@ -62,7 +62,8 @@
     "demo": "tsx examples/demo.ts",
     "smoke": "tsx scripts/smoke-reads.ts",
     "smoke:write": "tsx scripts/smoke-writes.ts",
-    "smoke:builder": "tsx scripts/smoke-builder.ts"
+    "smoke:builder": "tsx scripts/smoke-builder.ts",
+    "smoke:matrix": "tsx scripts/smoke-builder-matrix.ts"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
