@@ -7,9 +7,15 @@
  * (delete, where possible) round-trip against a dedicated, empty Garmin test account. The five
  * write methods in THIS file (`updateMenstrualDailyLog`, `updateMenstrualCalendar`,
  * `initMenstrualCycleSetup`, `confirmMenstrualPeriodStart`, `updateMenstrualSettings`) are
- * deliberately EXCLUDED from that policy and MUST NOT be executed against any live account,
- * including the test account, under any circumstances — not with synthetic values, not "just to
- * see the error shape."
+ * deliberately EXCLUDED from that policy by default and MUST NOT be executed against any live
+ * account — not with synthetic values, not "just to see the error shape."
+ *
+ * ONE EXPLICIT EXEMPTION, granted by the repo owner on 2026-09-23: the dedicated throwaway test
+ * account (profileId 151388919) may be written to, on the stated grounds that it is a blank
+ * account created solely for testing and that permanent residue there does not matter. That
+ * exemption is account-scoped and does not generalise: `scripts/seed-test-account.ts` still
+ * refuses to run unless the live profileId matches GARMIN_TEST_PROFILE_ID, and no other account
+ * is covered by it. Anyone reusing this library must treat the default rule above as binding.
  *
  * Why: these are irreversible writes to real health-data categories (menstrual-cycle and
  * pregnancy records). None of the five has a documented delete/undo endpoint anywhere in
@@ -22,10 +28,12 @@
  * risk of the "93 kg -> 93,000 kg" kind that only a read-back would catch.
  *
  * These five writes ship IMPLEMENTED and UNIT-TESTED (against MSW-mocked responses only) and are
- * marked "not live-verified" in AGENTS.md, with this reason stated. Their unit tests — including
- * literal composed-URL and composed-body assertions — are the ONLY verification they have ever
- * received. Do not "helpfully" add a smoke-write probe for this service to
- * `scripts/smoke-writes.ts`; that file intentionally has no `womensHealth` entry.
+ * marked in AGENTS.md with the reason stated. Their unit tests — including literal composed-URL
+ * and composed-body assertions — were for a long time the ONLY verification they had; under the
+ * 2026-09-23 exemption above they are additionally exercised against the test account by
+ * `scripts/seed-test-account.ts`. `scripts/smoke-writes.ts` still intentionally has no
+ * `womensHealth` entry: the exemption covers a deliberate, gated, one-account seeding run, not
+ * routine inclusion in the general write harness.
  *
  * The six read methods in this file (`getMenstrualDataForDate`, `getMenstrualCalendarData`,
  * `getMenstrualLastConfirmed`, `getMenstrualCycleSummary`, `getMenstrualReports`,
