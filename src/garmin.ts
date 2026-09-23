@@ -377,6 +377,13 @@ export class Garmin {
   deleteGear(gearUUID: string) {
     return gear.deleteGear(this, gearUUID);
   }
+  /**
+   * NOT upstream parity — a working replacement for `setGearDefault`, whose upstream endpoint is
+   * dead. Uses the v2 full-record PUT Garmin's own web client uses. See `src/services/gear.ts`.
+   */
+  setGearActivityDefaults(gearUUID: string, activityTypeKeys: string[]) {
+    return gear.setGearActivityDefaults(this, gearUUID, activityTypeKeys);
+  }
   getGearDefaults(userProfileNumber: number | string) {
     return gear.getGearDefaults(this, userProfileNumber);
   }

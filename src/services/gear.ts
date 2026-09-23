@@ -220,3 +220,50 @@ export async function deleteGear(host: GearHost, gearUUID: string): Promise<unkn
     method: "DELETE",
   });
 }
+
+/**
+ * Sets which activity types this gear is the default for — a **working replacement for
+ * `setGearDefault`**, which is dead upstream.
+ *
+ * **NOT upstream parity.** `setGearDefault` ports upstream's
+ * `PUT /gear-service/gear/{uuid}/activityType/{TYPE}/default/true` faithfully, and that endpoint
+ * 404s on every activityType spelling, against fresh gear and real gear alike — three separate
+ * investigations (Tasks 7, the 2026-09-23 CRUD pass, and the web-client capture) all failed to make
+ * it work. Watching Garmin's own client save the "Activities for This Gear" field showed why: the
+ * modern mechanism is not a dedicated endpoint at all, but a full-record
+ * `PUT /gear-service/gear/v2/{uuid}` carrying `associatedActivityTypes` — the same array shape
+ * `createGear` already posts.
+ *
+ * `activityTypeKeys` are LOWERCASE (`"running"`, `"cycling"`), matching `createGear`'s convention —
+ * NOT the upper-cased form `setGearDefault` sends through `validateSportKey`. That asymmetry is
+ * upstream's, and it is one plausible reason the old endpoint never matched anything.
+ *
+ * READ-MODIFY-WRITE: this GETs the current gear record, swaps `associatedActivityTypes` wholesale,
+ * and PUTs the whole record back. Two concurrent callers can clobber each other, and any field
+ * Garmin adds to the record travels along untouched. Passing `[]` clears all defaults.
+ *
+ * Verified live 2026-09-23: setting `["running", "cycling"]` was read back from both
+ * `/gear-service/gear/v2/{uuid}` and this port's own `getGearDefaults` (which reported
+ * `activityTypePk` 1 and 2).
+ */
+export async function setGearActivityDefaults(
+  host: GearHost,
+  gearUUID: string,
+  activityTypeKeys: string[],
+): Promise<unknown> {
+  const uuid = validateUuid(gearUUID);
+  const path = `/gear-service/gear/v2/${pathSegment(uuid)}`;
+  const current = await host.client.connectapi<Record<string, unknown>>(path);
+  if (!current) {
+    throw new GarminError(`Cannot set gear defaults: no gear found for UUID ${gearUUID}`);
+  }
+  const body = {
+    ...current,
+    associatedActivityTypes: activityTypeKeys.map((activityTypeKey) => ({
+      activityTypeKey,
+      defaultGear: true,
+      preferredGear: false,
+    })),
+  };
+  return host.client.connectapi(path, { method: "PUT", json: body });
+}

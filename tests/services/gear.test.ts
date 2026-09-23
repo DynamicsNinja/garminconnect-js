@@ -207,6 +207,70 @@ describe("createGear", () => {
   });
 });
 
+describe("setGearActivityDefaults", () => {
+  const UUID = "a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6";
+
+  it("read-modify-writes the v2 record, replacing associatedActivityTypes with lowercase keys", async () => {
+    let putBody: unknown;
+    server.use(
+      http.get(`${API}/gear-service/gear/v2/${UUID}`, ({ request }) => {
+        record(request);
+        return HttpResponse.json({
+          uuid: UUID,
+          name: "existing",
+          gearType: "SHOES",
+          associatedActivityTypes: [{ activityTypeKey: "hiking", defaultGear: true, preferredGear: false }],
+        });
+      }),
+      http.put(`${API}/gear-service/gear/v2/${UUID}`, async ({ request }) => {
+        putBody = await request.clone().json();
+        record(request);
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+
+    await makeGarmin().setGearActivityDefaults(UUID, ["running", "cycling"]);
+
+    expect(seen.map((x) => `${x.method} ${x.url}`)).toEqual([
+      `GET ${API}/gear-service/gear/v2/${UUID}`,
+      `PUT ${API}/gear-service/gear/v2/${UUID}`,
+    ]);
+    // Unrelated fields must survive the round trip — this is a full-record PUT.
+    expect(putBody).toEqual({
+      uuid: UUID,
+      name: "existing",
+      gearType: "SHOES",
+      associatedActivityTypes: [
+        { activityTypeKey: "running", defaultGear: true, preferredGear: false },
+        { activityTypeKey: "cycling", defaultGear: true, preferredGear: false },
+      ],
+    });
+  });
+
+  it("clears all defaults when given an empty array", async () => {
+    let putBody: { associatedActivityTypes?: unknown[] } | undefined;
+    server.use(
+      http.get(`${API}/gear-service/gear/v2/${UUID}`, () =>
+        HttpResponse.json({ uuid: UUID, associatedActivityTypes: [{ activityTypeKey: "running" }] }),
+      ),
+      http.put(`${API}/gear-service/gear/v2/${UUID}`, async ({ request }) => {
+        putBody = (await request.clone().json()) as { associatedActivityTypes?: unknown[] };
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    await makeGarmin().setGearActivityDefaults(UUID, []);
+    expect(putBody?.associatedActivityTypes).toEqual([]);
+  });
+
+  it("throws without issuing a PUT when the gear does not exist", async () => {
+    server.use(
+      http.get(`${API}/gear-service/gear/v2/${UUID}`, () => new HttpResponse(null, { status: 204 })),
+    );
+    await expect(makeGarmin().setGearActivityDefaults(UUID, ["running"])).rejects.toThrow(GarminError);
+    expect(seen.filter((x) => x.method === "PUT")).toHaveLength(0);
+  });
+});
+
 describe("deleteGear", () => {
   it("DELETEs gear/v2/{uuid} and re-hyphenates a bare 32-char uuid", async () => {
     // The live trap: getGear returns uuids WITHOUT hyphens, and the endpoint 404s on that form.

@@ -7,8 +7,8 @@ implements.
 Supersedes nothing in [`webapp-endpoint-gap-analysis.md`](webapp-endpoint-gap-analysis.md) — that
 was a passive survey of an EMPTY account. This one is against a **seeded** account (9 activities,
 9 weigh-in days, workouts, blood pressure, hydration), so far more of the UI actually renders and
-far more endpoints fire. It also *acts*: wizards were completed and items deleted, which is how the
-two headline findings surfaced.
+far more endpoints fire. It also *acts*: wizards were completed and items deleted, which is how all three
+headline findings surfaced.
 
 ## Headline findings
 
@@ -30,8 +30,7 @@ holds **zero** gear.
 hyphenated form returns 204. Both directions confirmed live. `deleteGear` re-inserts the hyphens, so
 only hand-rolled URLs hit this.
 
-Now shipped as `deleteGear` — the one method in this library that is deliberately NOT upstream
-parity.
+Now shipped as `deleteGear`, one of the two deliberately non-parity methods in this library.
 
 ### 2. Women's health was never a URL problem. It was a missing settings block.
 
@@ -68,6 +67,40 @@ Failure modes on an unconfigured account, for recognition:
 
 Profile `gender` must be set (it was `null`) but is NOT sufficient on its own.
 
+### 3. `setGearDefault` is dead upstream — the replacement is a v2 full-record PUT
+
+Captured by injecting a `fetch`/XHR interceptor into the gear edit page and completing the Save.
+There is **no dedicated default-gear endpoint any more**. Selecting "Activities for This Gear" and
+saving issues:
+
+```
+PUT /gear-service/gear/v2/{uuid}
+```
+
+with the whole gear record, whose `associatedActivityTypes` field carries the defaults:
+
+```json
+"associatedActivityTypes": [
+  {"activityTypeKey": "running", "defaultGear": true, "preferredGear": false}
+]
+```
+
+That is the **same array shape `createGear` already posts** — and the keys are **lowercase**, while
+`setGearDefault` upper-cases via `validateSportKey`. That asymmetry is upstream's own and is a
+plausible reason its path never matched anything.
+
+Proven side by side on one gear item:
+
+| Call | Result |
+|---|---|
+| `setGearDefault("cycling", uuid, true)` (upstream's path) | error |
+| `PUT /gear-service/gear/v2/{uuid}` with `associatedActivityTypes` | OK |
+
+and `getGearDefaults` then returned both entries (`activityTypePk` 1 and 2).
+
+Now shipped as `setGearActivityDefaults` — the second deliberately non-parity method here.
+`setGearDefault` is kept as a faithful port of a dead endpoint.
+
 ## Path differences worth knowing
 
 Every row below was called through `client.connectapi` and returned 200 — so these are live,
@@ -98,12 +131,8 @@ hatch.
 
 ## Still unresolved
 
-**`setGearDefault`** remains broken. The UI's equivalent is Edit Gear → "Activities for This Gear" →
-Default Activities, a multi-select of activity subtypes — a different shape from upstream's
-`PUT /gear/{uuid}/activityType/{type}/default/true`. Three independent investigations have now
-failed to make upstream's path work against real gear and real activities. The v2 gear update
-almost certainly carries default activities in its body instead; capturing that payload needs the
-Save click, which was not completed before the extension disconnected.
+Nothing from this pass. The three questions it opened — gear deletion, women's health, and gear
+defaults — all closed.
 
 ## Method
 
@@ -111,5 +140,7 @@ Signed-in Edge InPrivate window, Claude browser extension, network log read per 
 navigating: activities, calendar, reports, personal records, weight, blood pressure, workouts,
 badges, gear (list + detail + edit), menstrual cycle (full setup wizard).
 
-Writes performed: the MCT setup wizard (permanent, authorized), one gear delete via UI, four via
-API. No other account state was modified from the browser.
+Writes performed: the MCT setup wizard (permanent, authorized), one gear delete via UI and four via
+API, and one gear default-activity save via UI (against a throwaway probe fixture). A `fetch`/XHR
+interceptor was injected into the page to read request bodies, which the network-log tool does not
+expose. No other account state was modified from the browser.
