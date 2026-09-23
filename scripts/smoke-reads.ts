@@ -284,6 +284,19 @@ const services: Record<string, Probe[]> = {
     { name: "getDailyWeighIns", run: () => g.getDailyWeighIns(day) },
     { name: "getBodyComposition", run: () => g.getBodyComposition(weekAgo, day) },
   ],
+  userProfile: [
+    // getUserProfile/getUserSettings/fullName/unitSystem are pre-existing and already
+    // live-verified (see AGENTS.md section 3) — this is the one genuinely new method here.
+    { name: "getUserprofileSettings", run: () => g.getUserprofileSettings() },
+  ],
+  goals: [
+    // The test account is empty (no goals). A 200 with `[]` is a real, positive result: it proves
+    // the URL, query params, and the load-bearing Sec-Fetch-Site header are correct — it does NOT
+    // exercise the multi-page continuation branch or the 2000-page abort path (unit-tested only).
+    { name: "getGoals (active)", run: () => g.getGoals("active") },
+    { name: "getGoals (future)", run: () => g.getGoals("future") },
+    { name: "getGoals (past)", run: () => g.getGoals("past") },
+  ],
 };
 
 const which = process.argv[2];

@@ -5,12 +5,15 @@ import * as badges from "./services/badges.js";
 import * as bodyComposition from "./services/bodyComposition.js";
 import * as devices from "./services/devices.js";
 import * as gear from "./services/gear.js";
+import * as goals from "./services/goals.js";
 import * as metrics from "./services/metrics.js";
 import * as weight from "./services/weight.js";
 import * as wellness from "./services/wellness.js";
+import * as userProfile from "./services/userProfile.js";
 import * as workouts from "./services/workouts.js";
 import * as womensHealth from "./services/womensHealth.js";
 import type { ActivityDownloadFormat, ActivityExerciseSets } from "./types/activities.js";
+import type { GoalStatus } from "./types/goals.js";
 import type { WorkoutInput } from "./types/workouts.js";
 import type { WeightScaleFields } from "./util/fit.js";
 
@@ -88,6 +91,18 @@ export class Garmin {
    */
   async unitSystem(): Promise<string | undefined> {
     return (await this.getUserSettings()).userData?.measurementSystem;
+  }
+
+  // --- userProfile ---
+  /**
+   * Upstream `get_userprofile_settings` — `/userprofile-service/userprofile/settings` (SINGULAR
+   * "settings", distinct from `getUserSettings()`'s "user-settings"). Upstream's `get_user_profile`,
+   * `get_full_name`, and `get_unit_system` are NOT ported as separate methods here: they map onto
+   * this port's pre-existing `getUserSettings()`, `fullName()`, and `unitSystem()` respectively —
+   * see the file-level comment in `src/services/userProfile.ts` for the full ruling.
+   */
+  getUserprofileSettings() {
+    return userProfile.getUserprofileSettings(this);
   }
 
   // --- wellness ---
@@ -655,5 +670,16 @@ export class Garmin {
    */
   updateMenstrualSettings(settings: Record<string, unknown>, options?: { userSettingsId?: number }) {
     return womensHealth.updateMenstrualSettings(this, settings, options);
+  }
+
+  // --- goals ---
+  /**
+   * Upstream `get_goals`. Paginated (see `src/services/goals.ts` for the loop, matching
+   * `getActivitiesByDate`'s pattern) and sends the load-bearing `Sec-Fetch-Site: same-origin`
+   * header on every request — without it `goal-service` silently returns `[]` for newer
+   * accumulation-goal types.
+   */
+  getGoals(status?: GoalStatus, start?: number, limit?: number) {
+    return goals.getGoals(this, status, start, limit);
   }
 }

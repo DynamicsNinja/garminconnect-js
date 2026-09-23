@@ -23,4 +23,6 @@ export type * from "./types/metrics.js";
 export type * from "./types/workouts.js";
 export type * from "./types/womensHealth.js";
 export type * from "./types/badges.js";
+export type * from "./types/userProfile.js";
+export type * from "./types/goals.js";
 export type { WeightScaleFields } from "./util/fit.js";
