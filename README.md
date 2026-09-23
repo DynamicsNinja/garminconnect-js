@@ -194,7 +194,7 @@ and refreshed.
 ## 🛠️ Development setup
 
 ```bash
-git clone https://github.com/ificko/garminconnect-js.git
+git clone https://github.com/DynamicsNinja/garminconnect-js.git
 cd garminconnect-js
 npm install
 ```
@@ -457,11 +457,11 @@ MIT. See `NOTICE` for attribution to python-garminconnect and garth.
 
 [python-garminconnect-url]: https://github.com/cyberjunky/python-garminconnect
 [garth-url]: https://github.com/matin/garth
-[release-shield]: https://img.shields.io/github/v/release/ificko/garminconnect-js?style=flat
-[release-url]: https://github.com/ificko/garminconnect-js/releases
-[activity-shield]: https://img.shields.io/github/last-commit/ificko/garminconnect-js?style=flat
-[activity-url]: https://github.com/ificko/garminconnect-js/commits/main
-[license-shield]: https://img.shields.io/github/license/ificko/garminconnect-js?style=flat
-[license-url]: https://github.com/ificko/garminconnect-js/blob/main/LICENSE
+[release-shield]: https://img.shields.io/github/v/release/DynamicsNinja/garminconnect-js?style=flat
+[release-url]: https://github.com/DynamicsNinja/garminconnect-js/releases
+[activity-shield]: https://img.shields.io/github/last-commit/DynamicsNinja/garminconnect-js?style=flat
+[activity-url]: https://github.com/DynamicsNinja/garminconnect-js/commits/main
+[license-shield]: https://img.shields.io/github/license/DynamicsNinja/garminconnect-js?style=flat
+[license-url]: https://github.com/DynamicsNinja/garminconnect-js/blob/main/LICENSE
 [maintenance-shield]: https://img.shields.io/badge/Maintained%3F-yes-green.svg?style=flat
-[maintenance-url]: https://github.com/ificko/garminconnect-js/graphs/commit-activity
+[maintenance-url]: https://github.com/DynamicsNinja/garminconnect-js/graphs/commit-activity

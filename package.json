@@ -13,13 +13,13 @@
     "nextjs",
     "typescript"
   ],
-  "homepage": "https://github.com/ificko/garminconnect-js#readme",
+  "homepage": "https://github.com/DynamicsNinja/garminconnect-js#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ificko/garminconnect-js.git"
+    "url": "git+https://github.com/DynamicsNinja/garminconnect-js.git"
   },
   "bugs": {
-    "url": "https://github.com/ificko/garminconnect-js/issues"
+    "url": "https://github.com/DynamicsNinja/garminconnect-js/issues"
   },
   "author": "ificko",
   "license": "MIT",
