@@ -239,6 +239,47 @@ interface GarminClientOptions {
 
 `readonly domain: string` (`"garmin.com"` or `"garmin.cn"`) and `readonly tokenStore: TokenStore` are also public on `GarminClient`.
 
+### `buildWorkout` (src/workout-builder.ts) — a fluent workout builder
+
+**NOT upstream parity** and NOT a method on `Garmin`; a standalone export. `uploadWorkout` still
+accepts raw JSON unchanged — `build()` returns the very same `WorkoutInput` you would write by hand.
+
+```ts
+import { buildWorkout } from "garminconnect-js";
+
+const workout = buildWorkout("Threshold 100s", { sport: "swimming", poolLength: 25 })
+  .warmup({ distance: 400, stroke: "free" })
+  .rest({ lapButton: true })
+  .repeat(8, (set) => set.interval({ distance: 100, stroke: "free", drill: "kick" }).rest(15))
+  .cooldown({ distance: 200, stroke: "any_stroke" })
+  .build();
+
+await garmin.uploadWorkout(workout);
+```
+
+It exists to make the four documented traps unreachable:
+
+| Trap | What the builder does |
+|---|---|
+| `stepOrder` is global and runs through repeat children | Owns one counter for the whole tree |
+| id/key/displayOrder triples must agree | Pairs them from the live enums; a typo is a compile error |
+| a rest in seconds is `fixed.rest`, not `time` | `.rest(15)` picks `fixed.rest`; `.rest({ time: 15 })` still gives `time` |
+| pace targets are descending m/s speeds | `target: { pace: { minPerKm: [4.5, 5] } }` converts and inverts |
+
+Steps: `.warmup` `.cooldown` `.interval` `.recovery` `.main` `.other` `.rest`, each taking
+`{ distance | time | reps | lapButton | restSeconds }` (exactly one) plus optional `target`,
+`stroke`/`drill`/`equipment` (swim), `exercise`/`weightKg` (strength/HIIT) and `notes`.
+Blocks: `.repeat(n, fn)` and `.repeatForSeconds(s, fn)` (the latter sets `numberOfIterations: null`).
+Multi-sport: `.leg(sport, fn)` per leg — using it switches the workout to `multi_sport`.
+
+`WorkoutSport` deliberately EXCLUDES walking and hiking, because Garmin has no workout sport type
+for either (see the gotcha on `uploadWalkingWorkout`). Guards throw `GarminError` for: no end
+condition, two end conditions, an empty workout, an empty repeat, an empty name, a non-positive
+repeat count, and mixing single-sport steps with multi-sport legs.
+
+Verified live: swim, run (with a pace target), a multi-sport brick and a time-based HIIT block were
+each built, uploaded, read back and deleted, with globally unique step orders confirmed each time.
+
 ## 4. These methods do NOT exist (mostly)
 
 As of Task 15 (the plan's final task), this is now a **complete port**: 159 methods covering

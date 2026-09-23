@@ -49,4 +49,20 @@ export type * from "./types/golf.js";
 export type * from "./types/nutrition.js";
 export type * from "./types/trainingPlans.js";
 export type * from "./types/misc.js";
+
+/**
+ * Fluent workout builder — NOT upstream parity, a convenience layer over `uploadWorkout`, which
+ * still accepts raw JSON unchanged. See `src/workout-builder.ts`.
+ */
+export { buildWorkout, WorkoutBuilder, WorkoutStepList } from "./workout-builder.js";
+export type {
+  WorkoutSport,
+  WorkoutBuildOptions,
+  StepOptions,
+  StepEnd,
+  StepTarget,
+  StrokeKey,
+  DrillKey,
+  EquipmentKey,
+} from "./workout-builder.js";
 export type { WeightScaleFields } from "./util/fit.js";
