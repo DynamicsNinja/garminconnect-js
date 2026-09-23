@@ -8,6 +8,8 @@ import * as gear from "./services/gear.js";
 import * as goals from "./services/goals.js";
 import * as golf from "./services/golf.js";
 import * as metrics from "./services/metrics.js";
+import * as nutrition from "./services/nutrition.js";
+import * as trainingPlans from "./services/trainingPlans.js";
 import * as weight from "./services/weight.js";
 import * as wellness from "./services/wellness.js";
 import * as userProfile from "./services/userProfile.js";
@@ -699,5 +701,27 @@ export class Garmin {
   }
   getGolfUserStats() {
     return golf.getGolfUserStats(this);
+  }
+
+  // --- nutrition ---
+  getNutritionDailyFoodLog(cdate: string | Date) {
+    return nutrition.getNutritionDailyFoodLog(this, cdate);
+  }
+  getNutritionDailyMeals(cdate: string | Date) {
+    return nutrition.getNutritionDailyMeals(this, cdate);
+  }
+  getNutritionDailySettings(cdate: string | Date) {
+    return nutrition.getNutritionDailySettings(this, cdate);
+  }
+
+  // --- training plans ---
+  getTrainingPlans() {
+    return trainingPlans.getTrainingPlans(this);
+  }
+  getTrainingPlanById(planId: number | string) {
+    return trainingPlans.getTrainingPlanById(this, planId);
+  }
+  getAdaptiveTrainingPlanById(planId: number | string) {
+    return trainingPlans.getAdaptiveTrainingPlanById(this, planId);
   }
 }

@@ -194,6 +194,12 @@ Every identifier above (`GarminClient`, `Garmin`, `FileTokenStore`) is exported 
 | `getGolfShotData` | `(scorecardId: number \| string, holeNumbers?: string): Promise<GolfShotData \| null>` — GETs `/gcs-golfcommunity/api/v2/shot/scorecard/{scorecardId}/hole`; `holeNumbers` accepts commas or hyphens as separators (spaces stripped), re-joined with `-` before sending as the hyphenated `hole-numbers` param; **if any requested hole number is >9, the filter is silently dropped and all 18 holes are requested instead** (Garmin's endpoint drops double-digit hole numbers from a filtered query); omitting `holeNumbers` also fetches all 18; passes through unchecked | attempted — a fabricated `scorecardId` returned an HTTP **410** (Gone), not the 404 a no-such-resource read normally produces elsewhere in this library. The path is verbatim from upstream, so a wrong URL introduced by this port is ruled out; whether upstream's own path is still live is UNCONFIRMED — 410 conventionally means "removed", and only a real scorecard id can distinguish that from "no such scorecard". The hole-number normalization and the >9 drop-filter branch are unit-tested only, never exercised against Garmin |
 | `getGolfClubStats` | `(limit?: number): Promise<GolfClubStats[] \| null>` — defaults `limit=1000`; validated positive; GETs `/gcs-golfcommunity/api/v2/club/player`; hyphenated query params `per-page` and `include-stats` (literal `"true"`). **Inventory's `returns` column says "dict"; live-verified WRONG** — the test account returned a JSON ARRAY of 17 club entries (`{id, clubTypeId, shaftLength, flexTypeId, averageDistance, adviceDistance, retired, deleted, lastModifiedTime}`), not a single object | yes — `array[17]` on the test account (pre-existing club data, not created by this task) |
 | `getGolfUserStats` | `(): Promise<GolfUserStats \| null>` — GETs `/gcs-golfcommunity/api/v2/player/stats`; handicap and strokes-gained overview, no params; passes through unchecked | yes — `{"numRounds":0}` on the (golf-less) test account, confirming the URL; the full field list once rounds exist is unverified |
+| `getNutritionDailyFoodLog` | `(cdate: string \| Date): Promise<NutritionDailyFoodLog \| null>` — GETs `/nutrition-service/food/logs/{cdate}`; passes through unchecked | yes — a live 6-key object on the test account for a recent date, confirming the URL; the field list is undocumented (see `NutritionDailyFoodLog`'s index-signature type) |
+| `getNutritionDailyMeals` | `(cdate: string \| Date): Promise<NutritionDailyMeals \| null>` — GETs `/nutrition-service/meals/{cdate}`; passes through unchecked | yes — a live 2-key object on the test account for a recent date, confirming the URL |
+| `getNutritionDailySettings` | `(cdate: string \| Date): Promise<NutritionDailySettings \| null>` — GETs `/nutrition-service/settings/{cdate}`; passes through unchecked | yes — `null` on the test account for a recent date (no nutrition settings configured), confirming the URL responds without a 404 |
+| `getTrainingPlans` | `(): Promise<TrainingPlansResult \| null>` — GETs `/trainingplan-service/trainingplan/plans`; no params; passes through unchecked | yes — a live 2-key object on the test account, confirming the URL; the test account has no actual training plans, so the per-plan row shape inside it is unverified |
+| `getTrainingPlanById` | `(planId: number \| string): Promise<TrainingPlanDetail \| null>` — GETs `/trainingplan-service/trainingplan/phased/{planId}`; passes through unchecked | **no** — the test account has no training plans, so no real `planId` exists; fabricating one was rejected per this project's standing rule (a low fabricated id can name another user's record on some Garmin services, and a probe that can never succeed should SKIP rather than print a misleading PASS/FAIL). See `scripts/smoke-reads.ts`'s `trainingPlans` entry, which SKIPs this and re-checks `getTrainingPlans()` for a real id every run |
+| `getAdaptiveTrainingPlanById` | `(planId: number \| string): Promise<AdaptiveTrainingPlanDetail \| null>` — GETs `/trainingplan-service/trainingplan/fbt-adaptive/{planId}`, a distinct sub-path from `getTrainingPlanById`'s `phased` path; passes through unchecked | **no** — same reason and same skip mechanism as `getTrainingPlanById` |
 
 `Garmin` exposes the underlying client as `readonly client: GarminClient`.
 
@@ -227,7 +233,7 @@ interface GarminClientOptions {
 
 ## 4. These methods do NOT exist
 
-This is a **partial port**: 145 of upstream python-garminconnect's ~154 public methods (count taken from `Garmin.prototype`, and kept honest by the drift guard in `tests/agents-md.test.ts`; a handful of the 145 are aliases or derived helpers — `getStats`, `displayName`, `getInProgressBadges` — rather than distinct endpoints). An agent that has
+This is a **partial port**: 151 of upstream python-garminconnect's ~154 public methods (count taken from `Garmin.prototype`, and kept honest by the drift guard in `tests/agents-md.test.ts`; a handful of the 151 are aliases or derived helpers — `getStats`, `displayName`, `getInProgressBadges` — rather than distinct endpoints). An agent that has
 seen `garminconnect` in training will write calls like `client.get_personal_records()` — that does not exist
 here. Do not invent methods on `Garmin` or `GarminClient` by analogy with upstream names. (Gear IS now
 fully ported — `getGear`, `createGear`, `getGearStats`, `getGearDefaults`, `setGearDefault` in
@@ -241,15 +247,17 @@ has a TypeScript equivalent now as well. Goals IS now ported too — `getGoals` 
 (`Garmin.getGoals()`) now; see section 3. Golf IS now ported too — `getGolfSummary`,
 `getGolfScorecard`, `getGolfShotData`, `getGolfClubStats`, `getGolfUserStats` in
 `src/services/golf.ts` — so `client.get_golf_summary()`-style calls DO have a TypeScript
-equivalent now as well; see section 3.)
+equivalent now as well; see section 3. Nutrition and training plans are now ported too —
+`getNutritionDailyFoodLog`, `getNutritionDailyMeals`, `getNutritionDailySettings` in
+`src/services/nutrition.ts`, and `getTrainingPlans`, `getTrainingPlanById`,
+`getAdaptiveTrainingPlanById` in `src/services/trainingPlans.ts` — so `client.get_training_plans()`-
+and `client.get_nutrition_daily_food_log()`-style calls DO have a TypeScript equivalent now as
+well; see section 3.)
 
 Notably absent (implement via `connectapi` instead — see below):
 
-- Training plans (workouts themselves are implemented — see section 3 — but the separate
-  `trainingPlans` service is not)
 - Personal records
 - Connect IQ
-- Nutrition
 - Segments
 - Social/connections
 - The GraphQL passthrough endpoint

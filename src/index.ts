@@ -26,4 +26,6 @@ export type * from "./types/badges.js";
 export type * from "./types/userProfile.js";
 export type * from "./types/goals.js";
 export type * from "./types/golf.js";
+export type * from "./types/nutrition.js";
+export type * from "./types/trainingPlans.js";
 export type { WeightScaleFields } from "./util/fit.js";

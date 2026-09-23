@@ -336,6 +336,44 @@ const services: Record<string, Probe[]> = {
       run: async () => skip("no recorded round of golf on the test account — needs a real scorecardId"),
     },
   ],
+  nutrition: [
+    { name: "getNutritionDailyFoodLog", run: () => g.getNutritionDailyFoodLog(day) },
+    { name: "getNutritionDailyMeals", run: () => g.getNutritionDailyMeals(day) },
+    { name: "getNutritionDailySettings", run: () => g.getNutritionDailySettings(day) },
+  ],
+  trainingPlans: [
+    { name: "getTrainingPlans", run: () => g.getTrainingPlans() },
+    // getTrainingPlanById/getAdaptiveTrainingPlanById need a real planId. getTrainingPlans() is
+    // probed first above; if it ever returns a non-empty list on this account, pull a real id from
+    // it rather than fabricating one (same rationale as golf's scorecardId skip: plan ids may be
+    // globally scoped, and a fabricated id proves nothing about the endpoint).
+    {
+      name: "getTrainingPlanById",
+      run: async () => {
+        const plans = await g.getTrainingPlans();
+        const list = Array.isArray(plans) ? plans : [];
+        const first = list[0] as { planId?: number | string; id?: number | string } | undefined;
+        const planId = first?.planId ?? first?.id;
+        if (planId === undefined) {
+          return skip("no training plans on the test account — needs a real planId");
+        }
+        return g.getTrainingPlanById(planId);
+      },
+    },
+    {
+      name: "getAdaptiveTrainingPlanById",
+      run: async () => {
+        const plans = await g.getTrainingPlans();
+        const list = Array.isArray(plans) ? plans : [];
+        const first = list[0] as { planId?: number | string; id?: number | string } | undefined;
+        const planId = first?.planId ?? first?.id;
+        if (planId === undefined) {
+          return skip("no training plans on the test account — needs a real planId");
+        }
+        return g.getAdaptiveTrainingPlanById(planId);
+      },
+    },
+  ],
 };
 
 const which = process.argv[2];
