@@ -170,29 +170,31 @@ console.log(`Created workout ${String(created?.workoutId)} — "${String(created
 // Read it back so you can see what Garmin actually stored.
 const stored = (await garmin.getWorkoutById(created!.workoutId!)) as Record<string, unknown>;
 const segment = (stored["workoutSegments"] as Record<string, unknown>[])[0]!;
-const key = (o: unknown, f: string) => (o as Record<string, unknown> | null)?.[f];
+const key = (o: unknown, f: string): unknown => (o as Record<string, unknown> | null)?.[f];
+/** Payload fields are `unknown` and may be null — narrow before printing. */
+const str = (v: unknown): string => (typeof v === "string" ? v : "");
+const num = (v: unknown): string => (typeof v === "number" ? String(v) : "");
 
 const describe = (steps: Record<string, unknown>[], indent = ""): void => {
   for (const s of steps) {
     if (s["type"] === "RepeatGroupDTO") {
-      console.log(`${indent}${String(s["numberOfIterations"])} x`);
+      console.log(`${indent}${num(s["numberOfIterations"])} x`);
       describe(s["workoutSteps"] as Record<string, unknown>[], `${indent}   `);
       continue;
     }
     const bits = [
-      String(key(s["stepType"], "stepTypeKey")).padEnd(9),
-      `${s["endConditionValue"] === undefined ? "" : String(s["endConditionValue"])} ${String(key(s["endCondition"], "conditionTypeKey"))}`.padEnd(22),
-      key(s["strokeType"], "strokeTypeKey") ? `stroke=${String(key(s["strokeType"], "strokeTypeKey"))}` : "",
-      key(s["drillType"], "drillTypeKey") ? `drill=${String(key(s["drillType"], "drillTypeKey"))}` : "",
-      key(s["equipmentType"], "equipmentTypeKey")
-        ? `equip=${String(key(s["equipmentType"], "equipmentTypeKey"))}`
-        : "",
+      str(key(s["stepType"], "stepTypeKey")).padEnd(9),
+      `${num(s["endConditionValue"])} ${str(key(s["endCondition"], "conditionTypeKey"))}`.padEnd(22),
+      str(key(s["strokeType"], "strokeTypeKey")) && `stroke=${str(key(s["strokeType"], "strokeTypeKey"))}`,
+      str(key(s["drillType"], "drillTypeKey")) && `drill=${str(key(s["drillType"], "drillTypeKey"))}`,
+      str(key(s["equipmentType"], "equipmentTypeKey")) &&
+        `equip=${str(key(s["equipmentType"], "equipmentTypeKey"))}`,
     ];
     console.log(indent + bits.filter(Boolean).join(" ").trimEnd());
   }
 };
 
-console.log(`\nStored by Garmin (pool ${String(stored["poolLength"])} ${String(key(stored["poolLengthUnit"], "unitKey"))}):`);
+console.log(`\nStored by Garmin (pool ${num(stored["poolLength"])} ${str(key(stored["poolLengthUnit"], "unitKey"))}):`);
 describe(segment["workoutSteps"] as Record<string, unknown>[]);
 
 // Comment this out if you want to keep the workout.
