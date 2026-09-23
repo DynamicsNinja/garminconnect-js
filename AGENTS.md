@@ -625,6 +625,22 @@ unitKey, when?)` sends `weight` RAW, in whatever unit `unitKey` names (`"kg"` or
   `targetValueOne: 3.1556, targetValueTwo: 2.8234` — that is 1609.344 m divided by 510 s and by
   570 s. A caller who passes minutes-per-km, or who puts the slower bound first, gets a silently
   wrong target with no error from Garmin. Verified by round-trip.
+- **A repeat can be TIME-BASED, and then `numberOfIterations` is `null`.** Garmin's HIIT designer
+  offers "Repeat Until Time Is", which stores `endCondition: time` with the seconds in
+  `endConditionValue` and `numberOfIterations: null`. `RepeatWorkoutGroup.numberOfIterations` is
+  therefore `number | null` in this port, where upstream types it as a required number and so
+  cannot express the time-based form. Both forms round-tripped live.
+- **Workout weights: `weightValue` + `weightUnit`, stored in kilograms, with round-trip drift.**
+  "20 lbs" entered in the designer stored as `19.998…` with `unitKey: "pound"`; sending
+  `9.0718474` kg stored `9.071`. Never assert exact equality on a weight you sent.
+- **Two exercise-naming traps.** The display name is not the stored key — "Barbell Overhead Press"
+  stores as `category: "SHOULDER_PRESS", exerciseName: "OVERHEAD_BARBELL_PRESS"`. And adding a
+  weight can change the exercise outright: a "Push-up" with a manual weight stored as
+  `exerciseName: "WEIGHTED_PUSH_UP"`, swapped in by Garmin.
+- **Cardio, HIIT, Yoga, Pilates and Mobility all share one model** — warm-up / rounds / cool-down
+  with an exercise picker per step, the same `category` + `exerciseName` + `reps` vocabulary as
+  strength. "Custom" in the designer's type list is not a distinct sport type; it maps to
+  `OTHER` (3).
 - **Repeat blocks: `stepOrder` continues THROUGH the nested children.** The designer's own payload
   numbered warmup=1, interval=2, repeat=3, the repeat's two children=4 and 5, cooldown=6. Nested
   steps share the single global sequence; they do NOT restart at 1 inside the block. The block

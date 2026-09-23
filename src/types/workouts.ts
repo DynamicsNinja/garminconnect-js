@@ -208,7 +208,14 @@ export interface RepeatWorkoutGroup {
   type?: string; // default "RepeatGroupDTO" upstream
   stepOrder: number;
   stepType?: WorkoutTypeRef | null;
-  numberOfIterations: number;
+  /**
+   * The iteration count for a COUNT-based repeat. **Nullable**, because a repeat can instead be
+   * TIME-based: Garmin's HIIT designer offers "Repeat Until Time Is", which stores
+   * `endCondition: time`, the seconds in `endConditionValue`, and `numberOfIterations: null`.
+   * Confirmed live 2026-09-23. Upstream types this as a plain required number, which cannot
+   * express the time-based form.
+   */
+  numberOfIterations: number | null;
   workoutSteps: (ExecutableWorkoutStep | RepeatWorkoutGroup)[];
   endCondition?: WorkoutTypeRef | null;
   endConditionValue?: number | null;

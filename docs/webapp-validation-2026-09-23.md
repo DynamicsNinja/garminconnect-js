@@ -244,6 +244,30 @@ targets use `targetValueOne`/`Two`**.
 **`displayOrder` is server-normalised** — values sent were rewritten by Garmin, confirming it is
 cosmetic.
 
+### 10. HIIT, and the last structural gaps
+
+HIIT's designer exposed two things the other types did not.
+
+**A repeat can be TIME-BASED.** "Repeat Until Time Is" stores `endCondition: time`, the seconds in
+`endConditionValue`, and **`numberOfIterations: null`**. Upstream types `numberOfIterations` as a
+required number, so it cannot express this at all; `RepeatWorkoutGroup.numberOfIterations` is now
+`number | null` here. Both forms round-tripped through `uploadWorkout`.
+
+**Weights** ride on a step as `weightValue` + `weightUnit` and are stored in kilograms whatever the
+UI shows, with visible round-trip drift: "20 lbs" stored as `19.998…`; `9.0718474` kg stored as
+`9.071`. Do not assert exact equality on a weight you sent.
+
+Two exercise-naming traps, both observed rather than guessed:
+
+- The **display name is not the stored key** — "Barbell Overhead Press" stores as
+  `category: "SHOULDER_PRESS", exerciseName: "OVERHEAD_BARBELL_PRESS"`.
+- **Adding a weight can change the exercise.** A "Push-up" with a manual weight stored as
+  `exerciseName: "WEIGHTED_PUSH_UP"` — Garmin swapped in the weighted variant itself.
+
+Cardio, HIIT, Yoga, Pilates and Mobility all share one model: warm-up / rounds / cool-down with an
+exercise picker per step, using the same `category` + `exerciseName` + `reps` vocabulary as
+strength. "Custom" in the type list is not a distinct sport type — it maps to `OTHER` (3).
+
 ## Path differences worth knowing
 
 Every row below was called through `client.connectapi` and returned 200 — so these are live,

@@ -335,6 +335,46 @@ describe("workouts service", () => {
     expect(valid.has(WORKOUT_SPORT_TYPE_ID.HIKING)).toBe(false);
   });
 
+  it("uploadWorkout forwards a TIME-BASED repeat, where numberOfIterations is null", async () => {
+    // Garmin's HIIT designer "Repeat Until Time Is" produces endCondition: time with the seconds
+    // in endConditionValue and numberOfIterations: null. Upstream types numberOfIterations as a
+    // required number, which cannot express this; RepeatWorkoutGroup allows null. Round-tripped live.
+    const g = makeGarmin();
+    const payload = {
+      workoutName: "AMRAP",
+      sportType: { sportTypeId: WORKOUT_SPORT_TYPE_ID.HIIT, sportTypeKey: "hiit", displayOrder: 7 },
+      estimatedDurationInSecs: 900,
+      workoutSegments: [{
+        segmentOrder: 1,
+        sportType: { sportTypeId: WORKOUT_SPORT_TYPE_ID.HIIT, sportTypeKey: "hiit", displayOrder: 7 },
+        workoutSteps: [{
+          type: "RepeatGroupDTO",
+          stepOrder: 1,
+          stepType: { stepTypeId: 6, stepTypeKey: "repeat", displayOrder: 6 },
+          numberOfIterations: null,
+          endCondition: { conditionTypeId: 2, conditionTypeKey: "time", displayOrder: 2 },
+          endConditionValue: 600,
+          workoutSteps: [{
+            type: "ExecutableStepDTO",
+            stepOrder: 2,
+            category: "PUSH_UP",
+            exerciseName: "WEIGHTED_PUSH_UP",
+            endCondition: { conditionTypeId: 10, conditionTypeKey: "reps", displayOrder: 10 },
+            endConditionValue: 10,
+            weightValue: 9.0718474,
+            weightUnit: { unitId: 8, unitKey: "kilogram", factor: 1000 },
+          }],
+        }],
+      }],
+    };
+    await g.uploadWorkout(payload);
+    expect(seen[0]!.body).toEqual(payload);
+    const rep = (seen[0]!.body as typeof payload).workoutSegments[0]!.workoutSteps[0]!;
+    expect(rep.numberOfIterations).toBeNull();
+    expect(rep.endCondition.conditionTypeKey).toBe("time");
+    expect(rep.endConditionValue).toBe(600);
+  });
+
   it("uploadWorkout accepts an array body", async () => {
     const g = makeGarmin();
     const payload = [{ a: 1 }];

@@ -109,6 +109,25 @@ export async function downloadWorkout(host: WorkoutsHost, workoutId: number | st
  * `targetValueOne: 3.1556, targetValueTwo: 2.8234` (1609.344 m / 510 s and / 570 s). A caller
  * thinking in minutes-per-km will produce a wildly wrong target with no error.
  *
+ * A REPEAT CAN BE TIME-BASED instead of count-based. Garmin's HIIT designer offers "Repeat Until
+ * Time Is", which produces `endCondition: time`, the seconds in `endConditionValue`, and
+ * **`numberOfIterations: null`** — which is why `RepeatWorkoutGroup.numberOfIterations` is
+ * `number | null` here where upstream types it as a plain required number. Both forms
+ * round-tripped through `uploadWorkout`.
+ *
+ * WEIGHT rides on a step as `weightValue` plus `weightUnit` (`{unitId, unitKey, factor}`), and
+ * Garmin stores it in KILOGRAMS whatever the UI shows. Entering "20 lbs" in the designer stored
+ * `weightValue: 19.998…` with `unitKey: "pound"`; sending `9.0718474` with `unitKey: "kilogram"`
+ * stored `9.071`. Expect small round-trip drift either way — do not assert exact equality on a
+ * weight you sent.
+ *
+ * Two naming traps around exercises, both observed live:
+ *  - The DISPLAY name is not the stored key. "Barbell Overhead Press" in the picker stores as
+ *    `category: "SHOULDER_PRESS", exerciseName: "OVERHEAD_BARBELL_PRESS"`.
+ *  - Adding a weight can CHANGE the exercise. A "Push-up" with a manual weight stored as
+ *    `category: "PUSH_UP", exerciseName: "WEIGHTED_PUSH_UP"` — Garmin swapped in the weighted
+ *    variant by itself.
+ *
  * STRENGTH steps carry an exercise pair: `category` plus `exerciseName`, both SCREAMING_SNAKE_CASE
  * (`category: "SQUAT"`, `exerciseName: "BARBELL_BACK_SQUAT"`), with `endCondition: reps` (id 10)
  * and `endConditionValue` as the rep count. The designer offers 548 exercises. Verified by
