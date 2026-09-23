@@ -236,6 +236,76 @@ describe("workouts service", () => {
     expect(body.workoutSegments.flatMap((x) => x.workoutSteps.map((st) => st.stepOrder))).toEqual([1, 2]);
   });
 
+  it("uploadWorkout forwards a REPEAT block with nested steps and a pace target verbatim", async () => {
+    // Shape captured from Garmin's designer and round-tripped live on 2026-09-23.
+    // Two things this pins, both of which are easy to get wrong and silent when wrong:
+    //   1. stepOrder continues THROUGH the repeat's children (1, 2, then 3 and 4, then 5) — the
+    //      nested steps share one global sequence rather than restarting inside the block.
+    //   2. pace.zone target values are SPEEDS in m/s, and targetValueOne is the FASTER (larger)
+    //      bound. 3.3333 m/s is ~5:00/km; 3.0 m/s is ~5:33/km.
+    const g = makeGarmin();
+    const payload = {
+      workoutName: "Intervals",
+      sportType: { sportTypeId: WORKOUT_SPORT_TYPE_ID.RUNNING, sportTypeKey: "running", displayOrder: 1 },
+      estimatedDurationInSecs: 3600,
+      workoutSegments: [{
+        segmentOrder: 1,
+        sportType: { sportTypeId: WORKOUT_SPORT_TYPE_ID.RUNNING, sportTypeKey: "running", displayOrder: 1 },
+        workoutSteps: [
+          { type: "ExecutableStepDTO", stepOrder: 1, stepType: { stepTypeId: 1, stepTypeKey: "warmup", displayOrder: 1 } },
+          {
+            type: "RepeatGroupDTO",
+            stepOrder: 2,
+            stepType: { stepTypeId: 6, stepTypeKey: "repeat", displayOrder: 6 },
+            numberOfIterations: 3,
+            smartRepeat: false,
+            endCondition: { conditionTypeId: 7, conditionTypeKey: "iterations", displayOrder: 7 },
+            workoutSteps: [
+              {
+                type: "ExecutableStepDTO", stepOrder: 3,
+                stepType: { stepTypeId: 3, stepTypeKey: "interval", displayOrder: 3 },
+                targetType: { workoutTargetTypeId: 6, workoutTargetTypeKey: "pace.zone", displayOrder: 6 },
+                targetValueOne: 3.3333,
+                targetValueTwo: 3.0,
+              },
+              { type: "ExecutableStepDTO", stepOrder: 4, stepType: { stepTypeId: 4, stepTypeKey: "recovery", displayOrder: 4 } },
+            ],
+          },
+          { type: "ExecutableStepDTO", stepOrder: 5, stepType: { stepTypeId: 2, stepTypeKey: "cooldown", displayOrder: 2 } },
+        ],
+      }],
+    };
+    await g.uploadWorkout(payload);
+    expect(seen[0]!.body).toEqual(payload);
+    const seg = (seen[0]!.body as typeof payload).workoutSegments[0]!;
+    const repeat = seg.workoutSteps[1] as { workoutSteps: { stepOrder: number }[] };
+    expect(repeat.workoutSteps.map((x) => x.stepOrder)).toEqual([3, 4]);
+  });
+
+  it("uploadWorkout forwards a STRENGTH step's exercise pair and reps condition", async () => {
+    // category + exerciseName are both SCREAMING_SNAKE_CASE, and reps ride in endConditionValue.
+    const g = makeGarmin();
+    const payload = {
+      workoutName: "Squats",
+      sportType: { sportTypeId: WORKOUT_SPORT_TYPE_ID.STRENGTH_TRAINING, sportTypeKey: "strength_training", displayOrder: 4 },
+      estimatedDurationInSecs: 1800,
+      workoutSegments: [{
+        segmentOrder: 1,
+        sportType: { sportTypeId: WORKOUT_SPORT_TYPE_ID.STRENGTH_TRAINING, sportTypeKey: "strength_training", displayOrder: 4 },
+        workoutSteps: [{
+          type: "ExecutableStepDTO", stepOrder: 1,
+          stepType: { stepTypeId: 3, stepTypeKey: "interval", displayOrder: 3 },
+          category: "SQUAT",
+          exerciseName: "BARBELL_BACK_SQUAT",
+          endCondition: { conditionTypeId: 10, conditionTypeKey: "reps", displayOrder: 10 },
+          endConditionValue: 10,
+        }],
+      }],
+    };
+    await g.uploadWorkout(payload);
+    expect(seen[0]!.body).toEqual(payload);
+  });
+
   it("uploadWorkout accepts an array body", async () => {
     const g = makeGarmin();
     const payload = [{ a: 1 }];

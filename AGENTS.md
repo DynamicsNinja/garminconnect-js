@@ -591,6 +591,24 @@ unitKey, when?)` sends `weight` RAW, in whatever unit `unitKey` names (`"kg"` or
   smoke harness previously guessed the latter two and therefore skipped these probes forever, even
   with a plan enrolled; that is the third instance of a "skip that can never become a pass" in this
   project, and the first found by having real data rather than by review.
+- **`pace.zone` workout targets are SPEEDS IN m/s, and `targetValueOne` is the FASTER (larger)
+  number.** Garmin's designer turned "8:30 to 9:30 min/mile" into
+  `targetValueOne: 3.1556, targetValueTwo: 2.8234` — that is 1609.344 m divided by 510 s and by
+  570 s. A caller who passes minutes-per-km, or who puts the slower bound first, gets a silently
+  wrong target with no error from Garmin. Verified by round-trip.
+- **Repeat blocks: `stepOrder` continues THROUGH the nested children.** The designer's own payload
+  numbered warmup=1, interval=2, repeat=3, the repeat's two children=4 and 5, cooldown=6. Nested
+  steps share the single global sequence; they do NOT restart at 1 inside the block. The block
+  itself is `{type: "RepeatGroupDTO", stepType: repeat (6), numberOfIterations, smartRepeat,
+  childStepId, endCondition: iterations (7), workoutSteps: [...]}` — exactly what
+  `RepeatWorkoutGroup` already models, now confirmed against real output rather than upstream source.
+- **Strength steps carry an exercise pair**: `category` + `exerciseName`, both SCREAMING_SNAKE_CASE
+  (`"SQUAT"` / `"BARBELL_BACK_SQUAT"`), with `endCondition: reps` (id 10) and the rep count in
+  `endConditionValue`. The designer offers 548 exercises. Same category vocabulary as
+  `setActivityExerciseSets`.
+- **`displayOrder` inside a `sportType`/`stepType`/`endCondition` ref is COSMETIC.** A strength
+  workout was accepted identically with `displayOrder: 4` (what Garmin's own client sends) and `5`
+  (what `uploadStrengthWorkout` sends). Do not treat a mismatch there as a bug.
 - **MULTI-SPORT workouts work through `uploadWorkout`, and `stepOrder` is GLOBAL across segments.**
   Built one in Garmin's own workout designer, captured the POST, and round-tripped the same shape
   through this library: created, read back with both segments AND `isSessionTransitionEnabled`

@@ -182,6 +182,29 @@ The designer also offers **Cardio, HIIT, Yoga, Pilates, Mobility, Rucking and Cu
 (with Multisport) that the six `upload<Sport>Workout` helpers do not cover. All reachable via
 `uploadWorkout` with an explicit `sportType`.
 
+### 8. Complex workout steps: repeats, targets and exercises, built in the UI then rebuilt via API
+
+Built a Run workout (warmup + interval + 2x repeat containing an interval with a pace target and a
+recovery + cooldown) and a Strength workout (warmup + 3-set repeat of Barbell Back Squat + rest) in
+the designer, captured both payloads, then rebuilt each through `uploadWorkout` and read it back.
+
+**Both round-tripped intact.** `RepeatWorkoutGroup` and `ExecutableWorkoutStep` needed no changes —
+their shapes, previously transcribed from upstream's `workout.py`, match real Garmin output.
+
+Three things the capture settled that source reading could not:
+
+1. **`stepOrder` continues through a repeat's children.** warmup=1, interval=2, repeat=3,
+   children=4 and 5, cooldown=6. One global sequence; nested steps do not restart at 1.
+   (Getting this wrong earns `400 "The workout steps need to have unique step orders"`.)
+2. **`pace.zone` targets are SPEEDS in m/s, and `targetValueOne` is the FASTER, larger bound.**
+   8:30-9:30 min/mile became `3.1556` / `2.8234`. Minutes-per-km would be silently wrong.
+3. **Strength steps carry `category` + `exerciseName`** (`"SQUAT"` / `"BARBELL_BACK_SQUAT"`) with
+   `endCondition: reps` and the count in `endConditionValue`. 548 exercises offered.
+
+Also settled: **`displayOrder` is cosmetic.** A strength workout was accepted identically at
+`displayOrder: 4` (Garmin's own value) and `5` (this library's) — so the mismatch between them is
+not a bug.
+
 ## Path differences worth knowing
 
 Every row below was called through `client.connectapi` and returned 200 — so these are live,

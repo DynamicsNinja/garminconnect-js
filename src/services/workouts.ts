@@ -94,6 +94,30 @@ export async function downloadWorkout(host: WorkoutsHost, workoutId: number | st
  * structure order."` Either number every step uniquely across the whole workout, or omit
  * `stepOrder` entirely and let submission order decide.
  *
+ * REPEAT BLOCKS work, and their shape is confirmed against a designer-built workout:
+ * `{ type: "RepeatGroupDTO", stepType: repeat (id 6), numberOfIterations, smartRepeat, childStepId,
+ * endCondition: iterations (id 7), workoutSteps: [ ...nested ExecutableStepDTO ] }` — exactly what
+ * `RepeatWorkoutGroup` models. Round-tripped through `uploadWorkout`: a warmup, a 3-iteration
+ * repeat containing an interval and a recovery, and a cooldown, all read back intact.
+ *
+ * **`stepOrder` numbering continues THROUGH a repeat's children.** In the designer's own payload:
+ * warmup=1, interval=2, repeat=3, its two children=4 and 5, cooldown=6. Nested steps share the one
+ * global sequence; they do not restart at 1 inside the block.
+ *
+ * **`pace.zone` targets are SPEEDS IN METRES PER SECOND, not paces** — and `targetValueOne` is the
+ * FASTER bound, so it is the LARGER number. The designer's 8:30-9:30 min/mile became
+ * `targetValueOne: 3.1556, targetValueTwo: 2.8234` (1609.344 m / 510 s and / 570 s). A caller
+ * thinking in minutes-per-km will produce a wildly wrong target with no error.
+ *
+ * STRENGTH steps carry an exercise pair: `category` plus `exerciseName`, both SCREAMING_SNAKE_CASE
+ * (`category: "SQUAT"`, `exerciseName: "BARBELL_BACK_SQUAT"`), with `endCondition: reps` (id 10)
+ * and `endConditionValue` as the rep count. The designer offers 548 exercises. Verified by
+ * round-trip. The same category vocabulary appears in `setActivityExerciseSets`.
+ *
+ * `displayOrder` inside a `sportType`/`stepType`/`endCondition` ref is COSMETIC — Garmin accepts a
+ * strength workout with `displayOrder: 4` (what its own client sends) or `5` (what this library's
+ * `uploadStrengthWorkout` sends) identically. Do not treat a mismatch there as a bug.
+ *
  * The designer also offers workout types this library has no helper for — Cardio, HIIT, Yoga,
  * Pilates, Mobility, Rucking, Custom and Multisport. All are reachable here by passing the matching
  * `sportType` explicitly; `WORKOUT_SPORT_TYPE_ID` already exports the ids, and they were confirmed
