@@ -1,3 +1,4 @@
+import { pathSegment } from "../util/validate.js";
 import type { GarminClient } from "../client.js";
 import { formatDate } from "../util/date.js";
 import type {
@@ -19,7 +20,7 @@ export async function getNutritionDailyFoodLog(
   cdate: string | Date,
 ): Promise<NutritionDailyFoodLog | null> {
   return host.client.connectapi<NutritionDailyFoodLog>(
-    `/nutrition-service/food/logs/${formatDate(cdate)}`,
+    `/nutrition-service/food/logs/${pathSegment(formatDate(cdate))}`,
   );
 }
 
@@ -31,7 +32,7 @@ export async function getNutritionDailyMeals(
   cdate: string | Date,
 ): Promise<NutritionDailyMeals | null> {
   return host.client.connectapi<NutritionDailyMeals>(
-    `/nutrition-service/meals/${formatDate(cdate)}`,
+    `/nutrition-service/meals/${pathSegment(formatDate(cdate))}`,
   );
 }
 
@@ -43,6 +44,6 @@ export async function getNutritionDailySettings(
   cdate: string | Date,
 ): Promise<NutritionDailySettings | null> {
   return host.client.connectapi<NutritionDailySettings>(
-    `/nutrition-service/settings/${formatDate(cdate)}`,
+    `/nutrition-service/settings/${pathSegment(formatDate(cdate))}`,
   );
 }

@@ -1,7 +1,7 @@
 import { GarminError } from "../errors.js";
 import type { GarminClient } from "../client.js";
 import { formatDate } from "../util/date.js";
-import { validateSportKey } from "../util/validate.js";
+import { validateSportKey, pathSegment } from "../util/validate.js";
 import type {
   CyclingFtpResult,
   EnduranceScoreResult,
@@ -55,7 +55,7 @@ export async function getMaxMetrics(
 ): Promise<MaxMetricsResult | null> {
   const date = formatDate(cdate);
   return host.client.connectapi<MaxMetricsResult>(
-    `/metrics-service/metrics/maxmet/daily/${date}/${date}`,
+    `/metrics-service/metrics/maxmet/daily/${pathSegment(date)}/${pathSegment(date)}`,
   );
 }
 
@@ -71,7 +71,7 @@ export async function getMaxMetricsRange(
     throw new GarminError("getMaxMetricsRange: start date must not be after end date");
   }
   return host.client.connectapi<MaxMetricsResult>(
-    `/metrics-service/metrics/maxmet/daily/${startDate}/${endDate}`,
+    `/metrics-service/metrics/maxmet/daily/${pathSegment(startDate)}/${pathSegment(endDate)}`,
   );
 }
 
@@ -92,7 +92,7 @@ export async function getFunctionalThresholdPowerRange(
   const normalizedSport = validateSportKey(sport);
   const validatedAggregation = validateFtpAggregation(aggregation);
   return host.client.connectapi<FtpRangeResult>(
-    `/biometric-service/stats/functionalThresholdPower/range/${startDate}/${endDate}`,
+    `/biometric-service/stats/functionalThresholdPower/range/${pathSegment(startDate)}/${pathSegment(endDate)}`,
     { params: { sport: normalizedSport, aggregation: validatedAggregation, aggregationStrategy: "LATEST" } },
   );
 }
@@ -134,7 +134,7 @@ export async function getLactateThreshold(
     const [speedAndHeartRateRaw, powerRaw] = await Promise.all([
       host.client.connectapi<unknown>("/biometric-service/biometric/latestLactateThreshold"),
       host.client.connectapi<unknown>(
-        `/biometric-service/biometric/powerToWeight/latest/${today}`,
+        `/biometric-service/biometric/powerToWeight/latest/${pathSegment(today)}`,
         { params: { sport: "Running" } },
       ),
     ]);
@@ -165,11 +165,11 @@ export async function getLactateThreshold(
   const params = { sport: "RUNNING", aggregation: validatedAggregation, aggregationStrategy: "LATEST" };
   const [speed, heartRate, power] = await Promise.all([
     host.client.connectapi<unknown>(
-      `/biometric-service/stats/lactateThresholdSpeed/range/${start}/${end}`,
+      `/biometric-service/stats/lactateThresholdSpeed/range/${pathSegment(start)}/${pathSegment(end)}`,
       { params },
     ),
     host.client.connectapi<unknown>(
-      `/biometric-service/stats/lactateThresholdHeartRate/range/${start}/${end}`,
+      `/biometric-service/stats/lactateThresholdHeartRate/range/${pathSegment(start)}/${pathSegment(end)}`,
       { params },
     ),
     getFunctionalThresholdPowerRange(host, start, end, "RUNNING", validatedAggregation),
@@ -182,7 +182,7 @@ export async function getTrainingReadiness(
   cdate: string | Date,
 ): Promise<TrainingReadinessEntry[] | null> {
   return host.client.connectapi<TrainingReadinessEntry[]>(
-    `/metrics-service/metrics/trainingreadiness/${formatDate(cdate)}`,
+    `/metrics-service/metrics/trainingreadiness/${pathSegment(formatDate(cdate))}`,
   );
 }
 
@@ -279,7 +279,7 @@ export async function getRacePredictions(
   }
   if (provided === 0) {
     return host.client.connectapi<RacePredictionsResult>(
-      `/metrics-service/metrics/racepredictions/latest/${await host.displayName()}`,
+      `/metrics-service/metrics/racepredictions/latest/${pathSegment(await host.displayName())}`,
     );
   }
   if (type !== "daily" && type !== "monthly") {
@@ -291,7 +291,7 @@ export async function getRacePredictions(
     throw new GarminError("getRacePredictions: date range must not exceed 366 days");
   }
   return host.client.connectapi<RacePredictionsResult>(
-    `/metrics-service/metrics/racepredictions/${type}/${await host.displayName()}`,
+    `/metrics-service/metrics/racepredictions/${pathSegment(type)}/${pathSegment(await host.displayName())}`,
     { params: { fromCalendarDate: start, toCalendarDate: end } },
   );
 }
@@ -301,7 +301,7 @@ export async function getTrainingStatus(
   cdate: string | Date,
 ): Promise<TrainingStatusResult | null> {
   return host.client.connectapi<TrainingStatusResult>(
-    `/metrics-service/metrics/trainingstatus/aggregated/${formatDate(cdate)}`,
+    `/metrics-service/metrics/trainingstatus/aggregated/${pathSegment(formatDate(cdate))}`,
   );
 }
 
@@ -309,7 +309,7 @@ export async function getFitnessAgeData(
   host: MetricsHost,
   cdate: string | Date,
 ): Promise<FitnessAgeResult | null> {
-  return host.client.connectapi<FitnessAgeResult>(`/fitnessage-service/fitnessage/${formatDate(cdate)}`);
+  return host.client.connectapi<FitnessAgeResult>(`/fitnessage-service/fitnessage/${pathSegment(formatDate(cdate))}`);
 }
 
 /**
@@ -358,6 +358,6 @@ export async function getPowerZonesForSport(
 ): Promise<PowerZonesForSportResult | null> {
   const normalized = validateSportKey(sport);
   return host.client.connectapi<PowerZonesForSportResult>(
-    `/biometric-service/powerZones/sport/${normalized}`,
+    `/biometric-service/powerZones/sport/${pathSegment(normalized)}`,
   );
 }

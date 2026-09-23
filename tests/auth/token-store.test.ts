@@ -154,3 +154,46 @@ describe("FileTokenStore", () => {
     expect(loaded?.oauth2.access_token).toBe("at");
   });
 });
+
+/**
+ * I4: `load()` used to validate only the four token STRINGS and then cast the OAuth2 blob
+ * (`parsed2 as unknown as OAuth2Token`). A file that had lost `expires_at` therefore produced a
+ * token the refresh predicates could never decide about. Rejecting the file outright makes
+ * `loadTokens()` return `false`, which the caller already handles as "log in again".
+ */
+describe("FileTokenStore rejects a token file with malformed expiry stamps", () => {
+  let dir: string;
+  beforeEach(async () => {
+    dir = await mkdtemp(join(tmpdir(), "gcjs-exp-"));
+  });
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  async function writePair(oauth2: Record<string, unknown>): Promise<void> {
+    await writeFile(join(dir, "oauth1_token.json"), JSON.stringify(tokens.oauth1));
+    await writeFile(join(dir, "oauth2_token.json"), JSON.stringify(oauth2));
+  }
+
+  it("loads a well-formed pair", async () => {
+    await writePair({ ...tokens.oauth2 });
+    await expect(new FileTokenStore(dir).load()).resolves.toEqual(tokens);
+  });
+
+  it("returns null when expires_at is missing", async () => {
+    const { expires_at: _omit, ...rest } = tokens.oauth2;
+    await writePair(rest);
+    await expect(new FileTokenStore(dir).load()).resolves.toBeNull();
+  });
+
+  it("returns null when refresh_token_expires_at is missing", async () => {
+    const { refresh_token_expires_at: _omit, ...rest } = tokens.oauth2;
+    await writePair(rest);
+    await expect(new FileTokenStore(dir).load()).resolves.toBeNull();
+  });
+
+  it("returns null when an expiry stamp is non-numeric", async () => {
+    await writePair({ ...tokens.oauth2, expires_at: "1800000000" });
+    await expect(new FileTokenStore(dir).load()).resolves.toBeNull();
+  });
+});

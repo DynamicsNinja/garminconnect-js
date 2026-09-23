@@ -2,8 +2,29 @@
   "name": "garminconnect-js",
   "version": "0.1.0",
   "description": "TypeScript client for the Garmin Connect API, for Node and Next.js server runtimes",
+  "keywords": [
+    "garmin",
+    "garmin-connect",
+    "garminconnect",
+    "fitness",
+    "health",
+    "activities",
+    "workouts",
+    "nextjs",
+    "typescript"
+  ],
+  "homepage": "https://github.com/ificko/garminconnect-js#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ificko/garminconnect-js.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ificko/garminconnect-js/issues"
+  },
+  "author": "ificko",
   "license": "MIT",
   "type": "module",
+  "sideEffects": false,
   "engines": {
     "node": ">=18"
   },
@@ -24,6 +45,9 @@
     "NOTICE"
   ],
   "dependencies": {},
+  "peerDependencies": {
+    "@types/node": ">=18"
+  },
   "scripts": {
     "build": "tsup",
     "test": "vitest run",

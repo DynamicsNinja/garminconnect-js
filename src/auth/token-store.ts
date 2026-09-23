@@ -52,6 +52,18 @@ export class FileTokenStore implements TokenStore {
         return null;
       }
 
+      // The two expiry stamps are validated too, not just the token strings. They drive every
+      // refresh decision (`isExpired`/`refreshExpired`), and a file missing or corrupting them
+      // used to slip through the `as unknown as OAuth2Token` cast below and produce a token the
+      // client could never decide about. Those predicates now fail closed, but rejecting the
+      // whole file here is better still: `loadTokens()` returns `false` and the caller is told to
+      // log in, rather than the client carrying a half-valid token around.
+      const expiresAt = parsed2["expires_at"];
+      const refreshExpiresAt = parsed2["refresh_token_expires_at"];
+      if (!Number.isFinite(expiresAt) || !Number.isFinite(refreshExpiresAt)) {
+        return null;
+      }
+
       const oauth1: OAuth1Token = {
         oauth_token: token1,
         oauth_token_secret: secret1,

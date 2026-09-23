@@ -110,17 +110,17 @@ const server = setupServer(
   }),
   http.get(`${API}/gear-service/gear/filterGear`, ({ request }) => {
     record(request);
-    return HttpResponse.json([{ gearPk: 1, uuid: "gear-uuid-1" }]);
+    return HttpResponse.json([{ gearPk: 1, uuid: "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6" }]);
   }),
-  http.get(`${API}/activitylist-service/activities/gear-uuid-1/gear`, ({ request }) => {
+  http.get(`${API}/activitylist-service/activities/a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6/gear`, ({ request }) => {
     record(request);
     return HttpResponse.json([{ activityId: 1 }]);
   }),
-  http.put(`${API}/gear-service/gear/link/gear-uuid-1/activity/555`, ({ request }) => {
+  http.put(`${API}/gear-service/gear/link/a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6/activity/555`, ({ request }) => {
     record(request);
     return HttpResponse.json({ gearPk: 1 });
   }),
-  http.put(`${API}/gear-service/gear/unlink/gear-uuid-1/activity/555`, ({ request }) => {
+  http.put(`${API}/gear-service/gear/unlink/a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6/activity/555`, ({ request }) => {
     record(request);
     return HttpResponse.json({ gearPk: 1 });
   }),
@@ -615,23 +615,23 @@ describe("getActivityGear", () => {
     expect(url.pathname).toBe("/gear-service/gear/filterGear");
     expect(url.searchParams.get("activityId")).toBe("555");
     expect(Array.isArray(result)).toBe(true);
-    expect(result).toEqual([{ gearPk: 1, uuid: "gear-uuid-1" }]);
+    expect(result).toEqual([{ gearPk: 1, uuid: "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6" }]);
   });
 });
 
 describe("getGearActivities", () => {
   it("hits the gear activities endpoint with start=0 and the given limit", async () => {
-    await expect(makeGarmin().getGearActivities("gear-uuid-1", 50)).resolves.toEqual([
+    await expect(makeGarmin().getGearActivities("a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6", 50)).resolves.toEqual([
       { activityId: 1 },
     ]);
     const url = new URL(seen[0]!.url);
-    expect(url.pathname).toBe("/activitylist-service/activities/gear-uuid-1/gear");
+    expect(url.pathname).toBe("/activitylist-service/activities/a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6/gear");
     expect(url.searchParams.get("start")).toBe("0");
     expect(url.searchParams.get("limit")).toBe("50");
   });
 
   it("clamps limit to 1000", async () => {
-    await makeGarmin().getGearActivities("gear-uuid-1", 5000);
+    await makeGarmin().getGearActivities("a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6", 5000);
     const url = new URL(seen[0]!.url);
     expect(url.searchParams.get("limit")).toBe("1000");
   });
@@ -639,67 +639,67 @@ describe("getGearActivities", () => {
   it("returns [] on a 404 instead of throwing", async () => {
     server.use(
       http.get(
-        `${API}/activitylist-service/activities/gear-uuid-1/gear`,
+        `${API}/activitylist-service/activities/a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6/gear`,
         () => new HttpResponse("not found", { status: 404 }),
       ),
     );
-    await expect(makeGarmin().getGearActivities("gear-uuid-1")).resolves.toEqual([]);
+    await expect(makeGarmin().getGearActivities("a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6")).resolves.toEqual([]);
   });
 
   it("re-raises a non-404 error", async () => {
     server.use(
       http.get(
-        `${API}/activitylist-service/activities/gear-uuid-1/gear`,
+        `${API}/activitylist-service/activities/a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6/gear`,
         () => new HttpResponse("boom", { status: 500 }),
       ),
     );
-    await expect(makeGarmin().getGearActivities("gear-uuid-1")).rejects.toThrow();
+    await expect(makeGarmin().getGearActivities("a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6")).rejects.toThrow();
   });
 });
 
 describe("addGearToActivity", () => {
   it("PUTs to the link endpoint", async () => {
-    await expect(makeGarmin().addGearToActivity("gear-uuid-1", 555)).resolves.toEqual({
+    await expect(makeGarmin().addGearToActivity("a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6", 555)).resolves.toEqual({
       gearPk: 1,
     });
-    expect(seen[0]!.url).toBe(`${API}/gear-service/gear/link/gear-uuid-1/activity/555`);
+    expect(seen[0]!.url).toBe(`${API}/gear-service/gear/link/a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6/activity/555`);
     expect(seen[0]!.method).toBe("PUT");
   });
 
   it("re-raises a 404 as GarminConnectionError with a not-found message", async () => {
     server.use(
       http.put(
-        `${API}/gear-service/gear/link/gear-uuid-1/activity/555`,
+        `${API}/gear-service/gear/link/a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6/activity/555`,
         () => new HttpResponse("not found", { status: 404 }),
       ),
     );
-    await expect(makeGarmin().addGearToActivity("gear-uuid-1", 555)).rejects.toThrow(
+    await expect(makeGarmin().addGearToActivity("a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6", 555)).rejects.toThrow(
       GarminConnectionError,
     );
-    await expect(makeGarmin().addGearToActivity("gear-uuid-1", 555)).rejects.toThrow(
-      /Cannot add gear gear-uuid-1 to activity 555: gear not found/,
+    await expect(makeGarmin().addGearToActivity("a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6", 555)).rejects.toThrow(
+      /Cannot add gear a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6 to activity 555: gear not found/,
     );
   });
 });
 
 describe("removeGearFromActivity", () => {
   it("PUTs to the unlink endpoint (not a DELETE)", async () => {
-    await expect(makeGarmin().removeGearFromActivity("gear-uuid-1", 555)).resolves.toEqual({
+    await expect(makeGarmin().removeGearFromActivity("a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6", 555)).resolves.toEqual({
       gearPk: 1,
     });
-    expect(seen[0]!.url).toBe(`${API}/gear-service/gear/unlink/gear-uuid-1/activity/555`);
+    expect(seen[0]!.url).toBe(`${API}/gear-service/gear/unlink/a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6/activity/555`);
     expect(seen[0]!.method).toBe("PUT");
   });
 
   it("re-raises a 404 as GarminConnectionError with a not-found message", async () => {
     server.use(
       http.put(
-        `${API}/gear-service/gear/unlink/gear-uuid-1/activity/555`,
+        `${API}/gear-service/gear/unlink/a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6/activity/555`,
         () => new HttpResponse("not found", { status: 404 }),
       ),
     );
-    await expect(makeGarmin().removeGearFromActivity("gear-uuid-1", 555)).rejects.toThrow(
-      /Cannot remove gear gear-uuid-1 from activity 555: gear not found/,
+    await expect(makeGarmin().removeGearFromActivity("a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6", 555)).rejects.toThrow(
+      /Cannot remove gear a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6 from activity 555: gear not found/,
     );
   });
 });

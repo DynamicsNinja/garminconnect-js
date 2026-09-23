@@ -1,3 +1,4 @@
+import { pathSegment } from "../util/validate.js";
 import type { GarminClient } from "../client.js";
 import type {
   AdaptiveTrainingPlanDetail,
@@ -29,7 +30,7 @@ export async function getTrainingPlanById(
   planId: number | string,
 ): Promise<TrainingPlanDetail | null> {
   return host.client.connectapi<TrainingPlanDetail>(
-    `/trainingplan-service/trainingplan/phased/${planId}`,
+    `/trainingplan-service/trainingplan/phased/${pathSegment(planId)}`,
   );
 }
 
@@ -42,6 +43,6 @@ export async function getAdaptiveTrainingPlanById(
   planId: number | string,
 ): Promise<AdaptiveTrainingPlanDetail | null> {
   return host.client.connectapi<AdaptiveTrainingPlanDetail>(
-    `/trainingplan-service/trainingplan/fbt-adaptive/${planId}`,
+    `/trainingplan-service/trainingplan/fbt-adaptive/${pathSegment(planId)}`,
   );
 }

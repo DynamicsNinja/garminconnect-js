@@ -37,18 +37,30 @@ export function setExpirations(raw: RawOAuth2Token, nowMs: number = Date.now()):
   };
 }
 
+/**
+ * Fails CLOSED on a malformed token. `expires_at` is typed as a `number`, but a token that came
+ * back from a caller-implemented `TokenStore` (the normal production choice — see AGENTS.md §5)
+ * can lose the field to a database schema or a field allowlist. The naive arithmetic
+ * (`undefined - 60 <= now` -> `NaN <= number` -> `false`) reports "not expired", so the client
+ * never refreshes and the user is silently logged out roughly every 27 hours with nothing pointing
+ * at the cause. Treating an unknown expiry as expired is self-healing instead: it triggers a
+ * refresh, which succeeds as long as the OAuth1 token is still live.
+ */
 export function isExpired(
   token: OAuth2Token,
   marginSeconds = 60,
   nowMs: number = Date.now(),
 ): boolean {
+  if (!Number.isFinite(token.expires_at)) return true;
   return token.expires_at - marginSeconds <= Math.floor(nowMs / 1000);
 }
 
+/** Fails closed on a malformed token, same reasoning as `isExpired`. */
 export function refreshExpired(
   token: OAuth2Token,
   nowMs: number = Date.now(),
 ): boolean {
+  if (!Number.isFinite(token.refresh_token_expires_at)) return true;
   return token.refresh_token_expires_at <= Math.floor(nowMs / 1000);
 }
 

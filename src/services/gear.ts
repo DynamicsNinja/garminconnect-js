@@ -1,7 +1,7 @@
 import { GarminConnectionError, GarminError, GarminHttpError } from "../errors.js";
 import type { GarminClient } from "../client.js";
 import { formatDate } from "../util/date.js";
-import { validateSportKey } from "../util/validate.js";
+import { validateSportKey, validateUuid, pathSegment } from "../util/validate.js";
 import type { Gear, GearDefaults, GearStats } from "../types/gear.js";
 
 /**
@@ -12,17 +12,6 @@ import type { Gear, GearDefaults, GearStats } from "../types/gear.js";
  */
 export interface GearHost {
   readonly client: GarminClient;
-}
-
-const UUID_HEX_RE = /^[0-9a-fA-F]+$/;
-
-/** Mirrors upstream `_validate_uuid`: hex characters, hyphens optional (stripped before checking). */
-function validateUuid(uuid: string): string {
-  const stripped = uuid.replace(/-/g, "");
-  if (stripped.length === 0 || !UUID_HEX_RE.test(stripped)) {
-    throw new GarminError(`Invalid gear UUID: "${uuid}"`);
-  }
-  return uuid;
 }
 
 /**
@@ -144,7 +133,7 @@ export async function createGear(
 export async function getGearStats(host: GearHost, gearUUID: string): Promise<GearStats> {
   const uuid = validateUuid(gearUUID);
   try {
-    const data = await host.client.connectapi<GearStats>(`/gear-service/gear/stats/${uuid}`);
+    const data = await host.client.connectapi<GearStats>(`/gear-service/gear/stats/${pathSegment(uuid)}`);
     return data ?? {};
   } catch (cause) {
     if (cause instanceof GarminHttpError && cause.status === 404) {
@@ -164,7 +153,7 @@ export async function getGearDefaults(
   userProfileNumber: number | string,
 ): Promise<GearDefaults[] | null> {
   return host.client.connectapi<GearDefaults[]>(
-    `/gear-service/gear/user/${userProfileNumber}/activityTypes`,
+    `/gear-service/gear/user/${pathSegment(userProfileNumber)}/activityTypes`,
   );
 }
 
@@ -184,9 +173,10 @@ export async function setGearDefault(
   defaultGear = true,
 ): Promise<unknown> {
   const type = validateSportKey(activityType);
+  const uuid = validateUuid(gearUUID);
   const path = defaultGear
-    ? `/gear-service/gear/${gearUUID}/activityType/${type}/default/true`
-    : `/gear-service/gear/${gearUUID}/activityType/${type}`;
+    ? `/gear-service/gear/${pathSegment(uuid)}/activityType/${pathSegment(type)}/default/true`
+    : `/gear-service/gear/${pathSegment(uuid)}/activityType/${pathSegment(type)}`;
   try {
     return await host.client.connectapi(path, { method: defaultGear ? "PUT" : "DELETE" });
   } catch (cause) {

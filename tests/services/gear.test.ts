@@ -51,15 +51,15 @@ const server = setupServer(
     return HttpResponse.json([{ activityTypeKey: "running" }]);
   }),
 
-  http.put(`${API}/gear-service/gear/gear-uuid-1/activityType/RUNNING/default/true`, ({ request }) => {
+  http.put(`${API}/gear-service/gear/a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6/activityType/RUNNING/default/true`, ({ request }) => {
     record(request);
     return HttpResponse.json({ ok: true });
   }),
-  http.delete(`${API}/gear-service/gear/gear-uuid-1/activityType/RUNNING`, ({ request }) => {
+  http.delete(`${API}/gear-service/gear/a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6/activityType/RUNNING`, ({ request }) => {
     record(request);
     return new HttpResponse(null, { status: 204 });
   }),
-  http.put(`${API}/gear-service/gear/missing-uuid/activityType/RUNNING/default/true`, () => {
+  http.put(`${API}/gear-service/gear/deadbeefdeadbeefdeadbeefdeadbeef/activityType/RUNNING/default/true`, () => {
     return new HttpResponse("not found", { status: 404 });
   }),
 );
@@ -238,32 +238,32 @@ describe("getGearDefaults", () => {
 
 describe("setGearDefault", () => {
   it("PUTs .../default/true when defaultGear is true (default)", async () => {
-    await expect(makeGarmin().setGearDefault("running", "gear-uuid-1")).resolves.toEqual({
+    await expect(makeGarmin().setGearDefault("running", "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6")).resolves.toEqual({
       ok: true,
     });
     expect(seen[0]!.url).toBe(
-      `${API}/gear-service/gear/gear-uuid-1/activityType/RUNNING/default/true`,
+      `${API}/gear-service/gear/a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6/activityType/RUNNING/default/true`,
     );
     expect(seen[0]!.method).toBe("PUT");
   });
 
   it("DELETEs the plain activityType path when defaultGear is false", async () => {
-    await makeGarmin().setGearDefault("running", "gear-uuid-1", false);
-    expect(seen[0]!.url).toBe(`${API}/gear-service/gear/gear-uuid-1/activityType/RUNNING`);
+    await makeGarmin().setGearDefault("running", "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6", false);
+    expect(seen[0]!.url).toBe(`${API}/gear-service/gear/a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6/activityType/RUNNING`);
     expect(seen[0]!.method).toBe("DELETE");
   });
 
   it("uppercases activityType", async () => {
-    await makeGarmin().setGearDefault("running", "gear-uuid-1");
+    await makeGarmin().setGearDefault("running", "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6");
     expect(seen[0]!.url).toContain("/activityType/RUNNING/");
   });
 
   it("re-raises a 404 as GarminConnectionError with a not-found message", async () => {
     await expect(
-      makeGarmin().setGearDefault("running", "missing-uuid"),
+      makeGarmin().setGearDefault("running", "deadbeefdeadbeefdeadbeefdeadbeef"),
     ).rejects.toThrow(GarminConnectionError);
     await expect(
-      makeGarmin().setGearDefault("running", "missing-uuid"),
-    ).rejects.toThrow(/Cannot set gear default for UUID missing-uuid: gear not found/);
+      makeGarmin().setGearDefault("running", "deadbeefdeadbeefdeadbeefdeadbeef"),
+    ).rejects.toThrow(/Cannot set gear default for UUID deadbeefdeadbeefdeadbeefdeadbeef: gear not found/);
   });
 });

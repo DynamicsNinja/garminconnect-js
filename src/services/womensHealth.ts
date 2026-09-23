@@ -1,3 +1,4 @@
+import { pathSegment } from "../util/validate.js";
 /**
  * ============================================================================================
  * STANDING EXCEPTION to this project's write-verification policy — DO NOT REMOVE THIS COMMENT
@@ -84,7 +85,7 @@ export async function getMenstrualDataForDate(
   fordate: string | Date,
 ): Promise<MenstrualDayView | null> {
   return host.client.connectapi<MenstrualDayView>(
-    `/periodichealth-service/menstrualcycle/dayview/${formatDate(fordate)}`,
+    `/periodichealth-service/menstrualcycle/dayview/${pathSegment(formatDate(fordate))}`,
   );
 }
 
@@ -101,7 +102,7 @@ export async function getMenstrualCalendarData(
   const start = formatDate(startdate);
   const end = formatDate(enddate);
   return host.client.connectapi<MenstrualCalendarData>(
-    `/periodichealth-service/menstrualcycle/calendar/${start}/${end}`,
+    `/periodichealth-service/menstrualcycle/calendar/${pathSegment(start)}/${pathSegment(end)}`,
   );
 }
 
@@ -113,7 +114,7 @@ export async function getMenstrualLastConfirmed(
   fordate: string | Date,
 ): Promise<MenstrualLastConfirmed | null> {
   return host.client.connectapi<MenstrualLastConfirmed>(
-    `/periodichealth-service/menstrualcycle/lastconfirmed/${formatDate(fordate)}`,
+    `/periodichealth-service/menstrualcycle/lastconfirmed/${pathSegment(formatDate(fordate))}`,
   );
 }
 
@@ -125,7 +126,7 @@ export async function getMenstrualCycleSummary(
   fordate: string | Date,
 ): Promise<MenstrualCycleSummary | null> {
   return host.client.connectapi<MenstrualCycleSummary>(
-    `/periodichealth-service/menstrualcycle/summary/${formatDate(fordate)}`,
+    `/periodichealth-service/menstrualcycle/summary/${pathSegment(formatDate(fordate))}`,
   );
 }
 
@@ -155,7 +156,7 @@ export async function getMenstrualReports(
   const todayCalendarDate = formatDate(options.todayCalendarDate ?? new Date());
   const reportType = (options.reportType ?? "CYCLE").trim();
   return host.client.connectapi<MenstrualReports>(
-    `/periodichealth-service/reports/menstrualcycle/${numberOfCycles}/${date}`,
+    `/periodichealth-service/reports/menstrualcycle/${pathSegment(numberOfCycles)}/${pathSegment(date)}`,
     {
       params: {
         next: String(options.nextReport ?? false),
@@ -286,7 +287,7 @@ export async function updateMenstrualDailyLog(
     ...(pk !== undefined ? { userProfilePk: pk } : {}),
   };
 
-  return host.client.connectapi(`/periodichealth-service/menstrualcycle/dailylog/${date}`, {
+  return host.client.connectapi(`/periodichealth-service/menstrualcycle/dailylog/${pathSegment(date)}`, {
     method: "POST",
     json: cleanMenstrualDailyLog(rawBody),
   });
@@ -419,7 +420,7 @@ export async function confirmMenstrualPeriodStart(
 ): Promise<unknown> {
   const date = formatDate(periodStartDate);
   const pk = await resolveUserProfilePk(host);
-  return host.client.connectapi(`/periodichealth-service/menstrualcycle/${date}`, {
+  return host.client.connectapi(`/periodichealth-service/menstrualcycle/${pathSegment(date)}`, {
     method: "POST",
     json: {
       periodStartDate: date,

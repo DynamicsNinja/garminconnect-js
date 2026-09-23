@@ -1,3 +1,4 @@
+import { pathSegment } from "../util/validate.js";
 import type { GarminClient } from "../client.js";
 import { formatDate } from "../util/date.js";
 import type { GraphqlResult, LifestyleLoggingData, ReloadRequestResult } from "../types/misc.js";
@@ -18,7 +19,7 @@ export async function getLifestyleLoggingData(
   cdate: string | Date,
 ): Promise<LifestyleLoggingData | null> {
   return host.client.connectapi<LifestyleLoggingData>(
-    `/lifestylelogging-service/dailyLog/${formatDate(cdate)}`,
+    `/lifestylelogging-service/dailyLog/${pathSegment(formatDate(cdate))}`,
   );
 }
 
@@ -39,7 +40,7 @@ export async function requestReload(
   cdate: string | Date,
 ): Promise<ReloadRequestResult | null> {
   return host.client.connectapi<ReloadRequestResult>(
-    `/wellness-service/wellness/epoch/request/${formatDate(cdate)}`,
+    `/wellness-service/wellness/epoch/request/${pathSegment(formatDate(cdate))}`,
     { method: "POST" },
   );
 }

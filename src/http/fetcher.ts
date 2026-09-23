@@ -31,7 +31,13 @@ export interface RequestOptions {
   params?: Record<string, string | number | undefined>;
   body?: RequestInit["body"];
   json?: unknown;
-  headers?: Record<string, string>;
+  /**
+   * Widened from `Record<string, string>`: callers that must GUARANTEE a header wins
+   * (e.g. `GarminClient` injecting the bearer token) build a `Headers` and use `.set()`, which is
+   * case-insensitive. Object spread is not — `Authorization` and `authorization` are distinct
+   * object keys, and `new Headers()` then COMBINES them with `", "` rather than replacing.
+   */
+  headers?: RequestInit["headers"];
   referer?: boolean;
   /** Per-request timeout, overriding the Fetcher's default. */
   timeoutMs?: number;

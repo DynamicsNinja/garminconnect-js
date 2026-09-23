@@ -1,3 +1,4 @@
+import { pathSegment } from "../util/validate.js";
 import { GarminError } from "../errors.js";
 import type { GarminClient } from "../client.js";
 import * as devices from "./devices.js";
@@ -39,7 +40,7 @@ export async function getWorkoutById(
   host: WorkoutsHost,
   workoutId: number | string,
 ): Promise<WorkoutRecord | null> {
-  return host.client.connectapi<WorkoutRecord>(`/workout-service/workout/${workoutId}`);
+  return host.client.connectapi<WorkoutRecord>(`/workout-service/workout/${pathSegment(workoutId)}`);
 }
 
 /**
@@ -47,7 +48,7 @@ export async function getWorkoutById(
  * from the workout library — irreversible.
  */
 export async function deleteWorkout(host: WorkoutsHost, workoutId: number | string): Promise<unknown> {
-  return host.client.connectapi(`/workout-service/workout/${workoutId}`, { method: "DELETE" });
+  return host.client.connectapi(`/workout-service/workout/${pathSegment(workoutId)}`, { method: "DELETE" });
 }
 
 /**
@@ -55,7 +56,7 @@ export async function deleteWorkout(host: WorkoutsHost, workoutId: number | stri
  * null handling reviewed. Returns the workout's FIT-file bytes.
  */
 export async function downloadWorkout(host: WorkoutsHost, workoutId: number | string): Promise<Buffer> {
-  return host.client.download(`/workout-service/workout/FIT/${workoutId}`);
+  return host.client.download(`/workout-service/workout/FIT/${pathSegment(workoutId)}`);
 }
 
 /**
@@ -91,7 +92,7 @@ export async function updateWorkout(
 ): Promise<WorkoutRecord | null> {
   const parsed = parseWorkoutJson(workoutJson, /* allowArray */ false);
   const body = { ...(parsed as Record<string, unknown>), workoutId };
-  return host.client.connectapi<WorkoutRecord>(`/workout-service/workout/${workoutId}`, {
+  return host.client.connectapi<WorkoutRecord>(`/workout-service/workout/${pathSegment(workoutId)}`, {
     method: "PUT",
     json: body,
   });
@@ -335,7 +336,7 @@ export async function getScheduledWorkouts(
     throw new GarminError(`Expected month between 1 and 12, got "${String(month)}"`);
   }
   return host.client.connectapi<CalendarMonth>(
-    `/calendar-service/year/${yearNum}/month/${monthNum - 1}`,
+    `/calendar-service/year/${pathSegment(yearNum)}/month/${pathSegment(monthNum - 1)}`,
   );
 }
 
@@ -349,7 +350,7 @@ export async function getScheduledWorkoutById(
   host: WorkoutsHost,
   scheduledWorkoutId: number | string,
 ): Promise<WorkoutRecord | null> {
-  return host.client.connectapi<WorkoutRecord>(`/workout-service/schedule/${scheduledWorkoutId}`);
+  return host.client.connectapi<WorkoutRecord>(`/workout-service/schedule/${pathSegment(scheduledWorkoutId)}`);
 }
 
 /**
@@ -393,7 +394,7 @@ export async function scheduleWorkout(
   dateStr: string | Date,
 ): Promise<WorkoutRecord | null> {
   const date = formatDate(dateStr);
-  return host.client.connectapi<WorkoutRecord>(`/workout-service/schedule/${workoutId}`, {
+  return host.client.connectapi<WorkoutRecord>(`/workout-service/schedule/${pathSegment(workoutId)}`, {
     method: "POST",
     json: { date },
   });
@@ -407,7 +408,7 @@ export async function unscheduleWorkout(
   host: WorkoutsHost,
   scheduledWorkoutId: number | string,
 ): Promise<unknown> {
-  return host.client.connectapi(`/workout-service/schedule/${scheduledWorkoutId}`, {
+  return host.client.connectapi(`/workout-service/schedule/${pathSegment(scheduledWorkoutId)}`, {
     method: "DELETE",
   });
 }

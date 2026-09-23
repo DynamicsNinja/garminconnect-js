@@ -1,3 +1,4 @@
+import { pathSegment } from "../util/validate.js";
 import { GarminAuthError, GarminError } from "../errors.js";
 import type { GarminClient } from "../client.js";
 import { formatDate, formatGmtTimestamp, formatLocalTimestamp } from "../util/date.js";
@@ -43,7 +44,7 @@ export async function getUserSummary(
 ): Promise<UserSummary> {
   const date = formatDate(cdate);
   const summary = await host.client.connectapi<UserSummary>(
-    `/usersummary-service/usersummary/daily/${await host.displayName()}`,
+    `/usersummary-service/usersummary/daily/${pathSegment(await host.displayName())}`,
     { params: { calendarDate: date } },
   );
   if (!summary) throw new GarminError("No user summary received from Garmin");
@@ -59,7 +60,7 @@ export async function getStepsData(
 ): Promise<StepsEntry[]> {
   const date = formatDate(cdate);
   const steps = await host.client.connectapi<StepsEntry[]>(
-    `/wellness-service/wellness/dailySummaryChart/${await host.displayName()}`,
+    `/wellness-service/wellness/dailySummaryChart/${pathSegment(await host.displayName())}`,
     { params: { date } },
   );
   return steps ?? [];
@@ -71,7 +72,7 @@ export async function getHeartRates(
 ): Promise<HeartRateData> {
   const date = formatDate(cdate);
   const data = await host.client.connectapi<HeartRateData>(
-    `/wellness-service/wellness/dailyHeartRate/${await host.displayName()}`,
+    `/wellness-service/wellness/dailyHeartRate/${pathSegment(await host.displayName())}`,
     { params: { date } },
   );
   if (!data) throw new GarminError("No heart rate data received from Garmin");
@@ -89,7 +90,7 @@ export async function getSleepData(
 ): Promise<SleepData | null> {
   const date = formatDate(cdate);
   return host.client.connectapi<SleepData>(
-    `/wellness-service/wellness/dailySleepData/${await host.displayName()}`,
+    `/wellness-service/wellness/dailySleepData/${pathSegment(await host.displayName())}`,
     { params: { date, nonSleepBufferMinutes: 60 } },
   );
 }
@@ -98,7 +99,7 @@ export async function getHrvData(
   host: WellnessHost,
   cdate: string | Date,
 ): Promise<HrvData | null> {
-  return host.client.connectapi<HrvData>(`/hrv-service/hrv/${formatDate(cdate)}`);
+  return host.client.connectapi<HrvData>(`/hrv-service/hrv/${pathSegment(formatDate(cdate))}`);
 }
 
 export async function getBodyBattery(
@@ -120,14 +121,14 @@ export async function getBodyBatteryEvents(
   cdate: string | Date,
 ): Promise<BodyBatteryEvent[] | null> {
   return host.client.connectapi<BodyBatteryEvent[]>(
-    `/wellness-service/wellness/bodyBattery/events/${formatDate(cdate)}`,
+    `/wellness-service/wellness/bodyBattery/events/${pathSegment(formatDate(cdate))}`,
   );
 }
 
 export async function getFloors(host: WellnessHost, cdate: string | Date): Promise<FloorsData> {
   const date = formatDate(cdate);
   const data = await host.client.connectapi<FloorsData>(
-    `/wellness-service/wellness/floorsChartData/daily/${date}`,
+    `/wellness-service/wellness/floorsChartData/daily/${pathSegment(date)}`,
   );
   if (!data) throw new GarminError("No floors data received from Garmin");
   return data;
@@ -169,7 +170,7 @@ export async function getDailySteps(
   if (startDate > endDate) {
     throw new GarminError("getDailySteps: start date must not be after end date");
   }
-  const url = (s: string, e: string): string => `/usersummary-service/stats/steps/daily/${s}/${e}`;
+  const url = (s: string, e: string): string => `/usersummary-service/stats/steps/daily/${pathSegment(s)}/${pathSegment(e)}`;
   if (daysBetween(startDate, endDate) <= 28) {
     return host.client.connectapi<DailyStepsEntry[]>(url(startDate, endDate));
   }
@@ -198,7 +199,7 @@ export async function getWeeklySteps(
   assertPositiveInteger(weeks, "weeks");
   const endDate = formatDate(end);
   return host.client.connectapi<WeeklyStepsEntry[]>(
-    `/usersummary-service/stats/steps/weekly/${endDate}/${weeks}`,
+    `/usersummary-service/stats/steps/weekly/${pathSegment(endDate)}/${pathSegment(weeks)}`,
   );
 }
 
@@ -210,7 +211,7 @@ export async function getWeeklyStress(
   assertPositiveInteger(weeks, "weeks");
   const endDate = formatDate(end);
   return host.client.connectapi<WeeklyStressEntry[]>(
-    `/usersummary-service/stats/stress/weekly/${endDate}/${weeks}`,
+    `/usersummary-service/stats/stress/weekly/${pathSegment(endDate)}/${pathSegment(weeks)}`,
   );
 }
 
@@ -222,7 +223,7 @@ export async function getWeeklyIntensityMinutes(
   const s = formatDate(start);
   const e = formatDate(end);
   return host.client.connectapi<WeeklyIntensityMinutesEntry[]>(
-    `/usersummary-service/stats/im/weekly/${s}/${e}`,
+    `/usersummary-service/stats/im/weekly/${pathSegment(s)}/${pathSegment(e)}`,
   );
 }
 
@@ -300,7 +301,7 @@ export async function getBloodPressure(
   const start = formatDate(startdate);
   const end = enddate === undefined ? start : formatDate(enddate);
   return host.client.connectapi<BloodPressureRange>(
-    `/bloodpressure-service/bloodpressure/range/${start}/${end}`,
+    `/bloodpressure-service/bloodpressure/range/${pathSegment(start)}/${pathSegment(end)}`,
     { params: { includeAll: "true" } },
   );
 }
@@ -317,7 +318,7 @@ export async function deleteBloodPressure(
   const v = Number(version);
   assertPositiveInteger(v, "version");
   const date = formatDate(cdate);
-  return host.client.connectapi(`/bloodpressure-service/bloodpressure/${date}/${v}`, {
+  return host.client.connectapi(`/bloodpressure-service/bloodpressure/${pathSegment(date)}/${pathSegment(v)}`, {
     method: "DELETE",
   });
 }
@@ -378,7 +379,7 @@ export async function getHydrationData(
   cdate: string | Date,
 ): Promise<HydrationLogResult | null> {
   return host.client.connectapi<HydrationLogResult>(
-    `/usersummary-service/usersummary/hydration/daily/${formatDate(cdate)}`,
+    `/usersummary-service/usersummary/hydration/daily/${pathSegment(formatDate(cdate))}`,
   );
 }
 
@@ -387,7 +388,7 @@ export async function getRespirationData(
   cdate: string | Date,
 ): Promise<RespirationData | null> {
   return host.client.connectapi<RespirationData>(
-    `/wellness-service/wellness/daily/respiration/${formatDate(cdate)}`,
+    `/wellness-service/wellness/daily/respiration/${pathSegment(formatDate(cdate))}`,
   );
 }
 
@@ -400,7 +401,7 @@ export async function getSpo2Data(
   cdate: string | Date,
 ): Promise<Spo2Data | null> {
   const data = await host.client.connectapi<Spo2Data>(
-    `/wellness-service/wellness/daily/spo2/${formatDate(cdate)}`,
+    `/wellness-service/wellness/daily/spo2/${pathSegment(formatDate(cdate))}`,
   );
   if (data && typeof data === "object" && typeof data.lastSevenDaysAvgSpO2 === "string") {
     data.lastSevenDaysAvgSpO2 = Number(data.lastSevenDaysAvgSpO2);
@@ -413,7 +414,7 @@ export async function getIntensityMinutesData(
   cdate: string | Date,
 ): Promise<IntensityMinutesData | null> {
   return host.client.connectapi<IntensityMinutesData>(
-    `/wellness-service/wellness/daily/im/${formatDate(cdate)}`,
+    `/wellness-service/wellness/daily/im/${pathSegment(formatDate(cdate))}`,
   );
 }
 
@@ -422,7 +423,7 @@ export async function getAllDayStress(
   cdate: string | Date,
 ): Promise<DailyStressData | null> {
   return host.client.connectapi<DailyStressData>(
-    `/wellness-service/wellness/dailyStress/${formatDate(cdate)}`,
+    `/wellness-service/wellness/dailyStress/${pathSegment(formatDate(cdate))}`,
   );
 }
 
@@ -436,7 +437,7 @@ export async function getStressData(
   cdate: string | Date,
 ): Promise<DailyStressData | null> {
   return host.client.connectapi<DailyStressData>(
-    `/wellness-service/wellness/dailyStress/${formatDate(cdate)}`,
+    `/wellness-service/wellness/dailyStress/${pathSegment(formatDate(cdate))}`,
   );
 }
 
@@ -472,7 +473,7 @@ export async function getSleepDaily(
   while (chunkStart <= endDate) {
     const chunkEnd = daysBetween(chunkStart, endDate) > 27 ? addDays(chunkStart, 27) : endDate;
     const data = await host.client.connectapi<{ individualStats?: SleepDailyEntry[] }>(
-      `/sleep-service/stats/sleep/daily/${chunkStart}/${chunkEnd}`,
+      `/sleep-service/stats/sleep/daily/${pathSegment(chunkStart)}/${pathSegment(chunkEnd)}`,
     );
     for (const row of data?.individualStats ?? []) {
       const key = typeof row.calendarDate === "string" ? row.calendarDate : JSON.stringify(row);
@@ -491,7 +492,7 @@ export async function getRhrDay(
 ): Promise<RhrDayData | null> {
   const date = formatDate(cdate);
   return host.client.connectapi<RhrDayData>(
-    `/userstats-service/wellness/daily/${await host.displayName()}`,
+    `/userstats-service/wellness/daily/${pathSegment(await host.displayName())}`,
     { params: { fromDate: date, untilDate: date, metricId: 60 } },
   );
 }
@@ -516,7 +517,7 @@ export async function getRhrDaily(
   const e = formatDate(end);
   const data = await host.client.connectapi<{
     allMetrics?: { metricsMap?: Record<string, unknown> };
-  }>(`/userstats-service/wellness/daily/${await host.displayName()}`, {
+  }>(`/userstats-service/wellness/daily/${pathSegment(await host.displayName())}`, {
     params: { fromDate: s, untilDate: e, metricId: 60 },
   });
   const metricsMap = data?.allMetrics?.metricsMap ?? {};
@@ -565,7 +566,7 @@ export async function getCaloriesDaily(
   query.append("metricId", "23");
   const data = await host.client.connectapi<{
     allMetrics?: { metricsMap?: Record<string, unknown> };
-  }>(`/userstats-service/wellness/daily/${await host.displayName()}?${query.toString()}`);
+  }>(`/userstats-service/wellness/daily/${pathSegment(await host.displayName())}?${query.toString()}`);
   const metricsMap = data?.allMetrics?.metricsMap ?? {};
   const byDate = new Map<string, { calendarDate: string; active?: number; resting?: number }>();
   const collect = (key: string, assign: (row: { active?: number; resting?: number }, value: number | undefined) => void) => {
@@ -603,5 +604,5 @@ export async function getHrvDataRange(
 ): Promise<HrvDataRange | null> {
   const s = formatDate(start);
   const e = formatDate(end);
-  return host.client.connectapi<HrvDataRange>(`/hrv-service/hrv/daily/${s}/${e}`);
+  return host.client.connectapi<HrvDataRange>(`/hrv-service/hrv/daily/${pathSegment(s)}/${pathSegment(e)}`);
 }

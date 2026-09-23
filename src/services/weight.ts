@@ -1,3 +1,4 @@
+import { pathSegment } from "../util/validate.js";
 import { GarminError } from "../errors.js";
 import type { GarminClient } from "../client.js";
 import {
@@ -28,7 +29,7 @@ export async function getWeighIns(
   const start = formatDate(startdate);
   const end = formatDate(enddate);
   const data = await host.client.connectapi<WeighInRange>(
-    `/weight-service/weight/range/${start}/${end}`,
+    `/weight-service/weight/range/${pathSegment(start)}/${pathSegment(end)}`,
     { params: { includeAll: "true" } },
   );
   return data ?? {};
@@ -70,7 +71,7 @@ export async function deleteWeighIn(
   weightPk: number,
 ): Promise<null> {
   await host.client.connectapi(
-    `/weight-service/weight/${formatDate(cdate)}/byversion/${weightPk}`,
+    `/weight-service/weight/${pathSegment(formatDate(cdate))}/byversion/${pathSegment(weightPk)}`,
     { method: "DELETE" },
   );
   return null;
@@ -133,7 +134,7 @@ export async function getDailyWeighIns(
   cdate: string | Date,
 ): Promise<DailyWeighIns | null> {
   return host.client.connectapi<DailyWeighIns>(
-    `/weight-service/weight/dayview/${formatDate(cdate)}`,
+    `/weight-service/weight/dayview/${pathSegment(formatDate(cdate))}`,
     { params: { includeAll: "true" } },
   );
 }

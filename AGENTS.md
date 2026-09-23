@@ -230,8 +230,8 @@ interface GarminClientOptions {
 | `setTokens`     | `(tokens: Tokens): void`                                                                                               | Synchronous, in-memory only; does not call `tokenStore.save`.                                                                                                                                                                                                                                                                                                                                                                                      |
 | `getTokens`     | `(): Tokens \| null`                                                                                                   |                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | `connectapi<T>` | `(path: string, options?: ApiOptions): Promise<T \| null>`                                                             | The escape hatch — see section 4. Returns `null` on a 204 or empty body.                                                                                                                                                                                                                                                                                                                                                                           |
-| `download`      | `(path: string, options?: ApiOptions): Promise<Buffer>`                                                                | Default timeout 60s, not 10s. **Not live-verified.**                                                                                                                                                                                                                                                                                                                                                                                               |
-| `upload`        | `(file: Blob, filename: string, path?: string, options?: Pick<ApiOptions,"timeoutMs" \| "headers">): Promise<unknown>` | `path` defaults to `/upload-service/upload`. Multipart, field name `file`; `Content-Type` is left unset so `fetch` sets the boundary. Default timeout 60s. `options.headers` (added for `importActivity`) is merged in AFTER the default `User-Agent` but BEFORE the transport's own `authorization` header — a caller can override `User-Agent` but never the injected bearer token. Live-verified via `importActivity` (a synthetic GPX upload). |
+| `download`      | `(path: string, options?: ApiOptions): Promise<Buffer>`                                                                | Default timeout 60s, not 10s. Live-verified via `downloadActivity` (all five formats).                                                                                                                                                                                                                                                                                                                                                                                               |
+| `upload`        | `(file: Blob, filename: string, path?: string, options?: Pick<ApiOptions,"timeoutMs" \| "headers">): Promise<unknown>` | `path` defaults to `/upload-service/upload`. Multipart, field name `file`; `Content-Type` is left unset so `fetch` sets the boundary. Default timeout 60s. `options.headers` (added for `importActivity`) seeds a `Headers` on top of the default `User-Agent`, then the transport `.set()`s its own `authorization` last — a caller can override `User-Agent` but never the injected bearer token. This used to be object spread, which only overwrote on an EXACT key match: a caller-supplied capital-A `Authorization` survived and `new Headers()` combined the two into `Bearer CALLER, Bearer REAL`. `Headers.set` is case-insensitive, so the invariant now genuinely holds (tested in `tests/path-safety.test.ts`). Live-verified via `importActivity` (a synthetic GPX upload). |
 
 `ApiOptions`: `{ method?, params?: Record<string,string|number|undefined>, json?: unknown, headers?: Record<string,string>, timeoutMs?: number }`. There is no public `retry` field on `ApiOptions` — see section 6 for what that means for POST.
 
@@ -321,10 +321,15 @@ persisted via `tokenStore.save()` — callers never call refresh themselves.
 own; that's the caller's job.
 
 MFA: `login()` returns `{ state: "mfa_required", mfaState }` instead of throwing or blocking for
-input. `mfaState: MfaState` is plain JSON, contains no password, and is safe to put in a session
-store and carry across an HTTP boundary — e.g. one Next.js route handler returns it, a later
+input. `mfaState: MfaState` is plain JSON, contains no password, and can be put in a session
+store and carried across an HTTP boundary — e.g. one Next.js route handler returns it, a later
 request to a different route handler calls `client.resumeLogin(mfaState, code)` to finish the
 login. This is the intended pattern for serverless MFA, not a workaround.
+
+**But `MfaState` is still a short-lived secret, not inert JSON**: `mfaState.cookies` is a live,
+partially-authenticated SSO session. Anyone holding it can finish the login with the code.
+Encrypt it at rest, scope it to the one session that started the login, and delete it the moment
+`resumeLogin` returns (`README.md` states the same rule — keep the two in step).
 
 ## 6. Gotchas
 
@@ -407,6 +412,11 @@ unknown>[]` to use it) but the types weren't corrected until code review caught 
   row says "dict" for a `filterGear`-family or `.../activityTypes`-family endpoint, verify the
   actual shape live rather than trusting the inventory's label — don't repeat this mistake for a
   sibling endpoint.
+- **`src/util/validate.ts` is the single home for the shared guards** — `validateSportKey`,
+  `validateNonNegativeInteger`, `validatePositiveInteger`, `validateUuid` and `pathSegment`.
+  `validateUuid` was private to `gear.ts` and applied at 1 of 8 `gearUUID` sites; it now lives here
+  and is applied at all 8 (see §7). `pathSegment` is the URL-path encoder every service must use
+  for every interpolated id.
 - **`validateSportKey` lives in `src/util/validate.ts`, shared by `metrics.ts` and `gear.ts`.** It
   was originally duplicated in `gear.ts` (copy-pasted from `metrics.ts`, which is where it was
   originally live-verified across 20+ probes) before being extracted in Task 7's fix-round-1. Any
@@ -500,7 +510,14 @@ unitKey, when?)` sends `weight` RAW, in whatever unit `unitKey` names (`"kg"` or
 - **Error taxonomy** (src/errors.ts): `GarminError` (base, also thrown directly for malformed
   responses) → `GarminAuthError` (401/403, failed SSO, expired tokens) / `GarminRateLimitError`
   (429, carries `retryAfter?: number` in seconds from `Retry-After` when present) /
-  `GarminConnectionError` (network failure or timeout after retries) / `GarminHttpError` (any
+  `GarminConnectionError` (network failure or timeout after retries — **and**, as a deliberate
+  exception mirroring upstream, a few SEMANTIC HTTP statuses: `importActivity`'s 409
+  "Activity already exists", and the 404 "gear not found (likely retired/removed)" from
+  `addGearToActivity`, `removeGearFromActivity` and `setGearDefault`, plus `getDeviceSolarData`'s
+  missing-`deviceSolarInput` case. Those are PERMANENT — a blanket
+  `if (e instanceof GarminConnectionError) retryWithBackoff()` spins forever on them; check the
+  message or the `cause`, which carries the original `GarminHttpError`. A dedicated error class
+  would be a behaviour change and is recorded as a post-0.1.0 candidate) / `GarminHttpError` (any
   other non-2xx, carries `status: number`, `url: string`, `body: string`). Error messages have
   query strings redacted — a Garmin service ticket rides in the query string, so don't expect the
   full URL in a caught error's message.
@@ -643,6 +660,29 @@ power}` — and it throws unless `startDate` is supplied. The two branches also 
   `addWeighIn` in a test run writes an entry into someone's real health record on
   connect.garmin.com. Live-hitting tests belong behind `npm run test:live`, gated on the
   developer explicitly having real tokens, never in the default `npm test` suite.
+- Never interpolate a caller-supplied value into a request path without `pathSegment()` from
+  `src/util/validate.ts`. `Fetcher.request` hands the composed URL to `new URL()`, which
+  NORMALIZES `..` segments, so a raw id is a request-redirection primitive, not just a cosmetic
+  issue: `deleteWorkout("../../weight-service/weight/2026-01-01/byversion/999")` used to resolve
+  to `DELETE /weight-service/weight/...` — a different Garmin service, a write, carrying the
+  user's bearer token — and `getActivity("1?x=y#frag")` used to smuggle a query string and
+  fragment into the request. The headline use case for this library is a Next.js route handler,
+  so `garmin.getActivity(params.id)` with a user-controlled route param is the DEFAULT shape of
+  consuming code. Every id (`activityId`, `workoutId`, `gearUUID`, `planId`, `scorecardId`,
+  `weightPk`, `userProfileNumber`, `scheduledWorkoutId`, `deviceId`, …) and every interpolated
+  `displayName()` now goes through `pathSegment`; a new service must do the same. Encoding is
+  behaviour-preserving for legitimate values — numeric ids, hex UUIDs, `YYYY-MM-DD` dates and
+  Garmin display names all round-trip unchanged — and it restores parity with upstream's
+  `_require_display_name`, which does `quote(name, safe="")`. `gearUUID` additionally goes
+  through `validateUuid` (also in `src/util/validate.ts`) at **all eight** call sites, in
+  `gear.ts` and in the three gear methods in `activities.ts`; it used to be applied at one
+  (`getGearStats`).
+- Never build the transport's own headers with object spread. `Authorization` and `authorization`
+  are distinct OBJECT keys, and `new Headers()` then COMBINES the duplicates with `", "` — so
+  `{ ...callerHeaders, authorization: real }` sent `Bearer CALLER, Bearer REAL` when the caller
+  passed a capital-A `Authorization`. `GarminClient` builds a `Headers` and uses `.set()`, which
+  is case-insensitive and genuinely replaces. (`upload` still lets a caller override
+  `User-Agent` — `importActivity` depends on that — but never `authorization`.)
 - Do not construct a new `GarminClient` (or a new `Garmin`) inside a loop or per-request when one
   instance can be reused — each `login`/`loadTokens` and each fresh `Garmin`'s first profile
   fetch is a real network round trip.

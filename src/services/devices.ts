@@ -1,3 +1,4 @@
+import { pathSegment } from "../util/validate.js";
 import { GarminConnectionError, GarminError } from "../errors.js";
 import type { GarminClient } from "../client.js";
 import { formatDate } from "../util/date.js";
@@ -51,7 +52,7 @@ export async function getDeviceSettings(
 ): Promise<DeviceSettings | null> {
   const id = validateDeviceId(deviceId);
   return host.client.connectapi<DeviceSettings>(
-    `/device-service/deviceservice/device-info/settings/${id}`,
+    `/device-service/deviceservice/device-info/settings/${pathSegment(id)}`,
   );
 }
 
@@ -90,7 +91,7 @@ export async function getDeviceSolarData(
   const singleDayView = enddate === undefined;
   const end = singleDayView ? start : formatDate(enddate);
   const resp = await host.client.connectapi<DeviceSolarDataResponse>(
-    `/web-gateway/solar/${id}/${start}/${end}`,
+    `/web-gateway/solar/${pathSegment(id)}/${pathSegment(start)}/${pathSegment(end)}`,
     { params: { singleDayView: String(singleDayView) } },
   );
   if (!resp || !("deviceSolarInput" in resp)) {

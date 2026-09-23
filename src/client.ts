@@ -167,6 +167,17 @@ export class GarminClient {
     return refreshed;
   }
 
+  /**
+   * Seeds a `Headers` from the caller's headers, then `.set()`s the transport's own on top so
+   * they always win regardless of the caller's casing. See the callers' comments.
+   */
+  #withTransportHeaders(callerHeaders: Record<string, string> | undefined, tokens: Tokens): Headers {
+    const headers = new Headers(callerHeaders ?? {});
+    headers.set("authorization", authorizationHeader(tokens.oauth2));
+    headers.set("User-Agent", API_USER_AGENT);
+    return headers;
+  }
+
   async #apiRequest(path: string, options: ApiOptions = {}): Promise<Response> {
     const tokens = await this.#ensureFresh();
     return this.#fetcher.request(`https://connectapi.${this.domain}${path}`, {
@@ -174,15 +185,14 @@ export class GarminClient {
       params: options.params,
       json: options.json,
       timeoutMs: options.timeoutMs,
-      headers: {
-        // Caller headers are spread first so the transport's own auth
-        // header always wins — a caller-supplied `headers.authorization`
-        // (or a differently-cased `Authorization`) can never replace the
-        // bearer token this method injects.
-        ...options.headers,
-        authorization: authorizationHeader(tokens.oauth2),
-        "User-Agent": API_USER_AGENT,
-      },
+      // Caller headers seed a `Headers` object, then the transport's own
+      // headers are `.set()` on top. `Headers.set` matches case-insensitively
+      // and REPLACES, so a caller-supplied `authorization` — or a
+      // differently-cased `Authorization` — can never survive alongside the
+      // injected bearer token. Object spread cannot do this: `Authorization`
+      // and `authorization` are distinct object keys, and `new Headers()`
+      // combines the duplicates with `", "` instead of dropping one.
+      headers: this.#withTransportHeaders(options.headers, tokens),
     });
   }
 
@@ -225,19 +235,21 @@ export class GarminClient {
     const form = new FormData();
     form.append("file", file, filename);
     // Content-Type is deliberately unset so fetch adds the multipart boundary.
+    const uploadHeaders = new Headers({ "User-Agent": API_USER_AGENT });
+    for (const [key, value] of new Headers(options.headers ?? {})) {
+      uploadHeaders.set(key, value);
+    }
+    uploadHeaders.set("authorization", authorizationHeader(tokens.oauth2));
     const res = await this.#fetcher.request(`https://connectapi.${this.domain}${path}`, {
       method: "POST",
       body: form,
       timeoutMs: options.timeoutMs ?? TRANSFER_DEFAULT_TIMEOUT_MS,
-      headers: {
-        // Defaults first, then caller headers (e.g. `importActivity`'s
-        // load-bearing `NK`/`origin`/`User-Agent` overrides), then the
-        // transport's own auth header last so it can never be replaced —
-        // same ordering rule as `#apiRequest`.
-        "User-Agent": API_USER_AGENT,
-        ...options.headers,
-        authorization: authorizationHeader(tokens.oauth2),
-      },
+      // Default `User-Agent` first, then caller headers (e.g.
+      // `importActivity`'s load-bearing `NK`/`origin`/`User-Agent`
+      // overrides — a caller MAY replace the User-Agent), then the
+      // transport's own auth header `.set()` last so it can never be
+      // replaced. Same case-insensitivity reasoning as `#apiRequest`.
+      headers: uploadHeaders,
     });
     return this.#parseBody(res);
   }

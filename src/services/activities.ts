@@ -1,3 +1,4 @@
+import { pathSegment, validateUuid } from "../util/validate.js";
 import { GarminConnectionError, GarminError, GarminHttpError } from "../errors.js";
 import type { GarminClient } from "../client.js";
 import { formatDate } from "../util/date.js";
@@ -57,7 +58,7 @@ export async function getActivity(
   activityId: number | string,
 ): Promise<Activity> {
   const activity = await host.client.connectapi<Activity>(
-    `/activity-service/activity/${activityId}`,
+    `/activity-service/activity/${pathSegment(activityId)}`,
   );
   if (!activity) throw new GarminError(`No activity ${activityId} found`);
   return activity;
@@ -80,7 +81,7 @@ export async function downloadActivity(
   if (!base) {
     throw new GarminError(`Unknown download format "${format}"`);
   }
-  return host.client.download(`${base}/${activityId}`);
+  return host.client.download(`${base}/${pathSegment(activityId)}`);
 }
 
 /**
@@ -96,7 +97,7 @@ export async function getActivitiesForDate(
 ): Promise<ActivitiesForDateResponse | null> {
   const date = formatDate(fordate);
   return host.client.connectapi<ActivitiesForDateResponse>(
-    `/mobile-gateway/heartRate/forDate/${date}`,
+    `/mobile-gateway/heartRate/forDate/${pathSegment(date)}`,
   );
 }
 
@@ -131,7 +132,7 @@ export async function deleteActivity(
   host: ActivitiesHost,
   activityId: number | string,
 ): Promise<unknown> {
-  return host.client.connectapi(`/activity-service/activity/${activityId}`, {
+  return host.client.connectapi(`/activity-service/activity/${pathSegment(activityId)}`, {
     method: "DELETE",
   });
 }
@@ -142,7 +143,7 @@ export async function setActivityName(
   activityId: number | string,
   activityName: string,
 ): Promise<unknown> {
-  return host.client.connectapi(`/activity-service/activity/${activityId}`, {
+  return host.client.connectapi(`/activity-service/activity/${pathSegment(activityId)}`, {
     method: "PUT",
     json: { activityId, activityName },
   });
@@ -156,7 +157,7 @@ export async function setActivityType(
   typeKey: string,
   parentTypeId: number,
 ): Promise<unknown> {
-  return host.client.connectapi(`/activity-service/activity/${activityId}`, {
+  return host.client.connectapi(`/activity-service/activity/${pathSegment(activityId)}`, {
     method: "PUT",
     json: {
       activityId,
@@ -171,7 +172,7 @@ export async function setActivityDescription(
   activityId: number | string,
   description: string,
 ): Promise<unknown> {
-  return host.client.connectapi(`/activity-service/activity/${activityId}`, {
+  return host.client.connectapi(`/activity-service/activity/${pathSegment(activityId)}`, {
     method: "PUT",
     json: { activityId, description },
   });
@@ -318,7 +319,7 @@ export async function importActivity(
   }
 
   try {
-    const result = await host.client.upload(file, filename, `/upload-service/upload/${extension}`, {
+    const result = await host.client.upload(file, filename, `/upload-service/upload/${pathSegment(extension)}`, {
       headers: IMPORT_UPLOAD_HEADERS,
     });
     // Upstream: "if the client response has no `.json` attribute" (e.g. an
@@ -348,7 +349,7 @@ export async function getActivitySplits(
   host: ActivitiesHost,
   activityId: number | string,
 ): Promise<ActivitySplits | null> {
-  return host.client.connectapi<ActivitySplits>(`/activity-service/activity/${activityId}/splits`);
+  return host.client.connectapi<ActivitySplits>(`/activity-service/activity/${pathSegment(activityId)}/splits`);
 }
 
 /** `dict`, passes through unchecked per the inventory. Richer detail than `getActivitySplits` for some activity types (e.g. Bouldering). */
@@ -357,7 +358,7 @@ export async function getActivityTypedSplits(
   activityId: number | string,
 ): Promise<ActivityTypedSplits | null> {
   return host.client.connectapi<ActivityTypedSplits>(
-    `/activity-service/activity/${activityId}/typedsplits`,
+    `/activity-service/activity/${pathSegment(activityId)}/typedsplits`,
   );
 }
 
@@ -367,7 +368,7 @@ export async function getActivitySplitSummaries(
   activityId: number | string,
 ): Promise<ActivitySplitSummaries | null> {
   return host.client.connectapi<ActivitySplitSummaries>(
-    `/activity-service/activity/${activityId}/split_summaries`,
+    `/activity-service/activity/${pathSegment(activityId)}/split_summaries`,
   );
 }
 
@@ -376,7 +377,7 @@ export async function getActivityWeather(
   host: ActivitiesHost,
   activityId: number | string,
 ): Promise<ActivityWeather | null> {
-  return host.client.connectapi<ActivityWeather>(`/activity-service/activity/${activityId}/weather`);
+  return host.client.connectapi<ActivityWeather>(`/activity-service/activity/${pathSegment(activityId)}/weather`);
 }
 
 /** `dict`, passes through unchecked per the inventory. */
@@ -385,7 +386,7 @@ export async function getActivityHrInTimezones(
   activityId: number | string,
 ): Promise<ActivityHrInTimezones | null> {
   return host.client.connectapi<ActivityHrInTimezones>(
-    `/activity-service/activity/${activityId}/hrTimeInZones`,
+    `/activity-service/activity/${pathSegment(activityId)}/hrTimeInZones`,
   );
 }
 
@@ -395,7 +396,7 @@ export async function getActivityPowerInTimezones(
   activityId: number | string,
 ): Promise<ActivityPowerInTimezones | null> {
   return host.client.connectapi<ActivityPowerInTimezones>(
-    `/activity-service/activity/${activityId}/powerTimeInZones`,
+    `/activity-service/activity/${pathSegment(activityId)}/powerTimeInZones`,
   );
 }
 
@@ -411,7 +412,7 @@ export async function getActivityDetails(
   maxchart = 2000,
   maxpoly = 4000,
 ): Promise<ActivityDetails | null> {
-  return host.client.connectapi<ActivityDetails>(`/activity-service/activity/${activityId}/details`, {
+  return host.client.connectapi<ActivityDetails>(`/activity-service/activity/${pathSegment(activityId)}/details`, {
     params: { maxChartSize: String(maxchart), maxPolylineSize: String(maxpoly) },
   });
 }
@@ -422,7 +423,7 @@ export async function getActivityExerciseSets(
   activityId: number | string,
 ): Promise<ActivityExerciseSets | null> {
   return host.client.connectapi<ActivityExerciseSets>(
-    `/activity-service/activity/${activityId}/exerciseSets`,
+    `/activity-service/activity/${pathSegment(activityId)}/exerciseSets`,
   );
 }
 
@@ -437,7 +438,7 @@ export async function setActivityExerciseSets(
   activityId: number | string,
   payload: ActivityExerciseSets,
 ): Promise<unknown> {
-  return host.client.connectapi(`/activity-service/activity/${activityId}/exerciseSets`, {
+  return host.client.connectapi(`/activity-service/activity/${pathSegment(activityId)}/exerciseSets`, {
     method: "PUT",
     json: payload,
   });
@@ -475,9 +476,10 @@ export async function getGearActivities(
   limit = 1000,
 ): Promise<GearActivity[]> {
   const cappedLimit = Math.min(limit, GEAR_ACTIVITIES_MAX_LIMIT);
+  const uuid = validateUuid(gearUUID);
   try {
     const data = await host.client.connectapi<GearActivity[]>(
-      `/activitylist-service/activities/${gearUUID}/gear`,
+      `/activitylist-service/activities/${pathSegment(uuid)}/gear`,
       { params: { start: 0, limit: cappedLimit } },
     );
     return data ?? [];
@@ -499,9 +501,10 @@ export async function addGearToActivity(
   gearUUID: string,
   activityId: number | string,
 ): Promise<GearLinkResult | null> {
+  const uuid = validateUuid(gearUUID);
   try {
     return await host.client.connectapi<GearLinkResult>(
-      `/gear-service/gear/link/${gearUUID}/activity/${activityId}`,
+      `/gear-service/gear/link/${pathSegment(uuid)}/activity/${pathSegment(activityId)}`,
       { method: "PUT" },
     );
   } catch (cause) {
@@ -525,9 +528,10 @@ export async function removeGearFromActivity(
   gearUUID: string,
   activityId: number | string,
 ): Promise<GearLinkResult | null> {
+  const uuid = validateUuid(gearUUID);
   try {
     return await host.client.connectapi<GearLinkResult>(
-      `/gear-service/gear/unlink/${gearUUID}/activity/${activityId}`,
+      `/gear-service/gear/unlink/${pathSegment(uuid)}/activity/${pathSegment(activityId)}`,
       { method: "PUT" },
     );
   } catch (cause) {
@@ -571,7 +575,7 @@ export async function downloadHealthSnapshot(
   requestedDate: string | Date,
 ): Promise<Buffer> {
   const date = formatDate(requestedDate);
-  return host.client.download(`/download-service/files/wellness/${date}`);
+  return host.client.download(`/download-service/files/wellness/${pathSegment(date)}`);
 }
 
 /**
@@ -584,7 +588,7 @@ export async function downloadHealthSnapshot(
 export async function getPersonalRecord(host: ActivitiesHost): Promise<PersonalRecords | null> {
   const displayName = await host.displayName();
   return host.client.connectapi<PersonalRecords>(
-    `/personalrecord-service/personalrecord/prs/${displayName}`,
+    `/personalrecord-service/personalrecord/prs/${pathSegment(displayName)}`,
   );
 }
 

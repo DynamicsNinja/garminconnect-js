@@ -1,6 +1,6 @@
 import { GarminError } from "../errors.js";
 import type { GarminClient } from "../client.js";
-import { validateNonNegativeInteger, validatePositiveInteger } from "../util/validate.js";
+import { validateNonNegativeInteger, validatePositiveInteger, pathSegment } from "../util/validate.js";
 import type {
   GolfClubStats,
   GolfScorecardDetail,
@@ -117,7 +117,7 @@ export async function getGolfShotData(
 ): Promise<GolfShotData | null> {
   const normalized = holeNumbers === undefined ? undefined : normalizeHoleNumbers(holeNumbers);
   return host.client.connectapi<GolfShotData>(
-    `/gcs-golfcommunity/api/v2/shot/scorecard/${scorecardId}/hole`,
+    `/gcs-golfcommunity/api/v2/shot/scorecard/${pathSegment(scorecardId)}/hole`,
     normalized === undefined ? {} : { params: { "hole-numbers": normalized } },
   );
 }
