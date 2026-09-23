@@ -114,6 +114,29 @@ reachable alternatives, not speculation.
 | `/goal-service/goal/goals` `sortOrder=asc`, `start=0` | same path, `sortOrder=desc`, `start=1` | Ours mirrors upstream. `start=0` works here (unlike the badge-challenge endpoints, which reject it). |
 | `/activitylist-service/activities/{uuid}/gear?start=0` | same, `start=1`, uuid **un-hyphenated** | Note the inverse of the delete trap: this one takes the bare form. |
 
+## Section-by-section sweep
+
+Clicked through every left-nav section with network capture on, and diffed each service against our
+implementation. Result: **every path this port implements matches what Garmin's own client calls**,
+with two cosmetic differences that were tested both ways and are genuinely interchangeable.
+
+| Service | Web client calls | Ours | Verdict |
+|---|---|---|---|
+| nutrition | `/settings/{date}` (204), `/meals/{date}`, `/food/logs/{date}` | identical | exact match, 3/3 |
+| wellness | `/dailySleepData/{displayName}?date=`, `/dailyStress/{date}` | identical | exact match |
+| wellness | `/dailyHeartRate?date=` (no displayName) | `/dailyHeartRate/{displayName}?date=` | **both return the same 12-key object** — the segment is optional |
+| wellness | `/dailyEvents/{displayName}?calendarDate=` | `/dailyEvents?calendarDate=` | **both work** — same, inverted |
+| usersummary | `/usersummary/daily/{displayName}?calendarDate=` | identical | exact match |
+| goal | `/goal/goals?status=active` (no paging for active/future) | always sends `start`/`limit`/`sortOrder` | ours mirrors upstream; both work |
+| badge | `/badge/earned` | identical | exact match |
+| weight | `/weight/dayview/{date}` | adds `?includeAll=true` | both work |
+| gear | `/gear/v2/*` | `filterGear` (v1) for reads | v1 confirmed still live (see Task 7) |
+
+The `displayName` segment being optional on `dailyHeartRate` and `dailyEvents` is worth knowing: it
+means neither of those methods needs the profile fetch that resolving `displayName()` triggers. Not
+changed here — our form is upstream's, and changing it would trade a verified path for an
+unverified one to save one cached call.
+
 ## Reachable endpoints this port does not wrap
 
 All verified 200 via `connectapi`. Candidates for a future plan; reachable today through the escape
@@ -125,6 +148,7 @@ hatch.
 - `workout-service/benchmarks` — 17 entries
 - `calendar-service/preferences`, `calendar-service/event/primary` (404 with no events)
 - `nutrition-service/user/nutritionCurrentStatus`
+- `wellness-service/wellness/syncTimestamp` — last device sync time
 - `device-service/sensors`
 - `jetlag-service/jetlag/trip/all`
 - `web-gateway/snapshot/usageIndicators`, `web-gateway/inbox/unreadBubble`
