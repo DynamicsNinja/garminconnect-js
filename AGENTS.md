@@ -277,8 +277,15 @@ for either (see the gotcha on `uploadWalkingWorkout`). Guards throw `GarminError
 condition, two end conditions, an empty workout, an empty repeat, an empty name, a non-positive
 repeat count, and mixing single-sport steps with multi-sport legs.
 
-Verified live: swim, run (with a pace target), a multi-sport brick and a time-based HIIT block were
-each built, uploaded, read back and deleted, with globally unique step orders confirmed each time.
+Verified live across **all twelve sports** by `scripts/smoke-builder.ts` (`npm run smoke:builder`):
+each is built, uploaded, READ BACK and deleted, asserting the stored sport key, globally unique
+stepOrders throughout the tree, and a field specific to what is being tested — the pace target's
+descending m/s pair, power zone's `zoneNumber`, swim's `poolLength`/drill/paddles/`fixed.rest`,
+strength's exercise pair and weight, the brick's two segments and transitions flag, and HIIT's
+`numberOfIterations: null` on a time-based repeat. 12/12 pass.
+
+The probe asserts the STORED document rather than the POST's status, deliberately: a 2xx is how
+`uploadWalkingWorkout` came to be marked verified while storing a null sport.
 
 ## 4. These methods do NOT exist (mostly)
 
