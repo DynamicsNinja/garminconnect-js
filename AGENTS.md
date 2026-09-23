@@ -189,6 +189,11 @@ Every identifier above (`GarminClient`, `Garmin`, `FileTokenStore`) is exported 
 | `confirmMenstrualPeriodStart` | `(periodStartDate: string \| Date, periodLength: number, cycleLength: number, options?: {predictedCycle?: boolean}): Promise<unknown>` — POSTs `/periodichealth-service/menstrualcycle/{periodStartDate}` directly, NOT the `dayview`/`calendar`/`lastconfirmed`/`summary` sub-paths; UNCERTAIN upstream null handling | **no** — irreversible health-data write, deliberately not live-tested; unit-tested only |
 | `updateMenstrualSettings` | `(settings: Record<string, unknown>, options?: {userSettingsId?: number}): Promise<unknown>` — `settings` must be non-empty or throws `GarminError`; multi-step: GETs `/userprofile-service/userprofile/user-settings`, overlays `settings` onto the current `userMenstrualCycleSettings`, then PUTs the same endpoint, including `id` if resolvable; UNCERTAIN upstream null handling | **no** — irreversible, plausibly account-level write, deliberately not live-tested; unit-tested only |
 | `getGoals` | `(status?: "active" \| "future" \| "past", start?: number, limit?: number): Promise<Goal[]>` — defaults `status="active", start=0, limit=30`; throws `GarminError` before any request for an invalid `status`. **Paginated, multi-call**: starting at `start`, fetches successive pages of `limit` entries (incrementing `start` by `limit` each call) until a page comes back empty/falsy, same fixed-page-size pattern as `getActivitiesByDate`; throws `GarminError` if `MAX_PAGINATED_REQUESTS` (2000) pages are fetched without ever seeing an empty one. **Sends the load-bearing `Sec-Fetch-Site: same-origin` header on every request** — without it `goal-service` silently returns `[]` for newer custom accumulation-goal types (upstream issue #431); no error, no 404, just wrong data | partially — the endpoint responds 200 with `[]` on the (empty) test account, confirming the URL and query params are correct and that Garmin accepts the request with the header present. The header's EFFECT is UNVERIFIED and unverifiable on this account: it exists to stop `goal-service` silently returning `[]` for newer custom goal types, and an account with no goals returns `[]` either way. Only upstream source review (issue #431) backs its necessity and the "first page empty -> return []" path works; the account has no goals, so the multi-page continuation branch is exercised only by a unit test against a mock (three real round trips with a literal start=0/2/4 progression), and the 2000-page abort path is NOT COVERED AT ALL — not live, not by a unit test (`getActivitiesByDate`'s identical cap is equally uncovered) |
+| `getGolfSummary` | `(start?: number, limit?: number): Promise<GolfScorecardSummary \| null>` — defaults `start=0, limit=100`; `start` validated non-negative, `limit` validated positive (throws `GarminError` otherwise); query params are literally hyphenated (`per-page`, `start`), matching Garmin's own naming. **Inventory's `returns` column says "list"; live-verified WRONG** — the test account (0 rounds recorded) returned a single pagination-envelope OBJECT `{pageNumber, rowsPerPage, totalRows}`, not an array | yes — `{"pageNumber":1,"rowsPerPage":10,"totalRows":0}` on the (golf-less) test account, confirming the URL/params and the corrected non-array shape; the per-scorecard row shape (when `totalRows > 0`) is unverified |
+| `getGolfScorecard` | `(scorecardId: number \| string): Promise<GolfScorecardDetail \| null>` — GETs `/gcs-golfcommunity/api/v2/scorecard/detail`; hyphenated query params `scorecard-ids` and `include-longest-shot-distance` (sent as the literal string `"true"`); passes through unchecked | attempted — a fabricated `scorecardId` (no real scorecard exists on the test account) returned 200 with `{}`, not a 404; the URL is confirmed reachable but the real-scorecard response shape is unverified |
+| `getGolfShotData` | `(scorecardId: number \| string, holeNumbers?: string): Promise<GolfShotData \| null>` — GETs `/gcs-golfcommunity/api/v2/shot/scorecard/{scorecardId}/hole`; `holeNumbers` accepts commas or hyphens as separators (spaces stripped), re-joined with `-` before sending as the hyphenated `hole-numbers` param; **if any requested hole number is >9, the filter is silently dropped and all 18 holes are requested instead** (Garmin's endpoint drops double-digit hole numbers from a filtered query); omitting `holeNumbers` also fetches all 18; passes through unchecked | attempted — a fabricated `scorecardId` returned an HTTP **410** (Gone), not the 404 a no-such-resource read normally produces elsewhere in this library. The URL pattern matches its working siblings (`getGolfScorecard`, `getGolfClubStats`) exactly, so this is PROBABLY "no such scorecard" rather than a wrong URL, but the unusual status code (410, not 404) is UNCONFIRMED and could not be resolved without a real scorecard id |
+| `getGolfClubStats` | `(limit?: number): Promise<GolfClubStats[] \| null>` — defaults `limit=1000`; validated positive; GETs `/gcs-golfcommunity/api/v2/club/player`; hyphenated query params `per-page` and `include-stats` (literal `"true"`). **Inventory's `returns` column says "dict"; live-verified WRONG** — the test account returned a JSON ARRAY of 17 club entries (`{id, clubTypeId, shaftLength, flexTypeId, averageDistance, adviceDistance, retired, deleted, lastModifiedTime}`), not a single object | yes — `array[17]` on the test account (pre-existing club data, not created by this task) |
+| `getGolfUserStats` | `(): Promise<GolfUserStats \| null>` — GETs `/gcs-golfcommunity/api/v2/player/stats`; handicap and strokes-gained overview, no params; passes through unchecked | yes — `{"numRounds":0}` on the (golf-less) test account, confirming the URL; the full field list once rounds exist is unverified |
 
 `Garmin` exposes the underlying client as `readonly client: GarminClient`.
 
@@ -222,7 +227,7 @@ interface GarminClientOptions {
 
 ## 4. These methods do NOT exist
 
-This is a **partial port**: 140 of upstream python-garminconnect's ~154 public methods (count taken from `Garmin.prototype`, and kept honest by the drift guard in `tests/agents-md.test.ts`; a handful of the 140 are aliases or derived helpers — `getStats`, `displayName`, `getInProgressBadges` — rather than distinct endpoints). An agent that has
+This is a **partial port**: 145 of upstream python-garminconnect's ~154 public methods (count taken from `Garmin.prototype`, and kept honest by the drift guard in `tests/agents-md.test.ts`; a handful of the 145 are aliases or derived helpers — `getStats`, `displayName`, `getInProgressBadges` — rather than distinct endpoints). An agent that has
 seen `garminconnect` in training will write calls like `client.get_personal_records()` — that does not exist
 here. Do not invent methods on `Garmin` or `GarminClient` by analogy with upstream names. (Gear IS now
 fully ported — `getGear`, `createGear`, `getGearStats`, `getGearDefaults`, `setGearDefault` in
@@ -233,7 +238,10 @@ ported too — `getDevices`, `getDeviceSettings`, `getPrimaryTrainingDevice`, `g
 `getDeviceAlarms`, `getDeviceLastUsed` in `src/services/devices.ts` — so `client.get_devices()`
 has a TypeScript equivalent now as well. Goals IS now ported too — `getGoals` in
 `src/services/goals.ts` — so `client.get_goals()`-style calls DO have a TypeScript equivalent
-(`Garmin.getGoals()`) now; see section 3.)
+(`Garmin.getGoals()`) now; see section 3. Golf IS now ported too — `getGolfSummary`,
+`getGolfScorecard`, `getGolfShotData`, `getGolfClubStats`, `getGolfUserStats` in
+`src/services/golf.ts` — so `client.get_golf_summary()`-style calls DO have a TypeScript
+equivalent now as well; see section 3.)
 
 Notably absent (implement via `connectapi` instead — see below):
 
@@ -241,7 +249,6 @@ Notably absent (implement via `connectapi` instead — see below):
   `trainingPlans` service is not)
 - Personal records
 - Connect IQ
-- Golf
 - Nutrition
 - Segments
 - Social/connections
@@ -534,6 +541,19 @@ power}` — and it throws unless `startDate` is supplied. The two branches also 
   unrelated ports. Do not repoint `getUserProfile()` at `user-settings`: it is cached, live-verified,
   and every date-scoped method depends on its current shape via `displayName()`/`fullName()`/
   `userName()`. See `src/services/userProfile.ts`'s file-level comment for the full mapping table.
+- **Golf's inventory `returns` labels were wrong in BOTH directions, on the same two-row read.**
+  `getGolfSummary` is labelled "list" but the live test account returned a single pagination
+  OBJECT (`{pageNumber, rowsPerPage, totalRows}`); `getGolfClubStats` is labelled "dict" but
+  returned a JSON ARRAY of 17 club entries. This project's prior "returns column is unreliable"
+  gotchas were all one direction (labelled dict, actually array); golf's summary endpoint is the
+  first confirmed case of the opposite mistake. Trust the live smoke output, not the label, for
+  every golf method.
+- **`getGolfShotData` against a nonexistent scorecard id returned HTTP 410 (Gone), not 404.** Every
+  other "no such resource" read in this library either returns `null`/`[]`/`{}` or a plain 404; this
+  is the only observed 410. The sibling endpoints `getGolfScorecard`/`getGolfClubStats` against the
+  same fabricated id/account both succeeded normally (200), so the URL pattern itself is not in
+  doubt — but the exact meaning of 410-vs-404 here is unconfirmed without a real scorecard id to
+  compare against.
 
 ## 7. Anti-patterns
 

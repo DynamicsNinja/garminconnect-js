@@ -304,6 +304,21 @@ const services: Record<string, Probe[]> = {
     { name: "getGoals (future)", run: () => g.getGoals("future") },
     { name: "getGoals (past)", run: () => g.getGoals("past") },
   ],
+  golf: [
+    // getGolfSummary is a LIST endpoint. Per service-task-procedure.md, a 404 here would be a
+    // wrong-URL suspicion, not a no-data result — a non-golfer account should return 200 with an
+    // empty list, not 404.
+    { name: "getGolfSummary", run: () => g.getGolfSummary(0, 10) },
+    { name: "getGolfClubStats", run: () => g.getGolfClubStats() },
+    { name: "getGolfUserStats", run: () => g.getGolfUserStats() },
+    // getGolfScorecard/getGolfShotData need a real scorecardId, and the test account has never
+    // recorded a round of golf, so no real id exists to probe with. Upstream's own docstring notes
+    // a single-item detail endpoint CAN legitimately 404 for "no such scorecard" (unlike a list
+    // endpoint), so a fabricated id here is an honest probe of the URL shape, not a fake pass —
+    // whatever comes back (404 or otherwise) is reported verbatim rather than skipped.
+    { name: "getGolfScorecard (no real scorecard)", run: () => g.getGolfScorecard(1) },
+    { name: "getGolfShotData (no real scorecard)", run: () => g.getGolfShotData(1) },
+  ],
 };
 
 const which = process.argv[2];

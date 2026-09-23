@@ -6,6 +6,7 @@ import * as bodyComposition from "./services/bodyComposition.js";
 import * as devices from "./services/devices.js";
 import * as gear from "./services/gear.js";
 import * as goals from "./services/goals.js";
+import * as golf from "./services/golf.js";
 import * as metrics from "./services/metrics.js";
 import * as weight from "./services/weight.js";
 import * as wellness from "./services/wellness.js";
@@ -681,5 +682,22 @@ export class Garmin {
    */
   getGoals(status?: GoalStatus, start?: number, limit?: number) {
     return goals.getGoals(this, status, start, limit);
+  }
+
+  // --- golf ---
+  getGolfSummary(start?: number, limit?: number) {
+    return golf.getGolfSummary(this, start, limit);
+  }
+  getGolfScorecard(scorecardId: number | string) {
+    return golf.getGolfScorecard(this, scorecardId);
+  }
+  getGolfShotData(scorecardId: number | string, holeNumbers?: string) {
+    return golf.getGolfShotData(this, scorecardId, holeNumbers);
+  }
+  getGolfClubStats(limit?: number) {
+    return golf.getGolfClubStats(this, limit);
+  }
+  getGolfUserStats() {
+    return golf.getGolfUserStats(this);
   }
 }
