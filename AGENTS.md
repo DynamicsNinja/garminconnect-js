@@ -310,6 +310,15 @@ interface TokenStore {
 on-disk JSON, atomic writes) ship in the package. For a real server, implement `TokenStore`
 against your own database or cache — that is the normal production choice, not an edge case.
 
+**If you implement `TokenStore` yourself, persist and return `expires_at` and
+`refresh_token_expires_at` as numbers.** They are not decorative: every refresh decision reads
+them. A schema, a JSON column with a field allowlist, or a hand-rolled serializer that drops them
+is the realistic way to lose them. `isExpired`/`refreshExpired` fail CLOSED on a non-finite stamp
+(an unknown expiry counts as expired, so the client refreshes rather than sailing past it), and
+`FileTokenStore.load()` rejects a file missing either one outright — `loadTokens()` returns
+`false` and your caller is told to log in, instead of the client carrying a token it can never
+make a decision about. Round-trip your store once in a test and assert both numbers survive.
+
 Refresh is driven by the **OAuth1 token**, not an OAuth2 refresh token — Garmin's flow has none.
 Observed lifetimes: OAuth2 access token ~27h, OAuth1 token usable for ~30 days. A session rolls
 forward indefinitely as long as some call happens at least once every 30 days; past that,
@@ -511,8 +520,10 @@ unitKey, when?)` sends `weight` RAW, in whatever unit `unitKey` names (`"kg"` or
   responses) → `GarminAuthError` (401/403, failed SSO, expired tokens) / `GarminRateLimitError`
   (429, carries `retryAfter?: number` in seconds from `Retry-After` when present) /
   `GarminConnectionError` (network failure or timeout after retries — **and**, as a deliberate
-  exception mirroring upstream, a few SEMANTIC HTTP statuses: `importActivity`'s 409
-  "Activity already exists", and the 404 "gear not found (likely retired/removed)" from
+  exception mirroring upstream, a few SEMANTIC HTTP statuses: EVERY HTTP error from
+  `importActivity`, not only its 409 "Activity already exists" — it wraps any `GarminHttpError`
+  as `Import error: ...`, so a 400 or 413 arrives as this class too — and the 404
+  "gear not found (likely retired/removed)" from
   `addGearToActivity`, `removeGearFromActivity` and `setGearDefault`, plus `getDeviceSolarData`'s
   missing-`deviceSolarInput` case. Those are PERMANENT — a blanket
   `if (e instanceof GarminConnectionError) retryWithBackoff()` spins forever on them; check the

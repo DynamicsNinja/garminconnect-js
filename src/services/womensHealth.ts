@@ -1,4 +1,3 @@
-import { pathSegment } from "../util/validate.js";
 /**
  * ============================================================================================
  * STANDING EXCEPTION to this project's write-verification policy — DO NOT REMOVE THIS COMMENT
@@ -33,6 +32,8 @@ import { pathSegment } from "../util/validate.js";
  * `getPregnancySummary`) are ordinary GETs with no side effects and ARE live-verified as normal
  * via `scripts/smoke-reads.ts` — that part of this service follows the standard policy.
  */
+
+import { pathSegment } from "../util/validate.js";
 
 import { GarminError } from "../errors.js";
 import type { GarminClient } from "../client.js";

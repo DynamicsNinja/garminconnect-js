@@ -13,7 +13,9 @@ export class GarminAuthError extends GarminError {}
  * Network failure or timeout, after retries — PLUS a small set of semantic HTTP statuses that a
  * few services deliberately re-raise as this class to mirror upstream python-garminconnect:
  *
- *  - `importActivity` — a 409 ("Activity already exists (duplicate): ...")
+ *  - `importActivity` — EVERY HTTP error, not just the 409 ("Activity already exists
+ *    (duplicate): ..."): it wraps any `GarminHttpError` as `Import error: ...`, so a 400 or a
+ *    413 from an import arrives as this class too
  *  - `addGearToActivity` / `removeGearFromActivity` / `setGearDefault` — a 404
  *    ("gear not found (likely retired/removed)")
  *  - `getDeviceSolarData` — a falsy response or one missing `deviceSolarInput`

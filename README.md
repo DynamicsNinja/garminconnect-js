@@ -435,7 +435,7 @@ Garmin service** — verified only against the local test harness.
 | `GarminError` | Base class for everything below; also thrown directly for malformed responses. |
 | `GarminAuthError` | 401/403, failed SSO, or expired tokens. Log in again. |
 | `GarminRateLimitError` | 429. Carries `retryAfter` seconds when Garmin sends it. |
-| `GarminConnectionError` | Network failure or timeout, after retries — **and** a few semantic HTTP statuses that some services deliberately re-raise as this class, mirroring upstream: `importActivity`'s 409 ("Activity already exists"), and the 404 ("gear not found (likely retired/removed)") from `addGearToActivity`, `removeGearFromActivity` and `setGearDefault`. Those are permanent, not transient — do not blanket-retry on this class; check the message or the `cause`. |
+| `GarminConnectionError` | Network failure or timeout, after retries — **and** a few semantic HTTP statuses that some services deliberately re-raise as this class, mirroring upstream: **every** HTTP error from `importActivity` (not just its 409 "Activity already exists" — a 400 or 413 is wrapped the same way), the 404 ("gear not found (likely retired/removed)") from `addGearToActivity`, `removeGearFromActivity` and `setGearDefault`, and a missing `deviceSolarInput` from `getDeviceSolarData`. Those are permanent, not transient — do not blanket-retry on this class; check the message or the `cause`. |
 | `GarminHttpError` | Any other non-2xx. Carries `status`, `url`, `body`. |
 
 ## 📚 Additional resources & acknowledgements
