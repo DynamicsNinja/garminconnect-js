@@ -106,6 +106,45 @@ describe("weight service", () => {
     expect(body.gmtTimestamp).toBe("2026-09-22T10:00:00.00");
   });
 
+  it("addWeighInWithTimestamps derives gmtTimestamp from a supplied dateTimestamp, not from now", async () => {
+    // The partial-args case, and the reason the two timestamps are coupled.
+    // Backdating with `dateTimestamp` alone must NOT leave `gmtTimestamp`
+    // pinned to the current moment — the two halves would describe different
+    // days. `when` is deliberately a different instant to prove it is ignored
+    // once `dateTimestamp` resolves the local instant.
+    const backdated = "2026-06-01T08:30:00";
+    await makeGarmin().addWeighInWithTimestamps(
+      93,
+      "kg",
+      backdated,
+      undefined,
+      new Date("2026-09-22T10:00:00.000Z"),
+    );
+    const body = seen[0]!.body as Record<string, unknown>;
+    expect(body.dateTimestamp).toBe("2026-06-01T08:30:00.00");
+    // The same instant read as local time, expressed in UTC.
+    expect(body.gmtTimestamp).toBe(
+      new Date("2026-06-01T08:30:00").toISOString().slice(0, 19) + ".00",
+    );
+    // Never the September `when`.
+    expect(body.gmtTimestamp).not.toContain("2026-09-22");
+  });
+
+  it("addWeighInWithTimestamps reads a naive gmtTimestamp as UTC and re-formats it", async () => {
+    await makeGarmin().addWeighInWithTimestamps(93, "kg", undefined, "2026-06-01T06:30:00");
+    const body = seen[0]!.body as Record<string, unknown>;
+    expect(body.gmtTimestamp).toBe("2026-06-01T06:30:00.00");
+  });
+
+  it("addWeighInWithTimestamps rejects an unparseable timestamp", async () => {
+    await expect(makeGarmin().addWeighInWithTimestamps(93, "kg", "not-a-date")).rejects.toThrow(
+      /invalid dateTimestamp/,
+    );
+    await expect(
+      makeGarmin().addWeighInWithTimestamps(93, "kg", undefined, "not-a-date"),
+    ).rejects.toThrow(/invalid gmtTimestamp/);
+  });
+
   it("deleteWeighIn composes the byversion DELETE URL", async () => {
     await makeGarmin().deleteWeighIn("2026-09-22", 123);
     expect(seen[0]!.method).toBe("DELETE");

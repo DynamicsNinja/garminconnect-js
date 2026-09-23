@@ -1280,6 +1280,92 @@ const services: Record<string, WriteProbe[]> = {
       },
     },
     {
+      name: "addWeighInWithTimestamps partial args (dateTimestamp only) — timestamp coupling",
+      run: async () => {
+        // The gap a code review opened: when only `dateTimestamp` is supplied, `gmtTimestamp`
+        // must be derived from THAT instant, not from "now". If the two were derived
+        // independently, this backdated write would land on TODAY's date instead of the
+        // backdated one — silently filing a weigh-in under the wrong day. Asserting the
+        // stored entry's date is the live proof; a unit test alone cannot show which date
+        // Garmin files it under.
+        const daysBack = 4;
+        const backdated = new Date(Date.now() - daysBack * 86_400_000);
+        const pad = (n: number) => String(n).padStart(2, "0");
+        const backDateStr =
+          `${backdated.getFullYear()}-${pad(backdated.getMonth() + 1)}-${pad(backdated.getDate())}`;
+        const todayStr = new Date().toISOString().slice(0, 10);
+        // Midday local, so no plausible timezone offset can push it across a day boundary
+        // and make a PASS or FAIL here an artifact of the runner's timezone.
+        const dateTimestamp = `${backDateStr}T12:00:00.00`;
+        const value = 88.88; // distinctive, so the read-back cannot collide with another probe
+        let created = false;
+
+        const findOn = async (dateStr: string) => {
+          const range = await g.getWeighIns(dateStr, dateStr);
+          const summaries = range.dailyWeightSummaries ?? [];
+          const daySummary = summaries.find(
+            (s) => (s as { summaryDate?: string })["summaryDate"] === dateStr,
+          ) as { allWeightMetrics?: { weight?: number; samplePk?: number }[] } | undefined;
+          return (daySummary?.allWeightMetrics ?? []).find(
+            (e) => typeof e.weight === "number" && Math.abs(e.weight / 1000 - value) < 0.01,
+          );
+        };
+
+        try {
+          // gmtTimestamp deliberately omitted — this is the whole point of the probe.
+          await g.addWeighInWithTimestamps(value, "kg", dateTimestamp);
+          created = true;
+
+          const onBackdated = await findOn(backDateStr);
+          const onToday = await findOn(todayStr);
+
+          if (!onBackdated || typeof onBackdated.samplePk !== "number") {
+            const stray = onToday ? ` It landed on ${todayStr} instead.` : "";
+            return {
+              ok: false,
+              detail:
+                `wrote ${value}kg with dateTimestamp=${dateTimestamp} and no gmtTimestamp, but no ` +
+                `entry is stored on ${backDateStr}.${stray} This is the timestamp-coupling bug.`,
+            };
+          }
+
+          const samplePk = onBackdated.samplePk;
+          await g.deleteWeighIn(backDateStr, samplePk);
+          const gone = await pollUntil(async () => !(await findOn(backDateStr)));
+          created = false;
+
+          if (!gone) {
+            return {
+              ok: false,
+              detail: `stored correctly on ${backDateStr}, but delete did not remove samplePk ${samplePk} after polling`,
+            };
+          }
+          return {
+            ok: true,
+            detail:
+              `wrote ${value}kg with dateTimestamp only; Garmin filed it under ${backDateStr} ` +
+              `(not ${todayStr}) — confirms gmtTimestamp is derived from the supplied local ` +
+              `instant, deleted, confirmed gone`,
+          };
+        } finally {
+          if (created) {
+            try {
+              for (const dateStr of [backDateStr, todayStr]) {
+                const entry = await findOn(dateStr);
+                if (entry && typeof entry.samplePk === "number") {
+                  await g.deleteWeighIn(dateStr, entry.samplePk);
+                }
+              }
+            } catch (cleanupError) {
+              console.error(
+                `  WARNING: cleanup failed for "addWeighInWithTimestamps partial args": ${(cleanupError as Error).message}`,
+              );
+            }
+          }
+        }
+      },
+    },
+    {
       name: "deleteWeighIns (multi-entry, deleteAll) round-trip",
       run: async () => {
         // IRREVERSIBLE and deletes ALL weigh-ins for the date it targets — this probe therefore

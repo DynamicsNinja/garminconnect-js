@@ -1,5 +1,12 @@
+import { GarminError } from "../errors.js";
 import type { GarminClient } from "../client.js";
-import { formatDate, formatGmtTimestamp, formatLocalTimestamp } from "../util/date.js";
+import {
+  formatDate,
+  formatGmtTimestamp,
+  formatLocalTimestamp,
+  parseIsoLocal,
+  parseIsoUtc,
+} from "../util/date.js";
 import type { DailyWeighIns, WeighInRange } from "../types/weight.js";
 
 export interface WeightHost {
@@ -75,10 +82,21 @@ export async function deleteWeighIn(
  * only difference from `addWeighIn` is that the caller supplies the local
  * and GMT timestamp strings directly (matching upstream's
  * `add_weigh_in_with_timestamps(weight, unitKey, dateTimestamp, gmtTimestamp)`)
- * instead of a single `Date` this library derives both from. When either
- * timestamp string is omitted, it is derived from `when` (defaulting to
- * `new Date()`) via the same `formatLocalTimestamp`/`formatGmtTimestamp`
- * helpers `addWeighIn` uses.
+ * instead of a single `Date` this library derives both from.
+ *
+ * The two timestamps are COUPLED, exactly as upstream couples them, and this
+ * is the whole subtlety of the method. Upstream resolves the local instant
+ * first — from `dateTimestamp` if given, otherwise from now — and then
+ * derives GMT from THAT instant (`dtGMT = dt.astimezone(UTC)`) whenever
+ * `gmtTimestamp` is omitted. Deriving the two independently looks equivalent
+ * but is not: a caller backdating an entry with `dateTimestamp` alone would
+ * get a `gmtTimestamp` pinned to the current moment, silently writing a
+ * weigh-in whose two halves describe different days.
+ *
+ * Both supplied strings are re-formatted rather than forwarded verbatim,
+ * again matching upstream, which parses each one and emits `_fmt_ts(...)`.
+ * A naive `dateTimestamp` is read as LOCAL time and a naive `gmtTimestamp`
+ * as UTC — see `parseIsoLocal`/`parseIsoUtc`.
  */
 export async function addWeighInWithTimestamps(
   host: WeightHost,
@@ -88,11 +106,21 @@ export async function addWeighInWithTimestamps(
   gmtTimestamp?: string,
   when: Date = new Date(),
 ): Promise<unknown> {
+  const localInstant = dateTimestamp ? parseIsoLocal(dateTimestamp) : when;
+  if (Number.isNaN(localInstant.getTime())) {
+    throw new GarminError(`invalid dateTimestamp: "${dateTimestamp ?? ""}"`);
+  }
+  // NOT `when`: GMT falls out of whatever local instant was just resolved.
+  const gmtInstant = gmtTimestamp ? parseIsoUtc(gmtTimestamp) : localInstant;
+  if (Number.isNaN(gmtInstant.getTime())) {
+    throw new GarminError(`invalid gmtTimestamp: "${gmtTimestamp ?? ""}"`);
+  }
+
   return host.client.connectapi("/weight-service/user-weight", {
     method: "POST",
     json: {
-      dateTimestamp: dateTimestamp ?? formatLocalTimestamp(when),
-      gmtTimestamp: gmtTimestamp ?? formatGmtTimestamp(when),
+      dateTimestamp: formatLocalTimestamp(localInstant),
+      gmtTimestamp: formatGmtTimestamp(gmtInstant),
       unitKey,
       sourceType: "MANUAL",
       value: weight,

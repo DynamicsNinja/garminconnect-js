@@ -126,6 +126,26 @@ describe("bodyComposition service", () => {
       expect(has9300LE).toBe(true);
     });
 
+    it("keeps file_id.time_created at real 'now' when the health data is backdated", async () => {
+      // Upstream calls `fitEncoder.write_file_info()` with NO argument, so the
+      // file's creation time is when the .fit was produced, while
+      // write_device_info/write_weight_scale carry the caller's instant. A
+      // backdated entry must not rewrite the file's own metadata timestamp.
+      const backdated = "2026-06-01T08:00:00.000Z";
+      const nowSecs = Math.floor((Date.now() - Date.UTC(1989, 11, 31)) / 1000);
+      const backSecs = Math.floor((Date.parse(backdated) - Date.UTC(1989, 11, 31)) / 1000);
+      await makeGarmin().addBodyComposition(93, { timestamp: backdated });
+      const bytes = lastUploadBytes!;
+      const readU32 = (i: number) =>
+        bytes[i]! + bytes[i + 1]! * 256 + bytes[i + 2]! * 65536 + bytes[i + 3]! * 16777216;
+      const u32s: number[] = [];
+      for (let i = 0; i + 3 < bytes.length; i++) u32s.push(readU32(i));
+      // The backdated instant is present (device_info + weight_scale carry it).
+      expect(u32s).toContain(backSecs);
+      // And so is a near-current one, from file_id.time_created.
+      expect(u32s.some((v) => Math.abs(v - nowSecs) <= 5)).toBe(true);
+    });
+
     it("rejects a non-positive weight before building any FIT bytes", async () => {
       await expect(makeGarmin().addBodyComposition(0)).rejects.toThrow(GarminError);
       await expect(makeGarmin().addBodyComposition(-5)).rejects.toThrow(GarminError);

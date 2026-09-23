@@ -130,7 +130,7 @@ Every identifier above (`GarminClient`, `Garmin`, `FileTokenStore`) is exported 
 | `getWeighIns` | `(startdate: string \| Date, enddate: string \| Date): Promise<WeighInRange>` | yes |
 | `addWeighIn` | `(weightValue: number, unitKey?: "kg" \| "lbs", when?: Date): Promise<unknown>` — defaults `unitKey="kg"`, `when=new Date()` | yes |
 | `deleteWeighIn` | `(cdate: string \| Date, weightPk: number): Promise<null>` | yes |
-| `addWeighInWithTimestamps` | `(weightValue: number, unitKey?: "kg" \| "lbs", dateTimestamp?: string, gmtTimestamp?: string, when?: Date): Promise<unknown>` — same raw-value, no-conversion rule as `addWeighIn`; `dateTimestamp`/`gmtTimestamp` are sent verbatim if given, else derived from `when` (defaults `new Date()`) the same way `addWeighIn` derives its pair | yes — round-tripped live (write → `getWeighIns` read-back confirmed the stored value → `deleteWeighIn`); see gotchas for both directions observed |
+| `addWeighInWithTimestamps` | `(weightValue: number, unitKey?: "kg" \| "lbs", dateTimestamp?: string, gmtTimestamp?: string, when?: Date): Promise<unknown>` — same raw-value, no-conversion rule as `addWeighIn`; the two timestamps are COUPLED: the local instant resolves from `dateTimestamp` if given (naive strings read as LOCAL time) else from `when` (defaults `new Date()`), and `gmtTimestamp`, when omitted, is derived from THAT resolved instant — never independently from `when`. Both supplied strings are re-formatted rather than forwarded verbatim (a naive `gmtTimestamp` is read as UTC), matching upstream | yes — round-tripped live (write → `getWeighIns` read-back confirmed the stored value → `deleteWeighIn`); see gotchas for both directions observed |
 | `getDailyWeighIns` | `(cdate: string \| Date): Promise<DailyWeighIns \| null>` — GETs `/weight-service/weight/dayview/{cdate}?includeAll=true`; passes through unchecked | yes |
 | `deleteWeighIns` | `(cdate: string \| Date, deleteAll?: boolean): Promise<number \| null>` — no HTTP path of its own: calls `getDailyWeighIns`, then loops `deleteWeighIn` per entry; returns `null` (deletes nothing) if there are zero entries, or more than one entry and `deleteAll` is not `true`; otherwise deletes every entry that day and returns the count. **IRREVERSIBLE** — deletes ALL weigh-ins recorded on `cdate` when it proceeds | yes — exercised live against weigh-ins created by the same probe run only; see gotchas |
 | `getBodyComposition` | `(startdate: string \| Date, enddate?: string \| Date): Promise<BodyCompositionRange \| null>` — GETs `/weight-service/weight/dateRange`; `enddate` defaults to `startdate`; throws `GarminError` if `startdate > enddate`; passes through unchecked. `getStatsAndBody` (wellness service) now delegates to this instead of inlining its own copy of the same call | yes |
@@ -388,6 +388,15 @@ login. This is the intended pattern for serverless MFA, not a workaround.
   server-side lbs->kg conversion, not one performed by this library. Sending a pre-converted figure
   client-side would have doubled up on that conversion or produced the historical "value * 1000"
   corruption; neither happened.
+- **`addWeighInWithTimestamps` couples its two timestamps — never derive them independently.**
+  Passing `dateTimestamp` alone to backdate an entry must still yield a `gmtTimestamp` describing
+  that same instant. Deriving each from "now" independently looks equivalent and passes a test that
+  only exercises both-given and both-omitted, but silently writes an entry whose local and GMT halves
+  land on different days. Upstream's `dtGMT = dt.astimezone(UTC)` is the rule this mirrors.
+- **`addBodyComposition` keeps `file_id.time_created` at the real current instant**, even when
+  `extra.timestamp` backdates the entry: that field is file metadata (when the `.fit` was produced),
+  not health data. Upstream calls `write_file_info()` with no argument for exactly this reason, while
+  `write_device_info`/`write_weight_scale` take the caller's instant.
 - **`deleteWeighIns` is irreversible and deletes EVERY weigh-in on the given date.** It was
   live-verified only against weigh-ins created by the same probe run in `scripts/smoke-writes.ts`
   (never against pre-existing data) — create, confirm present, delete via `deleteWeighIns`, confirm

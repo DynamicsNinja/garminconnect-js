@@ -54,3 +54,30 @@ export function formatLocalTimestamp(d: Date): string {
 export function formatGmtTimestamp(d: Date): string {
   return d.toISOString().slice(0, 19) + ".00";
 }
+
+const HAS_TIME = /\d{2}:\d{2}/;
+const HAS_ZONE = /(?:Z|[+-]\d{2}:?\d{2})$/i;
+
+/**
+ * Parse an ISO timestamp the way Python's `datetime.fromisoformat(s).astimezone()`
+ * does for a NAIVE string: the wall clock is taken as LOCAL time.
+ *
+ * JavaScript's `new Date(s)` disagrees with that in two places, both handled
+ * here: a date-only string (`"2026-09-20"`) is parsed as UTC midnight by spec,
+ * and a bare date is not a datetime at all. A string carrying its own offset
+ * or `Z` is passed through untouched — it already names an instant.
+ */
+export function parseIsoLocal(s: string): Date {
+  return new Date(HAS_TIME.test(s) ? s : `${s}T00:00:00`);
+}
+
+/**
+ * Parse an ISO timestamp the way upstream treats a supplied `gmtTimestamp`:
+ * "assume provided GMT is UTC if naive". A naive string therefore gets `Z`
+ * appended rather than being read as local time, which is what `new Date`
+ * would otherwise do.
+ */
+export function parseIsoUtc(s: string): Date {
+  if (HAS_ZONE.test(s)) return new Date(s);
+  return new Date(`${HAS_TIME.test(s) ? s : `${s}T00:00:00`}Z`);
+}

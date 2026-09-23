@@ -58,7 +58,11 @@ export async function addBodyComposition(
   }
 
   const encoder = new FitEncoderWeight();
-  encoder.writeFileInfo(when);
+  // No argument, matching upstream's bare `fitEncoder.write_file_info()`.
+  // `file_id.time_created` is file METADATA — when the .fit was produced —
+  // and stays at the real current instant even when `when` is backdated.
+  // Only the health data below carries the caller's timestamp.
+  encoder.writeFileInfo();
   encoder.writeFileCreator();
   encoder.writeDeviceInfo(when);
   encoder.writeWeightScale(when, weight, fields);
