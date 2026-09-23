@@ -101,6 +101,38 @@ and `getGearDefaults` then returned both entries (`activityTypePk` 1 and 2).
 Now shipped as `setGearActivityDefaults` — the second deliberately non-parity method here.
 `setGearDefault` is kept as a faithful port of a dead endpoint.
 
+### 4. `goal-service` is 1-indexed — `start=0` silently returns an empty array
+
+Found by creating a goal through Garmin's UI (captured as `POST /goal-service/goal/goal` — note the
+SINGULAR path; POSTing to the plural read path returns 405) and then noticing our `getGoals()` still
+reported zero.
+
+| `start` | result, on an account with exactly one active goal |
+|---|---|
+| `0` — upstream's default, and ours until now | `[]` |
+| `1` | `[goal]` |
+
+No error, no 404 — just an empty list, indistinguishable from "you have no goals". Upstream's
+`get_goals()` therefore reports nothing on an account that has goals.
+
+**Fixed:** `start` now defaults to `1`, a deliberate divergence, with a regression test. `start=0`
+is still accepted — it just returns nothing, exactly as Garmin behaves.
+
+The quirk is **specific to goal-service.** The same probe confirmed activity search and
+`workout-service/workouts` return identical results at `start=0` and `start=1`, so their 0-based
+defaults are correct and were left alone. Compare the badge-challenge endpoints, which reject
+`start=0` with a loud 400 — same 1-indexing, far kinder symptom.
+
+### 5. `createGear`'s duration conversion, verifiable at last
+
+Open since Task 7 as "could NOT be read-back-verified" — no field on `getGear`, `getGearStats` or
+`createGear`'s own response ever carried a duration. `/gear-service/gear/v2/{uuid}` does:
+**90 min stored as `maxUsageDurationSeconds: 5400`.** Correct.
+
+The same probe pinned the enum: `usageType` is one of `NONE` / `DISTANCE` / `DURATION` / `DATE`,
+read from `/gear-service/gear/v2/usagetypes`. Previously documented as "unverified guesses".
+`"TIME"` is rejected with `400 Invalid value 'TIME' for usageType`.
+
 ## Path differences worth knowing
 
 Every row below was called through `client.connectapi` and returned 200 — so these are live,
@@ -148,6 +180,8 @@ hatch.
 - `workout-service/benchmarks` — 17 entries
 - `calendar-service/preferences`, `calendar-service/event/primary` (404 with no events)
 - `nutrition-service/user/nutritionCurrentStatus`
+- `goal-service/goal/goal` (POST, singular) — goal creation
+- `gear-service/gear/v2/usagetypes` — the live `usageType` enum
 - `wellness-service/wellness/syncTimestamp` — last device sync time
 - `device-service/sensors`
 - `jetlag-service/jetlag/trip/all`
@@ -155,8 +189,12 @@ hatch.
 
 ## Still unresolved
 
-Nothing from this pass. The three questions it opened — gear deletion, women's health, and gear
-defaults — all closed.
+Of the 13 methods not fully verified at the start of this pass, 4 were closed
+(`requestReload`, `createGear`, `getGoals`, plus the five women's-health writes earlier). The
+remaining 9 all need hardware or data that cannot be manufactured on this account: a paired device
+(`getDeviceSettings`, `getDeviceSolarData`, `getDeviceAlarms` fan-out, `pushWorkoutToDevice`,
+`downloadHealthSnapshot`), a Garmin Golf scorecard (`getGolfScorecard`, `getGolfShotData`), or an
+enrolled training plan (`getTrainingPlanById`, `getAdaptiveTrainingPlanById`).
 
 ## Method
 

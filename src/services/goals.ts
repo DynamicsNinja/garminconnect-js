@@ -27,6 +27,17 @@ const VALID_STATUSES: readonly GoalStatus[] = ["active", "future", "past"];
  * `goal-service` silently returns `[]` for newer custom accumulation-goal types (upstream cites
  * issue #431) — no error, no 404, just wrong (empty) data. Do not drop this header.
  *
+ * **`start` DEFAULTS TO 1, NOT 0 — a deliberate divergence from upstream, because `goal-service`
+ * is 1-INDEXED and `start=0` silently returns an EMPTY ARRAY.** Verified live on an account holding
+ * exactly one active goal: `start=0` -> `[]`, `start=1` -> `[goal]`. Upstream defaults to `0`, so
+ * `get_goals()` there returns nothing on an account that has goals — no error, no warning, just an
+ * empty list, which is indistinguishable from "you have no goals".
+ *
+ * This quirk is specific to `goal-service`. The same probe confirmed `activitylist-service`'s
+ * activity search and `workout-service/workouts` both return identical results at `start=0` and
+ * `start=1`, so their 0-based defaults are correct and were left alone. `start=0` is still ACCEPTED
+ * here — it is a legal argument, it just returns nothing, exactly as Garmin behaves.
+ *
  * `start` is validated non-negative and `limit` positive, matching upstream's
  * `_validate_non_negative_integer`/`_validate_positive_integer` calls and the identical guards
  * `getAdhocChallenges`/`getBadgeChallenges` already use. `limit` in particular MUST be rejected at
@@ -36,7 +47,7 @@ const VALID_STATUSES: readonly GoalStatus[] = ["active", "future", "past"];
 export async function getGoals(
   host: GoalsHost,
   status: GoalStatus = "active",
-  start = 0,
+  start = 1,
   limit = 30,
 ): Promise<Goal[]> {
   if (!VALID_STATUSES.includes(status)) {

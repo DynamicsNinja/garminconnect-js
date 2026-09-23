@@ -83,6 +83,7 @@ afterEach(() => {
 describe("getGoals", () => {
   it("hits /goal-service/goal/goals with status/start/limit/sortOrder and the Sec-Fetch-Site header", async () => {
     const result = await makeGarmin().getGoals("active", 0, 1);
+    // An explicitly-passed start is sent verbatim — 0 stays 0. Only the DEFAULT is 1.
     expect(seen[0]!.url).toBe(
       `${API}/goal-service/goal/goals?status=active&start=0&limit=1&sortOrder=asc`,
     );
@@ -91,11 +92,12 @@ describe("getGoals", () => {
     expect(result).toEqual([goal(1)]);
   });
 
-  it("defaults to status=active, start=0, limit=30", async () => {
+  it("defaults to status=active, start=1, limit=30", async () => {
     await makeGarmin().getGoals();
     const url = new URL(seen[0]!.url);
     expect(url.searchParams.get("status")).toBe("active");
-    expect(url.searchParams.get("start")).toBe("0");
+    // 1, not 0: goal-service is 1-indexed and start=0 silently returns []. See goals.ts.
+    expect(url.searchParams.get("start")).toBe("1");
     expect(url.searchParams.get("limit")).toBe("30");
   });
 
@@ -111,6 +113,16 @@ describe("getGoals", () => {
   it("returns [] immediately when the first page is empty", async () => {
     await expect(makeGarmin().getGoals("past")).resolves.toEqual([]);
     expect(seen).toHaveLength(1);
+  });
+
+  it("uses start=1 by default because goal-service is 1-indexed (start=0 returns [] live)", async () => {
+    // Regression guard for a live-confirmed silent-empty bug: on an account holding exactly one
+    // active goal, Garmin returned [] for start=0 and [goal] for start=1. Upstream defaults to 0,
+    // so its get_goals() reports "no goals" on an account that has them. If this default ever
+    // drifts back to 0, every caller of getGoals() silently gets nothing.
+    await makeGarmin().getGoals("active");
+    expect(seen[0]!.url).toContain("start=1");
+    expect(seen[0]!.url).not.toContain("start=0");
   });
 
   it("throws before any request for an invalid status", async () => {
