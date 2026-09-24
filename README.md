@@ -39,6 +39,10 @@ Behind both: a verification habit. Every method carries a live-verification stat
 [`AGENTS.md`](AGENTS.md), and a write is only "verified" once the stored value has been read back —
 a 2xx on its own has twice hidden a real defect here.
 
+**Want a running app first?** [**garminconnect-nextjs-starter**](https://github.com/DynamicsNinja/garminconnect-nextjs-starter)
+is a Next.js template that signs in (MFA included) and charts your sleep and HRV. Click
+**Use this template**, and you're a `npm run dev` away from your own data.
+
 If you're an AI coding agent (or configuring one), read [`AGENTS.md`](AGENTS.md) first — it's a
 terser, higher-signal briefing than this README and calls out what does *not* exist here.
 
