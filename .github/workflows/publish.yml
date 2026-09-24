@@ -34,8 +34,6 @@ jobs:
 
       - run: npm ci
       # `npm publish` runs prepublishOnly, which is `npm run check` — the same gate CI runs.
+      # No token: npm authenticates through trusted publishing (configured on npmjs.com for
+      # DynamicsNinja/garminconnect-js + publish.yml) and attaches provenance automatically.
       - run: npm publish
-        env:
-          # Only used until trusted publishing is configured on npmjs.com; with it, npm
-          # authenticates through OIDC and this secret can be deleted.
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
