@@ -1038,6 +1038,28 @@ Mock at the `fetch` layer, not by stubbing internals: `GarminClientOptions.fetch
 run against it. This exercises the actual request construction, auth headers, retry logic, and
 response parsing instead of a hand-rolled stand-in for them.
 
+**Verifying against a real account, read-only.** A dozen rows in section 3 are marked `no` or
+`partially` for one reason: the dedicated test account structurally cannot produce the data — no
+paired device, no personal records, no golf rounds, no health snapshot, no PHASED training plan.
+`scripts/smoke-readonly-real.ts` (`npm run smoke:real`) probes exactly those against a real
+personal account, and three things make that safe:
+
+1. **The transport refuses non-GET.** `createReadOnlyFetch` (`scripts/readonly-fetch.ts`) throws
+   before any write leaves the process, with one exception for the OAuth2 refresh POST. The probe
+   list is the intent; this is the guarantee, and `tests/readonly-fetch.test.ts` drives a real
+   `GarminClient` through it to prove it is actually wired in. Note the failure SHAPE: the refusal
+   is thrown from inside `fetch`, so the transport wraps it in `GarminConnectionError` and the
+   reason lands on `error.cause`, not the top-level message.
+2. **Its own token directory** (`./tokens-real`), so the test-account session in `./tokens` is
+   never touched and neither harness can pick up the other's tokens.
+3. **An INVERSE safety gate.** Every other script here refuses unless the profile matches
+   `GARMIN_TEST_PROFILE_ID`; this one refuses if it DOES.
+
+Its output is shapes only — key names, types, array lengths, never field values — so a report can
+be pasted anywhere without carrying personal health data. Credentials come from
+`GARMIN_REAL_EMAIL`/`GARMIN_REAL_PASSWORD` (their own key names, so both accounts coexist in one
+`.env`), and `npm run login:real` does the one-time login.
+
 **A mock written from an assumption proves nothing.** Three real bugs in this library shipped
 with green tests because the implementation, the mock, and the assertion all encoded the same
 wrong assumption: a wrong SSO URL prefix, a wrong field name for the user profile, and the

@@ -2,6 +2,10 @@
  * One-time interactive login.
  *   GARMIN_EMAIL=… GARMIN_PASSWORD=… npx tsx scripts/login.ts ./tokens
  * Prompts for an MFA code on stdin when Garmin asks for one.
+ *
+ * A second argument picks a different pair of env vars, so two accounts can live in one .env
+ * without commenting one out to use the other:
+ *   npx tsx scripts/login.ts ./tokens-real GARMIN_REAL   # GARMIN_REAL_EMAIL / _PASSWORD
  */
 import "./load-env.js";
 import { createInterface } from "node:readline/promises";
@@ -9,11 +13,12 @@ import { GarminClient } from "../src/client.js";
 import { FileTokenStore } from "../src/auth/token-store.js";
 
 const dir = process.argv[2] ?? "./tokens";
-const email = process.env["GARMIN_EMAIL"];
-const password = process.env["GARMIN_PASSWORD"];
+const prefix = process.argv[3] ?? "GARMIN";
+const email = process.env[`${prefix}_EMAIL`];
+const password = process.env[`${prefix}_PASSWORD`];
 
 if (!email || !password) {
-  console.error("Set GARMIN_EMAIL and GARMIN_PASSWORD");
+  console.error(`Set ${prefix}_EMAIL and ${prefix}_PASSWORD`);
   process.exit(1);
 }
 
