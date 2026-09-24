@@ -73,7 +73,8 @@
     "verify:exercises": "tsx scripts/verify-exercises.ts",
     "login:real": "tsx scripts/login.ts ./tokens-real GARMIN_REAL",
     "smoke:real": "tsx scripts/smoke-readonly-real.ts",
-    "smoke:gaps": "tsx scripts/smoke-writes-gaps.ts"
+    "smoke:gaps": "tsx scripts/smoke-writes-gaps.ts",
+    "check": "npm run typecheck && npm run lint && npm test && npm run build"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",

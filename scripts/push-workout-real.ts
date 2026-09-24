@@ -82,16 +82,22 @@ if (workoutId === undefined) {
 console.log(`  created   workoutId=${String(workoutId)}`);
 
 // --- 2. read back. A 2xx is not evidence; the stored document is. ------------------------------
-const stored = (await g.getWorkoutById(workoutId));
-const sport = stored?.["sportType"] as Record<string, unknown> | undefined;
+// Typed access throughout, no casts: `eslint --fix` strips a cast it judges redundant, and the
+// first version of this file was written with two. It removed them, `tsc` then failed on the
+// index access, and CI caught what the local run should have.
+const stored = await g.getWorkoutById(workoutId);
+// `WorkoutRecord`'s index signature yields `unknown`, so narrowing `sportType` needs a real cast
+// — unlike the two `eslint --fix` removed, casting FROM `unknown` is never redundant.
+const sportKey = (stored?.["sportType"] as { sportTypeKey?: unknown } | undefined)?.sportTypeKey;
 console.log(
-  `  readback  sportTypeKey=${JSON.stringify(sport?.["sportTypeKey"])} ` +
-    `name=${JSON.stringify(stored?.["workoutName"])}`,
+  `  readback  sportTypeKey=${JSON.stringify(sportKey)} name=${JSON.stringify(stored?.workoutName)}`,
 );
 
 // --- 3. the actual subject of this script -----------------------------------------------------
-const lastUsed = (await client.connectapi("/device-service/deviceservice/mylastused"));
-console.log(`  device    resolved userDeviceId=${String(lastUsed?.["userDeviceId"])}`);
+// `getDeviceLastUsed()` rather than a raw `connectapi` call — it is the same request, typed, and
+// it is what `pushWorkoutToDevice` itself uses to resolve a missing deviceId.
+const lastUsed = await g.getDeviceLastUsed();
+console.log(`  device    resolved userDeviceId=${String(lastUsed?.userDeviceId)}`);
 
 try {
   const pushed = await g.pushWorkoutToDevice(workoutId);
