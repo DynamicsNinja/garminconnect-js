@@ -117,23 +117,27 @@ of date). `Garmin.prototype` has 157 methods — 3 more than 154. The extras are
 `get_user_profile` is a different endpoint, satisfied here by `getUserSettings`), and the other
 two are cached accessors over it.
 
-**Full method-by-method detail — signatures, live-verification status per method, and every known
-gotcha — lives in [`AGENTS.md`](AGENTS.md) section 3**, not here; this table is a summary. It's
-also the file an AI coding agent working against this library should read first.
+**→ [`docs/api/`](docs/api/README.md) is one page per category below**, with every method's
+signature, a call you can paste, and its verification status. Those pages are generated from the
+code, so they cannot drift from it.
+
+For the per-method gotchas and the evidence behind each verification, see
+[`AGENTS.md`](AGENTS.md) section 3 — also the file an AI coding agent should read first. The table
+here is only a summary.
 
 | Category | Methods | Live-verified | Notes |
 |---|---|---|---|
-| Wellness (steps, heart rate, sleep, HRV, stress, SpO2, respiration, hydration, blood pressure, …) | 30 | yes | `setBloodPressure`/`deleteBloodPressure` round-tripped (write → read back → delete). `addHydrationData` is verified but **permanent** — Garmin exposes no delete for it |
-| Activities (list/search/detail, splits, weather, manual creation, import/upload, exercise sets, personal records) | 28 | yes | destructive writes verified by create→read-back→delete against a disposable test account; never against pre-existing data |
-| Metrics (training status, race predictions, FTP, lactate threshold, heart-rate/power zones, endurance/hill score, …) | 16 | yes | every branch, including two-branch methods like `getLactateThreshold` |
-| Workouts (CRUD, per-sport upload, scheduling, device push) | 16 | yes | no walking/hiking helpers — Garmin has no such workout sport type, so upstream's two were removed rather than kept as a trap; use `uploadWorkout` with `OTHER` (3) or `CARDIO_TRAINING` (6) |
-| Gear (CRUD, activity association, defaults, stats) | 10 | yes | upstream's `set_gear_default` endpoint is **dead** — four investigations, the last decisive — so it is not ported; `setGearActivityDefaults` replaces it. `deleteGear` is another non-parity addition |
-| Devices | 6 | yes | closed against a real account read-only; `getDeviceSettings` returns an object of ~135 keys |
-| Badges & Challenges | 8 | yes | three endpoints reject `start=0` server-side — pass `start >= 1` |
-| Body composition & weight | 8 | yes | the hand-rolled FIT encoder is proven end-to-end: 69.42 kg uploaded as `.fit`, read back as 69.42 kg |
-| Women's health (menstrual cycle, pregnancy) | 11 | yes | writes executed once, under an explicit account-scoped exemption, against a throwaway account only. They need cycle-tracking settings that **only Garmin's own first-run wizard creates** |
-| Golf | 5 | partial | `getGolfScorecard`/`getGolfShotData` response shapes are still unverified — neither available account has a recorded round |
-| User profile, goals, nutrition, training plans, misc (lifestyle log, reload request, GraphQL passthrough, logout) | 15 | most | `getTrainingPlanById` needs a PHASED plan (a Garmin Coach plan is STATIC); `logout()` makes no HTTP call |
+| [Wellness (steps, heart rate, sleep, HRV, stress, SpO2, respiration, hydration, blood pressure, …)](docs/api/wellness.md) | 30 | yes | `setBloodPressure`/`deleteBloodPressure` round-tripped (write → read back → delete). `addHydrationData` is verified but **permanent** — Garmin exposes no delete for it |
+| [Activities (list/search/detail, splits, weather, manual creation, import/upload, exercise sets, personal records)](docs/api/activities.md) | 32 | yes | destructive writes verified by create→read-back→delete against a disposable test account; never against pre-existing data |
+| [Metrics (training status, race predictions, FTP, lactate threshold, heart-rate/power zones, endurance/hill score, …)](docs/api/metrics.md) | 16 | yes | every branch, including two-branch methods like `getLactateThreshold` |
+| [Workouts (CRUD, per-sport upload, scheduling, device push)](docs/api/workouts.md) | 16 | yes | no walking/hiking helpers — Garmin has no such workout sport type, so upstream's two were removed rather than kept as a trap; use `uploadWorkout` with `OTHER` (3) or `CARDIO_TRAINING` (6) |
+| [Gear (CRUD, activity association, defaults, stats)](docs/api/gear.md) | 6 | yes | upstream's `set_gear_default` endpoint is **dead** — four investigations, the last decisive — so it is not ported; `setGearActivityDefaults` replaces it. `deleteGear` is another non-parity addition |
+| [Devices](docs/api/devices.md) | 6 | yes | closed against a real account read-only; `getDeviceSettings` returns an object of ~135 keys |
+| [Badges & Challenges](docs/api/badges-challenges.md) | 8 | yes | three endpoints reject `start=0` server-side — pass `start >= 1` |
+| [Body composition & weight](docs/api/body-composition-weight.md) | 8 | yes | the hand-rolled FIT encoder is proven end-to-end: 69.42 kg uploaded as `.fit`, read back as 69.42 kg |
+| [Women's health (menstrual cycle, pregnancy)](docs/api/womens-health.md) | 11 | yes | writes executed once, under an explicit account-scoped exemption, against a throwaway account only. They need cycle-tracking settings that **only Garmin's own first-run wizard creates** |
+| [Golf](docs/api/golf.md) | 5 | partial | `getGolfScorecard`/`getGolfShotData` response shapes are still unverified — neither available account has a recorded round |
+| [User profile, goals, nutrition, training plans, misc (lifestyle log, reload request, GraphQL passthrough, logout)](docs/api/profile-and-misc.md) | 18 | most | `getTrainingPlanById` needs a PHASED plan (a Garmin Coach plan is STATIC); `logout()` makes no HTTP call |
 
 **What is still unverified, and why** — two things, each for a reason no amount of probing fixes:
 
