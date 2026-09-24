@@ -11,7 +11,8 @@ export type {
   OAuth2Token,
   Tokens,
 } from "./auth/tokens.js";
-export type { LoginResult, MfaState } from "./auth/sso.js";
+export type { LoginResult, MfaState, MobileMfaState } from "./auth/sso.js";
+export type { WidgetMfaState } from "./auth/widget.js";
 export type { SerializedCookie } from "./http/cookie-jar.js";
 export type * from "./types/wellness.js";
 export type * from "./types/activities.js";

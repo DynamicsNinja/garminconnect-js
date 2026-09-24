@@ -24,6 +24,11 @@ export interface GarminClientOptions {
   retries?: number;
   backoffMs?: number;
   fetchImpl?: typeof fetch;
+  /**
+   * Pause before the SSO widget's credential POST (the fallback when the mobile login is rate
+   * limited), in ms. Default: random 3000–8000. Tests pass 0.
+   */
+  loginDelayMs?: number;
 }
 
 export interface ApiOptions {
@@ -50,10 +55,12 @@ export class GarminClient {
   #fetcher: Fetcher;
   #tokens: Tokens | null = null;
   #refreshing: Promise<void> | null = null;
+  readonly #loginDelayMs: number | undefined;
 
   constructor(options: GarminClientOptions = {}) {
     this.domain = options.isCn ? "garmin.cn" : "garmin.com";
     this.tokenStore = options.tokenStore ?? new MemoryTokenStore();
+    this.#loginDelayMs = options.loginDelayMs;
     this.#fetcher = new Fetcher({
       timeoutMs: options.timeoutMs,
       retries: options.retries,
@@ -63,7 +70,7 @@ export class GarminClient {
   }
 
   get #ssoContext(): SsoContext {
-    return { fetcher: this.#fetcher, domain: this.domain };
+    return { fetcher: this.#fetcher, domain: this.domain, loginDelayMs: this.#loginDelayMs };
   }
 
   async login(email: string, password: string): Promise<LoginResult> {

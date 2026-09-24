@@ -5,8 +5,10 @@ import { GarminClient } from "../src/client.js";
 import { MemoryTokenStore } from "../src/auth/token-store.js";
 import { GarminAuthError, GarminError } from "../src/errors.js";
 import { resetConsumerCache } from "../src/auth/consumer.js";
+import { makeSsoServer } from "./helpers/sso-server.js";
 import type { Tokens } from "../src/auth/tokens.js";
 import type { MfaState } from "../src/auth/sso.js";
+import type { MobileMfaState, WidgetMfaState } from "../src/index.js";
 
 const future = Math.floor(Date.now() / 1000) + 3600;
 const past = Math.floor(Date.now() / 1000) - 10;
@@ -418,5 +420,45 @@ describe("GarminClient", () => {
     client.setTokens(tokensWith(future));
     await client.connectapi("/thing");
     expect(String(fetchImpl.mock.calls[0]![0])).toBe("https://connectapi.garmin.cn/thing");
+  });
+});
+
+describe("login falls back to the SSO widget", () => {
+  it("honours loginDelayMs and persists the widget sign-in's tokens", async () => {
+    resetConsumerCache();
+    const harness = makeSsoServer({ loginOutcome: "rate_limited" });
+    harness.server.listen({ onUnhandledRequest: "error" });
+    try {
+      const store = new MemoryTokenStore();
+      const client = new GarminClient({ tokenStore: store, loginDelayMs: 0 });
+      const started = Date.now();
+      const result = await client.login("a@b.test", "pw");
+      expect(Date.now() - started).toBeLessThan(2000);
+      expect(result.state).toBe("success");
+      expect((await store.load())?.oauth1.oauth_token).toBe("o1tok");
+      expect(harness.calls).toContain("widget-signin");
+    } finally {
+      harness.server.close();
+    }
+  });
+
+  it("exports both MfaState shapes", () => {
+    const mobile: MobileMfaState = {
+      flow: "mobile",
+      loginParams: { clientId: "c", locale: "en-US", service: "s" },
+      mfaMethod: "sms",
+      cookies: [],
+      domain: "garmin.com",
+    };
+    const widget: WidgetMfaState = {
+      flow: "widget",
+      mfaMethod: "email",
+      csrf: "x",
+      signinParams: {},
+      referer: "r",
+      cookies: [],
+      domain: "garmin.com",
+    };
+    expect([mobile.flow, widget.flow]).toEqual(["mobile", "widget"]);
   });
 });
