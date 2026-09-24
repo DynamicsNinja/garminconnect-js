@@ -10,6 +10,7 @@
 [![License][license-shield]][license-url]
 [![Last Commit][activity-shield]][activity-url]
 [![Maintenance][maintenance-shield]][maintenance-url]
+[![Buy Me a Coffee][bmc-shield]][bmc-url]
 
 </div>
 
@@ -589,6 +590,13 @@ Before opening a PR:
 Security issues go through [`SECURITY.md`](SECURITY.md), privately, not a public issue — this
 library holds live Garmin credentials on people's behalf.
 
+## ☕ Support
+
+If this library saves you time, you can support its development:
+
+[![Buy Me a Coffee][bmc-shield]][bmc-url]
+[![PayPal][paypal-shield]][paypal-url]
+
 ## 📚 Additional resources & acknowledgements
 
 - [connect.garmin.com](https://connect.garmin.com) — the service this library talks to.
@@ -614,3 +622,7 @@ MIT. See [`NOTICE`](NOTICE) for attribution to python-garminconnect and garth.
 [license-url]: https://github.com/DynamicsNinja/garminconnect-js/blob/main/LICENSE
 [maintenance-shield]: https://img.shields.io/badge/Maintained%3F-yes-green.svg?style=flat
 [maintenance-url]: https://github.com/DynamicsNinja/garminconnect-js/graphs/commit-activity
+[bmc-shield]: https://img.shields.io/badge/Buy%20Me%20a%20Coffee-support-FFDD00?style=flat&logo=buymeacoffee&logoColor=black
+[bmc-url]: https://buymeacoffee.com/dynamicsninja
+[paypal-shield]: https://img.shields.io/badge/PayPal-donate-00457C?style=flat&logo=paypal&logoColor=white
+[paypal-url]: https://paypal.me/ivanficko
