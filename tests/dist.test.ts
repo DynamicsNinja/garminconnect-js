@@ -15,8 +15,9 @@ import { describe, expect, it } from "vitest";
  *  - I3: the emitted `.d.ts` referenced `Buffer` with no `/// <reference types="node" />`, so a
  *    consumer without `@types/node` got `TS2580: Cannot find name 'Buffer'`.
  *
- * This suite closes both by loading `dist` for real. It SKIPS when `dist/` is absent, because
- * `npm test` runs before `npm run build`; it genuinely fails whenever `dist` exists and drifts.
+ * This suite closes both by loading `dist` for real. `npm run check` (and so CI and prepublishOnly)
+ * builds before testing, so it always runs there; a bare `npm test` on a fresh clone with no `dist/`
+ * SKIPS it rather than failing. It genuinely fails whenever `dist` exists and drifts.
  */
 const DIST = path.resolve("dist");
 const ESM = path.join(DIST, "index.js");

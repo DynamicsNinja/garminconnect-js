@@ -82,7 +82,7 @@
     "login:real": "tsx scripts/login.ts ./tokens-real GARMIN_REAL",
     "smoke:real": "tsx scripts/smoke-readonly-real.ts",
     "smoke:gaps": "tsx scripts/smoke-writes-gaps.ts",
-    "check": "npm run typecheck && npm run lint && npm test && npm run build",
+    "check": "npm run typecheck && npm run lint && npm run build && npm test",
     "docs:api": "tsx scripts/generate-api-docs.ts",
     "prepublishOnly": "npm run check"
   },

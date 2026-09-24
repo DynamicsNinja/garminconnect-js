@@ -432,7 +432,7 @@ npm install
 
 | Command | What it does |
 |---|---|
-| `npm run check` | Typecheck, lint, test and build, in that order — what CI and `prepublishOnly` run. |
+| `npm run check` | Typecheck, lint, build and test, in that order — what CI and `prepublishOnly` run. Building first means the tests also cover the built package. |
 | `npm run build` | Bundles `src` to `dist` with tsup (ESM + CJS + types). |
 | `npm run typecheck` | `tsc --noEmit` over `src`, `tests`, `scripts`, `examples`. |
 | `npm run lint` | ESLint over `src`, `tests`, `scripts` and `examples`. |
@@ -569,7 +569,7 @@ real request construction, auth headers, retries and response parsing all still 
 
 Before opening a PR:
 
-- [ ] `npm run check` passes — typecheck, lint, tests and build, in CI's exact order. CI runs this
+- [ ] `npm run check` passes — typecheck, lint, build and tests, in CI's exact order. CI runs this
       same script, so a green local run cannot diverge from a green pipeline by omission.
 - [ ] `npm run docs:api` has been re-run if you changed a method or its `AGENTS.md` row, and the
       regenerated `docs/api/` files are committed. A test fails if they are stale.
