@@ -3,6 +3,7 @@ import { GarminError } from "./errors.js";
 import * as activities from "./services/activities.js";
 import * as badges from "./services/badges.js";
 import * as bodyComposition from "./services/bodyComposition.js";
+import * as courses from "./services/courses.js";
 import * as devices from "./services/devices.js";
 import * as gear from "./services/gear.js";
 import * as goals from "./services/goals.js";
@@ -17,6 +18,7 @@ import * as userProfile from "./services/userProfile.js";
 import * as workouts from "./services/workouts.js";
 import * as womensHealth from "./services/womensHealth.js";
 import type { ActivityDownloadFormat, ActivityExerciseSets } from "./types/activities.js";
+import type { CourseInput, CourseUpdate } from "./types/courses.js";
 import type { GoalStatus } from "./types/goals.js";
 import type { WorkoutInput } from "./types/workouts.js";
 import type { WeightScaleFields } from "./util/fit.js";
@@ -387,6 +389,40 @@ export class Garmin {
   }
   getGearDefaults(userProfileNumber: number | string) {
     return gear.getGearDefaults(this, userProfileNumber);
+  }
+
+  // --- courses (NOT upstream parity — python-garminconnect has no course methods) ---
+  listCourses() {
+    return courses.listCourses(this);
+  }
+  getCourse(courseId: number | string) {
+    return courses.getCourse(this, courseId);
+  }
+  /** Parses a GPX file into a course WITHOUT saving it (`courseId: null`). */
+  importCourseGpx(file: Blob, filename: string) {
+    return courses.importCourseGpx(this, file, filename);
+  }
+  createCourse(input: CourseInput) {
+    return courses.createCourse(this, input);
+  }
+  /** `importCourseGpx` then `createCourse`, in one call. */
+  createCourseFromGpx(
+    file: Blob,
+    filename: string,
+    options?: Omit<CourseInput, "geoPoints" | "coursePoints" | "name"> & { name?: string },
+  ) {
+    return courses.createCourseFromGpx(this, file, filename, options);
+  }
+  /** Rename and/or change privacy. Read-modify-write of the whole record. */
+  updateCourse(courseId: number | string, changes: CourseUpdate) {
+    return courses.updateCourse(this, courseId, changes);
+  }
+  /** IRREVERSIBLE. A course created seconds ago may 429 "not yet ready"; retry shortly. */
+  deleteCourse(courseId: number | string) {
+    return courses.deleteCourse(this, courseId);
+  }
+  downloadCourseGpx(courseId: number | string) {
+    return courses.downloadCourseGpx(this, courseId);
   }
 
   // --- devices ---

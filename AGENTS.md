@@ -19,13 +19,16 @@ file is authoritative, and the differences are not cosmetic:
   inferring an API.
 - **`deleteGear` and `setGearActivityDefaults` are endpoints upstream does not have**; the latter
   exists because upstream's `set_gear_default` is dead (section 6).
+- **Courses (`listCourses` … `downloadCourseGpx`, eight methods) have no upstream equivalent.**
+  Creating one is two calls — import parses, create saves — and a fresh course 429s "not yet
+  ready" for a few seconds (section 6).
 - **`getGoals` defaults `start` to 1, not upstream's 0**, because `goal-service` is 1-indexed and
   `start=0` returns `[]` on an account that has goals — a deliberate divergence (section 6).
 - **Return types follow live responses, not upstream's docs.** At least seven endpoints upstream
   documents as returning an object actually return an array.
-- **The `Live-verified` column in section 3 is the real confidence signal.** `no`, `partially` and
-  `BROKEN` appear there and mean what they say — two upload helpers are marked BROKEN because the
-  POST succeeds and stores a null sport.
+- **The `Live-verified` column in section 3 is the real confidence signal.** `attempted` and
+  `n/a` appear there and mean what they say. The two walking/hiking upload helpers that were once
+  marked BROKEN — the POST succeeded and stored a null sport — have since been deleted.
 
 The beyond-upstream method set is pinned by `tests/parity.test.ts`, so it cannot grow silently.
 
@@ -142,6 +145,14 @@ Every identifier above (`GarminClient`, `Garmin`, `FileTokenStore`) is exported 
 | `deleteGear` | `(gearUUID: string): Promise<unknown>` — **NOT upstream parity**: upstream python-garminconnect has no delete-gear method. `DELETE /gear-service/gear/v2/{gearUUID}`, resolves `null` on success (204). **The UUID must be HYPHENATED** — `getGear` returns them WITHOUT hyphens and that form 404s, so this method re-inserts them for you when handed the bare 32-char form; only hand-rolled URLs hit the 404. IRREVERSIBLE: removes the gear AND its activity history | yes — endpoint observed in Garmin's own web client (gear detail -> ⋮ -> Delete) on 2026-09-23, then verified through this client: bare uuid -> 404, hyphenated -> 204, gear count 4 -> 3 |
 | `setGearActivityDefaults` | `(gearUUID: string, activityTypeKeys: string[]): Promise<unknown>` — **NOT upstream parity**: a WORKING replacement for `setGearDefault`, whose upstream endpoint is dead. Read-modify-writes the v2 record: GETs `/gear-service/gear/v2/{uuid}`, replaces `associatedActivityTypes` with `[{activityTypeKey, defaultGear: true, preferredGear: false}]` per key, PUTs the whole record back. Keys are **lowercase** (`"running"`), matching `createGear` — NOT `setGearDefault`'s upper-cased form. `[]` clears all defaults. Concurrent callers can clobber each other | yes — set `["running","cycling"]` live and read it back from both the v2 record and this port's `getGearDefaults` (`activityTypePk` 1 and 2) |
 | `getGearDefaults`                  | `(userProfileNumber: number \| string): Promise<GearDefaults[] \| null>` — GETs `/gear-service/gear/user/{userProfileNumber}/activityTypes`; passes through unchecked; returns an ARRAY of `{uuid, activityTypePk, defaultGear}` entries (fixed in Task 7's fix-round-1, was previously mistyped as a single object — see gotchas)                                                                                                                                                                                                                                                                                                                                                                                                                                          | yes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `listCourses` | `(): Promise<CourseList \| null>` — **NOT upstream parity** (upstream has no courses). GETs `/web-gateway/course/owner/` (trailing slash included); returns an ENVELOPE `{ coursesForUser: CourseSummary[] }`, not a bare array | yes — 2026-09-24, `npm run smoke:gaps`: the probe course appeared in `coursesForUser` after create |
+| `getCourse` | `(courseId: number \| string): Promise<Course \| null>` — GETs `/course-service/course/{courseId}`; a missing id is a 404 `GarminHttpError` ("Course not found : {id}") | yes — the read-back for every course write, and the 404 after `deleteCourse` |
+| `importCourseGpx` | `(file: Blob, filename: string): Promise<Course>` — multipart POST (field `file`) to `/course-service/course/import`. **Parses only, saves NOTHING**: the result has `courseId: null` and a RESAMPLED track (13 GPX points came back as 37) with null elevations/timestamps; `courseName` is the GPX `<name>`. Only `.gpx` accepted (only `.gpx` verified); throws `GarminError` on an empty response | yes — `courseId: null`, 37 geoPoints, and no course was created by the call |
+| `createCourse` | `(input: CourseInput): Promise<Course \| null>` — POSTs `/course-service/course` with the template Garmin's web client sends. `CourseInput` = `{ name, geoPoints, coursePoints?, activityTypeId? = 1 (running), privacy? = "private" }`; privacy maps to `rulePK` public 1 / private 2. Garmin computes `distanceMeter` and elevation. Throws `GarminError` before any request on an empty name or fewer than two geoPoints | yes — stored record read back: name, `rulePK` 2, `activityTypePk` 10 as sent, `distanceMeter` 1042.07 |
+| `createCourseFromGpx` | `(file: Blob, filename: string, options?: { name?, activityTypeId?, privacy? }): Promise<Course \| null>` — `importCourseGpx` then `createCourse`. Name defaults to the GPX `<name>`, then the filename without `.gpx` | yes — this is the path `smoke:gaps` creates its course through |
+| `updateCourse` | `(courseId: number \| string, changes: { name?, privacy? }): Promise<Course \| null>` — READ-MODIFY-WRITE: GETs the record, overlays the changes, PUTs the whole record back to `/course-service/course/{courseId}` — the same request Garmin's own web editor sends on Save (observed 2026-09-24). Concurrent callers can clobber each other. Throws before any request if neither field is given or the name is blank. A just-created course may 429 "not yet ready" (see gotchas) | yes — renamed and switched to public, both read back (`rulePK` 1) |
+| `deleteCourse` | `(courseId: number \| string): Promise<unknown>` — `DELETE /course-service/course/{courseId}`, resolves `null` (204). IRREVERSIBLE. May 429 "not yet ready" for a few seconds after creation | yes — `getCourse` 404s afterwards |
+| `downloadCourseGpx` | `(courseId: number \| string): Promise<Buffer>` — GETs `/course-service/course/gpx/{courseId}` through `client.download` | yes — 4,576 bytes of GPX from the probe course |
 | `getEarnedBadges`                  | `(): Promise<Badge[] \| null>` — GETs `/badge-service/badge/earned`; passes through unchecked, stays nullable (does NOT coalesce to `[]`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | yes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `getAvailableBadges`               | `(): Promise<Badge[] \| null>` — GETs `/badge-service/badge/available?showExclusiveBadge=true`; passes through unchecked, stays nullable                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | yes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `getInProgressBadges`              | `(): Promise<Badge[]>` — no HTTP path of its own: calls `getEarnedBadges()` and `getAvailableBadges()`, filters each with upstream's `is_badge_in_progress` predicate (progress truthy; if `progress === target`, only "in progress" when `badgeLimitCount` is set and `badgeEarnedNumber < badgeLimitCount`), then merges both filtered lists into a `Map` keyed by `badgeId` (available overwrites earned on collision, same key-position semantics as Python's `dict.update`); never raises — a `null` from either upstream call is treated as `[]`                                                                                                                                                                                                                      | yes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
@@ -392,7 +403,7 @@ The probe asserts the STORED document rather than the POST's status, deliberatel
 
 ## 4. These methods do NOT exist (mostly)
 
-**156 methods**, covering 151 of upstream python-garminconnect's 154 public methods. The other
+**164 methods**, covering 151 of upstream python-garminconnect's 154 public methods. The other
 three were ported, then DELETED on 2026-09-24 once live evidence showed each can only produce a
 broken result — see `DELIBERATE_OMISSIONS` in `tests/parity.test.ts`, which requires a specific
 reason per entry and fails if one goes stale:
@@ -407,10 +418,12 @@ Everything else has a real `Garmin` counterpart, mechanically asserted by `tests
 (which reflects on `Garmin.prototype` and parses the inventory at test-run time, so it cannot
 silently drift back out of sync).
 
-**The 156-vs-154 reconciliation**: 151 upstream methods ported, plus five that go BEYOND upstream
-and have no inventory row of their own — `getUserProfile`, `displayName`, `userName`, `deleteGear`
-and `setGearActivityDefaults`. `tests/parity.test.ts` pins exactly that set, so a sixth cannot
-appear without a reason being written down. `getUserProfile` fetches
+**The 164-vs-154 reconciliation**: 151 upstream methods ported, plus thirteen that go BEYOND
+upstream and have no inventory row of their own — `getUserProfile`, `displayName`, `userName`,
+`deleteGear`, `setGearActivityDefaults`, and the eight course methods (`listCourses`, `getCourse`,
+`importCourseGpx`, `createCourse`, `createCourseFromGpx`, `updateCourse`, `deleteCourse`,
+`downloadCourseGpx`; upstream has no courses at all). `tests/parity.test.ts` pins exactly that
+set, so a fourteenth cannot appear without a reason being written down. `getUserProfile` fetches
 `/userprofile-service/socialProfile` — NOT upstream's `get_user_profile`, which is a different
 endpoint (`user-settings`) satisfied here by `getUserSettings`; `displayName` and `userName` are
 cached accessors that read from it. (`getStats`, `getStatsAndBody` and `getInProgressBadges` are
@@ -430,8 +443,8 @@ port's own PRE-EXISTING, unrelated method hitting `/userprofile-service/socialPr
 
 **Genuinely absent** (never inventoried as an upstream python-garminconnect public method at all —
 these are Garmin Connect features with no corresponding row in the 154-method inventory, meaning
-no task in this plan ever targeted them): Connect IQ store browsing, route/course segments,
-social/friends connections, and any other Garmin Connect web feature outside upstream's own
+no task in this plan ever targeted them): Connect IQ store browsing, course SEGMENTS (courses
+themselves are covered — see the course rows in section 3), social/friends connections, and any other Garmin Connect web feature outside upstream's own
 documented surface. **What to do instead:** call `client.connectapi<T>(path, options)` directly
 with the real Garmin Connect endpoint path. `connectapi` is the general HTTP-with-auth primitive
 every `Garmin` method above is built on — it is not private, and using it for a gap like this is
@@ -688,6 +701,20 @@ unitKey, when?)` sends `weight` RAW, in whatever unit `unitKey` names (`"kg"` or
   message was not describing reality. Earlier rounds had tried every spelling (`running`,
   `RUNNING`, `Running`, and the numeric `activityTypePk`, which 400s instead of 404ing).
   `tests/services/gear.test.ts` asserts the method stays gone and the replacement stays.
+- **Courses: HTTP 429 "not yet ready" is NOT rate limiting — and a course in open water never
+  becomes ready.** Garmin processes a new course in the background; until it finishes, `PUT` and
+  `DELETE` on it answer `429 {"message":"The course [id] is not yet ready to delete or update",
+  "error":"TooManyRequestsException"}`, which this library surfaces as `GarminRateLimitError`. For
+  a track on land it clears within seconds (a rename 5s after creation succeeded). For the first
+  probe's synthetic track at 0°N 0°E — the "Null Island" coordinates other upload probes here use —
+  the PUT was still refused five minutes later, across four runs, while `DELETE` got through. That
+  was misread as "updating a course does not work" until Garmin's own web editor was watched saving
+  a rename: it sends the very same full-record `PUT /course-service/course/{id}` this library does,
+  and that PUT worked at once on an on-land course. So: test courses belong on land, and a caller
+  creating then immediately editing should retry a 429 after a short wait.
+  Creation is also two calls, not one: `importCourseGpx` only PARSES (`courseId: null`, nothing
+  saved); `createCourse` saves. `listCourses` returns an envelope — the rows are under
+  `coursesForUser`.
 - **Women's-health writes need MCT (menstrual cycle tracking) settings, and ONLY Garmin's own
   first-run wizard creates them — RESOLVED 2026-09-23, all five writes now verified.** The wizard
   at `connect.garmin.com/app/menstrual-cycle-tracking` was driven manually in a browser while

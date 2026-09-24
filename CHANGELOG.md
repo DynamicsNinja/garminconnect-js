@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **Courses**, eight methods with no python-garminconnect equivalent: `listCourses`, `getCourse`,
+  `importCourseGpx`, `createCourse`, `createCourseFromGpx`, `updateCourse`, `deleteCourse` and
+  `downloadCourseGpx`. All live-verified by create, read back, update, read back, export and
+  delete. A course created moments ago can answer HTTP 429 "not yet ready" to an update or delete;
+  a course in open water never becomes ready for updates.
+
 ## [0.1.0] — 2026-09-24
 
 First release. A TypeScript client for Garmin Connect, for Node and Next.js server runtimes.

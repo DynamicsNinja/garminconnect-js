@@ -61,6 +61,14 @@ const CATEGORIES: Record<string, { slug: string; title: string; blurb: string }>
     title: "Gear",
     blurb: "Shoes, bikes and other equipment: CRUD, stats, and which activity types they default to.",
   },
+  courses: {
+    slug: "courses",
+    title: "Courses",
+    blurb:
+      "Saved routes you can send to a device and follow: import a GPX, create, rename, change " +
+      "privacy, export as GPX, delete. Not in python-garminconnect. Creating is two steps — " +
+      "`importCourseGpx` parses, `createCourse` saves — and `createCourseFromGpx` does both.",
+  },
   devices: {
     slug: "devices",
     title: "Devices",

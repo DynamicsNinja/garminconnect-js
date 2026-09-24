@@ -174,6 +174,16 @@ describe("upstream parity", () => {
       userName: "cached accessor over getUserProfile",
       deleteGear: "upstream has no delete-gear method; endpoint found in Garmin's own web client",
       setGearActivityDefaults: "working replacement for setGearDefault, whose upstream endpoint is dead",
+      // Courses: upstream has no course methods. Endpoints from the florianpasteur/garmin-connect
+      // JS fork, each re-verified live by smoke:gaps; deleteCourse is in neither upstream nor fork.
+      listCourses: "courses are not in upstream — GET /web-gateway/course/owner/",
+      getCourse: "courses are not in upstream — GET /course-service/course/{id}",
+      importCourseGpx: "courses are not in upstream — parses a GPX without saving",
+      createCourse: "courses are not in upstream — POST /course-service/course",
+      createCourseFromGpx: "courses are not in upstream — importCourseGpx + createCourse",
+      updateCourse: "courses are not in upstream — the full-record PUT Garmin's web editor sends",
+      deleteCourse: "courses are not in upstream, and the fork has no delete either",
+      downloadCourseGpx: "courses are not in upstream — GET /course-service/course/gpx/{id}",
     };
 
     const rows = parseInventoryRows();

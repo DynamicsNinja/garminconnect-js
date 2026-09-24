@@ -18,7 +18,7 @@ A zero-dependency TypeScript client for Garmin Connect, for **Node and Next.js s
 It talks to the same undocumented endpoints the mobile app uses, with a fully typed,
 promise-based API.
 
-It handles Garmin's undocumented SSO/OAuth flow, refreshes tokens for you, and gives you 156
+It handles Garmin's undocumented SSO/OAuth flow, refreshes tokens for you, and gives you 164
 typed methods over the endpoints the mobile app uses — plus two things that exist because Garmin's
 API is quietly hostile in specific places:
 
@@ -45,7 +45,7 @@ terser, higher-signal briefing than this README and calls out what does *not* ex
 [connect.garmin.com](https://connect.garmin.com) so you can use it in your own Node or Next.js
 server code, without scraping HTML or reverse-engineering the mobile app yourself.
 
-It covers wellness, activities, training metrics, workouts, gear, devices, badges, body
+It covers wellness, activities, training metrics, workouts, gear, courses, devices, badges, body
 composition, women's health, golf, nutrition and training plans — see [API coverage](#-api-coverage)
 for the breakdown. For anything it doesn't wrap, `client.connectapi()` calls any Garmin Connect
 endpoint with the same auth.
@@ -313,6 +313,26 @@ for an endpoint no method wraps. It posts multipart form data (field name `file`
 await client.upload(file, "ride.fit", "/upload-service/upload", { timeoutMs: 120_000 });
 ```
 
+### Courses
+
+A course is a saved route you can send to a device and follow. Creating one from a GPX file is two
+steps inside Garmin — parse, then save — and `createCourseFromGpx` does both:
+
+```ts
+const course = await garmin.createCourseFromGpx(new Blob([gpxText]), "loop.gpx", {
+  name: "Sunday loop",
+  activityTypeId: 10, // a Garmin activity-type id; the default, 1, is running
+  privacy: "private",
+});
+
+await garmin.updateCourse(course!.courseId!, { name: "Sunday long loop", privacy: "public" });
+const gpx = await garmin.downloadCourseGpx(course!.courseId!);
+```
+
+Right after creation Garmin is still processing the course, and an update or delete can fail with
+a 429 "not yet ready" — a `GarminRateLimitError`, though it is not rate limiting. Retry after a few
+seconds.
+
 ### Errors
 
 | Error | Meaning |
@@ -369,7 +389,7 @@ reference for every option. Runnable versions of those examples live in
 
 ## 📊 API coverage
 
-**156 typed methods across 11 categories.** Each category links to a generated
+**164 typed methods across 12 categories.** Each category links to a generated
 [`docs/api/`](docs/api/README.md) page with every method's signature, a call you can paste, and
 its live-verification status — confirmed against a real Garmin account, not merely unit-tested.
 
@@ -380,6 +400,7 @@ its live-verification status — confirmed against a real Garmin account, not me
 | [Training metrics](docs/api/metrics.md) | 16 | all | training status, race predictions, FTP, lactate threshold, HR/power zones, endurance and hill score |
 | [Workouts](docs/api/workouts.md) | 16 | all | CRUD, per-sport upload, scheduling, device push |
 | [Gear](docs/api/gear.md) | 6 | all | CRUD, activity defaults, stats |
+| [Courses](docs/api/courses.md) | 8 | all | import a GPX, create, rename, privacy, export as GPX, delete |
 | [Devices](docs/api/devices.md) | 6 | all | devices, settings, alarms, solar, last used |
 | [Badges & challenges](docs/api/badges-challenges.md) | 8 | all | earned/available badges, challenges |
 | [Body composition & weight](docs/api/body-composition-weight.md) | 8 | all | weigh-ins, body composition (FIT upload) |
@@ -408,7 +429,7 @@ section 3.
 This library began as a port of Python's [`garminconnect`][python-garminconnect-url] and its auth
 dependency [`garth`][garth-url], and the endpoint surface and SSO flow still derive from them —
 see [`NOTICE`](NOTICE) for attribution. It is no longer a port: 151 of upstream's 154 methods are
-here, five methods go beyond it, and behaviour diverges where evidence warranted it.
+here, thirteen methods go beyond it (among them all eight course methods), and behaviour diverges where evidence warranted it.
 
 Three upstream methods are deliberately absent, because live testing showed each can only produce
 a broken result: `upload_walking_workout` and `upload_hiking_workout` (Garmin has no such workout
@@ -551,7 +572,7 @@ Goodbye.
 npm test
 ```
 
-625 tests across 44 files, all against mocked HTTP (via `msw`) — no network access and no
+645 tests across 45 files, all against mocked HTTP (via `msw`) — no network access and no
 credentials required. Covers auth/SSO/MFA, token storage and refresh, the HTTP fetcher's retry
 and error handling, every service method, and the public build output.
 

@@ -216,4 +216,102 @@ try {
   console.log(`  NOTE  ${"pushWorkoutToDevice".padEnd(38)} ${describeError(e)}`);
 }
 
+// =============================================================================================
+// 5. Courses — all eight methods, by create -> read back -> update -> read back -> delete.
+// =============================================================================================
+// A new course is processed in the background; until that finishes, PUT and DELETE answer 429
+// "not yet ready". The pause before each is load-bearing. And the track MUST be on land: the first
+// version of this probe used Null Island, where processing never finishes and every PUT 429'd for
+// five minutes straight — which read, wrongly, as "updating a course does not work".
+console.log("\ncourses");
+const pause = () => new Promise((r) => setTimeout(r, 6000));
+// ~1 km diagonal across Hyde Park, London — a public park, synthetic track.
+const trkpts = Array.from({ length: 13 }, (_, i) => {
+  const t = new Date(Date.UTC(2026, 0, 1, 8, 0, i * 30)).toISOString();
+  return `<trkpt lat="${(51.505 + i * 0.0006).toFixed(6)}" lon="${(-0.17 + i * 0.0008).toFixed(6)}"><ele>${String(10 + i)}</ele><time>${t}</time></trkpt>`;
+}).join("");
+const probeGpx = new Blob(
+  [
+    `<?xml version="1.0" encoding="UTF-8"?><gpx version="1.1" creator="garminconnect-js smoke:gaps" ` +
+      `xmlns="http://www.topografix.com/GPX/1/1"><trk><name>gcjs-probe-course</name><trkseg>${trkpts}</trkseg></trk></gpx>`,
+  ],
+  { type: "application/octet-stream" },
+);
+let courseId: number | undefined;
+let courseDeleted = false;
+try {
+  const parsed = await g.importCourseGpx(probeGpx, "gcjs-probe.gpx");
+  report(
+    parsed.courseId === null && parsed.geoPoints.length > 1,
+    "importCourseGpx (saves nothing)",
+    `courseId ${String(parsed.courseId)}, ${String(parsed.geoPoints.length)} geoPoints, name "${String(parsed.courseName)}"`,
+  );
+
+  await pause();
+  const created = await g.createCourseFromGpx(probeGpx, "gcjs-probe.gpx", {
+    name: "gcjs probe course",
+    activityTypeId: 10,
+  });
+  courseId = created?.courseId ?? undefined;
+  if (courseId === undefined) throw new Error(`createCourseFromGpx returned no courseId`);
+
+  // READ BACK — the stored record, not the POST's echo.
+  const stored = await g.getCourse(courseId);
+  report(
+    stored?.courseName === "gcjs probe course" &&
+      stored.rulePK === 2 &&
+      stored.activityTypePk === 10 &&
+      (stored.distanceMeter ?? 0) > 500,
+    "createCourseFromGpx -> getCourse",
+    `name "${String(stored?.courseName)}", rulePK ${String(stored?.rulePK)}, ` +
+      `activityTypePk ${String(stored?.activityTypePk)}, ${String(stored?.distanceMeter)} m`,
+  );
+
+  const listed = await g.listCourses();
+  report(
+    (listed?.coursesForUser ?? []).some((c) => c.courseId === courseId),
+    "listCourses",
+    `${String(listed?.coursesForUser.length)} course(s), probe course listed`,
+  );
+
+  await pause();
+  await g.updateCourse(courseId, { name: "gcjs probe course renamed", privacy: "public" });
+  const updated = await g.getCourse(courseId);
+  report(
+    updated?.courseName === "gcjs probe course renamed" && updated.rulePK === 1,
+    "updateCourse -> getCourse",
+    `name "${String(updated?.courseName)}", rulePK ${String(updated?.rulePK)} (public is 1)`,
+  );
+
+  const gpxBytes = await g.downloadCourseGpx(courseId);
+  const head = gpxBytes.subarray(0, 200).toString("utf8");
+  report(
+    gpxBytes.length > 0 && head.startsWith("<?xml") && head.includes("<gpx"),
+    "downloadCourseGpx",
+    `${String(gpxBytes.length)} bytes of GPX`,
+  );
+
+  await pause();
+  await g.deleteCourse(courseId);
+  try {
+    await g.getCourse(courseId);
+    report(false, "deleteCourse", "course still readable after delete");
+  } catch (e) {
+    courseDeleted = e instanceof GarminHttpError && e.status === 404;
+    report(courseDeleted, "deleteCourse -> getCourse 404", describeError(e));
+  }
+} catch (e) {
+  report(false, "course round-trip", describeError(e));
+} finally {
+  if (courseId !== undefined && !courseDeleted) {
+    try {
+      await pause();
+      await g.deleteCourse(courseId);
+      console.log(`  clean  deleted probe course ${String(courseId)}`);
+    } catch (e) {
+      console.log(`  WARN   could not delete probe course ${String(courseId)}: ${describeError(e)}`);
+    }
+  }
+}
+
 console.log(`\n${String(pass)} passed, ${String(fail)} failed.`);

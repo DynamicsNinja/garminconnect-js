@@ -9,6 +9,7 @@ One page per category, with every method's signature and a call you can paste. F
 | [Activities](activities.md) | 32 |
 | [Badges & challenges](badges-challenges.md) | 8 |
 | [Body composition & weight](body-composition-weight.md) | 8 |
+| [Courses](courses.md) | 8 |
 | [Devices](devices.md) | 6 |
 | [Gear](gear.md) | 6 |
 | [Golf](golf.md) | 5 |
@@ -17,4 +18,4 @@ One page per category, with every method's signature and a call you can paste. F
 | [Wellness](wellness.md) | 30 |
 | [Women's health](womens-health.md) | 11 |
 | [Workouts](workouts.md) | 16 |
-| **Total** | **156** |
+| **Total** | **164** |
