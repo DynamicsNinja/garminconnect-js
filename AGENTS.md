@@ -218,8 +218,8 @@ Every identifier above (`GarminClient`, `Garmin`, `FileTokenStore`) is exported 
 | `getNutritionDailyMeals` | `(cdate: string \| Date): Promise<NutritionDailyMeals \| null>` — GETs `/nutrition-service/meals/{cdate}`; passes through unchecked | yes — a live 2-key object on the test account for a recent date, confirming the URL |
 | `getNutritionDailySettings` | `(cdate: string \| Date): Promise<NutritionDailySettings \| null>` — GETs `/nutrition-service/settings/{cdate}`; passes through unchecked | yes — `null` on the test account for a recent date (no nutrition settings configured), confirming the URL responds without a 404 |
 | `getTrainingPlans` | `(): Promise<TrainingPlansResult \| null>` — GETs `/trainingplan-service/trainingplan/plans`; no params; passes through unchecked | yes — a live ENVELOPE object on the test account: `{ trainingPlanList: [], searchFilter: {...} }`. Note the shape — the plans are under `trainingPlanList`, NOT at the top level, so treating the result as an array yields nothing (a smoke probe made exactly that mistake and could never find an id). The test account has no actual plans, so the per-plan row shape inside the list is unverified |
-| `getTrainingPlanById` | `(planId: number \| string): Promise<TrainingPlanDetail \| null>` — GETs `/trainingplan-service/trainingplan/phased/{planId}`; passes through unchecked | attempted — reached with a real `trainingPlanId` on 2026-09-23 and answered **400 `"Not a phased plan."`**. That is a precise server response, not a wrong URL: `/phased/{id}` requires a plan whose `trainingPlanCategory` is PHASED, and a Garmin Coach plan is STATIC. No way to obtain a phased plan was found from the web UI, so the success path is still unconfirmed |
-| `getAdaptiveTrainingPlanById` | `(planId: number \| string): Promise<AdaptiveTrainingPlanDetail \| null>` — GETs `/trainingplan-service/trainingplan/fbt-adaptive/{planId}`, a distinct sub-path from `getTrainingPlanById`'s `phased` path; passes through unchecked | yes — enrolled the test account in a real Garmin Coach 5K plan through the web UI on 2026-09-23, then called this with the live `trainingPlanId`: returns a 32-key object. Works for a STATIC plan, unlike `getTrainingPlanById` |
+| `getTrainingPlanById` | `(planId: number \| string): Promise<TrainingPlanDetail \| null>` — GETs `/trainingplan-service/trainingplan/phased/{planId}`; passes through unchecked | yes — CLOSED 2026-09-24 against an **ITP** plan (36 keys). The earlier "needs a PHASED plan" reading was WRONG: `/phased/{id}` is not restricted to `trainingPlanCategory === "PHASED"`. It serves ITP too and rejects only STATIC, which is what a Garmin Coach plan is — the 400 `"Not a phased plan."` names the path, not the required category |
+| `getAdaptiveTrainingPlanById` | `(planId: number \| string): Promise<AdaptiveTrainingPlanDetail \| null>` — GETs `/trainingplan-service/trainingplan/fbt-adaptive/{planId}`, a distinct sub-path from `getTrainingPlanById`'s `phased` path; passes through unchecked | yes — verified against a STATIC Garmin Coach plan (32 keys) and again on 2026-09-24 against an ITP plan (35 keys). Unlike `getTrainingPlanById` it also serves STATIC, so it is the more permissive of the two |
 | `getLifestyleLoggingData` | `(cdate: string \| Date): Promise<LifestyleLoggingData \| null>` — GETs `/lifestylelogging-service/dailyLog/{cdate}`; passes through unchecked. Grouped under `misc` per the plan's explicit instruction, even though it superficially resembles a wellness-daily endpoint | yes — a live 200 on the test account confirms the URL; field-level shape is undocumented |
 | `requestReload` | `(cdate: string \| Date): Promise<ReloadRequestResult \| null>` — POSTs `/wellness-service/wellness/epoch/request/{cdate}` with no JSON body; asks Garmin to reload/recompute a day's data (Garmin offloads older data, so this forces it back); UNCERTAIN upstream null handling | yes — run live on 2026-09-23; returns `{userProfilePk, calendarDate, status: "COMPLETE", source: "USER", ghReloadMetaData, createDate, deviceList}`. Harmless: it asks Garmin to re-process an existing day, it does not create data. (superseded) a WRITE with no safe read-back; explicitly excluded from live verification per this task's SAFETY section (do not execute against the live account without the controller's go-ahead). Implemented as a straightforward pass-through per the standing rule for UNCERTAIN rows |
 | `queryGarminGraphql` | `(query: Record<string, unknown>): Promise<GraphqlResult \| null>` — POSTs the caller's GraphQL body verbatim to `/graphql-gateway/graphql`; UNCERTAIN upstream null handling (upstream calls `.json()` directly with no null-check). **The composed URL is this task's highest-risk item**: upstream's own constant is `"graphql-gateway/graphql"`, no leading slash, unlike every other constant in `gc.py` — but this port's `connectapi` composes the request URL by plain string concatenation (`` `https://connectapi.${domain}${path}` ``), not `URL`-relative joining, so omitting the leading slash here would silently glue onto the hostname (`connectapi.garmin.comgraphql-gateway/graphql`) rather than 404 — the usual "a 404 means the URL is wrong" heuristic would not even catch it. The leading slash is therefore hardcoded and deliberate; `tests/services/misc.test.ts` pins the literal composed URL | yes — a minimal `{"query": "{ __typename }"}` POST against the live account returned an HTTP 200 (a GraphQL-shaped error body, not a 404), confirming the composed URL is reachable; the schema itself is undocumented and out of scope |
@@ -743,25 +743,21 @@ unitKey, when?)` sends `weight` RAW, in whatever unit `unitKey` names (`"kg"` or
   `{name, activityType, period, type, caloriesInKiloCalories, distanceInMeters, durationInSeconds,
   numberOfActivities, startDate, privacy}` — e.g. `period: "thirty_days"`,
   `type: "distance_accumulation"`, `privacy: "public"`. Reachable today via `connectapi`.
-- **Training plans: `getAdaptiveTrainingPlanById` works on any plan; `getTrainingPlanById` needs a
-  PHASED one.** Enrolling the test account in a Garmin Coach 5K plan (Training & Planning -> Garmin
-  Coach Plans -> pick a plan -> Schedule) made both reachable. The adaptive endpoint returned a
-  32-key object even though the plan's `trainingPlanCategory` is `STATIC`; the phased endpoint
-  answered `400 "Not a phased plan."`. So the two are not interchangeable, and the phased variant
-  is the narrower one.
-  **How to get a PHASED plan, since this is the blocker:** there is no API route to one.
-  `/trainingplan-service/trainingplan/plans` returns ONLY the account's own enrolled plans — probed
-  with and without owner and paging params, all three return just the enrolled list, so it cannot
-  browse Garmin's catalogue. A phased plan has to be ENROLLED through Garmin Connect's UI
-  (Training & Planning -> Training Plans, i.e. NOT the Garmin Coach section, whose plans are
-  STATIC). `npm run smoke:gaps` probes for one on every run and prints
-  `SKIP ... no PHASED plan (STATIC)` until one exists, so the moment a plan is enrolled the
-  verification is that one command rather than a fresh investigation.
-
-  **The plan id field is `trainingPlanId`** — not `planId`, not `id`. Worth stating because the
-  smoke harness previously guessed the latter two and therefore skipped these probes forever, even
-  with a plan enrolled; that is the third instance of a "skip that can never become a pass" in this
-  project, and the first found by having real data rather than by review.
+- **Training plans: BOTH endpoints are verified, and the "needs a PHASED plan" rule was wrong.**
+  `trainingPlanCategory` has at least three values, not two. A Garmin Coach plan is `STATIC`;
+  enrolling a plan from Training & Planning -> Training Plans produced `ITP`; `PHASED` has never
+  actually been seen on an account. Against the ITP plan, `getTrainingPlanById` (`/phased/{id}`,
+  36 keys) and `getAdaptiveTrainingPlanById` (`/fbt-adaptive/{id}`, 35 keys) BOTH succeed.
+  So `/phased/{id}` is not restricted to category `PHASED` — it rejects `STATIC` and accepts `ITP`,
+  and its 400 `"Not a phased plan."` describes the PATH, not a required category. The earlier
+  reading inverted that, and the probe written from it filtered for `PHASED` and would have
+  skipped forever on an account that could already answer the question. A probe that only looks
+  for what you expect cannot show you that you expected the wrong thing; `npm run smoke:gaps` now
+  tries every enrolled plan against both paths and prints the category alongside each result.
+  **The plan id field is `trainingPlanId`** — not `planId`, not `id`.
+  `/trainingplan-service/trainingplan/plans` returns ONLY the account's own enrolled plans (probed
+  with and without owner and paging params), so a plan must be enrolled through the UI before
+  either endpoint can be exercised at all.
 - **There is no walking or hiking workout sport type, and the two helpers that pretended otherwise
   were REMOVED on 2026-09-24.** Upstream's `WalkingWorkout`/`HikingWorkout` send `sportTypeId` 17
   and 18, which look like Garmin ACTIVITY-type ids mistaken for workout sport types. Garmin's own

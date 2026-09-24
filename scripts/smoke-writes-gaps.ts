@@ -163,32 +163,41 @@ if (activity?.activityId === undefined) {
 // 3. getTrainingPlanById — needs a PHASED plan, which only enrolling one can produce.
 // =============================================================================================
 // `/trainingplan-service/trainingplan/plans` returns only the account's OWN enrolled plans; it
-// cannot browse Garmin's catalogue (probed with and without owner/paging params, all return just
-// the enrolled list). So there is no API route to a phased plan — one has to be enrolled through
-// Garmin Connect's UI. This probe is here so that the moment one is, verification is this command
-// rather than a fresh investigation.
+// cannot browse Garmin's catalogue (probed with and without owner/paging params). So a plan has to
+// be enrolled through Garmin Connect's UI before either endpoint can be exercised.
+//
+// This probe tries EVERY enrolled plan against BOTH endpoints and reports per category, rather
+// than filtering for `trainingPlanCategory === "PHASED"`. The earlier version filtered, which is
+// how the wrong conclusion survived: a Garmin Coach plan is STATIC and 400s with "Not a phased
+// plan.", and that error was read as "the endpoint needs category PHASED". It does not — an ITP
+// plan is accepted by BOTH paths. Filtering on a guess hides the evidence that would correct it.
 console.log("\ntraining plans");
 const plans = (await g.getTrainingPlans()) as {
   trainingPlanList?: { trainingPlanId?: number; trainingPlanCategory?: string }[];
 } | null;
 const enrolled = plans?.trainingPlanList ?? [];
-const phased = enrolled.find((p) => p.trainingPlanCategory === "PHASED");
-if (phased?.trainingPlanId === undefined) {
-  const cats = enrolled.map((p) => String(p.trainingPlanCategory)).join(", ") || "none enrolled";
+if (enrolled.length === 0) {
   console.log(
-    `  SKIP  ${"getTrainingPlanById".padEnd(38)} no PHASED plan (${cats}). ` +
-      "Enrol a non-Garmin-Coach plan in Training & Planning, then re-run.",
+    `  SKIP  ${"getTrainingPlanById".padEnd(38)} no plan enrolled. Enrol one in ` +
+      "Training & Planning, then re-run.",
   );
-} else {
-  try {
-    const detail = await g.getTrainingPlanById(phased.trainingPlanId);
-    report(
-      detail !== null,
-      "getTrainingPlanById (PHASED)",
-      `${String(Object.keys(detail ?? {}).length)} keys`,
-    );
-  } catch (e) {
-    report(false, "getTrainingPlanById (PHASED)", describeError(e));
+}
+for (const plan of enrolled) {
+  const id = plan.trainingPlanId;
+  const cat = String(plan.trainingPlanCategory);
+  if (id === undefined) continue;
+  for (const [label, call] of [
+    ["getTrainingPlanById", () => g.getTrainingPlanById(id)],
+    ["getAdaptiveTrainingPlanById", () => g.getAdaptiveTrainingPlanById(id)],
+  ] as const) {
+    try {
+      const detail = await call();
+      report(detail !== null, `${label} [${cat}]`, `${String(Object.keys(detail ?? {}).length)} keys`);
+    } catch (e) {
+      // A category the endpoint genuinely does not serve is information, not a harness failure —
+      // STATIC answering "Not a phased plan." is the documented behaviour of that path.
+      console.log(`  NOTE  ${`${label} [${cat}]`.padEnd(38)} ${describeError(e)}`);
+    }
   }
 }
 

@@ -31,6 +31,12 @@ First release. A TypeScript client for Garmin Connect, for Node and Next.js serv
 - [`docs/api/`](docs/api/README.md), one generated reference page per category, shipped in the
   package.
 
+### Notes
+
+- `trainingPlanCategory` has at least three values: `STATIC` (Garmin Coach), `ITP` (a plan enrolled
+  from Training & Planning) and `PHASED`. `getTrainingPlanById` serves ITP and rejects STATIC —
+  its 400 `"Not a phased plan."` names the endpoint path, not a required category.
+
 ### Changed from upstream, deliberately
 
 - `getGoals` defaults `start` to **1**, not upstream's 0. Garmin's goal-service is 1-indexed and

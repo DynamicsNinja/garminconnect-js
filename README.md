@@ -137,7 +137,7 @@ here is only a summary.
 | [Body composition & weight](docs/api/body-composition-weight.md) | 8 | yes | the hand-rolled FIT encoder is proven end-to-end: 69.42 kg uploaded as `.fit`, read back as 69.42 kg |
 | [Women's health (menstrual cycle, pregnancy)](docs/api/womens-health.md) | 11 | yes | writes executed once, under an explicit account-scoped exemption, against a throwaway account only. They need cycle-tracking settings that **only Garmin's own first-run wizard creates** |
 | [Golf](docs/api/golf.md) | 5 | partial | `getGolfScorecard`/`getGolfShotData` response shapes are still unverified — neither available account has a recorded round |
-| [User profile, goals, nutrition, training plans, misc (lifestyle log, reload request, GraphQL passthrough, logout)](docs/api/profile-and-misc.md) | 18 | most | `getTrainingPlanById` needs a PHASED plan (a Garmin Coach plan is STATIC); `logout()` makes no HTTP call |
+| [User profile, goals, nutrition, training plans, misc (lifestyle log, reload request, GraphQL passthrough, logout)](docs/api/profile-and-misc.md) | 18 | most | `logout()` makes no HTTP call, so there is nothing to verify against Garmin |
 
 **What is still unverified, and why** — two things, each for a reason no amount of probing fixes:
 

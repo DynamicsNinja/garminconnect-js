@@ -28,7 +28,7 @@ confirmed against a live Garmin account, not merely unit-tested —
 | [`getNutritionDailyFoodLog`](#getnutritiondailyfoodlog) | ✅ live-verified |
 | [`getNutritionDailyMeals`](#getnutritiondailymeals) | ✅ live-verified |
 | [`getNutritionDailySettings`](#getnutritiondailysettings) | ✅ live-verified |
-| [`getTrainingPlanById`](#gettrainingplanbyid) | ⚠️ attempted, unconfirmed |
+| [`getTrainingPlanById`](#gettrainingplanbyid) | ✅ live-verified |
 | [`getTrainingPlans`](#gettrainingplans) | ✅ live-verified |
 | [`getUserProfile`](#getuserprofile) | ✅ live-verified |
 | [`getUserprofileSettings`](#getuserprofilesettings) | ✅ live-verified |
@@ -197,7 +197,7 @@ const result = await garmin.getTrainingPlanById(activityId);
 
 GETs `/trainingplan-service/trainingplan/phased/{planId}`; passes through unchecked
 
-Verification: ⚠️ attempted, unconfirmed
+Verification: ✅ live-verified
 
 ## getTrainingPlans
 
