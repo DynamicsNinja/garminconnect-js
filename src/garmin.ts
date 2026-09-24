@@ -455,6 +455,9 @@ export class Garmin {
   getInProgressBadges() {
     return badges.getInProgressBadges(this);
   }
+  getBadgeDetail(badgeId: number) {
+    return badges.getBadgeDetail(this, badgeId);
+  }
   getAdhocChallenges(start: number, limit: number) {
     return badges.getAdhocChallenges(this, start, limit);
   }

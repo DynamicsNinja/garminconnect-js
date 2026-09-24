@@ -4,6 +4,7 @@ import type {
   AvailableBadgeChallenge,
   Badge,
   BadgeChallenge,
+  BadgeDetail,
   InprogressVirtualChallenge,
   NonCompletedBadgeChallenge,
 } from "../types/badges.js";
@@ -23,6 +24,17 @@ export async function getAvailableBadges(host: BadgesHost): Promise<Badge[] | nu
   return host.client.connectapi<Badge[]>("/badge-service/badge/available", {
     params: { showExclusiveBadge: "true" },
   });
+}
+
+/**
+ * NOT upstream parity: upstream has no per-badge call. `GET /badge-service/badge/detail/v3/{id}`
+ * is what Garmin Connect's web app requests when a badge is opened (it adds
+ * `followingLimit=7`, which only caps `followings` and is left out here). Works for badges the
+ * caller has not earned. An unknown id is a 400 `GarminHttpError` from Garmin, not a 404.
+ */
+export async function getBadgeDetail(host: BadgesHost, badgeId: number): Promise<BadgeDetail | null> {
+  const id = validatePositiveInteger(badgeId, "badgeId");
+  return host.client.connectapi<BadgeDetail>(`/badge-service/badge/detail/v3/${id}`);
 }
 
 /**

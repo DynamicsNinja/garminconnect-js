@@ -14,7 +14,7 @@ if (!(await client.loadTokens())) throw new Error("not connected to Garmin");
 const garmin = new Garmin(client);
 ```
 
-**8 methods.** The verification column says what has been
+**9 methods.** The verification column says what has been
 confirmed against a live Garmin account, not merely unit-tested —
 [`AGENTS.md`](../../AGENTS.md) carries the full evidence per method.
 
@@ -24,6 +24,7 @@ confirmed against a live Garmin account, not merely unit-tested —
 | [`getAvailableBadgeChallenges`](#getavailablebadgechallenges) | ✅ live-verified |
 | [`getAvailableBadges`](#getavailablebadges) | ✅ live-verified |
 | [`getBadgeChallenges`](#getbadgechallenges) | ✅ live-verified |
+| [`getBadgeDetail`](#getbadgedetail) | ✅ live-verified |
 | [`getEarnedBadges`](#getearnedbadges) | ✅ live-verified |
 | [`getInProgressBadges`](#getinprogressbadges) | ✅ live-verified |
 | [`getInprogressVirtualChallenges`](#getinprogressvirtualchallenges) | ✅ live-verified |
@@ -110,6 +111,24 @@ const result = await garmin.getBadgeChallenges(1, 1);
 An array of `BadgeChallenge` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
 
 GETs `/badgechallenge-service/badgeChallenge/completed`; same `start`/`limit` validation as `getAdhocChallenges`; passes through unchecked; same array-not-dict correction. **Live discovery**: Garmin's server itself rejects `start=0` with a 400 (`"start should > 0."`) on this endpoint despite upstream's own client-side validation allowing it — the client-side check here faithfully matches upstream (non-negative), the 400 is Garmin's server, not a wrong URL; call with `start>=1` in practice
+
+Verification: ✅ live-verified
+
+## getBadgeDetail
+
+```ts
+garmin.getBadgeDetail(badgeId: number): Promise<BadgeDetail | null>
+```
+
+```ts
+const result = await garmin.getBadgeDetail(activityId);
+```
+
+**Returns**
+
+`BadgeDetail`
+
+**NOT upstream parity** (upstream has no per-badge call). GETs `/badge-service/badge/detail/v3/{badgeId}`, the request Garmin Connect's web app makes when a badge is opened; `badgeId` validated as a positive integer. Returns an OBJECT: the `getEarnedBadges` fields plus `relatedBadges` (the rest of the series, each with `earnedByMe`), `badgeAssocType`/`badgeAssocDataId`/`badgeAssocDataName` (for `"activityId"`, the activity that earned it) and `followings`. Works for unearned badges. An unknown id is a **400** `GarminHttpError`, not a 404. Carries no description text or image URL — see the `BadgeDetail` type for where Garmin's web app gets those
 
 Verification: ✅ live-verified
 

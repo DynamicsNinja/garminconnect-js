@@ -184,6 +184,7 @@ describe("upstream parity", () => {
       updateCourse: "courses are not in upstream — the full-record PUT Garmin's web editor sends",
       deleteCourse: "courses are not in upstream, and the fork has no delete either",
       downloadCourseGpx: "courses are not in upstream — GET /course-service/course/gpx/{id}",
+      getBadgeDetail: "upstream has no per-badge call; endpoint found in Garmin's own web client",
     };
 
     const rows = parseInventoryRows();

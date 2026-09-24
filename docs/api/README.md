@@ -7,7 +7,7 @@ One page per category, with every method's signature and a call you can paste. F
 | Category | Methods |
 |---|---|
 | [Activities](activities.md) | 32 |
-| [Badges & challenges](badges-challenges.md) | 8 |
+| [Badges & challenges](badges-challenges.md) | 9 |
 | [Body composition & weight](body-composition-weight.md) | 8 |
 | [Courses](courses.md) | 8 |
 | [Devices](devices.md) | 6 |
@@ -18,4 +18,4 @@ One page per category, with every method's signature and a call you can paste. F
 | [Wellness](wellness.md) | 30 |
 | [Women's health](womens-health.md) | 11 |
 | [Workouts](workouts.md) | 16 |
-| **Total** | **164** |
+| **Total** | **165** |

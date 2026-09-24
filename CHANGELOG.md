@@ -6,6 +6,17 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-09-24
+
+### Added
+
+- **`getBadgeDetail(badgeId)`** — one badge in full, from `/badge-service/badge/detail/v3/{id}`
+  (the request Garmin Connect's web app makes when a badge is opened; upstream has no equivalent).
+  Adds the rest of the badge's series (`relatedBadges`, each with `earnedByMe`) and the activity
+  that earned it (`badgeAssocDataId`/`badgeAssocDataName`). Works for badges you haven't earned.
+  New exported types `BadgeDetail` and `RelatedBadge`; the `BadgeDetail` docs note where Garmin's
+  web app gets badge descriptions and artwork, which this endpoint does not return.
+
 ## [0.3.1] — 2026-09-24
 
 ### Fixed
@@ -105,7 +116,8 @@ a broken result. Each is recorded with its reason in `tests/parity.test.ts`.
 - `@types/node` is an optional peer dependency — needed only for type-checking against the
   `Buffer` return types, and not installed into consumers' projects automatically.
 
-[Unreleased]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.1.0...v0.2.0

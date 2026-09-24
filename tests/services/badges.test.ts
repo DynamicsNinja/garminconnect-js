@@ -25,6 +25,17 @@ const server = setupServer(
     record(request);
     return HttpResponse.json([{ badgeId: 2, badgeName: "available-1" }]);
   }),
+  // An OBJECT, not an array: one badge. Shape trimmed from a real response.
+  http.get(`${API}/badge-service/badge/detail/v3/:id`, ({ request }) => {
+    record(request);
+    return HttpResponse.json({
+      badgeId: 74,
+      badgeKey: "run_5km",
+      badgeAssocType: "activityId",
+      badgeAssocDataId: "23966993432",
+      relatedBadges: [{ badgeId: 73, badgeKey: "run_1mile", earnedByMe: true }],
+    });
+  }),
   // These four "dict-labelled" endpoints are live-verified (Task 9 smoke run against the test
   // account) to return a JSON ARRAY, not an object — see the file-level comment in
   // src/types/badges.ts. Mocked as arrays here so the mock cannot mask that same "dict but
@@ -97,6 +108,22 @@ describe("badges", () => {
     const g = makeGarmin();
     const result = await g.getEarnedBadges();
     expect(result).toBeNull();
+  });
+
+  it("getBadgeDetail composes the exact URL, with no followingLimit, and passes the object through", async () => {
+    const result = await makeGarmin().getBadgeDetail(74);
+    expect(seen[0]!.url).toBe(`${API}/badge-service/badge/detail/v3/74`);
+    expect(seen[0]!.method).toBe("GET");
+    expect(result?.badgeKey).toBe("run_5km");
+    expect(result?.relatedBadges?.[0]?.badgeKey).toBe("run_1mile");
+  });
+
+  it("getBadgeDetail rejects a non-positive or non-integer id before any request", async () => {
+    const g = makeGarmin();
+    for (const bad of [0, -1, 1.5, Number.NaN]) {
+      await expect(g.getBadgeDetail(bad)).rejects.toThrow(GarminError);
+    }
+    expect(seen).toEqual([]);
   });
 
   it("getAvailableBadges composes the exact URL with showExclusiveBadge=true", async () => {

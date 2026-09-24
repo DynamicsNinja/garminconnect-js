@@ -21,7 +21,7 @@ A zero-dependency TypeScript client for Garmin Connect, for **Node and Next.js s
 It talks to the same undocumented endpoints the mobile app uses, with a fully typed,
 promise-based API.
 
-It handles Garmin's undocumented SSO/OAuth flow, refreshes tokens for you, and gives you 164
+It handles Garmin's undocumented SSO/OAuth flow, refreshes tokens for you, and gives you 165
 typed methods over the endpoints the mobile app uses — plus two things that exist because Garmin's
 API is quietly hostile in specific places:
 
@@ -412,7 +412,7 @@ reference for every option. Runnable versions of those examples live in
 
 ## 📊 API coverage
 
-**164 typed methods across 12 categories.** Each category links to a generated
+**165 typed methods across 12 categories.** Each category links to a generated
 [`docs/api/`](docs/api/README.md) page with every method's signature, a call you can paste, and
 its live-verification status — confirmed against a real Garmin account, not merely unit-tested.
 
@@ -425,7 +425,7 @@ its live-verification status — confirmed against a real Garmin account, not me
 | [Gear](docs/api/gear.md) | 6 | all | CRUD, activity defaults, stats |
 | [Courses](docs/api/courses.md) | 8 | all | import a GPX, create, rename, privacy, export as GPX, delete |
 | [Devices](docs/api/devices.md) | 6 | all | devices, settings, alarms, solar, last used |
-| [Badges & challenges](docs/api/badges-challenges.md) | 8 | all | earned/available badges, challenges |
+| [Badges & challenges](docs/api/badges-challenges.md) | 9 | all | earned/available badges, badge detail, challenges |
 | [Body composition & weight](docs/api/body-composition-weight.md) | 8 | all | weigh-ins, body composition (FIT upload) |
 | [Women's health](docs/api/womens-health.md) | 11 | all | menstrual cycle, pregnancy |
 | [Golf](docs/api/golf.md) | 5 | 3 of 5 | summary, scorecards, shots, clubs, stats |
