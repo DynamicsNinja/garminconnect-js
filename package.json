@@ -1,6 +1,6 @@
 {
   "name": "garminconnect-js",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "TypeScript client for the Garmin Connect API, for Node and Next.js server runtimes",
   "keywords": [
     "garmin",

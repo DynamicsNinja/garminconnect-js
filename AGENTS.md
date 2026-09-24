@@ -516,6 +516,15 @@ partially-authenticated SSO session. Anyone holding it can finish the login with
 Encrypt it at rest, scope it to the one session that started the login, and delete it the moment
 `resumeLogin` returns (`README.md` states the same rule — keep the two in step).
 
+**Widget fallback.** `login()` first uses the mobile JSON API. Only when that credentials step is
+rate limited (HTTP 429, or a 200 body with `error["status-code"] === "429"`) does it sign in once
+through the SSO web widget, with a fresh cookie jar and a 3–8 s pause
+(`GarminClientOptions.loginDelayMs`). A 429 after the password was accepted
+(`preauthorized`, `exchange`) never falls back. Widget rejections keep the `SSO error:` prefix
+(`INVALID_CREDENTIALS`, `ACCOUNT_RESTRICTED`, `INVALID_MFA_CODE`). `MfaState` is a union on
+`flow` (`"mobile"`, absent = mobile, or `"widget"`); narrow before reading `loginParams`. Widget
+tickets are exchanged with `login-url=https://sso.<domain>/sso/embed`.
+
 ## 6. Gotchas
 
 - **`setActivityExerciseSets`'s payload shape is undocumented upstream and stricter than it looks.**

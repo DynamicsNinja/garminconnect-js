@@ -6,6 +6,22 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-09-24
+
+### Added
+
+- **Widget sign-in fallback.** When Garmin rate limits the mobile SSO login (HTTP 429 on
+  `/mobile/api/login`), `login()` signs in through the SSO web widget instead and returns the same
+  tokens. The verification-code step works on this path too. New option
+  `GarminClientOptions.loginDelayMs` (pause before the widget's credential POST; default 3–8 s).
+
+### Changed
+
+- `MfaState` is now a union on `flow` (`"mobile"` or `"widget"`); mobile states carry
+  `flow: "mobile"`, and states without `flow` still resume as mobile. TypeScript code that reads
+  `mfaState.loginParams` must check `flow` first. New exported types `MobileMfaState` and
+  `WidgetMfaState`.
+
 ## [0.2.0] — 2026-09-24
 
 ### Added
@@ -77,6 +93,7 @@ a broken result. Each is recorded with its reason in `tests/parity.test.ts`.
 - `@types/node` is an optional peer dependency — needed only for type-checking against the
   `Buffer` return types, and not installed into consumers' projects automatically.
 
-[Unreleased]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/DynamicsNinja/garminconnect-js/releases/tag/v0.1.0
