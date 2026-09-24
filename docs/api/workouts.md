@@ -53,7 +53,7 @@ const result = await garmin.deleteWorkout(activityId);
 
 `unknown` — Garmin's response is passed through unparsed. Cast it to whatever you need; this library does not model it.
 
-UNCERTAIN upstream null handling; deletes the template from the workout library, irreversible
+deletes the template from the workout library, irreversible
 
 Verification: ✅ live-verified
 
@@ -71,7 +71,7 @@ const result = await garmin.downloadWorkout(activityId);
 
 A `Buffer` of file bytes.
 
-UNCERTAIN upstream null handling; FIT-file bytes
+FIT-file bytes
 
 Verification: ✅ live-verified
 
@@ -229,7 +229,7 @@ An array of `DeviceMessage`:
 | `groupName` | `string | null` | yes |
 | `appDetails` | `unknown` | yes |
 
-multi-call: resolves a missing `deviceId` via `/device-service/deviceservice/mylastused`'s `userDeviceId`, a missing `workoutId` via `getWorkouts(0,1)`'s first result (throws if none), then reads `getWorkoutById(workoutId).workoutName` for the push message; UNCERTAIN upstream null handling on the final POST
+multi-call: resolves a missing `deviceId` via `/device-service/deviceservice/mylastused`'s `userDeviceId`, a missing `workoutId` via `getWorkouts(0,1)`'s first result (throws if none), then reads `getWorkoutById(workoutId).workoutName` for the push message; on the final POST
 
 Verification: —
 
@@ -254,7 +254,7 @@ const result = await garmin.scheduleWorkout(activityId, "2026-09-24");
 
 Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
 
-`dateStr` routed through `formatDate`; UNCERTAIN upstream null handling
+`dateStr` routed through `formatDate`
 
 Verification: ✅ live-verified
 
@@ -272,7 +272,7 @@ const result = await garmin.unscheduleWorkout(activityId);
 
 `unknown` — Garmin's response is passed through unparsed. Cast it to whatever you need; this library does not model it.
 
-removes the calendar entry without deleting the workout template; irreversible; UNCERTAIN upstream null handling
+removes the calendar entry without deleting the workout template; irreversible
 
 Verification: ✅ live-verified
 
@@ -297,7 +297,7 @@ const result = await garmin.updateWorkout(activityId, "workoutJson");
 
 Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
 
-full-replace PUT; forces `workoutId` into the body to match the path id; unlike `uploadWorkout`, a string must resolve to an object, not an array; UNCERTAIN upstream null handling
+full-replace PUT; forces `workoutId` into the body to match the path id; unlike `uploadWorkout`, a string must resolve to an object, not an array
 
 Verification: ✅ live-verified
 
@@ -422,6 +422,6 @@ const result = await garmin.uploadWorkout("workoutJson");
 
 Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
 
-a string is JSON-parsed (throws `GarminError` on invalid JSON or a non-object/array result); UNCERTAIN upstream null handling
+a string is JSON-parsed (throws `GarminError` on invalid JSON or a non-object/array result)
 
 Verification: ✅ live-verified

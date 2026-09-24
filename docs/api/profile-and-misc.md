@@ -262,7 +262,7 @@ const result = await garmin.getUserprofileSettings();
 
 `UserprofileSettings` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
 
-GETs `/userprofile-service/userprofile/settings` (SINGULAR "settings", distinct from `getUserSettings`'s "user-settings" — the two paths are one character apart and easy to transpose); passes through unchecked. Upstream naming ruling (Task 12), applies to the three rows above: upstream's `get_user_profile`, `get_full_name`, and `get_unit_system` were NOT ported as separate methods — they map onto this port's PRE-EXISTING `getUserSettings()`, `fullName()`, and `unitSystem()` respectively (see `src/services/userProfile.ts` for the full rationale: this port's own `getUserProfile()` already existed with a different, unrelated meaning — `/userprofile-service/socialProfile` — before this task, and repointing/duplicating it was rejected as unsafe)
+GETs `/userprofile-service/userprofile/settings` (SINGULAR "settings", distinct from `getUserSettings`'s "user-settings" — the two paths are one character apart and easy to transpose); passes through unchecked. Upstream naming ruling, applies to the three rows above: upstream's `get_user_profile`, `get_full_name`, and `get_unit_system` were NOT ported as separate methods — they map onto this port's PRE-EXISTING `getUserSettings()`, `fullName()`, and `unitSystem()` respectively (see `src/services/userProfile.ts` for the full rationale: this port's own `getUserProfile()` already existed with a different, unrelated meaning — `/userprofile-service/socialProfile` — before this task, and repointing/duplicating it was rejected as unsafe)
 
 Verification: ✅ live-verified
 
@@ -304,7 +304,7 @@ const result = await garmin.logout();
 
 Nothing.
 
-clears the configured `TokenStore` (`host.client.tokenStore.clear()`); makes **no HTTP call**, matching upstream exactly (the token is never revoked server-side). Does NOT clear the in-memory tokens already held by the calling `GarminClient` instance — there is no public API to do that, and this method's host is deliberately scoped to `{ client }` only. **NEVER call this against a `FileTokenStore` pointed at `./tokens`** — see the repo-wide safety note this task shipped with
+clears the configured `TokenStore` (`host.client.tokenStore.clear()`); makes **no HTTP call** (the token is never revoked server-side). Does NOT clear the in-memory tokens already held by the calling `GarminClient` instance — there is no public API to do that, and this method's host is deliberately scoped to `{ client }` only. **NEVER call this against a `FileTokenStore` pointed at `./tokens`** —
 
 Verification: — not applicable
 
@@ -322,7 +322,7 @@ const result = await garmin.queryGarminGraphql("query");
 
 `GraphqlResult` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
 
-POSTs the caller's GraphQL body verbatim to `/graphql-gateway/graphql`; UNCERTAIN upstream null handling (upstream calls `.json()` directly with no null-check). **The composed URL is this task's highest-risk item**: upstream's own constant is `"graphql-gateway/graphql"`, no leading slash, unlike every other constant in `gc.py` — but this port's `connectapi` composes the request URL by plain string concatenation (`` `https://connectapi.${domain}${path}` ``), not `URL`-relative joining, so omitting the leading slash here would silently glue onto the hostname (`connectapi.garmin.comgraphql-gateway/graphql`) rather than 404 — the usual "a 404 means the URL is wrong" heuristic would not even catch it. The leading slash is therefore hardcoded and deliberate; `tests/services/misc.test.ts` pins the literal composed URL
+POSTs the caller's GraphQL body verbatim to `/graphql-gateway/graphql`; (upstream calls `.json()` directly with no null-check). **The composed URL is this library's highest-risk item**: upstream's own constant is `"graphql-gateway/graphql"`, no leading slash, unlike every other constant in `gc.py` — but this port's `connectapi` composes the request URL by plain string concatenation (`` `https://connectapi.${domain}${path}` ``), not `URL`-relative joining, so omitting the leading slash here would silently glue onto the hostname (`connectapi.garmin.comgraphql-gateway/graphql`) rather than 404 — the usual "a 404 means the URL is wrong" heuristic would not even catch it. The leading slash is therefore hardcoded and deliberate; `tests/services/misc.test.ts` pins the literal composed URL
 
 Verification: ✅ live-verified
 
@@ -340,7 +340,7 @@ const result = await garmin.requestReload("2026-09-24");
 
 `ReloadRequestResult` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
 
-POSTs `/wellness-service/wellness/epoch/request/{cdate}` with no JSON body; asks Garmin to reload/recompute a day's data (Garmin offloads older data, so this forces it back); UNCERTAIN upstream null handling
+POSTs `/wellness-service/wellness/epoch/request/{cdate}` with no JSON body; asks Garmin to reload/recompute a day's data (Garmin offloads older data, so this forces it back)
 
 Verification: ✅ live-verified
 

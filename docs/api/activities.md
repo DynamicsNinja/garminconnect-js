@@ -123,7 +123,7 @@ const result = await garmin.createManualActivityFromJson("payload");
 
 `unknown` — Garmin's response is passed through unparsed. Cast it to whatever you need; this library does not model it.
 
-sends `payload` to Garmin verbatim, no shape validation; UNCERTAIN upstream null handling
+sends `payload` to Garmin verbatim, no shape validation
 
 Verification: ✅ live-verified
 
@@ -141,7 +141,7 @@ const result = await garmin.deleteActivity(activityId);
 
 `unknown` — Garmin's response is passed through unparsed. Cast it to whatever you need; this library does not model it.
 
-UNCERTAIN upstream null handling (see gotchas); resolves to `null` on success (204). Live-verified on synthetic fixtures created by the probe itself (never against pre-existing data) — create → delete → poll-confirm gone via `getActivities`
+resolves to `null` on success (204). Live-verified on synthetic fixtures created by the probe itself (never against pre-existing data) — create → delete → poll-confirm gone via `getActivities`
 
 Verification: ✅ live-verified
 
@@ -177,7 +177,7 @@ const result = await garmin.downloadHealthSnapshot("2026-09-24");
 
 A `Buffer` of file bytes.
 
-routed through `formatDate`; UNCERTAIN upstream null handling, routed through `client.download`
+routed through `formatDate`; routed through `client.download`
 
 Verification: ✅ live-verified
 
@@ -340,7 +340,7 @@ const result = await garmin.getActivityGear(activityId);
 
 An array of `ActivityGear` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
 
-passes through unchecked; returns an ARRAY (fixed in Task 7's fix-round-1, was previously mistyped as a single object — see gotchas); inventory places this row under the "gear" section, not "activities" (see gotchas)
+passes through unchecked; returns an ARRAY; inventory places this row under the "gear" section, not "activities" (see gotchas)
 
 Verification: ✅ live-verified
 
@@ -531,7 +531,7 @@ const result = await garmin.getPersonalRecord();
 
 `PersonalRecords` = PersonalRecord[]
 
-GETs `/personalrecord-service/personalrecord/prs/{displayName}`; no args; passes through unchecked. `PersonalRecords` is `PersonalRecord[]` — **the upstream inventory's `returns` column says "dict"; live-verified WRONG**, the test account returned `array[0]`. Note the plural type name: upstream's method name is singular but the payload is a list, so the result type is named for what it is. Same discovery/closure story as `uploadActivity` above (no inventory task ever ported this row; closed in Task 15's reconciliation pass)
+GETs `/personalrecord-service/personalrecord/prs/{displayName}`; no args; passes through unchecked. `PersonalRecords` is `PersonalRecord[]` — **the upstream inventory's `returns` column says "dict"; live-verified WRONG**, the test account returned `array[0]`. Note the plural type name: upstream's method name is singular but the payload is a list, so the result type is named for what it is
 
 Verification: ✅ live-verified
 
@@ -567,7 +567,7 @@ const result = await garmin.importActivity(file, "filename");
 
 `ImportActivityResult` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
 
-multipart upload to `/upload-service/upload/{ext}` (extension from `filename`, must be `fit`/`gpx`/`tcx`) with the load-bearing `NK`/`origin`/custom `User-Agent` headers that make Garmin treat it as an import rather than a device sync; a 409 is re-raised as `GarminConnectionError` ("Activity already exists (duplicate): ...")
+multipart upload to `/upload-service/upload/{ext}` (extension from `filename`, must be `fit`/`gpx`/`tcx`) with the load-bearing `NK`/`origin`/custom `User-Agent` headers that make Garmin treat it as an import rather than a device sync; a 409 is re-raised as `GarminConnectionError` ("Activity already exists (duplicate):...")
 
 Verification: ✅ live-verified
 
@@ -603,7 +603,7 @@ const result = await garmin.setActivityDescription(activityId, "description");
 
 `unknown` — Garmin's response is passed through unparsed. Cast it to whatever you need; this library does not model it.
 
-UNCERTAIN upstream null handling; resolves to `null` on success. Live-verified: `description` read back via `getActivity` after the call
+resolves to `null` on success. Live-verified: `description` read back via `getActivity` after the call
 
 Verification: ✅ live-verified
 
@@ -621,7 +621,7 @@ const result = await garmin.setActivityExerciseSets(activityId, payload);
 
 `unknown` — Garmin's response is passed through unparsed. Cast it to whatever you need; this library does not model it.
 
-**replace-all semantics**, `payload` sent verbatim; UNCERTAIN upstream null handling. See gotchas for the payload shape Garmin actually requires (undocumented upstream)
+**replace-all semantics**, `payload` sent verbatim; See gotchas for the payload shape Garmin actually requires (undocumented upstream)
 
 Verification: ✅ live-verified
 
@@ -639,7 +639,7 @@ const result = await garmin.setActivityName(activityId, "activityName");
 
 `unknown` — Garmin's response is passed through unparsed. Cast it to whatever you need; this library does not model it.
 
-UNCERTAIN upstream null handling; resolves to `null` on success. Live-verified: value read back via `getActivity` after the call, not just that the request was accepted
+resolves to `null` on success. Live-verified: value read back via `getActivity` after the call, not just that the request was accepted
 
 Verification: ✅ live-verified
 
@@ -657,7 +657,7 @@ const result = await garmin.setActivityType(activityId, activityId, "typeKey", a
 
 `unknown` — Garmin's response is passed through unparsed. Cast it to whatever you need; this library does not model it.
 
-UNCERTAIN upstream null handling; resolves to `null` on success. Live-verified: `activityTypeDTO` read back via `getActivity` after the call
+resolves to `null` on success. Live-verified: `activityTypeDTO` read back via `getActivity` after the call
 
 Verification: ✅ live-verified
 
@@ -675,6 +675,6 @@ const result = await garmin.uploadActivity(file, "filename");
 
 `UploadActivityResult` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
 
-multipart upload to the PLAIN `/upload-service/upload` path, no extension suffix and none of `importActivity`'s load-bearing import headers (ordinary device-sync-shaped upload, distinct from `importActivity`'s spoofed-client import); UNCERTAIN upstream null handling. No inventory task ever ported this row — discovered missing by `tests/parity.test.ts` during this task's reconciliation pass and closed here
+multipart upload to the PLAIN `/upload-service/upload` path, no extension suffix and none of `importActivity`'s load-bearing import headers (ordinary device-sync-shaped upload, distinct from `importActivity`'s spoofed-client import)
 
 Verification: ✅ live-verified

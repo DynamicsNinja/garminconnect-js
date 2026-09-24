@@ -512,7 +512,7 @@ const result = await garmin.getStats("2026-09-24");
 
 Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
 
-alias of `getUserSummary`, kept for parity with upstream's `get_stats`
+alias of `getUserSummary`
 
 Verification: ✅ live-verified
 
@@ -573,7 +573,7 @@ const result = await garmin.getStressData("2026-09-24");
 
 `DailyStressData` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
 
-identical URL to `getAllDayStress`, kept as a separate method for upstream API parity
+identical URL to `getAllDayStress`
 
 Verification: ✅ live-verified
 

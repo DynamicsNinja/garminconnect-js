@@ -141,6 +141,34 @@ describe("generated API reference", () => {
     ).toBeGreaterThan(0.95);
   });
 
+  it("keeps upstream-parity bookkeeping and repo process language out of consumer pages", () => {
+    // These pages are read by someone who installed the package. "UNCERTAIN upstream null
+    // handling" (16 occurrences before this was stripped) tells them nothing, and "fixed in
+    // Task 7's fix-round-1" names an artefact they cannot see. Comparing against upstream is
+    // load-bearing in AGENTS.md, which an agent reads with python-garminconnect in its training
+    // data — it is noise here. A deny-list, not a budget: a count would fight accurate prose,
+    // and mentions that carry BEHAVIOUR (a corrected return type, a load-bearing header) stay.
+    const banned: [RegExp, string][] = [
+      [/UNCERTAIN upstream null handling/i, "internal porting note"],
+      [/kept for parity with upstream/i, "internal porting note"],
+      [/Task \d+'s fix-round/i, "repo process language"],
+      [/\bthis task's\b/i, "repo process language"],
+      [/no inventory task ever ported/i, "repo process language"],
+    ];
+    const offences: string[] = [];
+    for (const [file, content] of pages) {
+      for (const [pattern, why] of banned) {
+        if (pattern.test(content)) offences.push(`${file}: ${pattern.source} (${why})`);
+      }
+    }
+    expect(
+      offences,
+      `generated pages leaked internal notes: ${offences.join("; ")}. ` +
+        "Extend stripParityChatter() in scripts/generate-api-docs.ts rather than editing the " +
+        "generated file, which is overwritten.",
+    ).toEqual([]);
+  });
+
   it("gives every documented method a real signature, not a parser leftover", () => {
     // The first generated run truncated every signature containing a TypeScript union, because
     // AGENTS.md escapes `|` as `\|` inside table cells and the row was split on a bare `|`.

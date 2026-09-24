@@ -43,7 +43,7 @@ const result = await garmin.createGear("gearType", "brand", "model", "name", "20
 
 `unknown` — Garmin's response is passed through unparsed. Cast it to whatever you need; this library does not model it.
 
-POSTs `/gear-service/gear/v2`; defaults `usageType="DISTANCE", notes=""`; `firstUseDate` routed through `formatDate`; `gearType`/`usageType` upper-cased via `validateSportKey`; **converts** `maxUsageDistanceKm` -> `maxUsageDistanceMeters` (`round(km*1000)`, floor 1) and `maxUsageDurationMin` -> `maxUsageDurationSeconds` (`round(min*60)`, floor 1) — the opposite direction from `addWeighIn`'s "send raw" rule; UNCERTAIN upstream null handling (implemented as a raw pass-through)
+POSTs `/gear-service/gear/v2`; defaults `usageType="DISTANCE", notes=""`; `firstUseDate` routed through `formatDate`; `gearType`/`usageType` upper-cased via `validateSportKey`; **converts** `maxUsageDistanceKm` -> `maxUsageDistanceMeters` (`round(km*1000)`, floor 1) and `maxUsageDurationMin` -> `maxUsageDurationSeconds` (`round(min*60)`, floor 1) — the opposite direction from `addWeighIn`'s "send raw" rule; (implemented as a raw pass-through)
 
 Verification: ✅ live-verified
 
@@ -79,7 +79,7 @@ const result = await garmin.getGear(activityId);
 
 An array of `Gear` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
 
-hits `/gear-service/gear/filterGear?userProfilePk=...`; passes through unchecked; returns an ARRAY of gear entries (fixed in Task 7's fix-round-1, was previously mistyped as a single object — see gotchas). This is the dedicated gear-CRUD service (`src/services/gear.ts`), distinct from `getActivityGear` (activities service, reuses the same base URL with `activityId` instead)
+hits `/gear-service/gear/filterGear?userProfilePk=...`; passes through unchecked; returns an ARRAY of gear entries. This is the dedicated gear-CRUD service (`src/services/gear.ts`), distinct from `getActivityGear` (activities service, reuses the same base URL with `activityId` instead)
 
 Verification: ✅ live-verified
 
@@ -97,7 +97,7 @@ const result = await garmin.getGearDefaults(activityId);
 
 An array of `GearDefaults` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
 
-GETs `/gear-service/gear/user/{userProfileNumber}/activityTypes`; passes through unchecked; returns an ARRAY of `{uuid, activityTypePk, defaultGear}` entries (fixed in Task 7's fix-round-1, was previously mistyped as a single object — see gotchas)
+GETs `/gear-service/gear/user/{userProfileNumber}/activityTypes`; passes through unchecked; returns an ARRAY of `{uuid, activityTypePk, defaultGear}` entries
 
 Verification: ✅ live-verified
 

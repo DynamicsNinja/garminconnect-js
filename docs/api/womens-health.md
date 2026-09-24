@@ -48,7 +48,7 @@ const result = await garmin.confirmMenstrualPeriodStart("2026-09-24", 1, 1);
 
 `unknown` — Garmin's response is passed through unparsed. Cast it to whatever you need; this library does not model it.
 
-POSTs `/periodichealth-service/menstrualcycle/{periodStartDate}` directly, NOT the `dayview`/`calendar`/`lastconfirmed`/`summary` sub-paths; UNCERTAIN upstream null handling
+POSTs `/periodichealth-service/menstrualcycle/{periodStartDate}` directly, NOT the `dayview`/`calendar`/`lastconfirmed`/`summary` sub-paths
 
 Verification: ✅ live-verified
 
@@ -174,7 +174,7 @@ const result = await garmin.initMenstrualCycleSetup("2026-09-24", 1, 1);
 
 `unknown` — Garmin's response is passed through unparsed. Cast it to whatever you need; this library does not model it.
 
-does NOT also update tracking-preference settings (call `updateMenstrualSettings` separately for that); not intended for an already-configured account; UNCERTAIN upstream null handling
+does NOT also update tracking-preference settings (call `updateMenstrualSettings` separately for that); not intended for an already-configured account
 
 Verification: ✅ live-verified
 
@@ -192,7 +192,7 @@ const result = await garmin.updateMenstrualCalendar("2026-09-24", "2026-09-24", 
 
 `unknown` — Garmin's response is passed through unparsed. Cast it to whatever you need; this library does not model it.
 
-**full replace, not a merge**; each `cycleDatesLists` group must be non-empty, consecutive calendar dates, and fall within `[startdate, enddate]`, else throws `GarminError`; UNCERTAIN upstream null handling
+**full replace, not a merge**; each `cycleDatesLists` group must be non-empty, consecutive calendar dates, and fall within `[startdate, enddate]`, else throws `GarminError`
 
 Verification: ✅ live-verified
 
@@ -210,7 +210,7 @@ const result = await garmin.updateMenstrualDailyLog("2026-09-24");
 
 `unknown` — Garmin's response is passed through unparsed. Cast it to whatever you need; this library does not model it.
 
-**full-day replace, not a merge**; at least one optional field required or throws `GarminError`; `notes: undefined` preserves the existing note, `notes: ""` clears it (distinct, load-bearing); `discharge` rejects combining `"NO_DISCHARGE"` with any other value; UNCERTAIN upstream null handling
+**full-day replace, not a merge**; at least one optional field required or throws `GarminError`; `notes: undefined` preserves the existing note, `notes: ""` clears it (distinct, load-bearing); `discharge` rejects combining `"NO_DISCHARGE"` with any other value
 
 Verification: ✅ live-verified
 
@@ -228,6 +228,6 @@ const result = await garmin.updateMenstrualSettings("settings");
 
 `unknown` — Garmin's response is passed through unparsed. Cast it to whatever you need; this library does not model it.
 
-`settings` must be non-empty or throws `GarminError`; multi-step: GETs `/userprofile-service/userprofile/user-settings`, overlays `settings` onto the current `userMenstrualCycleSettings`, then PUTs the same endpoint, including `id` if resolvable; UNCERTAIN upstream null handling
+`settings` must be non-empty or throws `GarminError`; multi-step: GETs `/userprofile-service/userprofile/user-settings`, overlays `settings` onto the current `userMenstrualCycleSettings`, then PUTs the same endpoint, including `id` if resolvable
 
 Verification: ✅ live-verified

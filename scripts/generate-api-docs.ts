@@ -287,6 +287,53 @@ function renderResponse(signature: string, decls: Map<string, string>): string[]
   return out;
 }
 
+/**
+ * Strips upstream-parity bookkeeping out of a note before it reaches a consumer-facing page.
+ *
+ * AGENTS.md is written for an agent that may have python-garminconnect in its training data, so
+ * comparing the two constantly is load-bearing THERE. It is noise here: someone reading
+ * `docs/api/wellness.md` to call `getSleepData` does not need to know that upstream's null
+ * handling was uncertain when it was ported. That phrase alone accounted for 16 of the 44 upstream
+ * mentions on these pages.
+ *
+ * Only exact, known-internal phrases are removed. Anything that mentions upstream AND carries
+ * behaviour — "replicates upstream's internal pagination", a corrected return type — is kept,
+ * because the behaviour is what the reader needs and the provenance is one clause of it.
+ *
+ * It also drops this repo's own process vocabulary. "fixed in Task 7's fix-round-1" and "see the
+ * repo-wide safety note this task shipped with" are meaningful in the development history and
+ * meaningless to someone who installed the package: they name artefacts the reader cannot see.
+ * The FACT usually survives on its own ("returns an ARRAY" keeps its value once the provenance
+ * clause is gone).
+ */
+function stripParityChatter(notes: string): string {
+  const cleaned = notes
+    .replace(/UNCERTAIN upstream null handling(?: \(see gotchas\))?[,;.]?\s*/gi, "")
+    .replace(/,?\s*kept for parity with upstream's `[^`]+`/gi, "")
+    .replace(/,?\s*kept as a separate method for upstream API parity/gi, "")
+    .replace(/,?\s*matching upstream(?:'s)?(?: own)? [a-z-]+(?: [a-z-]+)?\b/gi, "")
+    .replace(/\s*;\s*(?=;)/g, "")
+    .replace(/^[\s;,.]+/, "")
+    .replace(/[\s;,]+$/, "")
+    .replace(/\s{2,}/g, " ");
+  // Process-history clauses are dropped WHOLE, to the end of the note. An earlier version tried to
+  // excise them mid-sentence and produced "— .test.ts`": the pattern ran into a backticked
+  // filename and stopped at its dot. A half-removed sentence is worse than the sentence, so each
+  // rule here either takes a complete clause or leaves it alone.
+  return cleaned
+    .replace(/\.?\s*No inventory task ever ported this row[\s\S]*$/i, "")
+    .replace(/\.?\s*Same discovery\/closure story as [\s\S]*$/i, "")
+    .replace(/\s*\(fixed in Task \d+'s fix-round-\d+[^)]*\)/gi, "")
+    .replace(/,?\s*(?:and\s+)?see the repo-wide safety note this task shipped with/gi, "")
+    .replace(/\bthis task's\b/gi, "this library's")
+    .replace(/\bTask \d+'s\b/gi, "an earlier")
+    .replace(/\s*\(Task \d+\)/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .replace(/^[\s;,.]+/, "")
+    .replace(/\s+([,.;])/g, "$1")
+    .replace(/[\s;,]+$/, "");
+}
+
 /** A plausible argument for a parameter, from its name and type. */
 function exampleArg(param: string): string {
   const [rawName, rawType] = param.split(":").map((s) => s.trim());
@@ -410,7 +457,7 @@ export function buildPages(): Map<string, string> {
       params,
       service,
       signature: info?.signature ?? "",
-      notes: info?.notes ?? "",
+      notes: stripParityChatter(info?.notes ?? ""),
       verified: info?.verified ?? "",
     };
     const existing = bySlug.get(category.slug);

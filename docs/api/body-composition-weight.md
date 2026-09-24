@@ -45,7 +45,7 @@ const result = await garmin.addBodyComposition(1);
 
 `unknown` — Garmin's response is passed through unparsed. Cast it to whatever you need; this library does not model it.
 
-builds a `.fit` binary in memory (`src/util/fit.ts`, ported from upstream `fit.py`'s `FitEncoderWeight`) and uploads it via `client.upload` to `/upload-service/upload`; `weight` validated positive/finite, throws `GarminError` otherwise; UNCERTAIN upstream null handling (passes `client.upload`'s result through unchecked, matching upstream's unchecked `self.client.post(...)`)
+builds a `.fit` binary in memory (`src/util/fit.ts`, ported from upstream `fit.py`'s `FitEncoderWeight`) and uploads it via `client.upload` to `/upload-service/upload`; `weight` validated positive/finite, throws `GarminError` otherwise; (passes `client.upload`'s result through unchecked `self.client.post(...)`)
 
 Verification: ✅ live-verified
 

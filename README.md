@@ -9,33 +9,23 @@ A zero-dependency TypeScript client for Garmin Connect, for **Node and Next.js s
 It talks to the same undocumented endpoints the mobile app uses, with a fully typed,
 promise-based API.
 
-It began as a port of Python's [`garminconnect`][python-garminconnect-url] (and its auth
-dependency, [`garth`][garth-url]), and it still covers all 154 of that project's public methods —
-a parity test asserts it. But it is no longer only a port:
+It handles Garmin's undocumented SSO/OAuth flow, refreshes tokens for you, and gives you 156
+typed methods over the endpoints the mobile app uses — plus two things that exist because Garmin's
+API is quietly hostile in specific places:
 
-- **A fluent workout builder.** `buildWorkout(...)` has no upstream equivalent. It exists because
-  Garmin's workout JSON has four traps that produce a silently wrong workout rather than an error
-  — global `stepOrder` numbering, id/key triples that must agree, rests measured in the wrong
-  field, and pace targets that are descending metres-per-second. See [`WORKOUTS.md`](WORKOUTS.md).
-- **The exercise catalogue**, as a separate entry point. Garmin stores an unrecognised exercise
-  name as `""` and returns success; `garminconnect-js/exercises` makes that a compile error.
-  Nothing upstream has this, and Garmin serves it from no API — it was reconstructed and then
-  verified name by name against a live account.
-- **Endpoints and fixes upstream doesn't have.** `deleteGear` (upstream has no way to delete
-  gear), `setGearActivityDefaults` (upstream's `set_gear_default` endpoint is dead), and
-  `getGoals` defaulting to `start: 1` because `goal-service` is 1-indexed and upstream's `0`
-  silently returns "no goals" on an account that has them.
-- **Types corrected against reality, not against upstream's documentation.** Several endpoints
-  upstream documents as returning an object return an array; those are typed as what they
-  actually return.
-- **A `Live-verified` column** on every method in [`AGENTS.md`](AGENTS.md), and honest `no` /
-  `partially` / `BROKEN` entries where that is the truth. A 2xx from a write proves nothing here
-  — the stored value gets read back. Where a dedicated test account cannot produce the data at all
-  (paired devices, personal records, health snapshots), `npm run smoke:real` closes the gap
-  read-only, on a transport that refuses any non-GET request and reports what it sent.
+- **A fluent workout builder.** Garmin's workout JSON has four traps that produce a silently wrong
+  workout rather than an error: global `stepOrder` numbering that runs through repeat children,
+  id/key triples that must agree, rests measured in a different field from times, and pace targets
+  expressed as descending metres per second. `buildWorkout` makes all four unreachable — see
+  [`WORKOUTS.md`](WORKOUTS.md).
+- **The exercise catalogue, type-checked.** Garmin stores an unrecognised exercise name as an empty
+  string and returns success, so a typo costs you the exercise and tells you nothing.
+  `garminconnect-js/exercises` turns that into a compile error, with 1830 names verified one by one
+  against a live account.
 
-Where behaviour diverges from upstream deliberately, it is marked at the source and in
-`AGENTS.md`. Attribution for the original projects is in [`NOTICE`](NOTICE).
+Behind both: a verification habit. Every method carries a live-verification status in
+[`AGENTS.md`](AGENTS.md), and a write is only "verified" once the stored value has been read back —
+a 2xx on its own has twice hidden a real defect here.
 
 If you're an AI coding agent (or configuring one), read [`AGENTS.md`](AGENTS.md) first — it's a
 terser, higher-signal briefing than this README and calls out what does *not* exist here.
@@ -106,16 +96,9 @@ Goodbye.
 
 ## 📊 API coverage
 
-python-garminconnect exposes 154 public methods across ~14 categories. As of this version,
-`garminconnect-js` ports **all 154 of them** — every `python_name` in
-[`docs/upstream-method-inventory.md`](docs/upstream-method-inventory.md) has a real `Garmin`
-counterpart, mechanically checked by `tests/parity.test.ts` on every test run (it reflects on
-`Garmin.prototype` and re-parses the inventory each time, so this claim cannot silently drift out
-of date). `Garmin.prototype` has 157 methods — 3 more than 154. The extras are `getUserProfile`,
-`displayName` and `userName`: port-local helpers with no upstream row of their own.
-`getUserProfile` reads `/userprofile-service/socialProfile` (upstream's similarly-named
-`get_user_profile` is a different endpoint, satisfied here by `getUserSettings`), and the other
-two are cached accessors over it.
+**156 methods across 11 categories**, listed below. Every one is typed, and every one carries a
+live-verification status: what has actually been confirmed against a real Garmin account, not
+merely unit-tested.
 
 **→ [`docs/api/`](docs/api/README.md) is one page per category below**, with every method's
 signature, a call you can paste, and its verification status. Those pages are generated from the
@@ -148,12 +131,22 @@ here is only a summary.
   it against this repo's own token store would force an interactive MFA re-login, so it is
   unit-tested against `MemoryTokenStore` and a temp-dir `FileTokenStore` instead.
 
-**Three upstream methods are deliberately not ported**, because live evidence showed each can only
-produce a broken result: `upload_walking_workout` and `upload_hiking_workout` (Garmin has no such
-sport type and stores a null one) and `set_gear_default` (the endpoint is dead — it 404s against
-gear that demonstrably exists). Each is recorded with its reason in `tests/parity.test.ts`, which
-fails if a reason goes stale. Having more evidence than upstream is a reason to diverge from it,
-not to reproduce a defect faithfully.
+### Relationship to python-garminconnect
+
+This library began as a port of Python's [`garminconnect`][python-garminconnect-url] and its auth
+dependency [`garth`][garth-url], and the endpoint surface and SSO flow still derive from them —
+see [`NOTICE`](NOTICE) for attribution. It is no longer a port: 151 of upstream's 154 methods are
+here, five methods go beyond it, and behaviour diverges where evidence warranted it.
+
+Three upstream methods are deliberately absent, because live testing showed each can only produce
+a broken result: `upload_walking_workout` and `upload_hiking_workout` (Garmin has no such workout
+sport type — it stores a null one) and `set_gear_default` (the endpoint 404s against gear that
+demonstrably exists). `getGoals` also defaults `start` to 1 rather than 0, because Garmin's
+goal-service is 1-indexed and 0 silently returns "no goals" on an account that has them. Each
+divergence is recorded with its reason in `tests/parity.test.ts`, which fails if one goes stale.
+
+If you are migrating, [`AGENTS.md`](AGENTS.md) carries the full per-method mapping, including the
+three upstream names that resolve to a differently-named method here.
 
 The standing rule behind all of this: a live *write* probe only runs when the value can be read
 back and the change undone, and a 2xx is never accepted as evidence on its own.
