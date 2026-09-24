@@ -41,7 +41,8 @@ a 2xx on its own has twice hidden a real defect here.
 
 **Want a running app first?** [**garminconnect-nextjs-starter**](https://github.com/DynamicsNinja/garminconnect-nextjs-starter)
 is a Next.js template that signs in (MFA included) and charts your sleep and HRV. Click
-**Use this template**, and you're a `npm run dev` away from your own data.
+**Use this template**, and you're a `npm run dev` away from your own data. Or try the
+[live demo](https://garmin.ficdev.xyz) first.
 
 If you're an AI coding agent (or configuring one), read [`AGENTS.md`](AGENTS.md) first — it's a
 terser, higher-signal briefing than this README and calls out what does *not* exist here.
