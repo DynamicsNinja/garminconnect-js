@@ -6,6 +6,15 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.3.1] — 2026-09-24
+
+### Fixed
+
+- **A blocked token refresh no longer signs the user out.** The saved tokens are cleared only when
+  the OAuth2 refresh is rejected with HTTP 401. A 403 (typically Cloudflare blocking the request)
+  or an HTML challenge page still throws `GarminAuthError`, but keeps the stored tokens, so the
+  next call simply retries the refresh.
+
 ## [0.3.0] — 2026-09-24
 
 ### Added
@@ -96,7 +105,8 @@ a broken result. Each is recorded with its reason in `tests/parity.test.ts`.
 - `@types/node` is an optional peer dependency — needed only for type-checking against the
   `Buffer` return types, and not installed into consumers' projects automatically.
 
-[Unreleased]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/DynamicsNinja/garminconnect-js/releases/tag/v0.1.0

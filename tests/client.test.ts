@@ -275,6 +275,47 @@ describe("GarminClient", () => {
     expect(client.getTokens()).toBeNull();
   });
 
+  it("keeps stored tokens when a refresh is refused with a 403 (e.g. a Cloudflare block)", async () => {
+    server.use(
+      http.post(
+        "https://connectapi.garmin.com/oauth-service/oauth/exchange/user/2.0",
+        () => new HttpResponse("blocked", { status: 403 }),
+      ),
+    );
+    const store = new MemoryTokenStore();
+    await store.save(tokensWith(past));
+    const client = new GarminClient({ tokenStore: store });
+    await client.loadTokens();
+
+    const err = await client.connectapi("/thing").catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(GarminAuthError);
+    expect((err as Error).message).toMatch(/\(403\)$/);
+
+    await expect(store.load()).resolves.not.toBeNull();
+    expect(client.getTokens()).not.toBeNull();
+  });
+
+  it("keeps stored tokens when a refresh answers with an HTML challenge page", async () => {
+    server.use(
+      http.post(
+        "https://connectapi.garmin.com/oauth-service/oauth/exchange/user/2.0",
+        () =>
+          new HttpResponse("<html><title>Just a moment...</title></html>", {
+            headers: { "content-type": "text/html" },
+          }),
+      ),
+    );
+    const store = new MemoryTokenStore();
+    await store.save(tokensWith(past));
+    const client = new GarminClient({ tokenStore: store });
+    await client.loadTokens();
+
+    await expect(client.connectapi("/thing")).rejects.toThrow(GarminAuthError);
+
+    await expect(store.load()).resolves.not.toBeNull();
+    expect(client.getTokens()).not.toBeNull();
+  });
+
   it("does not wedge after a failed refresh: the next call retries cleanly", async () => {
     let exchangeAttempts = 0;
     server.use(

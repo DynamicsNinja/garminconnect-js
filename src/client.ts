@@ -149,13 +149,14 @@ export class GarminClient {
         const oauth2 = await exchange(tokens.oauth1, this.#ssoContext);
         await this.#persist({ oauth1: tokens.oauth1, oauth2 });
       } catch (cause) {
-        // Only a dead credential (Garmin returning 401/403, which the
-        // Fetcher already maps to GarminAuthError) justifies destroying the
-        // user's saved tokens. A transient failure — a DNS blip, a timeout,
-        // a 5xx, a 429 — must not force a full interactive re-login: leave
-        // the store untouched and let the error propagate so the caller can
-        // retry later.
-        if (cause instanceof GarminAuthError) {
+        // Only a dead credential justifies destroying the user's saved tokens,
+        // and only a 401 says that. The Fetcher maps 403 to GarminAuthError too,
+        // but a 403 here is usually Cloudflare blocking the request, and a 200
+        // HTML challenge page also surfaces as GarminAuthError (non-JSON).
+        // Those, like a DNS blip, a timeout, a 5xx or a 429, must not force a
+        // full interactive re-login: leave the store untouched and let the
+        // error propagate so the caller can retry later.
+        if (cause instanceof GarminAuthError && cause.message.endsWith("(401)")) {
           await this.tokenStore.clear();
           this.#tokens = null;
         }
