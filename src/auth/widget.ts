@@ -4,6 +4,11 @@
  * blocks the mobile route, and `login()` falls back to it when that route answers 429.
  */
 
+import { GarminAuthError, GarminConnectionError } from "../errors.js";
+import type { Fetcher } from "../http/fetcher.js";
+import { SSO_PAGE_HEADERS } from "./constants.js";
+import type { OAuth1Token, OAuth2Token } from "./tokens.js";
+
 export interface WidgetUrls {
   base: string;
   embed: string;
@@ -65,4 +70,68 @@ export function mfaVarsFrom(html: string): MfaVars {
 /** Pause before posting credentials; Cloudflare flags an instant GET-then-POST as a bot. */
 export function widgetDelayMs(override?: number): number {
   return override ?? 3000 + Math.floor(Math.random() * 5001);
+}
+
+export type WidgetSuccess = { state: "success"; oauth1: OAuth1Token; oauth2: OAuth2Token };
+/** Turns a service ticket into tokens; `sso.ts` passes `completeLogin` so there is no import cycle. */
+export type CompleteTicket = (ticket: string, loginUrl: string) => Promise<WidgetSuccess>;
+
+const FORM_HEADERS = { ...SSO_PAGE_HEADERS, "content-type": "application/x-www-form-urlencoded" };
+const SERVER_ERROR_HINTS = ["bad gateway", "service unavailable", "cloudflare", "502", "503"];
+const CREDENTIAL_HINTS = ["locked", "invalid", "incorrect", "account error"];
+const RESTRICTED_HINTS = ["unable to sign in", "unable to login"];
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+export async function widgetLogin(
+  email: string,
+  password: string,
+  fetcher: Fetcher,
+  domain: string,
+  opts: { delayMs?: number; complete: CompleteTicket },
+): Promise<WidgetSuccess> {
+  const urls = widgetUrls(domain);
+
+  // 1. The embed page sets the widget's session cookies.
+  await fetcher.request(urls.embed, { params: urls.embedParams, headers: SSO_PAGE_HEADERS });
+
+  // 2. The sign-in page carries the CSRF token the POST must echo.
+  const signinPage = await fetcher.request(urls.signin, {
+    params: urls.signinParams,
+    headers: { ...SSO_PAGE_HEADERS, Referer: urls.embed },
+  });
+  const csrf = csrfFrom(await signinPage.text());
+  if (!csrf) throw new GarminConnectionError("Widget login: missing CSRF token");
+  const referer = fetcher.lastUrl ?? urls.signin;
+
+  const delay = widgetDelayMs(opts.delayMs);
+  if (delay > 0) await sleep(delay);
+
+  // 3. Credentials go in a form body, never the URL. A POST is never retried automatically.
+  const res = await fetcher.request(urls.signin, {
+    method: "POST",
+    params: urls.signinParams,
+    headers: { ...FORM_HEADERS, Referer: referer },
+    body: new URLSearchParams({ username: email, password, embed: "true", _csrf: csrf }).toString(),
+  });
+  const html = await res.text();
+  const title = titleFrom(html);
+  const lower = title.toLowerCase();
+
+  if (SERVER_ERROR_HINTS.some((h) => lower.includes(h))) {
+    throw new GarminConnectionError(`Widget login: server error '${title}'`);
+  }
+  // "SSO error:" matches the mobile route's rejections, so callers classify both the same way.
+  if (CREDENTIAL_HINTS.some((h) => lower.includes(h))) {
+    throw new GarminAuthError(`SSO error: INVALID_CREDENTIALS: ${title}`);
+  }
+  if (RESTRICTED_HINTS.some((h) => lower.includes(h))) {
+    throw new GarminAuthError(`SSO error: ACCOUNT_RESTRICTED: ${title}`);
+  }
+  if (title !== "Success") {
+    throw new GarminConnectionError(`Widget login: unexpected page '${title}'`);
+  }
+  const ticket = ticketFrom(html);
+  if (!ticket) throw new GarminAuthError("Widget login: missing service ticket");
+  return opts.complete(ticket, urls.embed);
 }

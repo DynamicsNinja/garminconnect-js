@@ -2,20 +2,30 @@ import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 
 export interface SsoScenario {
-  /**
-   * "success" | "mfa" | "bad_credentials" | "successful_no_ticket" |
-   * "no_response_status"
-   */
   loginOutcome?:
     | "success"
     | "mfa"
     | "bad_credentials"
     | "successful_no_ticket"
-    | "no_response_status";
+    | "no_response_status"
+    | "rate_limited"
+    | "rate_limited_json";
   ticket?: string;
   mfaCode?: string;
   /** Overrides the raw form-urlencoded body returned by the preauthorized (oauth1) step. */
   oauth1Body?: string;
+  /** The preauthorized (oauth1) step answers 429. */
+  preauthorizedRateLimited?: boolean;
+  /** What the SSO web widget's credential POST returns. */
+  widgetOutcome?:
+    | "success"
+    | "mfa"
+    | "mfa_code_sent"
+    | "bad_credentials"
+    | "rate_limited"
+    | "no_csrf"
+    | "success_no_ticket";
+  widgetTicket?: string;
 }
 
 /** One HTTP request the fake server observed, for asserting on shape. */
@@ -23,15 +33,37 @@ export interface CapturedRequest {
   step: string;
   url: string;
   authorization: string | null;
+  cookie: string | null;
+  referer: string | null;
+  contentType: string | null;
   /** Parsed JSON body, when the request had a JSON content-type. */
   json?: unknown;
   /** Raw text body, always captured. */
   text: string;
 }
 
+const page = (title: string, body = "") =>
+  `<!DOCTYPE html><html><head><title>${title}</title></head><body>${body}</body></html>`;
+const csrfInput = (value: string) =>
+  `<form><input type="hidden" name="_csrf" value="${value}" /></form>`;
+const successPage = (ticket: string) =>
+  page(
+    "Success",
+    `<script>var redirectAfterAccountLoginUrl = "https://sso.garmin.com/sso/embed?ticket=${ticket}";</script>`,
+  );
+const mfaPage = (codeSentTo: string) =>
+  page(
+    "GARMIN Authentication Application",
+    `<script>var customerGuid = "guid-1"; var mfaMethod = "email"; var locale = "en_US";` +
+      ` var clientId = "GarminConnect"; var codeSentTo = "${codeSentTo}";</script>` +
+      csrfInput("csrf-mfa"),
+  );
+
 export function makeSsoServer(scenario: SsoScenario = {}) {
   const ticket = scenario.ticket ?? "ST-12345";
   const outcome = scenario.loginOutcome ?? "success";
+  const widgetTicket = scenario.widgetTicket ?? "ST-W1";
+  const widgetOutcome = scenario.widgetOutcome ?? "success";
   const calls: string[] = [];
   const requests: CapturedRequest[] = [];
 
@@ -50,6 +82,9 @@ export function makeSsoServer(scenario: SsoScenario = {}) {
       step,
       url: request.url,
       authorization: request.headers.get("authorization"),
+      cookie: request.headers.get("cookie"),
+      referer: request.headers.get("referer"),
+      contentType: request.headers.get("content-type"),
       json,
       text,
     };
@@ -72,6 +107,12 @@ export function makeSsoServer(scenario: SsoScenario = {}) {
 
     http.post("https://sso.garmin.com/mobile/api/login", async ({ request }) => {
       await capture("login", request);
+      if (outcome === "rate_limited") {
+        return new HttpResponse("Too Many Requests", { status: 429 });
+      }
+      if (outcome === "rate_limited_json") {
+        return HttpResponse.json({ error: { "status-code": "429", message: "Too many requests" } });
+      }
       if (outcome === "success") {
         return HttpResponse.json({
           responseStatus: { type: "SUCCESSFUL" },
@@ -118,6 +159,9 @@ export function makeSsoServer(scenario: SsoScenario = {}) {
       "https://connectapi.garmin.com/oauth-service/oauth/preauthorized",
       async ({ request }) => {
         const captured = await capture("preauthorized", request);
+        if (scenario.preauthorizedRateLimited) {
+          return new HttpResponse("Too Many Requests", { status: 429 });
+        }
         const auth = captured.authorization ?? "";
         if (!auth.startsWith("OAuth ")) {
           return new HttpResponse("unsigned", { status: 401 });
@@ -149,6 +193,53 @@ export function makeSsoServer(scenario: SsoScenario = {}) {
         });
       },
     ),
+
+    http.get("https://sso.garmin.com/sso/embed", async ({ request }) => {
+      await capture("widget-embed", request);
+      return new HttpResponse(page("GARMIN Authentication Application"), {
+        headers: { "content-type": "text/html", "set-cookie": "WIDGET_SESSION=w1; Path=/" },
+      });
+    }),
+
+    http.get("https://sso.garmin.com/sso/signin", async ({ request }) => {
+      await capture("widget-signin-page", request);
+      const body = widgetOutcome === "no_csrf" ? "<form></form>" : csrfInput("csrf-1");
+      return new HttpResponse(page("GARMIN Authentication Application", body), {
+        headers: { "content-type": "text/html" },
+      });
+    }),
+
+    http.post("https://sso.garmin.com/sso/signin", async ({ request }) => {
+      await capture("widget-signin", request);
+      const html = { headers: { "content-type": "text/html" } };
+      if (widgetOutcome === "rate_limited") {
+        return new HttpResponse("Too Many Requests", { status: 429 });
+      }
+      if (widgetOutcome === "bad_credentials") {
+        return new HttpResponse(page("Invalid sign in"), html);
+      }
+      if (widgetOutcome === "mfa") return new HttpResponse(mfaPage(""), html);
+      if (widgetOutcome === "mfa_code_sent") {
+        return new HttpResponse(mfaPage("j***@example.com"), html);
+      }
+      if (widgetOutcome === "success_no_ticket") return new HttpResponse(page("Success"), html);
+      return new HttpResponse(successPage(widgetTicket), html);
+    }),
+
+    http.post("https://sso.garmin.com/sso/verifyMFA/mfaCode", async ({ request }) => {
+      await capture("widget-mfa-request", request);
+      return HttpResponse.json({});
+    }),
+
+    http.post("https://sso.garmin.com/sso/verifyMFA/loginEnterMfaCode", async ({ request }) => {
+      const captured = await capture("widget-mfa", request);
+      const code = new URLSearchParams(captured.text).get("mfa-code");
+      const html = { headers: { "content-type": "text/html" } };
+      if (scenario.mfaCode && code !== scenario.mfaCode) {
+        return new HttpResponse(page("Enter MFA code"), html);
+      }
+      return new HttpResponse(successPage(widgetTicket), html);
+    }),
   );
 
   return { server, calls, requests };

@@ -1,9 +1,10 @@
-import { GarminAuthError, GarminError } from "../errors.js";
+import { GarminAuthError, GarminError, GarminRateLimitError } from "../errors.js";
 import { Fetcher } from "../http/fetcher.js";
 import type { SerializedCookie } from "../http/cookie-jar.js";
 import { fetchConsumer } from "./consumer.js";
 import { buildOAuth1Header } from "./oauth1.js";
 import { CLIENT_ID, OAUTH_USER_AGENT, SSO_PAGE_HEADERS } from "./constants.js";
+import { widgetLogin } from "./widget.js";
 import {
   setExpirations,
   type OAuth1Token,
@@ -17,6 +18,8 @@ const SSO_MFA_REQUIRED = "MFA_REQUIRED";
 export interface SsoContext {
   fetcher: Fetcher;
   domain: string;
+  /** Pause before the widget's credential POST, in ms; default random 3000-8000. */
+  loginDelayMs?: number;
 }
 
 export interface LoginParams {
@@ -40,6 +43,7 @@ interface SsoResponse {
   responseStatus?: { type?: string; message?: string };
   serviceTicketId?: string;
   customerMfaInfo?: { mfaLastMethodUsed?: string };
+  error?: { "status-code"?: string };
 }
 
 function ssoUrl(domain: string, path: string): string {
@@ -76,8 +80,45 @@ export function loginParamsFor(domain: string): LoginParams {
   return {
     clientId: CLIENT_ID,
     locale: "en-US",
-    service: `https://mobile.integration.${domain}/gcm/android`,
+    service: mobileLoginUrl(domain),
   };
+}
+
+export function mobileLoginUrl(domain: string): string {
+  return `https://mobile.integration.${domain}/gcm/android`;
+}
+
+/** The mobile credentials step, or `"rate_limited"` when Garmin refused it with a 429. */
+async function mobileCredentials(
+  email: string,
+  password: string,
+  ctx: SsoContext,
+  params: LoginParams,
+): Promise<SsoResponse | "rate_limited"> {
+  let res: Response;
+  try {
+    // 1. Seed cookies.
+    await ctx.fetcher.request(ssoUrl(ctx.domain, "/mobile/sso/en/sign-in"), {
+      params: { clientId: CLIENT_ID },
+      headers: { ...SSO_PAGE_HEADERS, "Sec-Fetch-Site": "none" },
+    });
+    // 2. Submit credentials. Opt into retrying this POST: Garmin's login endpoint is idempotent
+    // in effect (re-submitting after a 5xx/network blip succeeds identically).
+    res = await ctx.fetcher.request(ssoUrl(ctx.domain, "/mobile/api/login"), {
+      method: "POST",
+      params: { ...params },
+      headers: SSO_PAGE_HEADERS,
+      json: { username: email, password, rememberMe: false, captchaToken: "" },
+      retry: true,
+    });
+  } catch (err) {
+    if (err instanceof GarminRateLimitError) return "rate_limited";
+    throw err;
+  }
+  const body = await parseJson<SsoResponse>(res);
+  // Garmin sometimes reports the rate limit inside a 200 JSON body instead of an HTTP 429.
+  if (body.error?.["status-code"] === "429") return "rate_limited";
+  return body;
 }
 
 export async function login(
@@ -86,28 +127,18 @@ export async function login(
   ctx: SsoContext,
 ): Promise<LoginResult> {
   const params = loginParamsFor(ctx.domain);
+  const body = await mobileCredentials(email, password, ctx, params);
 
-  // 1. Seed cookies.
-  await ctx.fetcher.request(ssoUrl(ctx.domain, "/mobile/sso/en/sign-in"), {
-    params: { clientId: CLIENT_ID },
-    headers: { ...SSO_PAGE_HEADERS, "Sec-Fetch-Site": "none" },
-  });
+  if (body === "rate_limited") {
+    // Garmin rate limits the mobile route per client id and source. The web widget sends no
+    // client id, so it is tried once before giving up; a 429 there names the widget URL.
+    return widgetLogin(email, password, ctx.fetcher.withFreshJar(), ctx.domain, {
+      delayMs: ctx.loginDelayMs,
+      complete: (ticket, loginUrl) => completeLogin(ticket, ctx, loginUrl),
+    });
+  }
 
-  // 2. Submit credentials. Opt into retrying this POST: Garmin's login
-  // endpoint is idempotent in effect (re-submitting the same credentials
-  // after a 5xx/network blip either succeeds identically or reports
-  // "already signed in"-equivalent success), unlike a generic POST such as
-  // the weight-service write, which must NOT be retried automatically.
-  const res = await ctx.fetcher.request(ssoUrl(ctx.domain, "/mobile/api/login"), {
-    method: "POST",
-    params: { ...params },
-    headers: SSO_PAGE_HEADERS,
-    json: { username: email, password, rememberMe: false, captchaToken: "" },
-    retry: true,
-  });
-  const body = await parseJson<SsoResponse>(res);
   const type = body.responseStatus?.type;
-
   if (type === SSO_MFA_REQUIRED) {
     return {
       state: "mfa_required",
@@ -131,6 +162,7 @@ export async function login(
 export async function completeLogin(
   ticket: string,
   ctx: SsoContext,
+  loginUrl: string = mobileLoginUrl(ctx.domain),
 ): Promise<{ state: "success"; oauth1: OAuth1Token; oauth2: OAuth2Token }> {
   // Best-effort: sets a Cloudflare load-balancer cookie pinning the backend.
   try {
@@ -144,7 +176,7 @@ export async function completeLogin(
     if (!(err instanceof GarminError)) throw err;
   }
 
-  const oauth1 = await getOauth1Token(ticket, ctx);
+  const oauth1 = await getOauth1Token(ticket, ctx, loginUrl);
   const oauth2 = await exchange(oauth1, ctx, { login: true });
   return { state: "success", oauth1, oauth2 };
 }
@@ -152,9 +184,9 @@ export async function completeLogin(
 export async function getOauth1Token(
   ticket: string,
   ctx: SsoContext,
+  loginUrl: string = mobileLoginUrl(ctx.domain),
 ): Promise<OAuth1Token> {
   const consumer = await fetchConsumer(ctx.fetcher);
-  const loginUrl = `https://mobile.integration.${ctx.domain}/gcm/android`;
   const url =
     `https://connectapi.${ctx.domain}/oauth-service/oauth/preauthorized` +
     `?ticket=${encodeURIComponent(ticket)}` +
