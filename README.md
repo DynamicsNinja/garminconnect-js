@@ -121,29 +121,38 @@ two are cached accessors over it.
 gotcha — lives in [`AGENTS.md`](AGENTS.md) section 3**, not here; this table is a summary. It's
 also the file an AI coding agent working against this library should read first.
 
-| Category | Methods | Live-verified reads | Notes |
+| Category | Methods | Live-verified | Notes |
 |---|---|---|---|
-| Wellness (steps, heart rate, sleep, HRV, stress, SpO2, respiration, hydration, blood pressure, …) | 30 | almost all | `setBloodPressure`, `deleteBloodPressure`, `addHydrationData` implemented but not live-verified (writes without a safe round-trip on this account) |
-| Activities (list/search/detail, splits, weather, manual creation, import/upload, exercise sets, personal records) | 28 | most | destructive/one-shot writes (`deleteActivity`, `setActivityName`/`Type`/`Description`, `createManualActivity`, `importActivity`) verified via create→verify→delete round-trips against a disposable test account; `uploadActivity` and `downloadHealthSnapshot` are exceptions — see AGENTS.md |
-| Metrics (training status, race predictions, FTP, lactate threshold, heart-rate/power zones, endurance/hill score, …) | 16 | yes | all branches (including the two-branch methods like `getLactateThreshold`) live-verified |
-| Workouts (CRUD, per-sport upload, scheduling, device push) | 18 | most | `pushWorkoutToDevice` attempted but unverifiable — the test account has no paired device |
-| Gear (CRUD, activity association, defaults, stats) | 9 | most | `setGearDefault`'s success path could not be made to work live against any tried input — see AGENTS.md |
-| Devices | 6 | partial | the test account has no paired device, so `getDeviceSettings`/`getDeviceSolarData` are unit-tested only |
-| Badges & Challenges | 8 | yes | |
-| Body composition & weight | 8 | yes | `addBodyComposition` (FIT-file upload) is implemented but not live-verified |
-| Women's health (menstrual cycle, pregnancy) | 11 | reads only | the 5 write methods are deliberately never live-tested against any account — irreversible health-data writes; unit-tested only |
-| Golf | 5 | yes (golf-less account) | scorecard/shot-detail response shapes are unverified — the test account has no recorded rounds |
-| User profile, goals, nutrition, training plans, misc (lifestyle log, reload request, GraphQL passthrough, logout) | 4+1+3+3+4 | mostly | `requestReload` (a write) and `logout` are deliberately never run against the live token store — see below |
+| Wellness (steps, heart rate, sleep, HRV, stress, SpO2, respiration, hydration, blood pressure, …) | 30 | yes | `setBloodPressure`/`deleteBloodPressure` round-tripped (write → read back → delete). `addHydrationData` is verified but **permanent** — Garmin exposes no delete for it |
+| Activities (list/search/detail, splits, weather, manual creation, import/upload, exercise sets, personal records) | 28 | yes | destructive writes verified by create→read-back→delete against a disposable test account; never against pre-existing data |
+| Metrics (training status, race predictions, FTP, lactate threshold, heart-rate/power zones, endurance/hill score, …) | 16 | yes | every branch, including two-branch methods like `getLactateThreshold` |
+| Workouts (CRUD, per-sport upload, scheduling, device push) | 18 | most | `uploadWalkingWorkout`/`uploadHikingWorkout` are **BROKEN by upstream parity** — Garmin stores a null sport; use `uploadWorkout` with `OTHER`. `pushWorkoutToDevice` resolves its whole chain but needs a paired device for the final POST |
+| Gear (CRUD, activity association, defaults, stats) | 11 | most | `setGearDefault`'s endpoint is **dead upstream** — four investigations, the last decisive; use `setGearActivityDefaults`. `deleteGear` is a non-parity addition |
+| Devices | 6 | yes | closed against a real account read-only; `getDeviceSettings` returns an object of ~135 keys |
+| Badges & Challenges | 8 | yes | three endpoints reject `start=0` server-side — pass `start >= 1` |
+| Body composition & weight | 8 | yes | the hand-rolled FIT encoder is proven end-to-end: 69.42 kg uploaded as `.fit`, read back as 69.42 kg |
+| Women's health (menstrual cycle, pregnancy) | 11 | yes | writes executed once, under an explicit account-scoped exemption, against a throwaway account only. They need cycle-tracking settings that **only Garmin's own first-run wizard creates** |
+| Golf | 5 | partial | `getGolfScorecard`/`getGolfShotData` response shapes are still unverified — neither available account has a recorded round |
+| User profile, goals, nutrition, training plans, misc (lifestyle log, reload request, GraphQL passthrough, logout) | 15 | most | `getTrainingPlanById` needs a PHASED plan (a Garmin Coach plan is STATIC); `logout()` makes no HTTP call |
 
-**Deliberately unverified, by policy, not oversight:** any write with no safe way to undo it on a
-real account (`addHydrationData`, `updateMenstrualDailyLog` and its four siblings, `requestReload`,
-`pushWorkoutToDevice`'s final POST), plus `logout()` — calling it against the token store backing
-this repo's own live tests would force an interactive MFA re-login, so it is unit-tested against
-`MemoryTokenStore`/a temp-dir `FileTokenStore` only. None of this is a gap in effort; it's the
-project's standing rule that a live *write* probe only runs when it can be verified (read the
-value back) and undone.
+**What is still unverified, and why** — three things, each for a reason no amount of probing fixes:
 
-**EU accounts:** every write endpoint can return `412 PreconditionFailedException` ("The user is
+- `getGolfScorecard` / `getGolfShotData` response shapes — no account available has played a round.
+  `getGolfShotData` also returns an unexplained **410** against a fabricated id, and one real
+  scorecard would settle whether upstream's path is dead.
+- `pushWorkoutToDevice`'s final POST — needs a paired device on a *disposable* account. The chain
+  before it is exercised; it ends in `404 "Device id 0 is not registered."`
+- `logout()` — it makes no HTTP call at all, so there is nothing to verify against Garmin. Running
+  it against this repo's own token store would force an interactive MFA re-login, so it is
+  unit-tested against `MemoryTokenStore` and a temp-dir `FileTokenStore` instead.
+
+Two rows record a **failure** rather than a gap, and are asserted as such by `npm run smoke:gaps`
+so that a change in Garmin's behaviour shows up loudly: `setGearDefault` (dead endpoint) and the
+walking/hiking workout helpers (null stored sport).
+
+The standing rule behind all of this: a live *write* probe only runs when the value can be read
+back and the change undone, and a 2xx is never accepted as evidence on its own.
+
 from EU location, but upload consent is not yet granted or revoked") until upload consent is
 granted in Garmin Connect's own settings UI. This is an account-state precondition, not a bug in
 this library — see [Known limitations](#eu-upload-consent-412) below.

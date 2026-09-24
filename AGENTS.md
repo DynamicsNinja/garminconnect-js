@@ -600,9 +600,11 @@ unknown>[]` to use it) but the types weren't corrected until code review caught 
   endpoints have a documented 28-day-per-request limit; both methods split a longer `(start, end)`
   range into ≤28-day windows internally and concatenate/de-duplicate the results — callers pass an
   arbitrary range and don't need to chunk themselves. Both throw `GarminError` if `start > end`.
-- **`addHydrationData` has no delete endpoint** — unlike `addWeighIn`/`deleteWeighIn`, a hydration
-  log entry cannot be safely round-tripped away. It is not live-verified for this reason (write-only
-  probes on an empty test account are the only verification performed).
+- **`addHydrationData` has no delete endpoint.** Unlike `addWeighIn`/`deleteWeighIn`, a hydration
+  log entry cannot be undone. It IS live-verified (written on 2026-09-23 and read back via
+  `getHydrationData`) — this note used to say it was not, which was stale — but verification here
+  cost something permanent: the seeded entries are on the test account for good. Do not call it
+  against an account whose data you care about.
 - **`addWeighIn` vs `getWeighIns` unit asymmetry is real and deliberate.** `addWeighIn(weight,
 unitKey, when?)` sends `weight` RAW, in whatever unit `unitKey` names (`"kg"` or `"lbs"`) — do
   NOT pre-convert to grams; Garmin converts server-side. But `getWeighIns` returns Garmin's stored
