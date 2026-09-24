@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { Fetcher } from "../../src/http/fetcher.js";
-import { login } from "../../src/auth/sso.js";
+import { login, resumeLogin } from "../../src/auth/sso.js";
+import type { MfaState } from "../../src/auth/sso.js";
 import { resetConsumerCache } from "../../src/auth/consumer.js";
 import {
   GarminAuthError,
@@ -148,5 +149,105 @@ describe("widget failures", () => {
     await expect(login("a@b.test", "pw", ctx())).rejects.toThrow(
       new GarminAuthError("Widget login: missing service ticket"),
     );
+  });
+});
+
+describe("widget code step", () => {
+  it("returns a serialisable widget MfaState and asks Garmin to send the code", async () => {
+    const h = serve({ loginOutcome: "rate_limited", widgetOutcome: "mfa" });
+    const result = await login("secret@b.test", "super-secret-pw", ctx());
+    expect(result.state).toBe("mfa_required");
+    if (result.state !== "mfa_required") throw new Error("unreachable");
+    const state = result.mfaState;
+    if (state.flow !== "widget") throw new Error("expected a widget state");
+    expect(state.mfaMethod).toBe("email");
+    expect(state.csrf).toBe("csrf-mfa");
+    expect(state.domain).toBe("garmin.com");
+    expect(state.signinParams.service).toBe("https://sso.garmin.com/sso/embed");
+    expect(state.cookies.some((c) => c.name === "WIDGET_SESSION")).toBe(true);
+
+    const json = JSON.stringify(state);
+    expect(json).not.toContain("super-secret-pw");
+    expect(json).not.toContain("secret@b.test");
+    expect(JSON.parse(json)).toEqual(state);
+
+    const request = h.requests.find((r) => r.step === "widget-mfa-request")!;
+    expect(new URL(request.url).searchParams.get("clientId")).toBe("GarminConnect");
+    expect(request.json).toEqual({ customerGuid: "guid-1", mfaMethod: "email", locale: "en_US" });
+  });
+
+  it("does not ask for a code Garmin already sent", async () => {
+    const h = serve({ loginOutcome: "rate_limited", widgetOutcome: "mfa_code_sent" });
+    const result = await login("a@b.test", "pw", ctx());
+    expect(result.state).toBe("mfa_required");
+    expect(h.calls).not.toContain("widget-mfa-request");
+  });
+
+  it("finishes on a fresh Fetcher from a JSON round-tripped state", async () => {
+    const h = serve({ loginOutcome: "rate_limited", widgetOutcome: "mfa", mfaCode: "123456" });
+    const result = await login("a@b.test", "pw", ctx());
+    if (result.state !== "mfa_required") throw new Error("unreachable");
+    const carried = JSON.parse(JSON.stringify(result.mfaState)) as MfaState;
+
+    const rec = recordingFetch();
+    const done = await resumeLogin(carried, "123456", {
+      fetcher: new Fetcher({ fetchImpl: rec.fetchImpl }),
+    });
+    expect(done.oauth1.oauth_token).toBe("o1tok");
+
+    const verify = h.requests.find((r) => r.step === "widget-mfa")!;
+    const form = new URLSearchParams(verify.text);
+    expect(form.get("mfa-code")).toBe("123456");
+    expect(form.get("_csrf")).toBe("csrf-mfa");
+    expect(form.get("embed")).toBe("true");
+    expect(form.get("fromPage")).toBe("setupEnterMfaCode");
+    // Asserted against what the library itself sent, not msw's capture: see recordingFetch's
+    // doc comment for why msw's own cookie header is not trustworthy here.
+    const sentVerify = rec.sent.find(
+      (s) => new URL(s.url).pathname === "/sso/verifyMFA/loginEnterMfaCode",
+    );
+    expect(sentVerify?.cookie).toContain("WIDGET_SESSION=w1");
+    expect(verify.contentType).toContain("application/x-www-form-urlencoded");
+
+    const preauth = h.requests.filter((r) => r.step === "preauthorized").at(-1)!;
+    expect(new URL(preauth.url).searchParams.get("login-url")).toBe(
+      "https://sso.garmin.com/sso/embed",
+    );
+  });
+
+  it("rejects a wrong code with the SSO error prefix", async () => {
+    serve({ loginOutcome: "rate_limited", widgetOutcome: "mfa", mfaCode: "123456" });
+    const result = await login("a@b.test", "pw", ctx());
+    if (result.state !== "mfa_required") throw new Error("unreachable");
+    await expect(
+      resumeLogin(result.mfaState, "000000", { fetcher: new Fetcher() }),
+    ).rejects.toThrow(new GarminAuthError("SSO error: INVALID_MFA_CODE: Enter MFA code"));
+  });
+});
+
+describe("mobile MfaState compatibility", () => {
+  it("marks new mobile states with flow: mobile", async () => {
+    serve({ loginOutcome: "mfa" });
+    const result = await login("a@b.test", "pw", ctx());
+    if (result.state !== "mfa_required") throw new Error("unreachable");
+    expect(result.mfaState.flow).toBe("mobile");
+  });
+
+  it("still resumes a 0.1.0 state that has no flow field", async () => {
+    const h = serve({ loginOutcome: "mfa", mfaCode: "123456" });
+    const old = {
+      loginParams: {
+        clientId: "GCM_ANDROID_DARK",
+        locale: "en-US",
+        service: "https://mobile.integration.garmin.com/gcm/android",
+      },
+      mfaMethod: "sms",
+      cookies: [],
+      domain: "garmin.com",
+    } as MfaState;
+    const done = await resumeLogin(old, "123456", { fetcher: new Fetcher() });
+    expect(done.state).toBe("success");
+    expect(h.calls).toContain("mfa");
+    expect(h.calls).not.toContain("widget-mfa");
   });
 });

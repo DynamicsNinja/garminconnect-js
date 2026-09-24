@@ -22,6 +22,7 @@ describe("MFA login", () => {
     if (result.state !== "mfa_required") throw new Error("unreachable");
     expect(result.mfaState.mfaMethod).toBe("sms");
     expect(result.mfaState.domain).toBe("garmin.com");
+    if (result.mfaState.flow === "widget") throw new Error("expected a mobile state");
     expect(result.mfaState.loginParams.clientId).toBe("GCM_ANDROID_DARK");
   });
 

@@ -4,7 +4,7 @@ import type { SerializedCookie } from "../http/cookie-jar.js";
 import { fetchConsumer } from "./consumer.js";
 import { buildOAuth1Header } from "./oauth1.js";
 import { CLIENT_ID, OAUTH_USER_AGENT, SSO_PAGE_HEADERS } from "./constants.js";
-import { widgetLogin } from "./widget.js";
+import { widgetLogin, widgetResume, type WidgetMfaState } from "./widget.js";
 import {
   setExpirations,
   type OAuth1Token,
@@ -28,12 +28,16 @@ export interface LoginParams {
   service: string;
 }
 
-export interface MfaState {
+/** Mobile-route MFA state. `flow` is absent on states saved by 0.1.0; absent means mobile. */
+export interface MobileMfaState {
+  flow?: "mobile";
   loginParams: LoginParams;
   mfaMethod: string;
   cookies: SerializedCookie[];
   domain: string;
 }
+
+export type MfaState = MobileMfaState | WidgetMfaState;
 
 export type LoginResult =
   | { state: "success"; oauth1: OAuth1Token; oauth2: OAuth2Token }
@@ -143,6 +147,7 @@ export async function login(
     return {
       state: "mfa_required",
       mfaState: {
+        flow: "mobile",
         loginParams: params,
         // Upstream garth (sso.py) does `mfa_info.get("mfaLastMethodUsed")
         // or "email"` — this default mirrors that behavior, not a guess.
@@ -280,8 +285,13 @@ export async function resumeLogin(
   options: { fetcher?: Fetcher } = {},
 ): Promise<{ state: "success"; oauth1: OAuth1Token; oauth2: OAuth2Token }> {
   const fetcher = options.fetcher ?? new Fetcher();
-  fetcher.jar.mergeFromJSON(mfaState.cookies);
   const ctx: SsoContext = { fetcher, domain: mfaState.domain };
+  if (mfaState.flow === "widget") {
+    return widgetResume(mfaState, code, fetcher, (ticket, loginUrl) =>
+      completeLogin(ticket, ctx, loginUrl),
+    );
+  }
+  fetcher.jar.mergeFromJSON(mfaState.cookies);
 
   const res = await fetcher.request(ssoUrl(ctx.domain, "/mobile/api/mfa/verifyCode"), {
     method: "POST",

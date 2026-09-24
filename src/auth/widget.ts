@@ -6,6 +6,7 @@
 
 import { GarminAuthError, GarminConnectionError } from "../errors.js";
 import type { Fetcher } from "../http/fetcher.js";
+import type { SerializedCookie } from "../http/cookie-jar.js";
 import { SSO_PAGE_HEADERS } from "./constants.js";
 import type { OAuth1Token, OAuth2Token } from "./tokens.js";
 
@@ -76,6 +77,18 @@ export type WidgetSuccess = { state: "success"; oauth1: OAuth1Token; oauth2: OAu
 /** Turns a service ticket into tokens; `sso.ts` passes `completeLogin` so there is no import cycle. */
 export type CompleteTicket = (ticket: string, loginUrl: string) => Promise<WidgetSuccess>;
 
+export interface WidgetMfaState {
+  flow: "widget";
+  mfaMethod: string;
+  csrf: string;
+  signinParams: Record<string, string>;
+  referer: string;
+  cookies: SerializedCookie[];
+  domain: string;
+}
+
+export type WidgetLoginResult = WidgetSuccess | { state: "mfa_required"; mfaState: WidgetMfaState };
+
 const FORM_HEADERS = { ...SSO_PAGE_HEADERS, "content-type": "application/x-www-form-urlencoded" };
 const SERVER_ERROR_HINTS = ["bad gateway", "service unavailable", "cloudflare", "502", "503"];
 const CREDENTIAL_HINTS = ["locked", "invalid", "incorrect", "account error"];
@@ -83,13 +96,37 @@ const RESTRICTED_HINTS = ["unable to sign in", "unable to login"];
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/**
+ * Email and SMS codes are not always sent by the sign-in POST itself. The page's own
+ * "Request a new code" link calls this endpoint, so it is called when no code was sent.
+ */
+async function requestMfaCode(
+  fetcher: Fetcher,
+  base: string,
+  vars: MfaVars,
+  referer: string,
+): Promise<void> {
+  const method = (vars.mfaMethod ?? "").toLowerCase();
+  if ((method !== "email" && method !== "sms") || vars.codeSentTo) return;
+  await fetcher.request(`${base}/verifyMFA/mfaCode`, {
+    method: "POST",
+    params: { clientId: vars.clientId ?? "" },
+    headers: { ...SSO_PAGE_HEADERS, Accept: "application/json, text/plain, */*", Referer: referer },
+    json: {
+      customerGuid: vars.customerGuid ?? "",
+      mfaMethod: vars.mfaMethod ?? "",
+      locale: vars.locale ?? "",
+    },
+  });
+}
+
 export async function widgetLogin(
   email: string,
   password: string,
   fetcher: Fetcher,
   domain: string,
   opts: { delayMs?: number; complete: CompleteTicket },
-): Promise<WidgetSuccess> {
+): Promise<WidgetLoginResult> {
   const urls = widgetUrls(domain);
 
   // 1. The embed page sets the widget's session cookies.
@@ -128,10 +165,56 @@ export async function widgetLogin(
   if (RESTRICTED_HINTS.some((h) => lower.includes(h))) {
     throw new GarminAuthError(`SSO error: ACCOUNT_RESTRICTED: ${title}`);
   }
+  const vars = mfaVarsFrom(html);
+  if (lower.includes("mfa") || vars.mfaMethod) {
+    const mfaCsrf = csrfFrom(html);
+    if (!mfaCsrf) throw new GarminConnectionError("Widget login: MFA page has no CSRF token");
+    const mfaReferer = fetcher.lastUrl ?? urls.signin;
+    await requestMfaCode(fetcher, urls.base, vars, mfaReferer);
+    return {
+      state: "mfa_required",
+      mfaState: {
+        flow: "widget",
+        mfaMethod: vars.mfaMethod || "email",
+        csrf: mfaCsrf,
+        signinParams: urls.signinParams,
+        referer: mfaReferer,
+        cookies: fetcher.jar.toJSON(),
+        domain,
+      },
+    };
+  }
   if (title !== "Success") {
     throw new GarminConnectionError(`Widget login: unexpected page '${title}'`);
   }
   const ticket = ticketFrom(html);
   if (!ticket) throw new GarminAuthError("Widget login: missing service ticket");
   return opts.complete(ticket, urls.embed);
+}
+
+export async function widgetResume(
+  state: WidgetMfaState,
+  code: string,
+  fetcher: Fetcher,
+  complete: CompleteTicket,
+): Promise<WidgetSuccess> {
+  fetcher.jar.mergeFromJSON(state.cookies);
+  const urls = widgetUrls(state.domain);
+  const res = await fetcher.request(`${urls.base}/verifyMFA/loginEnterMfaCode`, {
+    method: "POST",
+    params: state.signinParams,
+    headers: { ...FORM_HEADERS, Referer: state.referer },
+    body: new URLSearchParams({
+      "mfa-code": code,
+      embed: "true",
+      _csrf: state.csrf,
+      fromPage: "setupEnterMfaCode",
+    }).toString(),
+  });
+  const html = await res.text();
+  const title = titleFrom(html);
+  if (title !== "Success") throw new GarminAuthError(`SSO error: INVALID_MFA_CODE: ${title}`);
+  const ticket = ticketFrom(html);
+  if (!ticket) throw new GarminAuthError("Widget login: missing service ticket");
+  return complete(ticket, urls.embed);
 }

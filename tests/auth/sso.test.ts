@@ -205,6 +205,7 @@ describe("MFA branch state (5d)", () => {
     expect(result.mfaState.mfaMethod).toBe("sms");
     expect(result.mfaState.domain).toBe("garmin.com");
     expect(Array.isArray(result.mfaState.cookies)).toBe(true);
+    if (result.mfaState.flow === "widget") throw new Error("expected a mobile state");
     expect(result.mfaState.loginParams).toMatchObject({
       clientId: "GCM_ANDROID_DARK",
       locale: "en-US",
