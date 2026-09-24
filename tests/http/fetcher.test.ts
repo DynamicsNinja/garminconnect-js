@@ -264,4 +264,24 @@ describe("Fetcher", () => {
       expect(message).not.toContain("?");
     }
   });
+
+  describe("withFreshJar", () => {
+    it("starts with no cookies but keeps the caller's fetchImpl", async () => {
+      const fetchImpl = vi.fn(async (_url: string | URL | Request, _init?: RequestInit) =>
+        new Response("ok", { headers: { "set-cookie": "A=1; Path=/" } }),
+      );
+      const original = new Fetcher({ fetchImpl, retries: 0 });
+      await original.request("https://sso.garmin.com/x");
+      expect(original.jar.cookieHeaderFor("https://sso.garmin.com/y")).toBe("A=1");
+
+      const fresh = original.withFreshJar();
+      expect(fresh).not.toBe(original);
+      expect(fresh.jar.cookieHeaderFor("https://sso.garmin.com/y")).toBeUndefined();
+
+      await fresh.request("https://sso.garmin.com/z");
+      expect(fetchImpl).toHaveBeenCalledTimes(2);
+      const init = fetchImpl.mock.calls[1]?.[1];
+      expect(new Headers(init?.headers).get("cookie")).toBeNull();
+    });
+  });
 });

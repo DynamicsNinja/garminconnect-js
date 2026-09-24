@@ -55,17 +55,27 @@ export class Fetcher {
   readonly jar: CookieJar;
   lastUrl: string | undefined;
 
+  readonly #options: FetcherOptions;
   readonly #timeoutMs: number;
   readonly #retries: number;
   readonly #backoffMs: number;
   readonly #fetch: typeof fetch;
 
   constructor(options: FetcherOptions = {}) {
+    this.#options = options;
     this.jar = options.jar ?? new CookieJar();
     this.#timeoutMs = options.timeoutMs ?? 10_000;
     this.#retries = options.retries ?? 3;
     this.#backoffMs = options.backoffMs ?? 500;
     this.#fetch = options.fetchImpl ?? globalThis.fetch;
+  }
+
+  /**
+   * The same timeouts, retries and `fetchImpl`, with an empty cookie jar. The SSO widget sign-in
+   * uses it so cookies left by a failed mobile sign-in never mix into the widget's session.
+   */
+  withFreshJar(): Fetcher {
+    return new Fetcher({ ...this.#options, jar: new CookieJar() });
   }
 
   async request(url: string, options: RequestOptions = {}): Promise<Response> {
