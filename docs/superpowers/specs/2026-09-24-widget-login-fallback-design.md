@@ -20,6 +20,14 @@ Observed on 2026-09-24 by the IronFit app, which uses this library:
   `429 Rate limited by Garmin at https://sso.garmin.com/mobile/api/login`.
 - The OAuth1 `preauthorized` step and the OAuth2 exchange were never reached, and the same steps
   had worked hours earlier.
+- After the block lifted, the next sign-in from IronFit worked and the one after it, from the same
+  device, was refused again. The allowance on this route is only a sign-in or two per account.
+- While the first account was blocked, a **second, different account** was refused on its first
+  sign-in from the same server. So the limit is not only per account. It is at least partly per
+  source IP, possibly combined with the client id.
+- The Python bridge IronFit ran before, on the same server, signed in without trouble.
+  python-garminconnect never uses the Android client id: it tries the iOS client id, then the
+  widget. That suggests other routes stay open from that IP.
 
 The SSO **web widget** (`/sso/embed` + `/sso/signin`) sends no `clientId`, so it sits outside
 that bucket. python-garminconnect 0.3.15 keeps it as a login strategy ("widget+cffi") for that
@@ -115,8 +123,8 @@ is what garth sent for widget tickets. The OAuth2 exchange is unchanged.
 
 ### Code step (MFA) on the widget path
 
-`MfaState` gains a discriminator. Every field below is plain JSON, so it still crosses an HTTP
-boundary:
+`MfaState` gains a discriminator. New mobile states carry `flow: "mobile"`. Every field below is
+plain JSON, so it still crosses an HTTP boundary:
 
 ```ts
 type MfaState =
@@ -133,7 +141,8 @@ When the widget flow detects an MFA page, it reads the inline variables `custome
 "Request a new code" link does:
 
 - `POST <SSO_BASE>/verifyMFA/mfaCode?clientId=<clientId>`, JSON `{ customerGuid, mfaMethod, locale }`
-- A 429 there is a `GarminRateLimitError`; any other non-2xx is a `GarminConnectionError`.
+- A 429 there is a `GarminRateLimitError` naming the URL; other failures surface as the fetcher's
+  usual error classes.
 
 It then returns `{ state: "mfa_required", mfaState }`, where `mfaState.csrf` is the `_csrf` from
 the MFA page and `referer` is that page's URL.
@@ -206,9 +215,10 @@ fingerprint risk; the next step is then the DI-token design, not more widget wor
 - `AGENTS.md` §5 (auth model) and `README.md`: describe the fallback, the `flow` field on
   `MfaState`, `loginDelayMs`, and that a widget-path `MfaState` is the same kind of short-lived
   secret.
-- `CHANGELOG.md`: `0.2.0`, "login falls back to the SSO web widget when the mobile login is rate
-  limited". Minor bump: the new `MfaState` variant and the new option; nothing removed.
-- IronFit then only runs `npm i garminconnect-js@^0.2.0`. Its classification ("SSO error:" means
+- `CHANGELOG.md`: `0.3.0` (0.2.0 is already released), "login falls back to the SSO web widget
+  when the mobile login is rate limited". Minor bump: the new `MfaState` variant and the new
+  option. TypeScript code that reads `mfaState.loginParams` must now check `flow` first.
+- IronFit then only runs `npm i garminconnect-js@^0.3.0`. Its classification ("SSO error:" means
   the password or code was rejected) already fits the widget errors above.
 
 ## Risks
@@ -219,5 +229,7 @@ fingerprint risk; the next step is then the DI-token design, not more widget wor
 - **HTML scraping is brittle.** A changed title or markup breaks the widget path. It is a
   fallback, and failures surface as `GarminConnectionError` with the page title, not as a wrong
   password.
-- **The per-account block may cover the widget too**, if Garmin widens it. The fallback then
-  fails with a 429 naming `/sso/signin`.
+- **The block may cover the widget too.** It is at least partly per IP. If Garmin limits the
+  whole IP rather than the IP plus client id, the fallback fails with a 429 naming `/sso/signin`.
+  The next options are then the iOS client id with DI tokens (python-garminconnect's first
+  strategy), or signing in from a different IP.
