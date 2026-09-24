@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { Fetcher } from "../../src/http/fetcher.js";
 import { login } from "../../src/auth/sso.js";
 import { resetConsumerCache } from "../../src/auth/consumer.js";
@@ -7,7 +7,7 @@ import {
   GarminConnectionError,
   GarminRateLimitError,
 } from "../../src/errors.js";
-import { makeSsoServer, type SsoScenario } from "../helpers/sso-server.js";
+import { makeSsoServer, recordingFetch, type SsoScenario } from "../helpers/sso-server.js";
 
 let harness: ReturnType<typeof makeSsoServer> | undefined;
 
@@ -24,6 +24,11 @@ afterEach(() => {
 });
 
 const ctx = () => ({ fetcher: new Fetcher(), domain: "garmin.com", loginDelayMs: 0 });
+const ctxWithFetch = (fetchImpl: typeof fetch) => ({
+  fetcher: new Fetcher({ fetchImpl }),
+  domain: "garmin.com",
+  loginDelayMs: 0,
+});
 const WIDGET_STEPS = ["widget-embed", "widget-signin-page", "widget-signin"];
 
 describe("fallback to the SSO widget", () => {
@@ -59,7 +64,8 @@ describe("fallback to the SSO widget", () => {
 
   it("posts the form with the page's CSRF token and the embed session cookie, never the password in the URL", async () => {
     const h = serve({ loginOutcome: "rate_limited" });
-    await login("a@b.test", "super-secret-pw", ctx());
+    const { fetchImpl, sent } = recordingFetch();
+    await login("a@b.test", "super-secret-pw", ctxWithFetch(fetchImpl));
     const post = h.requests.find((r) => r.step === "widget-signin")!;
     expect(post.contentType).toContain("application/x-www-form-urlencoded");
     const form = new URLSearchParams(post.text);
@@ -67,7 +73,10 @@ describe("fallback to the SSO widget", () => {
     expect(form.get("password")).toBe("super-secret-pw");
     expect(form.get("embed")).toBe("true");
     expect(form.get("_csrf")).toBe("csrf-1");
-    expect(post.cookie).toContain("WIDGET_SESSION=w1");
+    // Asserted against what the library itself sent, not msw's capture: see recordingFetch's
+    // doc comment for why msw's own cookie header is not trustworthy here.
+    const sentPost = sent.find((s) => new URL(s.url).pathname === "/sso/signin" && s.method === "POST");
+    expect(sentPost?.cookie).toContain("WIDGET_SESSION=w1");
     expect(post.referer).toContain("https://sso.garmin.com/sso/signin");
     expect(post.url).not.toContain("super-secret-pw");
     const url = new URL(post.url);
@@ -75,26 +84,25 @@ describe("fallback to the SSO widget", () => {
     expect(url.searchParams.get("id")).toBe("gauth-widget");
   });
 
-  // MSW simulates a browser-wide cookie jar: it remembers every mocked Set-Cookie and
-  // re-injects it into every later same-origin request regardless of which Fetcher/CookieJar
-  // instance issued it. That makes the mobile SESSION cookie appear on the widget's requests
-  // in this test harness no matter what login() does, even though real `fetch()` never shares
-  // cookies across Fetcher instances (see tests/http/fetcher.test.ts "withFreshJar"). So this
-  // asserts the real, controllable guarantee instead: login() hands the widget flow a fetcher
-  // whose jar starts empty.
-  it("gives the widget a fresh cookie jar, not the mobile fetcher's", async () => {
+  it("does not send mobile cookies to the widget", async () => {
     serve({ loginOutcome: "rate_limited" });
-    const c = ctx();
-    const spy = vi.spyOn(c.fetcher, "withFreshJar");
-    await login("a@b.test", "pw", c);
-    expect(spy).toHaveBeenCalledTimes(1);
-    const widgetFetcher = spy.mock.results[0]?.value as Fetcher;
-    expect(widgetFetcher).not.toBe(c.fetcher);
-    // The widget's own jar picks up its own session cookies along the way, but never the
-    // mobile fetcher's SESSION cookie: this jar started empty and never saw that response.
-    expect(widgetFetcher.jar.cookieHeaderFor("https://sso.garmin.com/sso/embed") ?? "").not.toContain(
-      "SESSION=seed",
-    );
+    const { fetchImpl, sent } = recordingFetch();
+    await login("a@b.test", "pw", ctxWithFetch(fetchImpl));
+    // Match the widget's own paths exactly: completeLogin's best-effort call to
+    // `/portal/sso/embed` (on the ORIGINAL mobile fetcher, by design) also contains the
+    // substring "/sso/embed" and must not be mistaken for the widget's `/sso/embed`.
+    const widgetRequests = sent.filter((s) => {
+      const path = new URL(s.url).pathname;
+      return path === "/sso/embed" || path === "/sso/signin";
+    });
+    expect(widgetRequests.length).toBeGreaterThan(0);
+    for (const req of widgetRequests) {
+      expect(req.cookie ?? "").not.toContain("SESSION=seed");
+    }
+    // Proves the widget ran on a jar that DID receive the embed step's own cookie — i.e. a
+    // real, working jar, not merely an empty one nothing ever populated.
+    const signinPost = sent.find((s) => new URL(s.url).pathname === "/sso/signin" && s.method === "POST");
+    expect(signinPost?.cookie).toContain("WIDGET_SESSION=w1");
   });
 });
 

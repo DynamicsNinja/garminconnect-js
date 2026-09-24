@@ -244,3 +244,34 @@ export function makeSsoServer(scenario: SsoScenario = {}) {
 
   return { server, calls, requests };
 }
+
+/** One request as the Fetcher library itself sent it, before msw ever sees it. */
+export interface SentRequest {
+  url: string;
+  method: string;
+  cookie: string | null;
+}
+
+/**
+ * A `fetchImpl` that records the headers `Fetcher` itself builds, then forwards to the real
+ * (msw-mocked) `fetch`. Use this — not `CapturedRequest.cookie` from `makeSsoServer` — to assert
+ * on what our own `CookieJar` sent: msw keeps a module-level cookie store (see
+ * `node_modules/msw/lib/core/utils/{cookieStore,request/getRequestCookies}.mjs`) that
+ * unconditionally re-appends every previously-seen `Set-Cookie` onto the *captured* request's
+ * `Cookie` header for any handler matching the same origin — regardless of which `Fetcher`/
+ * `CookieJar` instance actually issued the request, and it persists across `server.close()` into
+ * later tests. Recording at the library boundary (via `fetchImpl`, which `Fetcher.withFreshJar()`
+ * carries over) observes the real Cookie header before msw's interceptor mutates it.
+ */
+export function recordingFetch(): { fetchImpl: typeof fetch; sent: SentRequest[] } {
+  const sent: SentRequest[] = [];
+  const fetchImpl: typeof fetch = (input, init) => {
+    sent.push({
+      url: String(input instanceof Request ? input.url : input),
+      method: init?.method ?? (input instanceof Request ? input.method : "GET"),
+      cookie: new Headers(init?.headers).get("cookie"),
+    });
+    return fetch(input, init);
+  };
+  return { fetchImpl, sent };
+}
