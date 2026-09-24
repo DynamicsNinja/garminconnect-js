@@ -1,21 +1,15 @@
 <div align="center">
 
-<pre>
-                             _                                       _        _     
-   __ _  __ _ _ __ _ __ ___ (_)_ __   ___ ___  _ __  _ __   ___  ___| |_     (_)___ 
-  / _` |/ _` | '__| '_ ` _ \| | '_ \ / __/ _ \| '_ \| '_ \ / _ \/ __| __|____| / __|
- | (_| | (_| | |  | | | | | | | | | | (_| (_) | | | | | | |  __/ (__| ||_____| \__ \
-  \__, |\__,_|_|  |_| |_| |_|_|_| |_|\___\___/|_| |_|_| |_|\___|\___|\__|   _/ |___/
-  |___/                                                                    |__/     
-</pre>
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/title-dark.svg">
+  <img src="docs/assets/title-light.svg" alt="garminconnect-js — TypeScript client for Garmin Connect" width="705">
+</picture>
 
 [![npm][npm-shield]][npm-url]
 [![Node][node-shield]][node-url]
 [![License][license-shield]][license-url]
 [![Last Commit][activity-shield]][activity-url]
 [![Maintenance][maintenance-shield]][maintenance-url]
-
-# garminconnect-js
 
 </div>
 
