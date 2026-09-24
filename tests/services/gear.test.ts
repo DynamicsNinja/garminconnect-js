@@ -3,7 +3,7 @@ import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import { GarminClient } from "../../src/client.js";
 import { Garmin } from "../../src/garmin.js";
-import { GarminConnectionError, GarminError } from "../../src/errors.js";
+import { GarminError } from "../../src/errors.js";
 import type { Tokens } from "../../src/auth/tokens.js";
 
 const API = "https://connectapi.garmin.com";
@@ -339,34 +339,14 @@ describe("getGearDefaults", () => {
   });
 });
 
-describe("setGearDefault", () => {
-  it("PUTs .../default/true when defaultGear is true (default)", async () => {
-    await expect(makeGarmin().setGearDefault("running", "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6")).resolves.toEqual({
-      ok: true,
-    });
-    expect(seen[0]!.url).toBe(
-      `${API}/gear-service/gear/a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6/activityType/RUNNING/default/true`,
-    );
-    expect(seen[0]!.method).toBe("PUT");
-  });
-
-  it("DELETEs the plain activityType path when defaultGear is false", async () => {
-    await makeGarmin().setGearDefault("running", "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6", false);
-    expect(seen[0]!.url).toBe(`${API}/gear-service/gear/a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6/activityType/RUNNING`);
-    expect(seen[0]!.method).toBe("DELETE");
-  });
-
-  it("uppercases activityType", async () => {
-    await makeGarmin().setGearDefault("running", "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6");
-    expect(seen[0]!.url).toContain("/activityType/RUNNING/");
-  });
-
-  it("re-raises a 404 as GarminConnectionError with a not-found message", async () => {
-    await expect(
-      makeGarmin().setGearDefault("running", "deadbeefdeadbeefdeadbeefdeadbeef"),
-    ).rejects.toThrow(GarminConnectionError);
-    await expect(
-      makeGarmin().setGearDefault("running", "deadbeefdeadbeefdeadbeefdeadbeef"),
-    ).rejects.toThrow(/Cannot set gear default for UUID deadbeefdeadbeefdeadbeefdeadbeef: gear not found/);
+describe("setGearDefault (removed)", () => {
+  it("is gone — it 404'd against gear that demonstrably existed", () => {
+    // Removed 2026-09-24 after a fourth, decisive investigation: the same gear UUID was created,
+    // linked to an activity, and defaulted via setGearActivityDefaults successfully, seconds
+    // apart, while setGearDefault answered 404 "gear not found". Upstream's endpoint is dead.
+    // Asserted here so re-porting it for parity is a test failure rather than a quiet regression.
+    const g = makeGarmin() as unknown as Record<string, unknown>;
+    expect(g["setGearDefault"]).toBeUndefined();
+    expect(g["setGearActivityDefaults"], "the working replacement must stay").toBeTypeOf("function");
   });
 });

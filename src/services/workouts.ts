@@ -262,16 +262,6 @@ const SWIMMING_SPORT_TYPE = {
   sportTypeKey: "swimming",
   displayOrder: 3,
 };
-const WALKING_SPORT_TYPE = {
-  sportTypeId: WORKOUT_SPORT_TYPE_ID.WALKING,
-  sportTypeKey: "walking",
-  displayOrder: 17,
-};
-const HIKING_SPORT_TYPE = {
-  sportTypeId: WORKOUT_SPORT_TYPE_ID.HIKING,
-  sportTypeKey: "hiking",
-  displayOrder: 18,
-};
 const STRENGTH_SPORT_TYPE = {
   sportTypeId: WORKOUT_SPORT_TYPE_ID.STRENGTH_TRAINING,
   sportTypeKey: "strength_training",
@@ -298,20 +288,6 @@ export async function uploadSwimmingWorkout(
   workout: WorkoutInput,
 ): Promise<WorkoutRecord | null> {
   return uploadWorkout(host, buildSportWorkout(workout, SWIMMING_SPORT_TYPE));
-}
-
-export async function uploadWalkingWorkout(
-  host: WorkoutsHost,
-  workout: WorkoutInput,
-): Promise<WorkoutRecord | null> {
-  return uploadWorkout(host, buildSportWorkout(workout, WALKING_SPORT_TYPE));
-}
-
-export async function uploadHikingWorkout(
-  host: WorkoutsHost,
-  workout: WorkoutInput,
-): Promise<WorkoutRecord | null> {
-  return uploadWorkout(host, buildSportWorkout(workout, HIKING_SPORT_TYPE));
 }
 
 export async function uploadStrengthWorkout(

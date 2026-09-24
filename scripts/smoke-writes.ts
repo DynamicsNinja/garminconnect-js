@@ -1077,33 +1077,6 @@ function gearProbes(): WriteProbe[] {
         };
       },
     },
-    {
-      name: "setGearDefault re-raises a 404 as GarminConnectionError (error-mapping path only — see notes)",
-      run: async () => {
-        // A syntactically valid but non-existent UUID, exactly like Task 4's precedent for
-        // addGearToActivity/removeGearFromActivity — the success path could not be exercised
-        // live (see the block comment above this function), so only the 404 mapping is verified.
-        const bogusUuid = "00000000-0000-0000-0000-000000000000";
-        try {
-          await g.setGearDefault("running", bogusUuid, true);
-          return {
-            ok: false,
-            detail: `expected a GarminConnectionError for a non-existent gear uuid, but the call succeeded`,
-          };
-        } catch (error) {
-          if (
-            error instanceof GarminConnectionError &&
-            error.message.includes("gear not found")
-          ) {
-            return {
-              ok: true,
-              detail: `setGearDefault("running", "${bogusUuid}", true) correctly re-raised as GarminConnectionError: ${error.message}`,
-            };
-          }
-          throw error;
-        }
-      },
-    },
   ];
 }
 

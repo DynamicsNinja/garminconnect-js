@@ -36,8 +36,13 @@ export async function getBodyComposition(
  * before handing values to `FitEncoderWeight`. See `src/util/fit.ts` for the
  * scaling `write_weight_scale` DOES apply (a FIT binary-format requirement,
  * confirmed by reading upstream's `fit.py` directly — not left as a guess).
- * This was NOT live-verified: no FIT upload round-trip against the test
- * account's read endpoints was performed. See the task report.
+ * LIVE-VERIFIED end to end on 2026-09-23 (this note previously said it was
+ * not): 69.42 kg was uploaded as a `.fit` binary and read back from
+ * `getBodyComposition` as 69.42 kg. Garmin both ACCEPTED the bytes — so the
+ * CRC and header are right — and PARSED them correctly, so the x100 scaling
+ * is right. A wrong CRC would have been rejected outright; a wrong scale
+ * factor would have been accepted and silently misparsed, which only the
+ * read-back could tell apart.
  *
  * `timestamp`, if given, is parsed with `new Date(timestamp)`; if omitted,
  * `new Date()` is used, matching upstream's `datetime.fromisoformat(timestamp)

@@ -38,23 +38,19 @@ export const WORKOUT_SPORT_TYPE_ID = {
   /** Live-only: present in Garmin's enum, absent from upstream entirely. */
   RUCKING: 13,
   /**
-   * BROKEN — these two ids are NOT workout sport types.
-   *
-   * They come from upstream's `WalkingWorkout`/`HikingWorkout` defaults, where they appear to have
-   * been taken from Garmin's ACTIVITY-type ids by mistake. Garmin's own workout enum
+   * There is deliberately no WALKING or HIKING entry. Garmin's own workout enum
    * (`GET /workout-service/workout/types` -> `workoutSportTypes`) lists only
-   * 1,2,3,4,5,6,7,8,9,10,11,13 — there is no walking or hiking workout sport type at all.
+   * 1,2,3,4,5,6,7,8,9,10,11,13 — no walking or hiking workout sport type exists.
    *
-   * Sending 17 or 18 does NOT error. Garmin accepts the POST and stores
-   * `{sportTypeId: 0, sportTypeKey: null, displayOrder: 0}` — a workout with NO sport type.
-   * Confirmed live 2026-09-23 by creating one with each helper and reading it back.
+   * Upstream python-garminconnect's `WalkingWorkout`/`HikingWorkout` send 17 and 18, which look
+   * like Garmin ACTIVITY-type ids mistaken for workout sport types. Garmin ACCEPTS those and
+   * stores `{sportTypeId: 0, sportTypeKey: null}` — a workout with no sport. This port shipped
+   * `uploadWalkingWorkout`/`uploadHikingWorkout` for a while on parity grounds and removed them
+   * on 2026-09-24: a method whose only behaviour is to create a broken record is worse than no
+   * method, and the parity argument does not survive knowing more than upstream does.
    *
-   * `uploadWalkingWorkout`/`uploadHikingWorkout` are kept for upstream parity and still send these.
-   * If you want a usable template for a walk or a hike, call `uploadWorkout` with `OTHER` (3) or
-   * `CARDIO_TRAINING` (6) instead.
+   * For a walk or hike template, use `uploadWorkout` with `OTHER` (3) or `CARDIO_TRAINING` (6).
    */
-  WALKING: 17,
-  HIKING: 18,
 } as const;
 
 /**

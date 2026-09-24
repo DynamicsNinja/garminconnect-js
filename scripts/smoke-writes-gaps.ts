@@ -14,14 +14,8 @@
  *     gotcha says these are "STILL live-verified only on their 404 path", a later one says the
  *     success path is verified. `smoke-writes.ts` only exercises the 404. This settles it with
  *     fresh evidence rather than by choosing which sentence to believe.
- *  2. setGearDefault. Three investigations have failed to make it work; it is believed dead
- *     upstream, with `setGearActivityDefaults` as the working replacement. This is a fourth
- *     attempt against REAL gear that this script creates with the activity type pre-associated —
- *     a negative result is still a result, and it is recorded as one.
- *  3. uploadWalkingWorkout / uploadHikingWorkout. Documented BROKEN: the POST succeeds and Garmin
- *     stores a null sport. A test that asserts the BREAKAGE is what stops it being "fixed" by
- *     someone who sees a 2xx and assumes it works.
- *  4. pushWorkoutToDevice. Expected to fail for want of a paired device; the probe records how far
+ *  2. setGearActivityDefaults, the working replacement for the removed `setGearDefault`.
+ *  3. pushWorkoutToDevice. Expected to fail for want of a paired device; the probe records how far
  *     the multi-step resolution chain gets before it does.
  */
 import "./load-env.js";
@@ -70,7 +64,7 @@ function describeError(e: unknown): string {
 const bare = (u: string) => u.replace(/-/g, "").toLowerCase();
 
 // =============================================================================================
-// 1 + 2. Gear: the link success path, then setGearDefault against that same real gear.
+// 1 + 2. Gear: the link success path, then defaults against that same real gear.
 // =============================================================================================
 console.log("gear association");
 const activity = await g.getLastActivity();
@@ -133,35 +127,6 @@ if (activity?.activityId === undefined) {
         stillThere ? "still linked after the remove" : "getActivityGear no longer lists it",
       );
 
-      // --- setGearDefault: attempt four, and the assertion is INVERTED ----------------------
-      // The endpoint is believed dead upstream. A probe that fails whenever reality matches the
-      // documentation is a probe that gets muted, so this asserts the FAILURE — and flips to a
-      // real failure the day Garmin revives it, which is the notification worth having.
-      //
-      // This run is the decisive one: the gear provably exists at this moment (the link above
-      // succeeded against it, and setGearActivityDefaults below reflects it in getGearDefaults),
-      // so "gear not found" cannot mean what it says.
-      for (const key of ["running", "RUNNING"]) {
-        try {
-          await g.setGearDefault(key, gearUuid, true);
-          report(
-            false,
-            `setGearDefault("${key}")`,
-            "ACCEPTED — the endpoint is NO LONGER dead. Update AGENTS.md and re-point callers.",
-          );
-        } catch (e) {
-          const msg = (e as Error).message;
-          const asDocumented = msg.includes("gear not found");
-          report(
-            asDocumented,
-            `setGearDefault("${key}")`,
-            asDocumented
-              ? "still dead as documented: 404 \"gear not found\" against gear that demonstrably exists"
-              : `failed differently than documented: ${describeError(e)}`,
-          );
-        }
-      }
-
       // --- and the working replacement, for contrast in the same run -------------------------
       try {
         await g.setGearActivityDefaults(gearUuid, ["running"]);
@@ -195,70 +160,7 @@ if (activity?.activityId === undefined) {
 }
 
 // =============================================================================================
-// 3. uploadWalkingWorkout / uploadHikingWorkout — assert the DOCUMENTED BREAKAGE.
-// =============================================================================================
-console.log("\nbroken-by-design workout helpers");
-const minimalWorkout = (name: string) => ({
-  workoutName: name,
-  estimatedDurationInSecs: 600,
-  workoutSegments: [
-    {
-      segmentOrder: 1,
-      sportType: { sportTypeId: 3, sportTypeKey: "other", displayOrder: 3 },
-      workoutSteps: [
-        {
-          type: "ExecutableStepDTO",
-          stepOrder: 1,
-          stepType: { stepTypeId: 3, stepTypeKey: "interval" },
-          endCondition: { conditionTypeId: 2, conditionTypeKey: "time" },
-          endConditionValue: 600,
-        },
-      ],
-    },
-  ],
-});
-
-for (const [label, upload] of [
-  ["uploadWalkingWorkout", (n: string) => g.uploadWalkingWorkout(minimalWorkout(n))],
-  ["uploadHikingWorkout", (n: string) => g.uploadHikingWorkout(minimalWorkout(n))],
-] as const) {
-  let id: number | undefined;
-  try {
-    const created = await upload(`[gaps] ${label} ${String(Date.now())}`);
-    id = created?.workoutId;
-    if (id === undefined) {
-      report(false, label, "upload returned no workoutId");
-      continue;
-    }
-    const stored = (await g.getWorkoutById(id)) as Doc;
-    const sport = stored["sportType"] as Doc | null;
-    const storedId = sport?.["sportTypeId"];
-    const storedKey = sport?.["sportTypeKey"];
-    // The ASSERTION IS THE BREAKAGE. If Garmin ever starts honouring these ids this fails, which
-    // is the notification we want — the row can then be corrected from BROKEN back to working.
-    const brokenAsDocumented = storedId === 0 && storedKey === null;
-    report(
-      brokenAsDocumented,
-      label,
-      brokenAsDocumented
-        ? "still BROKEN as documented: stored sportTypeId=0, sportTypeKey=null"
-        : `NO LONGER BROKEN — stored ${JSON.stringify(sport)}. Update AGENTS.md.`,
-    );
-  } catch (e) {
-    report(false, label, describeError(e));
-  } finally {
-    if (id !== undefined) {
-      try {
-        await g.deleteWorkout(id);
-      } catch {
-        console.log(`  WARN   could not delete workout ${String(id)}`);
-      }
-    }
-  }
-}
-
-// =============================================================================================
-// 4. pushWorkoutToDevice — expected to fail; the value is in WHERE it fails.
+// 3. pushWorkoutToDevice — expected to fail; the value is in WHERE it fails.
 // =============================================================================================
 console.log("\ndevice push");
 try {

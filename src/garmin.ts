@@ -378,17 +378,15 @@ export class Garmin {
     return gear.deleteGear(this, gearUUID);
   }
   /**
-   * NOT upstream parity — a working replacement for `setGearDefault`, whose upstream endpoint is
-   * dead. Uses the v2 full-record PUT Garmin's own web client uses. See `src/services/gear.ts`.
+   * NOT upstream parity — the replacement for upstream's `set_gear_default`, whose endpoint is
+   * dead and which this port therefore does NOT expose. Uses the v2 full-record PUT Garmin's own
+   * web client uses. See `src/services/gear.ts`.
    */
   setGearActivityDefaults(gearUUID: string, activityTypeKeys: string[]) {
     return gear.setGearActivityDefaults(this, gearUUID, activityTypeKeys);
   }
   getGearDefaults(userProfileNumber: number | string) {
     return gear.getGearDefaults(this, userProfileNumber);
-  }
-  setGearDefault(activityType: string, gearUUID: string, defaultGear?: boolean) {
-    return gear.setGearDefault(this, activityType, gearUUID, defaultGear);
   }
 
   // --- devices ---
@@ -576,12 +574,6 @@ export class Garmin {
   uploadSwimmingWorkout(workout: WorkoutInput) {
     return workouts.uploadSwimmingWorkout(this, workout);
   }
-  uploadWalkingWorkout(workout: WorkoutInput) {
-    return workouts.uploadWalkingWorkout(this, workout);
-  }
-  uploadHikingWorkout(workout: WorkoutInput) {
-    return workouts.uploadHikingWorkout(this, workout);
-  }
   uploadStrengthWorkout(workout: WorkoutInput) {
     return workouts.uploadStrengthWorkout(this, workout);
   }
@@ -628,9 +620,11 @@ export class Garmin {
     return womensHealth.getPregnancySummary(this);
   }
   /**
-   * Irreversible write to real health data. NOT live-verified — see the file-level comment at the
-   * top of `src/services/womensHealth.ts` for why this must never be executed against a live
-   * account.
+   * Irreversible write to real health data. Live-verified ONCE, on 2026-09-23, under the
+   * account-scoped exemption described in the file-level comment at the top of
+   * `src/services/womensHealth.ts` — which also states the default rule that still binds every
+   * other account: do not execute this against one whose data matters. There is no delete/undo
+   * endpoint for it anywhere in upstream.
    */
   updateMenstrualDailyLog(
     calendarDate: string | Date,
@@ -648,9 +642,11 @@ export class Garmin {
     return womensHealth.updateMenstrualDailyLog(this, calendarDate, options);
   }
   /**
-   * Irreversible write to real health data. NOT live-verified — see the file-level comment at the
-   * top of `src/services/womensHealth.ts` for why this must never be executed against a live
-   * account.
+   * Irreversible write to real health data. Live-verified ONCE, on 2026-09-23, under the
+   * account-scoped exemption described in the file-level comment at the top of
+   * `src/services/womensHealth.ts` — which also states the default rule that still binds every
+   * other account: do not execute this against one whose data matters. There is no delete/undo
+   * endpoint for it anywhere in upstream.
    */
   updateMenstrualCalendar(
     startdate: string | Date,
@@ -669,9 +665,11 @@ export class Garmin {
     return womensHealth.initMenstrualCycleSetup(this, periodStartDate, periodLength, cycleLength);
   }
   /**
-   * Irreversible write to real health data. NOT live-verified — see the file-level comment at the
-   * top of `src/services/womensHealth.ts` for why this must never be executed against a live
-   * account.
+   * Irreversible write to real health data. Live-verified ONCE, on 2026-09-23, under the
+   * account-scoped exemption described in the file-level comment at the top of
+   * `src/services/womensHealth.ts` — which also states the default rule that still binds every
+   * other account: do not execute this against one whose data matters. There is no delete/undo
+   * endpoint for it anywhere in upstream.
    */
   confirmMenstrualPeriodStart(
     periodStartDate: string | Date,

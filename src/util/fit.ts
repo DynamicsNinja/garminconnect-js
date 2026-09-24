@@ -16,10 +16,13 @@
  * application-level unit conversion like the one that corrupted `addWeighIn`.
  * There is no evidence upstream converts lbs<->kg anywhere in this path;
  * `weight` is assumed to already be in kilograms both in `gc.py` and here.
- * This was NOT live-verified — no FIT-upload round-trip against the test
- * account's `getBodyComposition`/`getWeighIns` was performed (see the task
- * report for why) — so whether Garmin's server actually stores the value
- * this encoder produces remains unconfirmed live, only source-verified.
+ * LIVE-VERIFIED on 2026-09-23 (this note previously said it was not): a
+ * 69.42 kg upload built by this encoder read back from `getBodyComposition`
+ * as 69.42 kg. That single round-trip proves two separate things — Garmin
+ * accepted the bytes, so the header and CRC are correct, and it parsed the
+ * value correctly, so the x100 scaling is correct. Only the read-back could
+ * distinguish the second: a wrong scale factor is accepted and misparsed
+ * silently, where a wrong CRC is rejected outright.
  */
 
 const CRC_TABLE = [

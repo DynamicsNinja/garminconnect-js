@@ -105,12 +105,16 @@ describe("AGENTS.md drift guard", () => {
     const actual = garminMethodNames().length;
     const section = agentsMd.slice(agentsMd.indexOf("## 4. These methods do NOT exist"));
 
-    // The headline claim. The connective is deliberately loose ("of" or "covering") and `\s+`
-    // rather than a literal space, because this sentence is prose-wrapped and the break lands
-    // somewhere different every time the wording changes. This guard exists to pin the FIGURE,
-    // not to dictate how the sentence reads — it has already forced one accurate edit to be
-    // reworded, and a guard that fights correct prose gets weakened or deleted.
-    const headline = /(\d+)\s+methods\s+(?:of|covering)\s+upstream/.exec(section);
+    // The headline claim: the FIRST "<N> methods" in section 4. Deliberately loose — optional
+    // bold markers, `\s+` for a prose-wrapped break — because this guard exists to pin the FIGURE,
+    // not to dictate how the sentence reads. It has now forced two accurate edits to be reworded
+    // (once when parity went from partial to complete, once when three dead methods were deleted),
+    // and a guard that fights correct prose is a guard that gets weakened or deleted. Each time it
+    // was the regex that moved, never the number.
+    //
+    // "154-method public surface" and "154 public methods" do not match: the first is singular and
+    // hyphenated, the second has a word in between. Only the real count is written "<N> methods".
+    const headline = /(\d+)\*{0,2},?\s+methods\b/.exec(section);
     expect(
       headline,
       'AGENTS.md section 4 no longer contains an "<N> methods of/covering upstream" sentence. ' +

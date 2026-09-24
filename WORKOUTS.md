@@ -58,10 +58,12 @@ buildWorkout(name, {
 `running` · `cycling` · `swimming` · `strength_training` · `cardio_training` · `hiit` · `yoga` ·
 `pilates` · `mobility` · `rucking` · `other` · `multi_sport`
 
-> **Walking and hiking are deliberately absent.** Garmin has no workout sport type for either. The
-> library's `uploadWalkingWorkout`/`uploadHikingWorkout` exist for upstream parity but store
-> `sportTypeKey: null` — a workout with no sport. For a walk or hike template, use `other` or
-> `cardio_training`.
+> **Walking and hiking are deliberately absent.** Garmin has no workout sport type for either —
+> its own enum stops at 13 and contains neither. The library used to expose
+> `uploadWalkingWorkout`/`uploadHikingWorkout` for parity with the Python original; they sent ids
+> 17 and 18, Garmin accepted the POST, and the stored workout came back with
+> `sportTypeKey: null` — no sport at all. They were removed rather than kept as a trap. For a walk
+> or hike template, use `other` or `cardio_training`.
 
 ---
 

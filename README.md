@@ -126,8 +126,8 @@ also the file an AI coding agent working against this library should read first.
 | Wellness (steps, heart rate, sleep, HRV, stress, SpO2, respiration, hydration, blood pressure, …) | 30 | yes | `setBloodPressure`/`deleteBloodPressure` round-tripped (write → read back → delete). `addHydrationData` is verified but **permanent** — Garmin exposes no delete for it |
 | Activities (list/search/detail, splits, weather, manual creation, import/upload, exercise sets, personal records) | 28 | yes | destructive writes verified by create→read-back→delete against a disposable test account; never against pre-existing data |
 | Metrics (training status, race predictions, FTP, lactate threshold, heart-rate/power zones, endurance/hill score, …) | 16 | yes | every branch, including two-branch methods like `getLactateThreshold` |
-| Workouts (CRUD, per-sport upload, scheduling, device push) | 18 | most | `uploadWalkingWorkout`/`uploadHikingWorkout` are **BROKEN by upstream parity** — Garmin stores a null sport; use `uploadWorkout` with `OTHER`. `pushWorkoutToDevice` resolves its whole chain but needs a paired device for the final POST |
-| Gear (CRUD, activity association, defaults, stats) | 11 | most | `setGearDefault`'s endpoint is **dead upstream** — four investigations, the last decisive; use `setGearActivityDefaults`. `deleteGear` is a non-parity addition |
+| Workouts (CRUD, per-sport upload, scheduling, device push) | 16 | most | no walking/hiking helpers — Garmin has no such workout sport type, so upstream's two were removed rather than kept as a trap; use `uploadWorkout` with `OTHER` (3) or `CARDIO_TRAINING` (6). `pushWorkoutToDevice` resolves its whole chain but needs a paired device for the final POST |
+| Gear (CRUD, activity association, defaults, stats) | 10 | yes | upstream's `set_gear_default` endpoint is **dead** — four investigations, the last decisive — so it is not ported; `setGearActivityDefaults` replaces it. `deleteGear` is another non-parity addition |
 | Devices | 6 | yes | closed against a real account read-only; `getDeviceSettings` returns an object of ~135 keys |
 | Badges & Challenges | 8 | yes | three endpoints reject `start=0` server-side — pass `start >= 1` |
 | Body composition & weight | 8 | yes | the hand-rolled FIT encoder is proven end-to-end: 69.42 kg uploaded as `.fit`, read back as 69.42 kg |
@@ -146,9 +146,12 @@ also the file an AI coding agent working against this library should read first.
   it against this repo's own token store would force an interactive MFA re-login, so it is
   unit-tested against `MemoryTokenStore` and a temp-dir `FileTokenStore` instead.
 
-Two rows record a **failure** rather than a gap, and are asserted as such by `npm run smoke:gaps`
-so that a change in Garmin's behaviour shows up loudly: `setGearDefault` (dead endpoint) and the
-walking/hiking workout helpers (null stored sport).
+**Three upstream methods are deliberately not ported**, because live evidence showed each can only
+produce a broken result: `upload_walking_workout` and `upload_hiking_workout` (Garmin has no such
+sport type and stores a null one) and `set_gear_default` (the endpoint is dead — it 404s against
+gear that demonstrably exists). Each is recorded with its reason in `tests/parity.test.ts`, which
+fails if a reason goes stale. Having more evidence than upstream is a reason to diverge from it,
+not to reproduce a defect faithfully.
 
 The standing rule behind all of this: a live *write* probe only runs when the value can be read
 back and the change undone, and a 2xx is never accepted as evidence on its own.

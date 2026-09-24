@@ -214,33 +214,6 @@ await probe("addGearToActivity -> getActivityGear read-back -> removeGearFromAct
 });
 
 // ---------------------------------------------------------------------------
-await probe("setGearDefault success path (previously only the 404 was verified)", async () => {
-  const gear = await g.getGear(liveProfileId);
-  const first = gear?.[0] as { uuid?: string; gearTypeName?: string } | undefined;
-  if (!first?.uuid) return { ok: false, detail: "no gear on the account" };
-
-  // Every activityType spelling tried in Task 7 404'd. Retry now that the account has real
-  // activities of known types — if it still 404s on every form, that is evidence the endpoint is
-  // broken upstream rather than a spelling problem on our side.
-  const attempts = ["running", "RUNNING", "Running"];
-  const errors: string[] = [];
-  for (const activityType of attempts) {
-    try {
-      await g.setGearDefault(activityType, first.uuid, true);
-      return { ok: true, detail: `setGearDefault succeeded with activityType="${activityType}"` };
-    } catch (e) {
-      errors.push(
-        `${activityType} -> ${e instanceof GarminHttpError ? `HTTP ${e.status}` : (e as Error).constructor.name}`,
-      );
-    }
-  }
-  return {
-    ok: false,
-    detail: `all activityType spellings rejected (${errors.join(", ")}) — matches Task 7's finding; likely broken upstream, not a spelling issue`,
-  };
-});
-
-// ---------------------------------------------------------------------------
 await probe("addBodyComposition (FIT upload) -> getBodyComposition read-back", async () => {
   // The FIT encoder's only live test. A wrong CRC or header yields a file Garmin rejects; a wrong
   // scale factor yields one it accepts and MISPARSES, which only a read-back exposes.

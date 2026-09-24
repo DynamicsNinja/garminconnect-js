@@ -89,7 +89,24 @@ const SATISFIED_UNDER_DIFFERENT_NAME: Record<string, string> = {
  * with its reason, rather than tempting whoever hits a failure here to just delete the failing row
  * from the inventory-derived list instead.
  */
-const DELIBERATE_OMISSIONS: Record<string, string> = {};
+const DELIBERATE_OMISSIONS: Record<string, string> = {
+  // Removed 2026-09-24. Upstream ships these; this port did too, on parity grounds, until live
+  // evidence showed each one can only ever produce a broken result. Parity is a means of getting
+  // the endpoint surface right, not a reason to ship a method that cannot work — and this project
+  // now knows things about these three endpoints that upstream does not.
+  upload_walking_workout:
+    "Garmin has no walking workout sport type. Upstream sends id 17 (an ACTIVITY-type id); Garmin " +
+    "accepts the POST and stores sportTypeId 0 / sportTypeKey null — a workout with no sport. " +
+    "Confirmed by read-back. Use uploadWorkout with OTHER (3) or CARDIO_TRAINING (6).",
+  upload_hiking_workout:
+    "Identical to upload_walking_workout, with id 18. Same read-back evidence, same replacement.",
+  set_gear_default:
+    "The endpoint is dead. Four investigations; the last was decisive — the same gear UUID was " +
+    "created with activityTypeKeys, linked to an activity, and defaulted via " +
+    "setGearActivityDefaults successfully, seconds apart, while set_gear_default answered 404 " +
+    "'gear not found'. Replaced by setGearActivityDefaults, which does the full-record v2 PUT " +
+    "Garmin's own web client uses.",
+};
 
 /** Own, enumerable-on-prototype, non-private instance methods of `Garmin`. Mirrors agents-md.test.ts. */
 function garminMethodNames(): Set<string> {

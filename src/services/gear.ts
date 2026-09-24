@@ -1,4 +1,4 @@
-import { GarminConnectionError, GarminError, GarminHttpError } from "../errors.js";
+import { GarminError, GarminHttpError } from "../errors.js";
 import type { GarminClient } from "../client.js";
 import { formatDate } from "../util/date.js";
 import { validateSportKey, validateUuid, pathSegment } from "../util/validate.js";
@@ -63,22 +63,22 @@ function convertMaxUsageDurationMin(min: number): number {
  * converted min -> seconds (`round(min * 60)`, must floor to >= 1). Both floors throw
  * `GarminError` (mirroring upstream's `ValueError`) rather than silently sending 0.
  *
- * **Verification status differs between the two conversions.** The distance direction is
- * live-verified by a create -> read-back round-trip (5 km sent -> `getGear`'s `maximumMeters: 5000`
- * read back, see the task-7 report). The duration direction is NOT live-verified the same way — no
- * Garmin read endpoint (`getGear`, `getGearStats`, or `createGear`'s own response) has ever been
- * observed to return a duration field at all, on any gear item created during that investigation.
- * It rests on upstream source review and the unit tests in `tests/services/gear.test.ts` alone.
+ * **BOTH conversions are live-verified**, by create -> read-back round-trip. Distance: 5 km sent
+ * read back as `getGear`'s `maximumMeters: 5000`. Duration: 90 min sent read back as
+ * `maxUsageDurationSeconds: 5400` from `/gear-service/gear/v2/{uuid}` — a record no earlier read
+ * surfaced, which is why this note used to say the duration direction was unverifiable. Neither
+ * rests on source review alone any more.
  *
-
  * `gearType`/`usageType` are normalized upper-case via `validateSportKey`, matching upstream's
- * `_validate_sport_key`. Only `gearType="SHOES"` / `usageType="DISTANCE"` are confirmed against a
- * real account per upstream's docstring; other values are unverified guesses at Garmin's
- * SCREAMING_SNAKE_CASE convention.
+ * `_validate_sport_key`. `usageType` must be one of `NONE`/`DISTANCE`/`DURATION`/`DATE`, read
+ * live from `/gear-service/gear/v2/usagetypes` — these were once "unverified guesses" here and
+ * are not any more. Note `"TIME"` is NOT valid (400 `Invalid value 'TIME' for usageType`); the
+ * duration option is spelled `DURATION`.
  *
  * `activityTypeKeys` entries are sent lower-case (matching `getActivities`' `activitytype`
- * convention), which is the opposite case convention from `setGearDefault`'s `activityType` —
- * a subtle asymmetry inherited from upstream, not a bug here.
+ * convention), which is the opposite case convention from upstream's `set_gear_default` —
+ * a subtle asymmetry inherited from upstream. That method is not ported here (its endpoint is
+ * dead); `setGearActivityDefaults` replaces it and also takes lowercase keys.
  *
  * `firstUseDate` is routed through `formatDate` per this project's date-argument rule, even
  * though it is a body field rather than a path/query segment.
@@ -158,39 +158,6 @@ export async function getGearDefaults(
 }
 
 /**
- * Upstream `set_gear_default`. The HTTP verb is chosen dynamically by `defaultGear`: `true` PUTs
- * `.../default/true`, `false` DELETEs the plain activityType path — this is NOT a fixed verb.
- * `activityType` is normalized upper-case via `validateSportKey` — the opposite case convention
- * from `createGear`'s lower-case `activityTypeKeys`, matching upstream's own asymmetry. On a 404,
- * re-raised as `GarminConnectionError` with a "gear not found (likely retired/removed)" message,
- * matching the same pattern as `addGearToActivity`/`removeGearFromActivity` in
- * `src/services/activities.ts`; other errors are re-raised as-is.
- */
-export async function setGearDefault(
-  host: GearHost,
-  activityType: string,
-  gearUUID: string,
-  defaultGear = true,
-): Promise<unknown> {
-  const type = validateSportKey(activityType);
-  const uuid = validateUuid(gearUUID);
-  const path = defaultGear
-    ? `/gear-service/gear/${pathSegment(uuid)}/activityType/${pathSegment(type)}/default/true`
-    : `/gear-service/gear/${pathSegment(uuid)}/activityType/${pathSegment(type)}`;
-  try {
-    return await host.client.connectapi(path, { method: defaultGear ? "PUT" : "DELETE" });
-  } catch (cause) {
-    if (cause instanceof GarminHttpError && cause.status === 404) {
-      throw new GarminConnectionError(
-        `Cannot set gear default for UUID ${gearUUID}: gear not found (likely retired/removed)`,
-        { cause },
-      );
-    }
-    throw cause;
-  }
-}
-
-/**
  * `DELETE /gear-service/gear/v2/{gearUUID}` — permanently removes a gear item and its activity
  * history. Resolves to `null` on success (Garmin answers 204).
  *
@@ -222,21 +189,22 @@ export async function deleteGear(host: GearHost, gearUUID: string): Promise<unkn
 }
 
 /**
- * Sets which activity types this gear is the default for — a **working replacement for
- * `setGearDefault`**, which is dead upstream.
+ * Sets which activity types this gear is the default for — the **replacement for upstream's
+ * `set_gear_default`**, whose endpoint is dead and which this port removed on 2026-09-24.
  *
- * **NOT upstream parity.** `setGearDefault` ports upstream's
- * `PUT /gear-service/gear/{uuid}/activityType/{TYPE}/default/true` faithfully, and that endpoint
- * 404s on every activityType spelling, against fresh gear and real gear alike — three separate
- * investigations (Tasks 7, the 2026-09-23 CRUD pass, and the web-client capture) all failed to make
- * it work. Watching Garmin's own client save the "Activities for This Gear" field showed why: the
+ * **NOT upstream parity.** Upstream's
+ * `PUT /gear-service/gear/{uuid}/activityType/{TYPE}/default/true` 404s on every activityType
+ * spelling, against fresh gear and real gear alike — four investigations failed to make it work,
+ * the last decisively: gear created WITH `activityTypeKeys`, linked to an activity, and defaulted
+ * through THIS function, all succeeded against the same UUID seconds before that endpoint again
+ * reported "gear not found". Watching Garmin's own client save the "Activities for This Gear" field showed why: the
  * modern mechanism is not a dedicated endpoint at all, but a full-record
  * `PUT /gear-service/gear/v2/{uuid}` carrying `associatedActivityTypes` — the same array shape
  * `createGear` already posts.
  *
  * `activityTypeKeys` are LOWERCASE (`"running"`, `"cycling"`), matching `createGear`'s convention —
- * NOT the upper-cased form `setGearDefault` sends through `validateSportKey`. That asymmetry is
- * upstream's, and it is one plausible reason the old endpoint never matched anything.
+ * NOT the upper-cased form upstream's `set_gear_default` sent through `validateSportKey`. That
+ * asymmetry is upstream's, and it is one plausible reason the old endpoint never matched.
  *
  * READ-MODIFY-WRITE: this GETs the current gear record, swaps `associatedActivityTypes` wholesale,
  * and PUTs the whole record back. Two concurrent callers can clobber each other, and any field
