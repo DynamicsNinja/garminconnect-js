@@ -12,7 +12,22 @@ export interface Badge {
   badgeTargetValue?: number;
   badgeLimitCount?: number;
   badgeEarnedNumber?: number;
+  /** Added by this library, not sent by Garmin — see `BadgeImageUrls`. */
+  badgeImageUrls?: BadgeImageUrls;
   [key: string]: unknown;
+}
+
+/**
+ * The badge's artwork. NOT part of Garmin's payload, which carries no image URL at all: this
+ * library adds it, built the way Garmin Connect's own web app builds it —
+ * `https://connect.garmin.com/images/badges/xxhdpi/badge_<badgeUuid ?? badgeId>_<sml|lrg>.png`.
+ * `badgeUuid` is set on newer challenge badges; the classic ones use `badgeId`. Public PNGs, no
+ * session needed. Live-verified 2026-09-24: all 732 URLs for one account's 23 earned and 343
+ * available badges returned 200 (`small` ~198×231, `xxhdpi`). Absent when a badge has neither id.
+ */
+export interface BadgeImageUrls {
+  small: string;
+  large: string;
 }
 
 /**
@@ -30,6 +45,8 @@ export interface RelatedBadge {
   badgeTypeIds?: number[];
   earnedByMe?: boolean;
   badgeCategoryId?: number;
+  /** Added by this library, not sent by Garmin — see `BadgeImageUrls`. */
+  badgeImageUrls?: BadgeImageUrls;
   [key: string]: unknown;
 }
 
@@ -39,11 +56,11 @@ export interface RelatedBadge {
  * earned it. The fields named here were read off a real account on 2026-09-24 (an activity badge,
  * a monthly challenge badge, and an unearned badge); the rest stay on the index signature.
  *
- * There is NO description text and NO image URL in this payload. Garmin's web app takes both from
- * elsewhere: the text from the public
+ * There is NO description text and NO image URL in Garmin's payload. This library adds the
+ * artwork as `badgeImageUrls` (here and on every `relatedBadges` entry). The text Garmin's web app
+ * takes from the public
  * `https://connect.garmin.com/web-translations/badges-list/badges-list.properties`, keyed
- * `badge_description_<badgeKey>`; the artwork from
- * `https://connect.garmin.com/images/badges/<density>/badge_<badgeUuid ?? badgeId>_<sml|lrg>.png`.
+ * `badge_description_<badgeKey>`.
  */
 export interface BadgeDetail extends Badge {
   badgeKey?: string;

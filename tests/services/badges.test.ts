@@ -7,6 +7,12 @@ import { GarminError } from "../../src/errors.js";
 import type { Tokens } from "../../src/auth/tokens.js";
 
 const API = "https://connectapi.garmin.com";
+const IMAGES = "https://connect.garmin.com/images/badges/xxhdpi";
+
+/** The `badgeImageUrls` this library adds to a badge keyed by `key` (its badgeUuid or badgeId). */
+function img(key: string | number) {
+  return { badgeImageUrls: { small: `${IMAGES}/badge_${key}_sml.png`, large: `${IMAGES}/badge_${key}_lrg.png` } };
+}
 const seen: { url: string; method: string }[] = [];
 
 function record(request: Request) {
@@ -93,12 +99,33 @@ afterEach(() => {
 });
 
 describe("badges", () => {
-  it("getEarnedBadges composes the exact URL and passes the array through", async () => {
+  it("getEarnedBadges composes the exact URL and passes the array through, plus badgeImageUrls", async () => {
     const g = makeGarmin();
     const result = await g.getEarnedBadges();
     expect(seen[0]!.url).toBe(`${API}/badge-service/badge/earned`);
     expect(seen[0]!.method).toBe("GET");
-    expect(result).toEqual([{ badgeId: 1, badgeName: "earned-1" }]);
+    expect(result).toEqual([{ badgeId: 1, badgeName: "earned-1", ...img(1) }]);
+  });
+
+  it("badgeImageUrls prefers badgeUuid, and is left off when there is no usable id", async () => {
+    server.use(
+      http.get(`${API}/badge-service/badge/earned`, () =>
+        HttpResponse.json([
+          { badgeId: 3212, badgeUuid: "150F997CE80144F3AC895A8EA85655AD" },
+          { badgeId: 74, badgeUuid: null },
+          { badgeName: "no id at all" },
+          { badgeId: 5, badgeUuid: "../../evil" },
+        ]),
+      ),
+    );
+    const result = await makeGarmin().getEarnedBadges();
+    expect(result).toEqual([
+      { badgeId: 3212, badgeUuid: "150F997CE80144F3AC895A8EA85655AD", ...img("150F997CE80144F3AC895A8EA85655AD") },
+      { badgeId: 74, badgeUuid: null, ...img(74) },
+      { badgeName: "no id at all" },
+      // A uuid that isn't plain alphanumeric is never interpolated into a URL.
+      { badgeId: 5, badgeUuid: "../../evil" },
+    ]);
   });
 
   it("getEarnedBadges stays null (not coalesced to []) on an empty body", async () => {
@@ -116,6 +143,8 @@ describe("badges", () => {
     expect(seen[0]!.method).toBe("GET");
     expect(result?.badgeKey).toBe("run_5km");
     expect(result?.relatedBadges?.[0]?.badgeKey).toBe("run_1mile");
+    expect(result?.badgeImageUrls).toEqual(img(74).badgeImageUrls);
+    expect(result?.relatedBadges?.[0]?.badgeImageUrls).toEqual(img(73).badgeImageUrls);
   });
 
   it("getBadgeDetail rejects a non-positive or non-integer id before any request", async () => {
@@ -130,7 +159,7 @@ describe("badges", () => {
     const g = makeGarmin();
     const result = await g.getAvailableBadges();
     expect(seen[0]!.url).toBe(`${API}/badge-service/badge/available?showExclusiveBadge=true`);
-    expect(result).toEqual([{ badgeId: 2, badgeName: "available-1" }]);
+    expect(result).toEqual([{ badgeId: 2, badgeName: "available-1", ...img(2) }]);
   });
 
   it("getAvailableBadges stays null (not coalesced to []) on an empty body", async () => {
@@ -186,7 +215,7 @@ describe("badges", () => {
       );
       const g = makeGarmin();
       const result = await g.getInProgressBadges();
-      expect(result).toEqual([{ badgeId: 1, badgeProgressValue: 5, badgeTargetValue: 10 }]);
+      expect(result).toEqual([{ badgeId: 1, badgeProgressValue: 5, badgeTargetValue: 10, ...img(1) }]);
     });
 
     it("excludes a badge that reached its target with no badgeLimitCount", async () => {
@@ -219,7 +248,7 @@ describe("badges", () => {
       const g = makeGarmin();
       const result = await g.getInProgressBadges();
       expect(result).toEqual([
-        { badgeId: 1, badgeProgressValue: 10, badgeTargetValue: 10, badgeLimitCount: 3, badgeEarnedNumber: 1 },
+        { badgeId: 1, badgeProgressValue: 10, badgeTargetValue: 10, badgeLimitCount: 3, badgeEarnedNumber: 1, ...img(1) },
       ]);
     });
 
@@ -261,8 +290,8 @@ describe("badges", () => {
       // re-set, so badgeId 1 stays first (with its value updated to the "available" entry) and
       // badgeId 2 stays second — matching upstream's `combined.update(...)` dict semantics.
       expect(result).toEqual([
-        { badgeId: 1, badgeProgressValue: 8, badgeTargetValue: 10, source: "available" },
-        { badgeId: 2, badgeProgressValue: 3, badgeTargetValue: 10, source: "earned" },
+        { badgeId: 1, badgeProgressValue: 8, badgeTargetValue: 10, source: "available", ...img(1) },
+        { badgeId: 2, badgeProgressValue: 3, badgeTargetValue: 10, source: "earned", ...img(2) },
       ]);
     });
 

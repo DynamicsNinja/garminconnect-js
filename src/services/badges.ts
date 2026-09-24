@@ -5,6 +5,7 @@ import type {
   Badge,
   BadgeChallenge,
   BadgeDetail,
+  BadgeImageUrls,
   InprogressVirtualChallenge,
   NonCompletedBadgeChallenge,
 } from "../types/badges.js";
@@ -14,27 +15,65 @@ export interface BadgesHost {
   readonly client: GarminClient;
 }
 
-/** Upstream `get_earned_badges`. Passes through unchecked — stays nullable, not coalesced. */
-export async function getEarnedBadges(host: BadgesHost): Promise<Badge[] | null> {
-  return host.client.connectapi<Badge[]>("/badge-service/badge/earned");
+const BADGE_IMAGES = "https://connect.garmin.com/images/badges/xxhdpi";
+
+/**
+ * Garmin sends no image URL; its web app builds one from `badgeUuid` (newer challenge badges) or
+ * `badgeId`. Same here, both sizes. A key that isn't plain alphanumeric is refused rather than
+ * interpolated into a URL.
+ */
+function imageUrls(badge: { badgeId?: unknown; badgeUuid?: unknown }): BadgeImageUrls | undefined {
+  const uuid = typeof badge.badgeUuid === "string" ? badge.badgeUuid : "";
+  const id = typeof badge.badgeId === "number" && Number.isInteger(badge.badgeId) ? String(badge.badgeId) : "";
+  const key = uuid || id;
+  if (!/^[A-Za-z0-9]+$/.test(key)) return undefined;
+  return { small: `${BADGE_IMAGES}/badge_${key}_sml.png`, large: `${BADGE_IMAGES}/badge_${key}_lrg.png` };
 }
 
-/** Upstream `get_available_badges`. Passes through unchecked — stays nullable, not coalesced. */
+/** Returns a copy with `badgeImageUrls` set, or the badge unchanged when there is no id. */
+function withImageUrls<T extends { badgeId?: unknown; badgeUuid?: unknown }>(badge: T): T {
+  if (!badge || typeof badge !== "object") return badge;
+  const urls = imageUrls(badge);
+  return urls ? { ...badge, badgeImageUrls: urls } : badge;
+}
+
+function listWithImageUrls(badges: Badge[] | null): Badge[] | null {
+  return Array.isArray(badges) ? badges.map(withImageUrls) : badges;
+}
+
+/**
+ * Upstream `get_earned_badges`. Stays nullable, not coalesced. Each badge gains `badgeImageUrls`,
+ * which Garmin does not send; everything else passes through unchanged.
+ */
+export async function getEarnedBadges(host: BadgesHost): Promise<Badge[] | null> {
+  return listWithImageUrls(await host.client.connectapi<Badge[]>("/badge-service/badge/earned"));
+}
+
+/**
+ * Upstream `get_available_badges`. Stays nullable, not coalesced. Each badge gains
+ * `badgeImageUrls`, which Garmin does not send; everything else passes through unchanged.
+ */
 export async function getAvailableBadges(host: BadgesHost): Promise<Badge[] | null> {
-  return host.client.connectapi<Badge[]>("/badge-service/badge/available", {
-    params: { showExclusiveBadge: "true" },
-  });
+  return listWithImageUrls(
+    await host.client.connectapi<Badge[]>("/badge-service/badge/available", {
+      params: { showExclusiveBadge: "true" },
+    }),
+  );
 }
 
 /**
  * NOT upstream parity: upstream has no per-badge call. `GET /badge-service/badge/detail/v3/{id}`
  * is what Garmin Connect's web app requests when a badge is opened (it adds
  * `followingLimit=7`, which only caps `followings` and is left out here). Works for badges the
- * caller has not earned. An unknown id is a 400 `GarminHttpError` from Garmin, not a 404.
+ * caller has not earned. An unknown id is a 400 `GarminHttpError` from Garmin, not a 404. The badge
+ * and each of its `relatedBadges` gain `badgeImageUrls`, which Garmin does not send.
  */
 export async function getBadgeDetail(host: BadgesHost, badgeId: number): Promise<BadgeDetail | null> {
   const id = validatePositiveInteger(badgeId, "badgeId");
-  return host.client.connectapi<BadgeDetail>(`/badge-service/badge/detail/v3/${id}`);
+  const detail = await host.client.connectapi<BadgeDetail>(`/badge-service/badge/detail/v3/${id}`);
+  if (!detail || typeof detail !== "object") return detail;
+  const related = Array.isArray(detail.relatedBadges) ? detail.relatedBadges.map(withImageUrls) : detail.relatedBadges;
+  return { ...withImageUrls(detail), relatedBadges: related };
 }
 
 /**

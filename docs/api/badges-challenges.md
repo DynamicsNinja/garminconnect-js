@@ -89,10 +89,11 @@ An array of `Badge`:
 | `badgeTargetValue` | `number` | no |
 | `badgeLimitCount` | `number` | no |
 | `badgeEarnedNumber` | `number` | no |
+| `badgeImageUrls` | `BadgeImageUrls` | no |
 
 Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
 
-GETs `/badge-service/badge/available?showExclusiveBadge=true`; passes through unchecked, stays nullable
+GETs `/badge-service/badge/available?showExclusiveBadge=true`; same `badgeImageUrls` as `getEarnedBadges`; stays nullable
 
 Verification: ✅ live-verified
 
@@ -128,7 +129,7 @@ const result = await garmin.getBadgeDetail(activityId);
 
 `BadgeDetail`
 
-**NOT upstream parity** (upstream has no per-badge call). GETs `/badge-service/badge/detail/v3/{badgeId}`, the request Garmin Connect's web app makes when a badge is opened; `badgeId` validated as a positive integer. Returns an OBJECT: the `getEarnedBadges` fields plus `relatedBadges` (the rest of the series, each with `earnedByMe`), `badgeAssocType`/`badgeAssocDataId`/`badgeAssocDataName` (for `"activityId"`, the activity that earned it) and `followings`. Works for unearned badges. An unknown id is a **400** `GarminHttpError`, not a 404. Carries no description text or image URL — see the `BadgeDetail` type for where Garmin's web app gets those
+**NOT upstream parity** (upstream has no per-badge call). GETs `/badge-service/badge/detail/v3/{badgeId}`, the request Garmin Connect's web app makes when a badge is opened; `badgeId` validated as a positive integer. Returns an OBJECT: the `getEarnedBadges` fields plus `relatedBadges` (the rest of the series, each with `earnedByMe`), `badgeAssocType`/`badgeAssocDataId`/`badgeAssocDataName` (for `"activityId"`, the activity that earned it) and `followings`. Works for unearned badges. An unknown id is a **400** `GarminHttpError`, not a 404. The badge and each `relatedBadges` entry gain `badgeImageUrls` (see `getEarnedBadges`). Carries no description text — see the `BadgeDetail` type for where Garmin's web app gets it
 
 Verification: ✅ live-verified
 
@@ -153,10 +154,11 @@ An array of `Badge`:
 | `badgeTargetValue` | `number` | no |
 | `badgeLimitCount` | `number` | no |
 | `badgeEarnedNumber` | `number` | no |
+| `badgeImageUrls` | `BadgeImageUrls` | no |
 
 Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
 
-GETs `/badge-service/badge/earned`; passes through unchecked, stays nullable (does NOT coalesce to `[]`)
+GETs `/badge-service/badge/earned`; each badge gains `badgeImageUrls: { small, large }`, added by this library (Garmin sends no image URL): `https://connect.garmin.com/images/badges/xxhdpi/badge_<badgeUuid ?? badgeId>_sml.png` (`_lrg.png` for `large`), the URL Garmin Connect's web app builds; public, no session. Every other field passes through unchanged; stays nullable (does NOT coalesce to `[]`)
 
 Verification: ✅ live-verified
 
@@ -181,10 +183,11 @@ An array of `Badge`:
 | `badgeTargetValue` | `number` | no |
 | `badgeLimitCount` | `number` | no |
 | `badgeEarnedNumber` | `number` | no |
+| `badgeImageUrls` | `BadgeImageUrls` | no |
 
 Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
 
-no HTTP path of its own: calls `getEarnedBadges()` and `getAvailableBadges()`, filters each with upstream's `is_badge_in_progress` predicate (progress truthy; if `progress === target`, only "in progress" when `badgeLimitCount` is set and `badgeEarnedNumber < badgeLimitCount`), then merges both filtered lists into a `Map` keyed by `badgeId` (available overwrites earned on collision, same key-position semantics as Python's `dict.update`); never raises — a `null` from either upstream call is treated as `[]`
+no HTTP path of its own: calls `getEarnedBadges()` and `getAvailableBadges()`, filters each with upstream's `is_badge_in_progress` predicate (progress truthy; if `progress === target`, only "in progress" when `badgeLimitCount` is set and `badgeEarnedNumber < badgeLimitCount`), then merges both filtered lists into a `Map` keyed by `badgeId` (available overwrites earned on collision, same key-position semantics as Python's `dict.update`); never raises — a `null` from either upstream call is treated as `[]`. Badges carry `badgeImageUrls` (inherited from the two calls)
 
 Verification: ✅ live-verified
 

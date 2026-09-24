@@ -6,6 +6,22 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-09-24
+
+### Added
+
+- **Badge artwork URLs.** Every badge returned by `getEarnedBadges`, `getAvailableBadges`,
+  `getInProgressBadges` and `getBadgeDetail` (including each of its `relatedBadges`) now carries
+  `badgeImageUrls: { small, large }`. Garmin sends no image URL; these are built the way Garmin
+  Connect's web app builds them, from `badgeUuid` or else `badgeId`, and point at public PNGs.
+  Live-verified: all 732 URLs for 366 badges on a real account loaded. New exported type
+  `BadgeImageUrls`.
+
+### Changed
+
+- Those four methods now return copies of Garmin's badge objects with that one field added,
+  rather than the parsed response untouched. No existing field changes.
+
 ## [0.4.0] — 2026-09-24
 
 ### Added
@@ -116,7 +132,8 @@ a broken result. Each is recorded with its reason in `tests/parity.test.ts`.
 - `@types/node` is an optional peer dependency — needed only for type-checking against the
   `Buffer` return types, and not installed into consumers' projects automatically.
 
-[Unreleased]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.2.0...v0.3.0
