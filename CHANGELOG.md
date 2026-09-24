@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-09-24
+
 ### Added
 
 - **Courses**, eight methods with no python-garminconnect equivalent: `listCourses`, `getCourse`,
@@ -75,5 +77,6 @@ a broken result. Each is recorded with its reason in `tests/parity.test.ts`.
 - `@types/node` is an optional peer dependency — needed only for type-checking against the
   `Buffer` return types, and not installed into consumers' projects automatically.
 
-[Unreleased]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/DynamicsNinja/garminconnect-js/releases/tag/v0.1.0
