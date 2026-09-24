@@ -50,7 +50,11 @@ const server = setupServer(
     seen.push({
       url: request.url,
       method: request.method,
-      file: file instanceof File ? { name: file.name, field: "file" } : undefined,
+      // Duck-typed, not `instanceof File`: `File` is not a global on Node 18, which CI still runs.
+      file:
+        file !== null && typeof file === "object" && "name" in file
+          ? { name: String(file.name), field: "file" }
+          : undefined,
     });
     return HttpResponse.json(PARSED);
   }),
