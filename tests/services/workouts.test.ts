@@ -499,6 +499,55 @@ describe("workouts service", () => {
     ]);
   });
 
+  it("pushWorkoutToDevice returns an ARRAY of device messages, not a workout", async () => {
+    // Live-verified 2026-09-24 against a real account with a paired Forerunner. This was declared
+    // `WorkoutRecord | null` for the whole life of the project and was wrong twice over — the
+    // response is an array, and its rows are device-messaging records. Nothing caught it because
+    // the final POST had never successfully run: the test account has no paired device, so the
+    // call always failed before it could return anything to be typed wrongly.
+    server.use(
+      http.post(`${API}/device-service/devicemessage/messages`, () =>
+        HttpResponse.json([
+          {
+            messageId: 209338220732,
+            messageType: "workouts",
+            messageStatus: "new",
+            deviceId: 42,
+            deviceName: "Forerunner 255",
+            fileType: "FIT",
+            messageUrl: "workout-service/workout/FIT/123",
+            messageName: "Fetched",
+            priority: 1,
+            metaDataId: 123,
+            wifiSetup: false,
+            hidden: false,
+            applicationKey: null,
+            firmwareVersion: null,
+            deviceXmlDataType: null,
+            createdTimeStamp: null,
+            updatedTimeStamp: null,
+            uniqueIdentifier: null,
+            groupName: null,
+            appDetails: null,
+          },
+        ]),
+      ),
+    );
+    const messages = await makeGarmin().pushWorkoutToDevice(123, 42);
+    expect(Array.isArray(messages)).toBe(true);
+    expect(messages?.[0]?.messageType).toBe("workouts");
+    expect(messages?.[0]?.deviceId).toBe(42);
+  });
+
+  it("pushWorkoutToDevice passes an empty array through — a repeat push is already queued", async () => {
+    // Pushing the SAME workout a second time returns []. Observed live; it must not be coerced
+    // into null or an error, because "already queued" is a success, not a failure.
+    server.use(
+      http.post(`${API}/device-service/devicemessage/messages`, () => HttpResponse.json([])),
+    );
+    await expect(makeGarmin().pushWorkoutToDevice(123, 42)).resolves.toEqual([]);
+  });
+
   it("pushWorkoutToDevice resolves a missing deviceId via getDeviceLastUsed's userDeviceId", async () => {
     const g = makeGarmin();
     await g.pushWorkoutToDevice(123);

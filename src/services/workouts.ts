@@ -9,6 +9,7 @@ import {
   type CalendarMonth,
   type WorkoutInput,
   type WorkoutRecord,
+  type DeviceMessage,
 } from "../types/workouts.js";
 
 export interface WorkoutsHost {
@@ -312,13 +313,17 @@ export async function uploadStrengthWorkout(
  * `workoutName`. `messageUrl` is the literal relative string upstream sends
  * (no leading slash), NOT an absolute path.
  *
- * UNCERTAIN (inventory): no explicit null handling on the final POST.
+ * Returns the queued device messages — an ARRAY of `DeviceMessage`, live-verified 2026-09-24
+ * against a real account with a paired device. It was declared `WorkoutRecord | null` until then,
+ * which was wrong twice over (an array, and of a different record type); nothing caught it because
+ * the final POST had never successfully run. Pushing the same workout twice returns `[]` the
+ * second time — the message is already queued.
  */
 export async function pushWorkoutToDevice(
   host: WorkoutsHost,
   workoutId?: number | string,
   deviceId?: number | string,
-): Promise<WorkoutRecord | null> {
+): Promise<DeviceMessage[] | null> {
   const resolvedDeviceId = deviceId ?? (await resolveLastUsedDeviceId(host));
   const resolvedWorkoutId = workoutId ?? (await resolveFirstWorkoutId(host));
 
@@ -330,7 +335,7 @@ export async function pushWorkoutToDevice(
     );
   }
 
-  return host.client.connectapi<WorkoutRecord>("/device-service/devicemessage/messages", {
+  return host.client.connectapi<DeviceMessage[]>("/device-service/devicemessage/messages", {
     method: "POST",
     json: [
       {

@@ -353,3 +353,38 @@ export interface CalendarMonth {
   calendarItems?: CalendarItem[];
   [key: string]: unknown;
 }
+
+/**
+ * One queued device message, as returned by `pushWorkoutToDevice`.
+ *
+ * Shape read live on 2026-09-24 from a real account with a paired Forerunner. The method's return
+ * type used to be `WorkoutRecord | null`, which was wrong in two ways at once: the response is an
+ * ARRAY, and its rows are device-messaging records, not workouts. Nothing caught it because the
+ * final POST had never run — the test account has no device, so the call always failed before
+ * returning. This is the same "declared shape was never observed" class as the seven inventory
+ * rows labelled `dict` that turned out to be arrays.
+ *
+ * Pushing the SAME workout again returns `[]`: the message is already queued for that device.
+ */
+export interface DeviceMessage {
+  messageId: number;
+  messageType: string;
+  messageStatus: string;
+  deviceId: number;
+  deviceName: string;
+  fileType: string;
+  messageUrl: string;
+  messageName: string;
+  priority: number;
+  metaDataId: number;
+  wifiSetup: boolean;
+  hidden: boolean;
+  applicationKey: string | null;
+  firmwareVersion: string | null;
+  deviceXmlDataType: string | null;
+  createdTimeStamp: string | null;
+  updatedTimeStamp: string | null;
+  uniqueIdentifier: string | null;
+  groupName: string | null;
+  appDetails: unknown;
+}

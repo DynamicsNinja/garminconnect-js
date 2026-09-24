@@ -126,7 +126,7 @@ also the file an AI coding agent working against this library should read first.
 | Wellness (steps, heart rate, sleep, HRV, stress, SpO2, respiration, hydration, blood pressure, …) | 30 | yes | `setBloodPressure`/`deleteBloodPressure` round-tripped (write → read back → delete). `addHydrationData` is verified but **permanent** — Garmin exposes no delete for it |
 | Activities (list/search/detail, splits, weather, manual creation, import/upload, exercise sets, personal records) | 28 | yes | destructive writes verified by create→read-back→delete against a disposable test account; never against pre-existing data |
 | Metrics (training status, race predictions, FTP, lactate threshold, heart-rate/power zones, endurance/hill score, …) | 16 | yes | every branch, including two-branch methods like `getLactateThreshold` |
-| Workouts (CRUD, per-sport upload, scheduling, device push) | 16 | most | no walking/hiking helpers — Garmin has no such workout sport type, so upstream's two were removed rather than kept as a trap; use `uploadWorkout` with `OTHER` (3) or `CARDIO_TRAINING` (6). `pushWorkoutToDevice` resolves its whole chain but needs a paired device for the final POST |
+| Workouts (CRUD, per-sport upload, scheduling, device push) | 16 | yes | no walking/hiking helpers — Garmin has no such workout sport type, so upstream's two were removed rather than kept as a trap; use `uploadWorkout` with `OTHER` (3) or `CARDIO_TRAINING` (6) |
 | Gear (CRUD, activity association, defaults, stats) | 10 | yes | upstream's `set_gear_default` endpoint is **dead** — four investigations, the last decisive — so it is not ported; `setGearActivityDefaults` replaces it. `deleteGear` is another non-parity addition |
 | Devices | 6 | yes | closed against a real account read-only; `getDeviceSettings` returns an object of ~135 keys |
 | Badges & Challenges | 8 | yes | three endpoints reject `start=0` server-side — pass `start >= 1` |
@@ -135,13 +135,11 @@ also the file an AI coding agent working against this library should read first.
 | Golf | 5 | partial | `getGolfScorecard`/`getGolfShotData` response shapes are still unverified — neither available account has a recorded round |
 | User profile, goals, nutrition, training plans, misc (lifestyle log, reload request, GraphQL passthrough, logout) | 15 | most | `getTrainingPlanById` needs a PHASED plan (a Garmin Coach plan is STATIC); `logout()` makes no HTTP call |
 
-**What is still unverified, and why** — three things, each for a reason no amount of probing fixes:
+**What is still unverified, and why** — two things, each for a reason no amount of probing fixes:
 
 - `getGolfScorecard` / `getGolfShotData` response shapes — no account available has played a round.
   `getGolfShotData` also returns an unexplained **410** against a fabricated id, and one real
   scorecard would settle whether upstream's path is dead.
-- `pushWorkoutToDevice`'s final POST — needs a paired device on a *disposable* account. The chain
-  before it is exercised; it ends in `404 "Device id 0 is not registered."`
 - `logout()` — it makes no HTTP call at all, so there is nothing to verify against Garmin. Running
   it against this repo's own token store would force an interactive MFA re-login, so it is
   unit-tested against `MemoryTokenStore` and a temp-dir `FileTokenStore` instead.
