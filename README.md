@@ -146,12 +146,15 @@ Login follows Garmin's SSO flow, the same one `garth` and python-garminconnect u
 `GarminClient.login(email, password)` exchanges credentials for an OAuth1 token, then exchanges
 that for a short-lived OAuth2 access token. Both are handed to your `TokenStore`.
 
-- **Rate-limited sign-in.** Garmin rate limits the mobile sign-in step (`/mobile/api/login`),
-  per client id and source IP, often after one or two sign-ins. When that step answers 429,
-  `login()` signs in once more through Garmin's SSO web widget (`/sso/embed` + `/sso/signin`),
-  which sends no client id, and returns the same tokens. If the widget is rate limited too,
-  `GarminRateLimitError` names the widget URL. Tokens refresh for about 30 days without signing
-  in, so keep them in a `TokenStore` rather than signing in again.
+- **Rate-limited sign-in.** Garmin rate limits the mobile sign-in route, per client id and
+  source IP, often after one or two sign-ins. When the mobile sign-in page or `/mobile/api/login`
+  answers HTTP 429, or `/mobile/api/login` reports a 429 inside a 200 JSON reply, `login()` signs
+  in once more through Garmin's SSO web widget (`/sso/embed` + `/sso/signin`), which sends no
+  client id, and returns the same tokens. If the widget is rate limited too,
+  `GarminRateLimitError` names the widget URL; other widget failures start with
+  `Mobile login rate limited; `, and a rejected password keeps its `SSO error:` prefix. Tokens
+  refresh for about 30 days without signing in, so keep them in a `TokenStore` rather than
+  signing in again.
 - **Where tokens are stored:** wherever your `TokenStore` puts them. `FileTokenStore` writes
   `oauth1_token.json` and `oauth2_token.json` to a directory you choose (`./tokens` in the
   examples above), using garth's on-disk format — tokens produced by Python `garth` load here
@@ -216,8 +219,8 @@ to the session that started the login, and delete it once used. The MFA path is 
 `npm run login` (see [See it run](#-see-it-run)) as well as unit-tested.
 
 `mfaState.flow` says which sign-in route produced it: `"mobile"` (the default; states saved by
-0.1.0 or 0.2.0 have no `flow` and count as mobile) or `"widget"`. A widget state also holds the page's
-CSRF token and form parameters. Pass either kind straight back to `resumeLogin`; read
+0.1.0 or 0.2.0 have no `flow` and count as mobile) or `"widget"`. A widget state also holds the
+page's CSRF token and form parameters. Pass either kind straight back to `resumeLogin`; read
 `loginParams` only after checking `flow !== "widget"`.
 
 ## 💻 Code examples
@@ -591,7 +594,7 @@ Goodbye.
 npm test
 ```
 
-672 tests across 47 files, all against mocked HTTP (via `msw`) — no network access and no
+679 tests across 47 files, all against mocked HTTP (via `msw`) — no network access and no
 credentials required. Covers auth/SSO/MFA, token storage and refresh, the HTTP fetcher's retry
 and error handling, every service method, and the public build output.
 

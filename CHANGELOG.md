@@ -10,10 +10,13 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
-- **Widget sign-in fallback.** When Garmin rate limits the mobile SSO login (HTTP 429 on
+- **Widget sign-in fallback.** When Garmin rate limits the mobile SSO login (HTTP 429 on the
+  mobile sign-in page or on `/mobile/api/login`, or a 429 inside a 200 JSON reply from
   `/mobile/api/login`), `login()` signs in through the SSO web widget instead and returns the same
-  tokens. The verification-code step works on this path too. New option
-  `GarminClientOptions.loginDelayMs` (pause before the widget's credential POST; default 3–8 s).
+  tokens. The verification-code step works on this path too. Widget failures other than a
+  rejected password (`SSO error: ...`) or a rate limit start with `Mobile login rate limited; `.
+  New option `GarminClientOptions.loginDelayMs` (pause before the widget's credential POST;
+  default 3–8 s).
 
 ### Changed
 
