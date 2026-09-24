@@ -134,6 +134,27 @@ describe("logout", () => {
     expect(await store.load()).toBeNull();
   });
 
+  it("does NOT clear the calling client's in-memory tokens — the documented trap", async () => {
+    // AGENTS.md warns that a process which calls logout() and keeps using the SAME GarminClient
+    // goes on succeeding until the access token ages out (~27h), because logout only empties the
+    // TokenStore. That is a real behavioural claim and nothing pinned it: if someone later makes
+    // logout clear the instance too, the warning becomes wrong silently and callers who relied on
+    // it are none the wiser. Asserted here so the doc and the code have to move together.
+    const store = new MemoryTokenStore();
+    await store.save(tokens);
+    const client = new GarminClient({ tokenStore: store });
+    client.setTokens(tokens);
+    const garmin = new Garmin(client);
+
+    await garmin.logout();
+
+    expect(await store.load(), "the store is emptied").toBeNull();
+    expect(
+      client.getTokens(),
+      "but the instance keeps its tokens — discard the client after logout()",
+    ).not.toBeNull();
+  });
+
   it("clears a FileTokenStore (on-disk tokens are actually deleted)", async () => {
     const dir = await mkdtemp(join(tmpdir(), "garmin-logout-test-"));
     try {

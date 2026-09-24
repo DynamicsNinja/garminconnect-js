@@ -160,7 +160,40 @@ if (activity?.activityId === undefined) {
 }
 
 // =============================================================================================
-// 3. pushWorkoutToDevice — expected to fail; the value is in WHERE it fails.
+// 3. getTrainingPlanById — needs a PHASED plan, which only enrolling one can produce.
+// =============================================================================================
+// `/trainingplan-service/trainingplan/plans` returns only the account's OWN enrolled plans; it
+// cannot browse Garmin's catalogue (probed with and without owner/paging params, all return just
+// the enrolled list). So there is no API route to a phased plan — one has to be enrolled through
+// Garmin Connect's UI. This probe is here so that the moment one is, verification is this command
+// rather than a fresh investigation.
+console.log("\ntraining plans");
+const plans = (await g.getTrainingPlans()) as {
+  trainingPlanList?: { trainingPlanId?: number; trainingPlanCategory?: string }[];
+} | null;
+const enrolled = plans?.trainingPlanList ?? [];
+const phased = enrolled.find((p) => p.trainingPlanCategory === "PHASED");
+if (phased?.trainingPlanId === undefined) {
+  const cats = enrolled.map((p) => String(p.trainingPlanCategory)).join(", ") || "none enrolled";
+  console.log(
+    `  SKIP  ${"getTrainingPlanById".padEnd(38)} no PHASED plan (${cats}). ` +
+      "Enrol a non-Garmin-Coach plan in Training & Planning, then re-run.",
+  );
+} else {
+  try {
+    const detail = await g.getTrainingPlanById(phased.trainingPlanId);
+    report(
+      detail !== null,
+      "getTrainingPlanById (PHASED)",
+      `${String(Object.keys(detail ?? {}).length)} keys`,
+    );
+  } catch (e) {
+    report(false, "getTrainingPlanById (PHASED)", describeError(e));
+  }
+}
+
+// =============================================================================================
+// 4. pushWorkoutToDevice — expected to fail; the value is in WHERE it fails.
 // =============================================================================================
 console.log("\ndevice push");
 try {
