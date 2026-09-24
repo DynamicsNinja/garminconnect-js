@@ -67,6 +67,24 @@ describe("createReadOnlyFetch", () => {
     ).rejects.toThrow(/^(?!.*SECRET-TICKET).*$/s);
   });
 
+  it("audits what it actually sent, so the read-only claim is evidence not assertion", async () => {
+    const inner = vi.fn(ok);
+    const f = createReadOnlyFetch(inner as unknown as typeof fetch);
+    await f("https://connectapi.garmin.com/a");
+    await f("https://connectapi.garmin.com/b");
+    await f("https://connectapi.garmin.com/oauth-service/oauth/exchange/user/2.0", {
+      method: "POST",
+    });
+    await f("https://connectapi.garmin.com/c", { method: "DELETE" }).catch(() => undefined);
+
+    // The refresh POST is counted under its own label: if it were folded into "GET", a genuine
+    // write to that path would be invisible in the audit — the one place it must not be.
+    expect(f.audit()).toEqual({
+      sent: { GET: 2, "POST (oauth refresh)": 1 },
+      refused: 1,
+    });
+  });
+
   it("blocks a write issued through a real GarminClient, not just a bare fetch", async () => {
     const inner = vi.fn(ok);
     const client = new GarminClient({

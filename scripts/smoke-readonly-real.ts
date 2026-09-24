@@ -31,9 +31,10 @@ import { createReadOnlyFetch } from "./readonly-fetch.js";
 
 const TOKEN_DIR = "./tokens-real";
 
+const transport = createReadOnlyFetch();
 const client = new GarminClient({
   tokenStore: new FileTokenStore(TOKEN_DIR),
-  fetchImpl: createReadOnlyFetch(),
+  fetchImpl: transport,
   // `retries: 0` for two reasons. A read-only sweep of someone's real account has no business
   // hammering Garmin. And the transport treats the read-only refusal as a network error — it is
   // thrown from `fetch` — so with the default retries a mistakenly-added write is attempted four
@@ -211,3 +212,11 @@ console.log(
   `\n${String(pass)} ok, ${String(fail)} failed, ${String(skip)} skipped. ` +
     "Shapes only — no field values were printed.",
 );
+
+// The read-only claim as EVIDENCE rather than assertion: every request this process actually
+// sent, counted by method. Anything here other than GET and the OAuth refresh is a defect.
+const { sent, refused } = transport.audit();
+const summary = Object.entries(sent)
+  .map(([m, n]) => `${m}=${String(n)}`)
+  .join(", ");
+console.log(`Requests sent: ${summary}. Refused as writes: ${String(refused)}.`);

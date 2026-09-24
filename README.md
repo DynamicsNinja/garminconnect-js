@@ -30,7 +30,9 @@ a parity test asserts it. But it is no longer only a port:
   actually return.
 - **A `Live-verified` column** on every method in [`AGENTS.md`](AGENTS.md), and honest `no` /
   `partially` / `BROKEN` entries where that is the truth. A 2xx from a write proves nothing here
-  — the stored value gets read back.
+  — the stored value gets read back. Where a dedicated test account cannot produce the data at all
+  (paired devices, personal records, health snapshots), `npm run smoke:real` closes the gap
+  read-only, on a transport that refuses any non-GET request and reports what it sent.
 
 Where behaviour diverges from upstream deliberately, it is marked at the source and in
 `AGENTS.md`. Attribution for the original projects is in [`NOTICE`](NOTICE).

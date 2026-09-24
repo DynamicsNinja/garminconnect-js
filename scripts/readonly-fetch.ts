@@ -47,16 +47,33 @@ function resolveUrl(input: FetchInput): string {
  * The thrown message carries the method and the path with its query string stripped — a Garmin
  * service ticket rides in the query string, so it must not reach a log.
  */
-export function createReadOnlyFetch(inner: typeof fetch = fetch): typeof fetch {
-  return async (input, init) => {
+export function createReadOnlyFetch(inner: typeof fetch = fetch): typeof fetch & {
+  /** What this wrapper actually sent, by method. Evidence, not a claim. */
+  audit: () => { sent: Record<string, number>; refused: number };
+} {
+  const sent: Record<string, number> = {};
+  let refused = 0;
+
+  const wrapped = async (
+    input: FetchInput,
+    init?: RequestInit,
+  ): Promise<Response> => {
     const method = resolveMethod(input, init);
     const url = resolveUrl(input);
     if (method !== "GET" && !url.includes(TOKEN_REFRESH_PATH)) {
+      refused++;
       throw new Error(
         `read-only harness refused a ${method} request to ${url.split("?")[0] ?? ""} — it never ` +
           "writes to a real account. Remove the call, or move it to the test-account script.",
       );
     }
+    // The refresh POST is counted under its own label so it can never hide inside "GET".
+    const label = method === "GET" ? "GET" : `${method} (oauth refresh)`;
+    sent[label] = (sent[label] ?? 0) + 1;
     return inner(input, init);
   };
+
+  return Object.assign(wrapped, {
+    audit: () => ({ sent: { ...sent }, refused }),
+  });
 }
