@@ -1,4 +1,10 @@
-import { GarminAuthError, GarminError, GarminRateLimitError } from "../errors.js";
+import {
+  GarminAuthError,
+  GarminConnectionError,
+  GarminError,
+  GarminHttpError,
+  GarminRateLimitError,
+} from "../errors.js";
 import { Fetcher } from "../http/fetcher.js";
 import type { SerializedCookie } from "../http/cookie-jar.js";
 import { fetchConsumer } from "./consumer.js";
@@ -28,7 +34,7 @@ export interface LoginParams {
   service: string;
 }
 
-/** Mobile-route MFA state. `flow` is absent on states saved by 0.1.0; absent means mobile. */
+/** Mobile-route MFA state. `flow` is absent on states saved by 0.1.0 or 0.2.0; absent means mobile. */
 export interface MobileMfaState {
   flow?: "mobile";
   loginParams: LoginParams;
@@ -125,6 +131,30 @@ async function mobileCredentials(
   return body;
 }
 
+const WIDGET_CONTEXT = "Mobile login rate limited; ";
+
+/**
+ * Says the widget only ran because the mobile route was rate limited, so a widget failure is
+ * not read as the whole login's cause. Left unchanged: `GarminAuthError` "SSO error: ..."
+ * messages (consumers match that prefix) and `GarminRateLimitError` (its message names the
+ * widget URL; `retryAfter` is kept). Rethrown with the same class and the original as `cause`:
+ * `GarminHttpError` keeps its status/url/body; other errors pass through untouched.
+ */
+function explainWidgetFailure(err: unknown): unknown {
+  if (!(err instanceof GarminError) || err instanceof GarminRateLimitError) return err;
+  const message = WIDGET_CONTEXT + err.message;
+  const options = { cause: err };
+  if (err instanceof GarminAuthError) {
+    return err.message.startsWith("SSO error:") ? err : new GarminAuthError(message, options);
+  }
+  if (err instanceof GarminConnectionError) return new GarminConnectionError(message, options);
+  if (err instanceof GarminHttpError) {
+    return new GarminHttpError(message, err.status, err.url, err.body, options);
+  }
+  // Any other subclass (none today) is passed through rather than downgraded to its base class.
+  return err.constructor === GarminError ? new GarminError(message, options) : err;
+}
+
 export async function login(
   email: string,
   password: string,
@@ -136,10 +166,14 @@ export async function login(
   if (body === "rate_limited") {
     // Garmin rate limits the mobile route per client id and source. The web widget sends no
     // client id, so it is tried once before giving up; a 429 there names the widget URL.
-    return widgetLogin(email, password, ctx.fetcher.withFreshJar(), ctx.domain, {
-      delayMs: ctx.loginDelayMs,
-      complete: (ticket, loginUrl) => completeLogin(ticket, ctx, loginUrl),
-    });
+    try {
+      return await widgetLogin(email, password, ctx.fetcher.withFreshJar(), ctx.domain, {
+        delayMs: ctx.loginDelayMs,
+        complete: (ticket, loginUrl) => completeLogin(ticket, ctx, loginUrl),
+      });
+    } catch (err) {
+      throw explainWidgetFailure(err);
+    }
   }
 
   const type = body.responseStatus?.type;
@@ -287,7 +321,10 @@ export async function resumeLogin(
   const fetcher = options.fetcher ?? new Fetcher();
   const ctx: SsoContext = { fetcher, domain: mfaState.domain };
   if (mfaState.flow === "widget") {
-    return widgetResume(mfaState, code, fetcher, (ticket, loginUrl) =>
+    // The verify POST runs on a fresh jar holding only the widget's own cookies: the caller's
+    // jar may still hold the mobile route's cookies (e.g. on a client that just ran `login()`).
+    // The ticket exchange still runs on the caller's fetcher, like the mobile route's.
+    return widgetResume(mfaState, code, fetcher.withFreshJar(), (ticket, loginUrl) =>
       completeLogin(ticket, ctx, loginUrl),
     );
   }

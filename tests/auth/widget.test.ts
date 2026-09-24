@@ -54,6 +54,14 @@ describe("fallback to the SSO widget", () => {
     },
   );
 
+  it("signs in through the widget when the mobile sign-in page answers 429", async () => {
+    const h = serve({ seedRateLimited: true });
+    const result = await login("a@b.test", "pw", ctx());
+    expect(result.state).toBe("success");
+    expect(h.calls).not.toContain("login");
+    expect(h.calls).toEqual(expect.arrayContaining(WIDGET_STEPS));
+  });
+
   it("exchanges the widget ticket with the widget's login-url", async () => {
     const h = serve({ loginOutcome: "rate_limited", widgetTicket: "ST-W42" });
     await login("a@b.test", "pw", ctx());
@@ -114,6 +122,24 @@ describe("no fallback", () => {
     expect(h.calls.some((c) => c.startsWith("widget"))).toBe(false);
   });
 
+  it("keeps a 403 from the mobile login on the mobile route", async () => {
+    const h = serve({ loginOutcome: "forbidden" });
+    const err = await login("a@b.test", "pw", ctx()).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(GarminAuthError);
+    expect((err as Error).message).toContain("(403)");
+    expect(h.calls.some((c) => c.startsWith("widget"))).toBe(false);
+  });
+
+  it("keeps an HTML (challenge) reply from the mobile login on the mobile route", async () => {
+    const h = serve({ loginOutcome: "html" });
+    const err = await login("a@b.test", "pw", ctx()).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(GarminAuthError);
+    expect((err as Error).message).toBe(
+      "SSO returned a non-JSON response (Cloudflare challenge?)",
+    );
+    expect(h.calls.some((c) => c.startsWith("widget"))).toBe(false);
+  });
+
   it("does not fall back on a rate limit after the password was accepted", async () => {
     const h = serve({ loginOutcome: "success", preauthorizedRateLimited: true });
     await expect(login("a@b.test", "pw", ctx())).rejects.toBeInstanceOf(GarminRateLimitError);
@@ -137,17 +163,31 @@ describe("widget failures", () => {
     expect((err as Error).message).toContain("https://sso.garmin.com/sso/signin");
   });
 
-  it("fails clearly without a CSRF token", async () => {
+  it("fails clearly without a CSRF token, naming the page and the mobile rate limit", async () => {
     serve({ loginOutcome: "rate_limited", widgetOutcome: "no_csrf" });
-    await expect(login("a@b.test", "pw", ctx())).rejects.toThrow(
-      new GarminConnectionError("Widget login: missing CSRF token"),
+    const err = await login("a@b.test", "pw", ctx()).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(GarminConnectionError);
+    expect((err as Error).message).toBe(
+      "Mobile login rate limited; " +
+        "Widget login: missing CSRF token on page 'GARMIN Authentication Application'",
     );
+    expect((err as Error).cause).toBeInstanceOf(GarminConnectionError);
+  });
+
+  it("identifies a Cloudflare challenge on the widget sign-in page", async () => {
+    serve({ loginOutcome: "rate_limited", widgetOutcome: "challenge" });
+    const err = await login("a@b.test", "pw", ctx()).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(GarminConnectionError);
+    expect((err as Error).message.startsWith("Mobile login rate limited; ")).toBe(true);
+    expect((err as Error).message).toContain("Just a moment...");
   });
 
   it("fails clearly on a Success page without a ticket", async () => {
     serve({ loginOutcome: "rate_limited", widgetOutcome: "success_no_ticket" });
-    await expect(login("a@b.test", "pw", ctx())).rejects.toThrow(
-      new GarminAuthError("Widget login: missing service ticket"),
+    const err = await login("a@b.test", "pw", ctx()).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(GarminAuthError);
+    expect((err as Error).message).toBe(
+      "Mobile login rate limited; Widget login: missing service ticket",
     );
   });
 });
@@ -165,6 +205,10 @@ describe("widget code step", () => {
     expect(state.domain).toBe("garmin.com");
     expect(state.signinParams.service).toBe("https://sso.garmin.com/sso/embed");
     expect(state.cookies.some((c) => c.name === "WIDGET_SESSION")).toBe(true);
+    // The Referer the code step must send is the sign-in POST's own URL.
+    const signinPost = h.requests.find((r) => r.step === "widget-signin")!;
+    expect(new URL(state.referer).pathname).toBe("/sso/signin");
+    expect(state.referer).toBe(signinPost.url);
 
     const json = JSON.stringify(state);
     expect(json).not.toContain("super-secret-pw");
@@ -219,9 +263,36 @@ describe("widget code step", () => {
     serve({ loginOutcome: "rate_limited", widgetOutcome: "mfa", mfaCode: "123456" });
     const result = await login("a@b.test", "pw", ctx());
     if (result.state !== "mfa_required") throw new Error("unreachable");
-    await expect(
-      resumeLogin(result.mfaState, "000000", { fetcher: new Fetcher() }),
-    ).rejects.toThrow(new GarminAuthError("SSO error: INVALID_MFA_CODE: Enter MFA code"));
+    const resumed = resumeLogin(result.mfaState, "000000", { fetcher: new Fetcher() });
+    await expect(resumed).rejects.toBeInstanceOf(GarminAuthError);
+    await expect(resumed).rejects.toThrow("SSO error: INVALID_MFA_CODE: Enter MFA code");
+  });
+
+  it("reports a server error page on the code step as a connection error", async () => {
+    serve({ loginOutcome: "rate_limited", widgetOutcome: "mfa", widgetMfaOutcome: "server_error" });
+    const result = await login("a@b.test", "pw", ctx());
+    if (result.state !== "mfa_required") throw new Error("unreachable");
+    const err = await resumeLogin(result.mfaState, "123456", { fetcher: new Fetcher() }).catch(
+      (e: unknown) => e,
+    );
+    expect(err).toBeInstanceOf(GarminConnectionError);
+    expect(err).not.toBeInstanceOf(GarminAuthError);
+    expect((err as Error).message).toBe("Widget MFA: server error 'Service Unavailable'");
+  });
+
+  it("posts the code with the stored Referer and sign-in params", async () => {
+    const h = serve({ loginOutcome: "rate_limited", widgetOutcome: "mfa", mfaCode: "123456" });
+    const result = await login("a@b.test", "pw", ctx());
+    if (result.state !== "mfa_required" || result.mfaState.flow !== "widget") {
+      throw new Error("expected a widget state");
+    }
+    const state = result.mfaState;
+    await resumeLogin(state, "123456", { fetcher: new Fetcher() });
+    const verify = h.requests.find((r) => r.step === "widget-mfa")!;
+    expect(verify.referer).toBe(state.referer);
+    const url = new URL(verify.url);
+    expect(url.searchParams.get("service")).toBe("https://sso.garmin.com/sso/embed");
+    expect(url.searchParams.get("id")).toBe("gauth-widget");
   });
 });
 

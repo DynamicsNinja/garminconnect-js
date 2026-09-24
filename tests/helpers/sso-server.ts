@@ -9,7 +9,11 @@ export interface SsoScenario {
     | "successful_no_ticket"
     | "no_response_status"
     | "rate_limited"
-    | "rate_limited_json";
+    | "rate_limited_json"
+    | "forbidden"
+    | "html";
+  /** The mobile sign-in page (the seed-cookie GET) answers 429. */
+  seedRateLimited?: boolean;
   ticket?: string;
   mfaCode?: string;
   /** Overrides the raw form-urlencoded body returned by the preauthorized (oauth1) step. */
@@ -24,7 +28,10 @@ export interface SsoScenario {
     | "bad_credentials"
     | "rate_limited"
     | "no_csrf"
+    | "challenge"
     | "success_no_ticket";
+  /** What the widget's MFA verify POST returns instead of its normal Success/wrong-code page. */
+  widgetMfaOutcome?: "server_error";
   widgetTicket?: string;
 }
 
@@ -100,6 +107,9 @@ export function makeSsoServer(scenario: SsoScenario = {}) {
 
     http.get("https://sso.garmin.com/mobile/sso/en/sign-in", async ({ request }) => {
       await capture("sign-in", request);
+      if (scenario.seedRateLimited) {
+        return new HttpResponse("Too Many Requests", { status: 429 });
+      }
       return new HttpResponse("<html></html>", {
         headers: { "set-cookie": "SESSION=seed; Path=/" },
       });
@@ -112,6 +122,12 @@ export function makeSsoServer(scenario: SsoScenario = {}) {
       }
       if (outcome === "rate_limited_json") {
         return HttpResponse.json({ error: { "status-code": "429", message: "Too many requests" } });
+      }
+      if (outcome === "forbidden") return new HttpResponse("Forbidden", { status: 403 });
+      if (outcome === "html") {
+        return new HttpResponse("<html>challenge</html>", {
+          headers: { "content-type": "text/html" },
+        });
       }
       if (outcome === "success") {
         return HttpResponse.json({
@@ -203,10 +219,11 @@ export function makeSsoServer(scenario: SsoScenario = {}) {
 
     http.get("https://sso.garmin.com/sso/signin", async ({ request }) => {
       await capture("widget-signin-page", request);
+      const headers = { headers: { "content-type": "text/html" } };
+      // A Cloudflare interstitial: HTTP 200, its own title, and no sign-in form.
+      if (widgetOutcome === "challenge") return new HttpResponse(page("Just a moment..."), headers);
       const body = widgetOutcome === "no_csrf" ? "<form></form>" : csrfInput("csrf-1");
-      return new HttpResponse(page("GARMIN Authentication Application", body), {
-        headers: { "content-type": "text/html" },
-      });
+      return new HttpResponse(page("GARMIN Authentication Application", body), headers);
     }),
 
     http.post("https://sso.garmin.com/sso/signin", async ({ request }) => {
@@ -235,6 +252,9 @@ export function makeSsoServer(scenario: SsoScenario = {}) {
       const captured = await capture("widget-mfa", request);
       const code = new URLSearchParams(captured.text).get("mfa-code");
       const html = { headers: { "content-type": "text/html" } };
+      if (scenario.widgetMfaOutcome === "server_error") {
+        return new HttpResponse(page("Service Unavailable"), html);
+      }
       if (scenario.mfaCode && code !== scenario.mfaCode) {
         return new HttpResponse(page("Enter MFA code"), html);
       }

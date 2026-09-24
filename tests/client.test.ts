@@ -5,7 +5,7 @@ import { GarminClient } from "../src/client.js";
 import { MemoryTokenStore } from "../src/auth/token-store.js";
 import { GarminAuthError, GarminError } from "../src/errors.js";
 import { resetConsumerCache } from "../src/auth/consumer.js";
-import { makeSsoServer } from "./helpers/sso-server.js";
+import { makeSsoServer, recordingFetch } from "./helpers/sso-server.js";
 import type { Tokens } from "../src/auth/tokens.js";
 import type { MfaState } from "../src/auth/sso.js";
 import type { MobileMfaState, WidgetMfaState } from "../src/index.js";
@@ -437,6 +437,31 @@ describe("login falls back to the SSO widget", () => {
       expect(result.state).toBe("success");
       expect((await store.load())?.oauth1.oauth_token).toBe("o1tok");
       expect(harness.calls).toContain("widget-signin");
+    } finally {
+      harness.server.close();
+    }
+  });
+
+  it("resumes a widget MFA on the same client without sending the mobile route's cookies", async () => {
+    resetConsumerCache();
+    const harness = makeSsoServer({
+      loginOutcome: "rate_limited",
+      widgetOutcome: "mfa",
+      mfaCode: "123456",
+    });
+    harness.server.listen({ onUnhandledRequest: "error" });
+    try {
+      // Cookies are asserted on what the library sent (recordingFetch), never on msw's capture.
+      const { fetchImpl, sent } = recordingFetch();
+      const client = new GarminClient({ fetchImpl, loginDelayMs: 0 });
+      const result = await client.login("a@b.test", "pw");
+      if (result.state !== "mfa_required") throw new Error("expected an MFA step");
+      await client.resumeLogin(result.mfaState, "123456");
+      const verify = sent.find(
+        (s) => new URL(s.url).pathname === "/sso/verifyMFA/loginEnterMfaCode",
+      );
+      expect(verify?.cookie).toContain("WIDGET_SESSION=w1");
+      expect(verify?.cookie ?? "").not.toContain("SESSION=seed");
     } finally {
       harness.server.close();
     }

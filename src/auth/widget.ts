@@ -90,7 +90,21 @@ export interface WidgetMfaState {
 export type WidgetLoginResult = WidgetSuccess | { state: "mfa_required"; mfaState: WidgetMfaState };
 
 const FORM_HEADERS = { ...SSO_PAGE_HEADERS, "content-type": "application/x-www-form-urlencoded" };
-const SERVER_ERROR_HINTS = ["bad gateway", "service unavailable", "cloudflare", "502", "503"];
+/** Titles of Garmin/Cloudflare error and challenge pages ("Just a moment...", "Attention Required!"). */
+const SERVER_ERROR_HINTS = [
+  "bad gateway",
+  "service unavailable",
+  "cloudflare",
+  "502",
+  "503",
+  "just a moment",
+  "attention required",
+];
+
+function isServerErrorTitle(title: string): boolean {
+  const lower = title.toLowerCase();
+  return SERVER_ERROR_HINTS.some((h) => lower.includes(h));
+}
 const CREDENTIAL_HINTS = ["locked", "invalid", "incorrect", "account error"];
 const RESTRICTED_HINTS = ["unable to sign in", "unable to login"];
 
@@ -137,8 +151,14 @@ export async function widgetLogin(
     params: urls.signinParams,
     headers: { ...SSO_PAGE_HEADERS, Referer: urls.embed },
   });
-  const csrf = csrfFrom(await signinPage.text());
-  if (!csrf) throw new GarminConnectionError("Widget login: missing CSRF token");
+  const signinHtml = await signinPage.text();
+  const csrf = csrfFrom(signinHtml);
+  if (!csrf) {
+    // The title names what came back instead, e.g. a Cloudflare "Just a moment..." challenge.
+    throw new GarminConnectionError(
+      `Widget login: missing CSRF token on page '${titleFrom(signinHtml)}'`,
+    );
+  }
   const referer = fetcher.lastUrl ?? urls.signin;
 
   const delay = widgetDelayMs(opts.delayMs);
@@ -150,12 +170,13 @@ export async function widgetLogin(
     params: urls.signinParams,
     headers: { ...FORM_HEADERS, Referer: referer },
     body: new URLSearchParams({ username: email, password, embed: "true", _csrf: csrf }).toString(),
+    timeoutMs: 30_000,
   });
   const html = await res.text();
   const title = titleFrom(html);
   const lower = title.toLowerCase();
 
-  if (SERVER_ERROR_HINTS.some((h) => lower.includes(h))) {
+  if (isServerErrorTitle(title)) {
     throw new GarminConnectionError(`Widget login: server error '${title}'`);
   }
   // "SSO error:" matches the mobile route's rejections, so callers classify both the same way.
@@ -210,9 +231,14 @@ export async function widgetResume(
       _csrf: state.csrf,
       fromPage: "setupEnterMfaCode",
     }).toString(),
+    timeoutMs: 30_000,
   });
   const html = await res.text();
   const title = titleFrom(html);
+  // An outage is not a wrong code: report it as retryable, not as an auth failure.
+  if (isServerErrorTitle(title)) {
+    throw new GarminConnectionError(`Widget MFA: server error '${title}'`);
+  }
   if (title !== "Success") throw new GarminAuthError(`SSO error: INVALID_MFA_CODE: ${title}`);
   const ticket = ticketFrom(html);
   if (!ticket) throw new GarminAuthError("Widget login: missing service ticket");
