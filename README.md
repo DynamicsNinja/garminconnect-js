@@ -37,19 +37,10 @@ terser, higher-signal briefing than this README and calls out what does *not* ex
 [connect.garmin.com](https://connect.garmin.com) so you can use it in your own Node or Next.js
 server code, without scraping HTML or reverse-engineering the mobile app yourself.
 
-Data categories covered today (see [API coverage](#-api-coverage) for the full, honest breakdown):
-
-- User profile, unit-system preferences, goals
-- Daily wellness: step counts, heart rate, sleep, HRV, stress, SpO2, respiration, hydration,
-  blood pressure, body battery
-- Activities: list, search, detail, splits, weather, manual creation, GPX/TCX/FIT import, gear
-  association, personal records
-- Body composition and weigh-ins
-- Training metrics: training status, race predictions, FTP, lactate threshold, HR/power zones
-- Workouts: CRUD, per-sport builders, scheduling, device push
-- Gear: CRUD, activity association, defaults, maintenance stats
-- Devices, badges & challenges, women's health, golf, nutrition, training plans
-- The raw GraphQL gateway passthrough and other `connectapi` escape-hatch use cases
+It covers wellness, activities, training metrics, workouts, gear, devices, badges, body
+composition, women's health, golf, nutrition and training plans — see [API coverage](#-api-coverage)
+for the breakdown. For anything it doesn't wrap, `client.connectapi()` calls any Garmin Connect
+endpoint with the same auth.
 
 **Compatibility:** requires **Node.js 18+**. This library is server-only — see
 [Node runtime only](#node-runtime-only) below for why. It has no runtime dependencies and does
@@ -370,40 +361,39 @@ reference for every option. Runnable versions of those examples live in
 
 ## 📊 API coverage
 
-**156 methods across 11 categories**, listed below. Every one is typed, and every one carries a
-live-verification status: what has actually been confirmed against a real Garmin account, not
-merely unit-tested.
+**156 typed methods across 11 categories.** Each category links to a generated
+[`docs/api/`](docs/api/README.md) page with every method's signature, a call you can paste, and
+its live-verification status — confirmed against a real Garmin account, not merely unit-tested.
 
-**→ [`docs/api/`](docs/api/README.md) is one page per category below**, with every method's
-signature, a call you can paste, and its verification status. Those pages are generated from the
-code, so they cannot drift from it.
-
-For the per-method gotchas and the evidence behind each verification, see
-[`AGENTS.md`](AGENTS.md) section 3 — also the file an AI coding agent should read first. The table
-here is only a summary.
-
-| Category | Methods | Live-verified | Notes |
+| Category | Methods | Verified live | Covers |
 |---|---|---|---|
-| [Wellness (steps, heart rate, sleep, HRV, stress, SpO2, respiration, hydration, blood pressure, …)](docs/api/wellness.md) | 30 | yes | `setBloodPressure`/`deleteBloodPressure` round-tripped (write → read back → delete). `addHydrationData` is verified but **permanent** — Garmin exposes no delete for it |
-| [Activities (list/search/detail, splits, weather, manual creation, import/upload, exercise sets, personal records)](docs/api/activities.md) | 32 | yes | destructive writes verified by create→read-back→delete against a disposable test account; never against pre-existing data |
-| [Metrics (training status, race predictions, FTP, lactate threshold, heart-rate/power zones, endurance/hill score, …)](docs/api/metrics.md) | 16 | yes | every branch, including two-branch methods like `getLactateThreshold` |
-| [Workouts (CRUD, per-sport upload, scheduling, device push)](docs/api/workouts.md) | 16 | yes | no walking/hiking helpers — Garmin has no such workout sport type, so upstream's two were removed rather than kept as a trap; use `uploadWorkout` with `OTHER` (3) or `CARDIO_TRAINING` (6) |
-| [Gear (CRUD, activity association, defaults, stats)](docs/api/gear.md) | 6 | yes | upstream's `set_gear_default` endpoint is **dead** — four investigations, the last decisive — so it is not ported; `setGearActivityDefaults` replaces it. `deleteGear` is another non-parity addition |
-| [Devices](docs/api/devices.md) | 6 | yes | closed against a real account read-only; `getDeviceSettings` returns an object of ~135 keys |
-| [Badges & Challenges](docs/api/badges-challenges.md) | 8 | yes | three endpoints reject `start=0` server-side — pass `start >= 1` |
-| [Body composition & weight](docs/api/body-composition-weight.md) | 8 | yes | the hand-rolled FIT encoder is proven end-to-end: 69.42 kg uploaded as `.fit`, read back as 69.42 kg |
-| [Women's health (menstrual cycle, pregnancy)](docs/api/womens-health.md) | 11 | yes | writes executed once, under an explicit account-scoped exemption, against a throwaway account only. They need cycle-tracking settings that **only Garmin's own first-run wizard creates** |
-| [Golf](docs/api/golf.md) | 5 | partial | `getGolfScorecard`/`getGolfShotData` response shapes are still unverified — neither available account has a recorded round |
-| [User profile, goals, nutrition, training plans, misc (lifestyle log, reload request, GraphQL passthrough, logout)](docs/api/profile-and-misc.md) | 18 | yes | `displayName`/`fullName`/`userName` are cached accessors, verified through the profile call they read from. `logout()` makes no HTTP call, so there is nothing to verify against Garmin |
+| [Wellness](docs/api/wellness.md) | 30 | all | steps, heart rate, sleep, HRV, stress, SpO2, respiration, hydration, blood pressure, body battery |
+| [Activities](docs/api/activities.md) | 32 | all | list/search/detail, splits, weather, manual creation, import/upload, exercise sets, gear links, personal records |
+| [Training metrics](docs/api/metrics.md) | 16 | all | training status, race predictions, FTP, lactate threshold, HR/power zones, endurance and hill score |
+| [Workouts](docs/api/workouts.md) | 16 | all | CRUD, per-sport upload, scheduling, device push |
+| [Gear](docs/api/gear.md) | 6 | all | CRUD, activity defaults, stats |
+| [Devices](docs/api/devices.md) | 6 | all | devices, settings, alarms, solar, last used |
+| [Badges & challenges](docs/api/badges-challenges.md) | 8 | all | earned/available badges, challenges |
+| [Body composition & weight](docs/api/body-composition-weight.md) | 8 | all | weigh-ins, body composition (FIT upload) |
+| [Women's health](docs/api/womens-health.md) | 11 | all | menstrual cycle, pregnancy |
+| [Golf](docs/api/golf.md) | 5 | 3 of 5 | summary, scorecards, shots, clubs, stats |
+| [Profile, goals, nutrition, plans & misc](docs/api/profile-and-misc.md) | 18 | all¹ | profile, settings, goals, nutrition, training plans, GraphQL, logout |
 
-**What is still unverified, and why** — two things, each for a reason no amount of probing fixes:
+¹ `logout()` makes no HTTP call, so there is nothing to verify against Garmin.
 
-- `getGolfScorecard` / `getGolfShotData` response shapes — no account available has played a round.
-  `getGolfShotData` also returns an unexplained **410** against a fabricated id, and one real
-  scorecard would settle whether upstream's path is dead.
-- `logout()` — it makes no HTTP call at all, so there is nothing to verify against Garmin. Running
-  it against this repo's own token store would force an interactive MFA re-login, so it is
-  unit-tested against `MemoryTokenStore` and a temp-dir `FileTokenStore` instead.
+**Still unverified:** `getGolfScorecard` and `getGolfShotData`, because no available account has a
+recorded round. `getGolfShotData` also returns an unexplained **410** against a made-up id, and one
+real scorecard would show whether upstream's path is dead.
+
+**Worth knowing before you call:**
+
+- `addHydrationData` is permanent — Garmin has no delete for it.
+- The badge-challenge endpoints reject `start=0` server-side; pass `start >= 1`.
+- Women's-health writes need cycle-tracking settings that only Garmin's own first-run wizard
+  creates. Run it once in the web UI first.
+
+The per-method gotchas and the evidence behind every verification are in [`AGENTS.md`](AGENTS.md)
+section 3.
 
 ### Relationship to python-garminconnect
 
