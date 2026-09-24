@@ -5,10 +5,35 @@
 
 # TypeScript: Garmin Connect
 
-A zero-dependency TypeScript port of Python's [`garminconnect`][python-garminconnect-url] (and
-its auth dependency, [`garth`][garth-url]) for **Node and Next.js server runtimes**. It talks to
-the same undocumented Garmin Connect endpoints the mobile app uses, with a fully typed,
+A zero-dependency TypeScript client for Garmin Connect, for **Node and Next.js server runtimes**.
+It talks to the same undocumented endpoints the mobile app uses, with a fully typed,
 promise-based API.
+
+It began as a port of Python's [`garminconnect`][python-garminconnect-url] (and its auth
+dependency, [`garth`][garth-url]), and it still covers all 154 of that project's public methods —
+a parity test asserts it. But it is no longer only a port:
+
+- **A fluent workout builder.** `buildWorkout(...)` has no upstream equivalent. It exists because
+  Garmin's workout JSON has four traps that produce a silently wrong workout rather than an error
+  — global `stepOrder` numbering, id/key triples that must agree, rests measured in the wrong
+  field, and pace targets that are descending metres-per-second. See [`WORKOUTS.md`](WORKOUTS.md).
+- **The exercise catalogue**, as a separate entry point. Garmin stores an unrecognised exercise
+  name as `""` and returns success; `garminconnect-js/exercises` makes that a compile error.
+  Nothing upstream has this, and Garmin serves it from no API — it was reconstructed and then
+  verified name by name against a live account.
+- **Endpoints and fixes upstream doesn't have.** `deleteGear` (upstream has no way to delete
+  gear), `setGearActivityDefaults` (upstream's `set_gear_default` endpoint is dead), and
+  `getGoals` defaulting to `start: 1` because `goal-service` is 1-indexed and upstream's `0`
+  silently returns "no goals" on an account that has them.
+- **Types corrected against reality, not against upstream's documentation.** Several endpoints
+  upstream documents as returning an object return an array; those are typed as what they
+  actually return.
+- **A `Live-verified` column** on every method in [`AGENTS.md`](AGENTS.md), and honest `no` /
+  `partially` / `BROKEN` entries where that is the truth. A 2xx from a write proves nothing here
+  — the stored value gets read back.
+
+Where behaviour diverges from upstream deliberately, it is marked at the source and in
+`AGENTS.md`. Attribution for the original projects is in [`NOTICE`](NOTICE).
 
 If you're an AI coding agent (or configuring one), read [`AGENTS.md`](AGENTS.md) first — it's a
 terser, higher-signal briefing than this README and calls out what does *not* exist here.
@@ -485,7 +510,7 @@ reference for every option. Runnable versions of those examples live in
 ## 📚 Additional resources & acknowledgements
 
 - [connect.garmin.com](https://connect.garmin.com) — the service this library talks to.
-- [python-garminconnect][python-garminconnect-url] — the upstream project this is a port of;
+- [python-garminconnect][python-garminconnect-url] — the upstream project this one grew out of;
   the endpoint surface follows it.
 - [garth][garth-url] — the Python auth library whose SSO/OAuth flow this port follows.
 - `NOTICE` in this repo — attribution details for both upstream projects.

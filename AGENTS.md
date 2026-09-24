@@ -6,9 +6,28 @@ Python's `garminconnect`/`garth` and will assume this port has the same surface.
 
 ## 1. What this is, and the hard constraints
 
-`garminconnect-js` is a zero-dependency TypeScript port of Python's `garminconnect` (and its auth
-dependency `garth`) for **Node and Next.js server runtimes**. It talks to undocumented Garmin
-Connect endpoints over HTTPS.
+`garminconnect-js` is a zero-dependency TypeScript client for Garmin Connect, for **Node and
+Next.js server runtimes**. It talks to undocumented Garmin Connect endpoints over HTTPS.
+
+It BEGAN as a port of Python's `garminconnect` (and its auth dependency `garth`) and covers all
+154 of that project's public methods, so upstream is still a good map of the endpoint surface.
+**But do not assume upstream's behaviour is this library's behaviour.** Where the two differ, this
+file is authoritative, and the differences are not cosmetic:
+
+- **`buildWorkout` (section 3) and the `garminconnect-js/exercises` subpath have no upstream
+  equivalent at all.** Neither will be in your training data. Read those sections rather than
+  inferring an API.
+- **`deleteGear` and `setGearActivityDefaults` are endpoints upstream does not have**; the latter
+  exists because upstream's `set_gear_default` is dead (section 6).
+- **`getGoals` defaults `start` to 1, not upstream's 0**, because `goal-service` is 1-indexed and
+  `start=0` returns `[]` on an account that has goals — a deliberate divergence (section 6).
+- **Return types follow live responses, not upstream's docs.** At least seven endpoints upstream
+  documents as returning an object actually return an array.
+- **The `Live-verified` column in section 3 is the real confidence signal.** `no`, `partially` and
+  `BROKEN` appear there and mean what they say — two upload helpers are marked BROKEN because the
+  POST succeeds and stores a null sport.
+
+The beyond-upstream method set is pinned by `tests/parity.test.ts`, so it cannot grow silently.
 
 - **Node runtime only.** Uses `node:crypto` and `Buffer`. Never works on the Edge runtime. In a
   Next.js route handler you MUST add `export const runtime = "nodejs";`.
@@ -376,15 +395,16 @@ The probe asserts the STORED document rather than the POST's status, deliberatel
 
 ## 4. These methods do NOT exist (mostly)
 
-As of Task 15 (the plan's final task), this is now a **complete port**: 159 methods covering
-upstream python-garminconnect's full 154-method public surface — every `python_name` row in
+**Upstream parity is complete**: 159 methods covering upstream python-garminconnect's full
+154-method public surface — every `python_name` row in
 `docs/upstream-method-inventory.md` has a real `Garmin` counterpart, mechanically asserted by
 `tests/parity.test.ts` (which reflects on `Garmin.prototype` and parses the inventory at test-run
 time, so it cannot silently drift back out of sync).
 
-**The 157-vs-154 reconciliation**, since the drift guard pins the number but cannot check this
-explanation: the five extra methods are `getUserProfile`, `displayName`, `userName`, `deleteGear` and `setGearActivityDefaults`. They are
-PORT-LOCAL, with no inventory row of their own. `getUserProfile` fetches
+**The 159-vs-154 reconciliation**: the five extra methods are `getUserProfile`, `displayName`,
+`userName`, `deleteGear` and `setGearActivityDefaults`. They go BEYOND upstream and have no
+inventory row of their own; `tests/parity.test.ts` pins exactly this set, so a sixth cannot appear
+without a reason being written down. `getUserProfile` fetches
 `/userprofile-service/socialProfile` — NOT upstream's `get_user_profile`, which is a different
 endpoint (`user-settings`) satisfied here by `getUserSettings`; `displayName` and `userName` are
 cached accessors that read from it. (`getStats`, `getStatsAndBody` and `getInProgressBadges` are

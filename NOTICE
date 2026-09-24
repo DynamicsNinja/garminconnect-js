@@ -1,6 +1,7 @@
 garminconnect-js
 
-This project is a TypeScript port of two MIT-licensed Python projects:
+This project began as a TypeScript port of two MIT-licensed Python projects, and
+still derives substantial parts of its endpoint surface and auth flow from them:
 
   python-garminconnect — https://github.com/cyberjunky/python-garminconnect
     Copyright (c) Ron Klinkien and contributors

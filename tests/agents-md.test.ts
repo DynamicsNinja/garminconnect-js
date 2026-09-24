@@ -101,34 +101,38 @@ describe("AGENTS.md drift guard", () => {
    * 134, then "136" when it was 140. A freshly-edited wrong number looks more trustworthy than a
    * stale one, and the two directional checks above only compare NAMES — never the count.
    */
-  it("states the correct method count in section 4", () => {
+  it("states the correct method count in section 4, everywhere it appears", () => {
     const actual = garminMethodNames().length;
-    // Wording intentionally changed in Task 15: the port went from "partial" (151 of ~154) to
-    // "complete" — all 154 upstream inventory rows satisfied by 157 real `Garmin.prototype`
-    // methods. (The 3 extras are the port-local `getUserProfile`/`displayName`/`userName`; see
-    // AGENTS.md section 4 for the reconciliation, which this test deliberately does NOT check —
-    // it pins the NUMBER only, so the prose around it still needs a human reader.)
-    //
-    // The connective is deliberately loose ("of" or "covering"): this guard exists to pin the
-    // figure, not to dictate how the sentence reads. It has already forced one correct edit to be
-    // reworded once — a guard that fights accurate prose gets weakened or deleted, so it should
-    // constrain as little as possible while still catching a wrong number. `\s+` rather than a
-    // literal space, because this sentence is prose-wrapped and the line break lands in a
-    // different place every time the wording changes.
-    const match =
-      /(?:partial|complete) port\*\*:\s+(\d+)(?:\s+methods)?\s+(?:of|covering)\s+upstream/.exec(agentsMd);
+    const section = agentsMd.slice(agentsMd.indexOf("## 4. These methods do NOT exist"));
+
+    // The headline claim. The connective is deliberately loose ("of" or "covering") and `\s+`
+    // rather than a literal space, because this sentence is prose-wrapped and the break lands
+    // somewhere different every time the wording changes. This guard exists to pin the FIGURE,
+    // not to dictate how the sentence reads — it has already forced one accurate edit to be
+    // reworded, and a guard that fights correct prose gets weakened or deleted.
+    const headline = /(\d+)\s+methods\s+(?:of|covering)\s+upstream/.exec(section);
     expect(
-      match,
-      'AGENTS.md section 4 no longer contains a "**partial port**: <N> of upstream" or ' +
-        '"**complete port**: <N> of upstream" sentence. Restore it (or update this test if the ' +
-        "wording intentionally changed again) — it is the figure an agent uses to judge how much " +
-        "of upstream is reachable without connectapi.",
+      headline,
+      'AGENTS.md section 4 no longer contains an "<N> methods of/covering upstream" sentence. ' +
+        "Restore it (or update this test if the wording intentionally changed again) — it is the " +
+        "figure an agent uses to judge how much of upstream is reachable without connectapi.",
     ).not.toBeNull();
     expect(
-      Number(match?.[1]),
-      `AGENTS.md section 4 claims ${match?.[1]} methods; Garmin.prototype actually has ${actual}. ` +
-        "Update the number (both places on that line) rather than incrementing the old one.",
+      Number(headline?.[1]),
+      `AGENTS.md section 4 claims ${headline?.[1]} methods; Garmin.prototype actually has ${actual}.`,
     ).toBe(actual);
+
+    // The SECOND mention, which this guard used to miss entirely: the reconciliation paragraph
+    // repeats the count as "<N>-vs-154". It sat at a stale 157 while the headline said 159,
+    // because pinning one number does not pin the other. Any "<N>-vs-<upstream>" in this section
+    // must agree with the real count.
+    for (const [whole, claimed] of section.matchAll(/\b(\d+)-vs-\d+\b/g)) {
+      expect(
+        Number(claimed),
+        `AGENTS.md section 4 says "${whole}", but Garmin.prototype has ${actual} methods. ` +
+          "Update every place the count appears, not just the headline.",
+      ).toBe(actual);
+    }
   });
 
   /**

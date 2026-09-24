@@ -143,6 +143,47 @@ describe("upstream parity", () => {
     ).toEqual([]);
   });
 
+  it("pins the surface that goes BEYOND upstream, so it cannot grow unannounced", () => {
+    // The other direction. Every test above asks "does upstream's surface exist here?"; none asks
+    // "what exists here that upstream never had?" — and that set is now the interesting one. It is
+    // what makes this library more than a port, it is what README.md and AGENTS.md advertise, and
+    // without a guard it drifts the moment someone adds a convenience method.
+    //
+    // A name landing here is not a failure. It means: decide whether it is a deliberate addition
+    // (add it below, with the reason) or an accident (rename it to match upstream).
+    const BEYOND_UPSTREAM: Record<string, string> = {
+      getUserProfile: "hits /userprofile-service/socialProfile; upstream's get_user_profile is a DIFFERENT endpoint, satisfied here by getUserSettings",
+      displayName: "cached accessor over getUserProfile",
+      userName: "cached accessor over getUserProfile",
+      deleteGear: "upstream has no delete-gear method; endpoint found in Garmin's own web client",
+      setGearActivityDefaults: "working replacement for setGearDefault, whose upstream endpoint is dead",
+    };
+
+    const rows = parseInventoryRows();
+    const claimed = new Set<string>();
+    for (const { pythonName, tsName } of rows) {
+      claimed.add(SATISFIED_UNDER_DIFFERENT_NAME[pythonName] ?? tsName);
+    }
+
+    const unexplained = [...garminMethodNames()].filter(
+      (name) => !claimed.has(name) && !(name in BEYOND_UPSTREAM),
+    );
+    expect(
+      unexplained.sort(),
+      `Garmin has ${unexplained.length} method(s) that no upstream inventory row accounts for and ` +
+        `that BEYOND_UPSTREAM does not explain: ${unexplained.join(", ")}. Add each to ` +
+        "BEYOND_UPSTREAM with the reason it exists, or rename it to the upstream counterpart.",
+    ).toEqual([]);
+
+    // And the reverse: an entry that upstream has since been found to cover is stale.
+    const stale = Object.keys(BEYOND_UPSTREAM).filter((name) => claimed.has(name));
+    expect(
+      stale,
+      `BEYOND_UPSTREAM claims ${stale.join(", ")} go beyond upstream, but the inventory now maps ` +
+        "to them. Remove the stale entry.",
+    ).toEqual([]);
+  });
+
   it("DELIBERATE_OMISSIONS contains no stale entries (every key is a real upstream python_name)", () => {
     const rows = parseInventoryRows();
     const pythonNames = new Set(rows.map((r) => r.pythonName));
