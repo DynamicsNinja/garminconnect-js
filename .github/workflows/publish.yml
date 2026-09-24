@@ -1,0 +1,41 @@
+name: Publish
+
+# Publishes to npm when a version tag is pushed: `git tag v0.2.0 && git push origin v0.2.0`.
+# Can also be run by hand from the Actions tab against an existing tag.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write # npm trusted publishing (OIDC) and provenance
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          # Trusted publishing needs Node >= 22.14 and npm >= 11.5.1.
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+          cache: npm
+      - run: npm install -g npm@latest
+
+      - name: Tag must match package.json version
+        run: |
+          version="v$(node -p "require('./package.json').version")"
+          if [ "$GITHUB_REF_TYPE" != "tag" ] || [ "$GITHUB_REF_NAME" != "$version" ]; then
+            echo "::error::Ref '$GITHUB_REF_NAME' is not the tag for package.json version $version"
+            exit 1
+          fi
+
+      - run: npm ci
+      # `npm publish` runs prepublishOnly, which is `npm run check` — the same gate CI runs.
+      - run: npm publish
+        env:
+          # Only used until trusted publishing is configured on npmjs.com; with it, npm
+          # authenticates through OIDC and this secret can be deleted.
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
