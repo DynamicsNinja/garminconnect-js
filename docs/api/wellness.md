@@ -4,7 +4,7 @@
 
 Daily health: steps, heart rate, sleep, HRV, stress, SpO2, respiration, hydration, blood pressure and intensity minutes. Most take a calendar date.
 
-Every method below hangs off a `Garmin` instance. See the [README](../../README.md#-quick-start) for how to construct one:
+Every method below hangs off a `Garmin` instance. See [Installation & setup](../../README.md#-installation--setup) for how to construct one:
 
 ```ts
 import { GarminClient, Garmin, FileTokenStore } from "garminconnect-js";
@@ -63,6 +63,10 @@ garmin.addHydrationData(valueInMl: number, when?: Date, cdate?: string | Date): 
 const result = await garmin.addHydrationData(1);
 ```
 
+**Returns**
+
+`HydrationLogResult` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
+
 raw milliliters, magnitude capped at 10000, negative values allowed; no delete endpoint exists, so **not safely round-trippable**
 
 Verification: ✅ live-verified
@@ -76,6 +80,10 @@ garmin.deleteBloodPressure(version: number | string, cdate: string | Date): Prom
 ```ts
 const result = await garmin.deleteBloodPressure(activityId, "2026-09-24");
 ```
+
+**Returns**
+
+`unknown` — Garmin's response is passed through unparsed. Cast it to whatever you need; this library does not model it.
 
 no proven inverse write to round-trip against in this task
 
@@ -91,6 +99,10 @@ garmin.getAllDayEvents(cdate: string | Date): Promise<DailyEventsData | null>
 const result = await garmin.getAllDayEvents("2026-09-24");
 ```
 
+**Returns**
+
+`DailyEventsData` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
+
 Verification: ✅ live-verified
 
 ## getAllDayStress
@@ -103,6 +115,10 @@ garmin.getAllDayStress(cdate: string | Date): Promise<DailyStressData | null>
 const result = await garmin.getAllDayStress("2026-09-24");
 ```
 
+**Returns**
+
+`DailyStressData` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
+
 Verification: ✅ live-verified
 
 ## getBloodPressure
@@ -114,6 +130,16 @@ garmin.getBloodPressure(startdate: string | Date, enddate?: string | Date): Prom
 ```ts
 const result = await garmin.getBloodPressure("2026-09-24");
 ```
+
+**Returns**
+
+`BloodPressureRange`:
+
+| Field | Type | Always present |
+|---|---|---|
+| `measurementSummaries` | `unknown[]` | no |
+
+Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
 
 `enddate` defaults to `startdate`
 
@@ -129,6 +155,18 @@ garmin.getBodyBattery(startdate: string | Date, enddate?: string | Date): Promis
 const result = await garmin.getBodyBattery("2026-09-24");
 ```
 
+**Returns**
+
+An array of `BodyBatteryEntry`:
+
+| Field | Type | Always present |
+|---|---|---|
+| `date` | `string` | no |
+| `charged` | `number` | no |
+| `drained` | `number` | no |
+
+Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
+
 Verification: ✅ live-verified
 
 ## getBodyBatteryEvents
@@ -141,6 +179,17 @@ garmin.getBodyBatteryEvents(cdate: string | Date): Promise<BodyBatteryEvent[] | 
 const result = await garmin.getBodyBatteryEvents("2026-09-24");
 ```
 
+**Returns**
+
+An array of `BodyBatteryEvent`:
+
+| Field | Type | Always present |
+|---|---|---|
+| `eventType` | `string` | no |
+| `eventStartTimeGmt` | `string` | no |
+
+Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
+
 Verification: ✅ live-verified
 
 ## getCaloriesDaily
@@ -152,6 +201,17 @@ garmin.getCaloriesDaily(start: string | Date, end: string | Date): Promise<Calor
 ```ts
 const result = await garmin.getCaloriesDaily("2026-09-24", "2026-09-24");
 ```
+
+**Returns**
+
+An array of `CaloriesDailyEntry`:
+
+| Field | Type | Always present |
+|---|---|---|
+| `calendarDate` | `string` | no |
+| `active` | `number` | no |
+| `resting` | `number` | no |
+| `total` | `number` | no |
 
 merges active (metricId 22) and resting/BMR (metricId 23) series into `[{calendarDate, active, resting, total}]`
 
@@ -167,6 +227,18 @@ garmin.getDailySteps(start: string | Date, end: string | Date): Promise<DailySte
 const result = await garmin.getDailySteps("2026-09-24", "2026-09-24");
 ```
 
+**Returns**
+
+An array of `DailyStepsEntry`:
+
+| Field | Type | Always present |
+|---|---|---|
+| `calendarDate` | `string` | no |
+| `totalSteps` | `number` | no |
+| `stepGoal` | `number` | no |
+
+Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
+
 auto-chunks ranges over Garmin's 28-day-per-request limit into ≤28-day windows and concatenates; a single request within the limit passes its (possibly `null`) result through unchecked
 
 Verification: ✅ live-verified
@@ -180,6 +252,16 @@ garmin.getFloors(cdate: string | Date): Promise<FloorsData>
 ```ts
 const result = await garmin.getFloors("2026-09-24");
 ```
+
+**Returns**
+
+`FloorsData`:
+
+| Field | Type | Always present |
+|---|---|---|
+| `floorValuesArray` | `unknown[]` | no |
+
+Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
 
 throws `GarminError` if Garmin returns nothing
 
@@ -195,6 +277,19 @@ garmin.getHeartRates(cdate: string | Date): Promise<HeartRateData>
 const result = await garmin.getHeartRates("2026-09-24");
 ```
 
+**Returns**
+
+`HeartRateData`:
+
+| Field | Type | Always present |
+|---|---|---|
+| `restingHeartRate` | `number` | no |
+| `maxHeartRate` | `number` | no |
+| `minHeartRate` | `number` | no |
+| `heartRateValues` | `[number, number | null][]` | no |
+
+Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
+
 Verification: ✅ live-verified
 
 ## getHrvData
@@ -206,6 +301,17 @@ garmin.getHrvData(cdate: string | Date): Promise<HrvData | null>
 ```ts
 const result = await garmin.getHrvData("2026-09-24");
 ```
+
+**Returns**
+
+`HrvData`:
+
+| Field | Type | Always present |
+|---|---|---|
+| `hrvSummary` | `Record<string, unknown>` | no |
+| `hrvReadings` | `Record<string, unknown>[]` | no |
+
+Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
 
 Verification: ✅ live-verified
 
@@ -219,6 +325,10 @@ garmin.getHrvDataRange(start: string | Date, end: string | Date): Promise<HrvDat
 const result = await garmin.getHrvDataRange("2026-09-24", "2026-09-24");
 ```
 
+**Returns**
+
+`HrvDataRange` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
+
 Verification: ✅ live-verified
 
 ## getHydrationData
@@ -230,6 +340,10 @@ garmin.getHydrationData(cdate: string | Date): Promise<HydrationLogResult | null
 ```ts
 const result = await garmin.getHydrationData("2026-09-24");
 ```
+
+**Returns**
+
+`HydrationLogResult` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
 
 Verification: ✅ live-verified
 
@@ -243,6 +357,10 @@ garmin.getIntensityMinutesData(cdate: string | Date): Promise<IntensityMinutesDa
 const result = await garmin.getIntensityMinutesData("2026-09-24");
 ```
 
+**Returns**
+
+`IntensityMinutesData` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
+
 Verification: ✅ live-verified
 
 ## getRespirationData
@@ -255,6 +373,10 @@ garmin.getRespirationData(cdate: string | Date): Promise<RespirationData | null>
 const result = await garmin.getRespirationData("2026-09-24");
 ```
 
+**Returns**
+
+`RespirationData` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
+
 Verification: ✅ live-verified
 
 ## getRhrDaily
@@ -266,6 +388,15 @@ garmin.getRhrDaily(start: string | Date, end: string | Date): Promise<RhrDailyEn
 ```ts
 const result = await garmin.getRhrDaily("2026-09-24", "2026-09-24");
 ```
+
+**Returns**
+
+An array of `RhrDailyEntry`:
+
+| Field | Type | Always present |
+|---|---|---|
+| `calendarDate` | `string` | no |
+| `value` | `number` | no |
 
 reshapes `allMetrics.metricsMap` into `[{calendarDate, value}]`, dropping null values
 
@@ -281,6 +412,10 @@ garmin.getRhrDay(cdate: string | Date): Promise<RhrDayData | null>
 const result = await garmin.getRhrDay("2026-09-24");
 ```
 
+**Returns**
+
+`RhrDayData` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
+
 Verification: ✅ live-verified
 
 ## getSleepDaily
@@ -292,6 +427,16 @@ garmin.getSleepDaily(start: string | Date, end: string | Date): Promise<SleepDai
 ```ts
 const result = await garmin.getSleepDaily("2026-09-24", "2026-09-24");
 ```
+
+**Returns**
+
+An array of `SleepDailyEntry`:
+
+| Field | Type | Always present |
+|---|---|---|
+| `calendarDate` | `string` | no |
+
+Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
 
 Garmin's endpoint has a documented **28-day-per-request limit**; ranges beyond that are auto-chunked, de-duplicated by `calendarDate`, and sorted
 
@@ -307,6 +452,17 @@ garmin.getSleepData(cdate: string | Date): Promise<SleepData | null>
 const result = await garmin.getSleepData("2026-09-24");
 ```
 
+**Returns**
+
+`SleepData`:
+
+| Field | Type | Always present |
+|---|---|---|
+| `dailySleepDTO` | `Record<string, unknown>` | no |
+| `sleepLevels` | `Record<string, unknown>[]` | no |
+
+Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
+
 Verification: ✅ live-verified
 
 ## getSpo2Data
@@ -318,6 +474,16 @@ garmin.getSpo2Data(cdate: string | Date): Promise<Spo2Data | null>
 ```ts
 const result = await garmin.getSpo2Data("2026-09-24");
 ```
+
+**Returns**
+
+`Spo2Data`:
+
+| Field | Type | Always present |
+|---|---|---|
+| `lastSevenDaysAvgSpO2` | `number` | no |
+
+Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
 
 coerces a string `lastSevenDaysAvgSpO2` to a number
 
@@ -333,6 +499,19 @@ garmin.getStats(cdate: string | Date): Promise<UserSummary>
 const result = await garmin.getStats("2026-09-24");
 ```
 
+**Returns**
+
+`UserSummary`:
+
+| Field | Type | Always present |
+|---|---|---|
+| `totalSteps` | `number` | no |
+| `totalDistanceMeters` | `number` | no |
+| `activeKilocalories` | `number` | no |
+| `privacyProtected` | `boolean` | no |
+
+Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
+
 alias of `getUserSummary`, kept for parity with upstream's `get_stats`
 
 Verification: ✅ live-verified
@@ -346,6 +525,10 @@ garmin.getStatsAndBody(cdate: string | Date): Promise<StatsAndBody>
 ```ts
 const result = await garmin.getStatsAndBody("2026-09-24");
 ```
+
+**Returns**
+
+`StatsAndBody`
 
 merges `getUserSummary` with the body-composition `totalAverage` block, delegating to `getBodyComposition` (bodyComposition service) for the latter
 
@@ -361,6 +544,19 @@ garmin.getStepsData(cdate: string | Date): Promise<StepsEntry[]>
 const result = await garmin.getStepsData("2026-09-24");
 ```
 
+**Returns**
+
+An array of `StepsEntry`:
+
+| Field | Type | Always present |
+|---|---|---|
+| `startGMT` | `string` | no |
+| `endGMT` | `string` | no |
+| `steps` | `number` | no |
+| `primaryActivityLevel` | `string` | no |
+
+Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
+
 Verification: ✅ live-verified
 
 ## getStressData
@@ -372,6 +568,10 @@ garmin.getStressData(cdate: string | Date): Promise<DailyStressData | null>
 ```ts
 const result = await garmin.getStressData("2026-09-24");
 ```
+
+**Returns**
+
+`DailyStressData` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
 
 identical URL to `getAllDayStress`, kept as a separate method for upstream API parity
 
@@ -387,6 +587,19 @@ garmin.getUserSummary(cdate: string | Date): Promise<UserSummary>
 const result = await garmin.getUserSummary("2026-09-24");
 ```
 
+**Returns**
+
+`UserSummary`:
+
+| Field | Type | Always present |
+|---|---|---|
+| `totalSteps` | `number` | no |
+| `totalDistanceMeters` | `number` | no |
+| `activeKilocalories` | `number` | no |
+| `privacyProtected` | `boolean` | no |
+
+Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
+
 Verification: ✅ live-verified
 
 ## getWeeklyIntensityMinutes
@@ -399,6 +612,16 @@ garmin.getWeeklyIntensityMinutes(start: string | Date, end: string | Date): Prom
 const result = await garmin.getWeeklyIntensityMinutes("2026-09-24", "2026-09-24");
 ```
 
+**Returns**
+
+An array of `WeeklyIntensityMinutesEntry`:
+
+| Field | Type | Always present |
+|---|---|---|
+| `calendarDate` | `string` | no |
+
+Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
+
 Verification: ✅ live-verified
 
 ## getWeeklySteps
@@ -410,6 +633,17 @@ garmin.getWeeklySteps(end: string | Date, weeks?: number): Promise<WeeklyStepsEn
 ```ts
 const result = await garmin.getWeeklySteps("2026-09-24");
 ```
+
+**Returns**
+
+An array of `WeeklyStepsEntry`:
+
+| Field | Type | Always present |
+|---|---|---|
+| `calendarDate` | `string` | no |
+| `totalSteps` | `number` | no |
+
+Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
 
 `weeks` defaults to 52, must be a positive integer
 
@@ -425,6 +659,16 @@ garmin.getWeeklyStress(end: string | Date, weeks?: number): Promise<WeeklyStress
 const result = await garmin.getWeeklyStress("2026-09-24");
 ```
 
+**Returns**
+
+An array of `WeeklyStressEntry`:
+
+| Field | Type | Always present |
+|---|---|---|
+| `calendarDate` | `string` | no |
+
+Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
+
 same `weeks` default/validation as `getWeeklySteps`
 
 Verification: ✅ live-verified
@@ -438,6 +682,10 @@ garmin.setBloodPressure(systolic: number, diastolic: number, pulse?: number, whe
 ```ts
 const result = await garmin.setBloodPressure(1, 1);
 ```
+
+**Returns**
+
+`BloodPressureSetResult` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
 
 validates systolic 70-260, diastolic 40-150, pulse (if given) 20-250, all integers; `when` defaults to `new Date()`
 

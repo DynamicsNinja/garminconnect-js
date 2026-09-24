@@ -103,6 +103,44 @@ describe("generated API reference", () => {
     expect(mismatches, mismatches.join("; ")).toEqual([]);
   });
 
+  it("tells the reader what every method returns", () => {
+    // The pages first shipped with signatures only: `Promise<SleepData | null>` and no hint of
+    // what SleepData holds, which is the one thing you need before calling anything.
+    for (const [file, content] of pages) {
+      if (file === "README.md") continue;
+      const sections = content.split(/^## /m).slice(1);
+      const silent = sections
+        .filter((s) => !s.includes("**Returns**"))
+        .map((s) => s.split("\n")[0]!);
+      expect(silent, `${file} documents no return shape for: ${silent.join(", ")}`).toEqual([]);
+    }
+  });
+
+  it("resolves named return types instead of only naming them", () => {
+    // A resolver that fails open would render `\`SleepData\`` and move on, which reads like a
+    // real answer. Most responses should resolve to a field table or an explicit "unparsed" note.
+    let resolved = 0;
+    let total = 0;
+    for (const [file, content] of pages) {
+      if (file === "README.md") continue;
+      for (const section of content.split(/^## /m).slice(1)) {
+        total++;
+        // Four honest outcomes, all of which tell a reader something: a field table, a type
+        // alias expanded to what it aliases, a primitive, or an explicit "unparsed"/bytes note.
+        // Only a bare `` `SomeType` `` with nothing after it is a resolver that gave up.
+        if (/\| Field \| Type \| Always present \|/.test(section)) resolved++;
+        else if (/^`\w+` = /m.test(section)) resolved++;
+        else if (/^`(string|number|boolean|null|void)`$/m.test(section)) resolved++;
+        else if (/passed through unparsed|Buffer` of file bytes|Nothing\./.test(section)) resolved++;
+      }
+    }
+    expect(total).toBeGreaterThan(100);
+    expect(
+      resolved / total,
+      `only ${String(resolved)}/${String(total)} methods resolve to a concrete return shape`,
+    ).toBeGreaterThan(0.95);
+  });
+
   it("gives every documented method a real signature, not a parser leftover", () => {
     // The first generated run truncated every signature containing a TypeScript union, because
     // AGENTS.md escapes `|` as `\|` inside table cells and the row was split on a bare `|`.

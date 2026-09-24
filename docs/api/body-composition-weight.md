@@ -4,7 +4,7 @@
 
 Weigh-ins and body-composition records. Note the unit asymmetry: writes send the raw value in the unit you name, reads return GRAMS.
 
-Every method below hangs off a `Garmin` instance. See the [README](../../README.md#-quick-start) for how to construct one:
+Every method below hangs off a `Garmin` instance. See [Installation & setup](../../README.md#-installation--setup) for how to construct one:
 
 ```ts
 import { GarminClient, Garmin, FileTokenStore } from "garminconnect-js";
@@ -41,6 +41,10 @@ garmin.addBodyComposition(weight: number, extra?: WeightScaleFields & { timestam
 const result = await garmin.addBodyComposition(1);
 ```
 
+**Returns**
+
+`unknown` — Garmin's response is passed through unparsed. Cast it to whatever you need; this library does not model it.
+
 builds a `.fit` binary in memory (`src/util/fit.ts`, ported from upstream `fit.py`'s `FitEncoderWeight`) and uploads it via `client.upload` to `/upload-service/upload`; `weight` validated positive/finite, throws `GarminError` otherwise; UNCERTAIN upstream null handling (passes `client.upload`'s result through unchecked, matching upstream's unchecked `self.client.post(...)`)
 
 Verification: ✅ live-verified
@@ -54,6 +58,10 @@ garmin.addWeighIn(weightValue: number, unitKey?: "kg" | "lbs", when?: Date): Pro
 ```ts
 const result = await garmin.addWeighIn(1);
 ```
+
+**Returns**
+
+`unknown` — Garmin's response is passed through unparsed. Cast it to whatever you need; this library does not model it.
 
 defaults `unitKey="kg"`, `when=new Date()`
 
@@ -69,6 +77,10 @@ garmin.addWeighInWithTimestamps(weightValue: number, unitKey?: "kg" | "lbs", dat
 const result = await garmin.addWeighInWithTimestamps(1);
 ```
 
+**Returns**
+
+`unknown` — Garmin's response is passed through unparsed. Cast it to whatever you need; this library does not model it.
+
 same raw-value, no-conversion rule as `addWeighIn`; the two timestamps are COUPLED: the local instant resolves from `dateTimestamp` if given (naive strings read as LOCAL time) else from `when` (defaults `new Date()`), and `gmtTimestamp`, when omitted, is derived from THAT resolved instant — never independently from `when`. Both supplied strings are re-formatted rather than forwarded verbatim (a naive `gmtTimestamp` is read as UTC), matching upstream
 
 Verification: ✅ live-verified
@@ -83,6 +95,10 @@ garmin.deleteWeighIn(cdate: string | Date, weightPk: number): Promise<null>
 const result = await garmin.deleteWeighIn("2026-09-24", 1);
 ```
 
+**Returns**
+
+`null`
+
 Verification: ✅ live-verified
 
 ## deleteWeighIns
@@ -94,6 +110,10 @@ garmin.deleteWeighIns(cdate: string | Date, deleteAll?: boolean): Promise<number
 ```ts
 const result = await garmin.deleteWeighIns("2026-09-24");
 ```
+
+**Returns**
+
+`number`
 
 no HTTP path of its own: calls `getDailyWeighIns`, then loops `deleteWeighIn` per entry; returns `null` (deletes nothing) if there are zero entries, or more than one entry and `deleteAll` is not `true`; otherwise deletes every entry that day and returns the count. **IRREVERSIBLE** — deletes ALL weigh-ins recorded on `cdate` when it proceeds
 
@@ -109,6 +129,19 @@ garmin.getBodyComposition(startdate: string | Date, enddate?: string | Date): Pr
 const result = await garmin.getBodyComposition("2026-09-24");
 ```
 
+**Returns**
+
+`BodyCompositionRange`:
+
+| Field | Type | Always present |
+|---|---|---|
+| `startDate` | `string` | no |
+| `endDate` | `string` | no |
+| `dailyWeightSummaries` | `Record<string, unknown>[]` | no |
+| `totalAverage` | `Record<string, unknown>` | no |
+
+Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
+
 GETs `/weight-service/weight/dateRange`; `enddate` defaults to `startdate`; throws `GarminError` if `startdate > enddate`; passes through unchecked. `getStatsAndBody` (wellness service) now delegates to this instead of inlining its own copy of the same call
 
 Verification: ✅ live-verified
@@ -123,6 +156,17 @@ garmin.getDailyWeighIns(cdate: string | Date): Promise<DailyWeighIns | null>
 const result = await garmin.getDailyWeighIns("2026-09-24");
 ```
 
+**Returns**
+
+`DailyWeighIns`:
+
+| Field | Type | Always present |
+|---|---|---|
+| `dateWeightList` | `WeighInEntry[]` | no |
+| `totalAverage` | `Record<string, unknown>` | no |
+
+Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
+
 GETs `/weight-service/weight/dayview/{cdate}?includeAll=true`; passes through unchecked
 
 Verification: ✅ live-verified
@@ -136,5 +180,16 @@ garmin.getWeighIns(startdate: string | Date, enddate: string | Date): Promise<We
 ```ts
 const result = await garmin.getWeighIns("2026-09-24", "2026-09-24");
 ```
+
+**Returns**
+
+`WeighInRange`:
+
+| Field | Type | Always present |
+|---|---|---|
+| `dailyWeightSummaries` | `Record<string, unknown>[]` | no |
+| `totalAverage` | `Record<string, unknown>` | no |
+
+Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
 
 Verification: ✅ live-verified

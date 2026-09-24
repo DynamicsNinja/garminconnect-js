@@ -18,7 +18,7 @@
  * `tests/api-docs.test.ts` regenerates in memory and fails if the committed files differ, so the
  * pages cannot drift from the code without a test going red.
  */
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 
@@ -166,6 +166,127 @@ function parseAgentsTable(): Map<string, { signature: string; notes: string; ver
   return map;
 }
 
+
+/**
+ * Every exported `interface`/`type` in `src/types/*.ts` plus `src/garmin.ts`, as raw declaration
+ * text, keyed by name. Regex rather than a TypeScript AST on purpose: this package has zero
+ * runtime dependencies and a parser would be the first, for a doc generator.
+ */
+function loadTypeDeclarations(): Map<string, string> {
+  const decls = new Map<string, string>();
+  const files = readdirSync(path.join(ROOT, "src", "types"))
+    .filter((f) => f.endsWith(".ts"))
+    .map((f) => path.join(ROOT, "src", "types", f));
+  files.push(path.join(ROOT, "src", "garmin.ts"), path.join(ROOT, "src", "client.ts"));
+
+  for (const file of files) {
+    if (!existsSync(file)) continue;
+    const source = readFileSync(file, "utf8");
+    for (const m of source.matchAll(/^export interface (\w+) \{([\s\S]*?)^\}/gm)) {
+      decls.set(m[1]!, m[2]!);
+    }
+    for (const m of source.matchAll(/^export type (\w+) = ([^;]+);/gm)) {
+      decls.set(m[1]!, `= ${m[2]!.replace(/\s+/g, " ").trim()}`);
+    }
+  }
+  return decls;
+}
+
+/** The `X` in `Promise<X>`, with `| null` stripped — the type a caller actually receives. */
+function returnTypeOf(signature: string): string {
+  const m = /:\s*Promise<([\s\S]+)>\s*$/.exec(signature.trim());
+  if (!m) return "";
+  return m[1]!.replace(/\s*\|\s*null\s*$/, "").trim();
+}
+
+/**
+ * Renders what a caller gets back: the declared fields of the return type, or an honest note when
+ * the shape is open. Garmin returns far more than this library models — almost every response
+ * interface carries an index signature — and saying so is more useful than implying the field list
+ * is exhaustive.
+ */
+function renderResponse(signature: string, decls: Map<string, string>): string[] {
+  const out: string[] = [];
+  const raw = returnTypeOf(signature);
+  if (!raw) return out;
+
+  const isArray = /\[\]$/.test(raw);
+  const base = raw.replace(/\[\]$/, "").trim();
+  const body = decls.get(base);
+
+  out.push("**Returns**");
+  out.push("");
+
+  if (base === "void" || base === "unknown" || base === "") {
+    out.push(
+      base === "unknown"
+        ? "`unknown` — Garmin's response is passed through unparsed. Cast it to whatever you need; " +
+            "this library does not model it."
+        : "Nothing.",
+    );
+    out.push("");
+    return out;
+  }
+  if (/^Buffer$/.test(base)) {
+    out.push("A `Buffer` of file bytes.");
+    out.push("");
+    return out;
+  }
+  if (!body) {
+    out.push(`\`${raw}\``);
+    out.push("");
+    return out;
+  }
+  if (body.startsWith("= ")) {
+    out.push(`\`${base}\` ${body}`);
+    out.push("");
+    return out;
+  }
+
+  const fields: string[] = [];
+  let open = false;
+  for (const line of body.split("\n")) {
+    const text = line.trim();
+    if (!text || text.startsWith("//") || text.startsWith("*") || text.startsWith("/*")) continue;
+    if (/^\[key: string\]/.test(text)) {
+      open = true;
+      continue;
+    }
+    const f = /^(\w+)(\??):\s*(.+?);?$/.exec(text);
+    if (f) fields.push(`| \`${f[1]!}\` | \`${f[3]!.replace(/;$/, "")}\` | ${f[2] ? "no" : "yes"} |`);
+  }
+
+  // An interface with an index signature and NO named fields models nothing at all. Printing
+  // "`ActivitySplits`:" followed by an empty table reads like a rendering bug; say what is true.
+  if (fields.length === 0 && open) {
+    out.push(
+      `${isArray ? `An array of \`${base}\`` : `\`${base}\``} — an object whose fields this ` +
+        "library does not model. Garmin's response is passed through unparsed, so read one to see " +
+        "what you get, or use a `Record<string, unknown>` and narrow it yourself.",
+    );
+    out.push("");
+    return out;
+  }
+
+  out.push(isArray ? `An array of \`${base}\`:` : `\`${base}\`:`);
+  out.push("");
+  if (fields.length > 0) {
+    out.push("| Field | Type | Always present |");
+    out.push("|---|---|---|");
+    out.push(...fields);
+    out.push("");
+  }
+  if (open) {
+    out.push(
+      "Plus every other field Garmin sends: this type carries an index signature because the " +
+        "real response is wider than the fields above, which are the ones this library relies on " +
+        "or has observed. Read an actual response before depending on a field that is not listed.",
+    );
+    out.push("");
+  }
+  return out;
+}
+
 /** A plausible argument for a parameter, from its name and type. */
 function exampleArg(param: string): string {
   const [rawName, rawType] = param.split(":").map((s) => s.trim());
@@ -210,7 +331,13 @@ function verdictOf(verified: string): string {
 }
 
 /** Renders one category page. */
-function renderPage(slug: string, title: string, blurb: string, methods: MethodDoc[]): string {
+function renderPage(
+  slug: string,
+  title: string,
+  blurb: string,
+  methods: MethodDoc[],
+  decls: Map<string, string>,
+): string {
   const lines: string[] = [];
   lines.push(`# ${title}`);
   lines.push("");
@@ -221,8 +348,8 @@ function renderPage(slug: string, title: string, blurb: string, methods: MethodD
     lines.push("");
   }
   lines.push(
-    "Every method below hangs off a `Garmin` instance. See the " +
-      "[README](../../README.md#-quick-start) for how to construct one:",
+    "Every method below hangs off a `Garmin` instance. See " +
+      "[Installation & setup](../../README.md#-installation--setup) for how to construct one:",
   );
   lines.push("");
   lines.push("```ts");
@@ -256,6 +383,7 @@ function renderPage(slug: string, title: string, blurb: string, methods: MethodD
     lines.push(exampleCall(m));
     lines.push("```");
     lines.push("");
+    lines.push(...renderResponse(m.signature, decls));
     if (m.notes) {
       lines.push(m.notes);
       lines.push("");
@@ -270,6 +398,7 @@ function renderPage(slug: string, title: string, blurb: string, methods: MethodD
 export function buildPages(): Map<string, string> {
   const agents = parseAgentsTable();
   const methods = parseGarminClass();
+  const decls = loadTypeDeclarations();
   const bySlug = new Map<string, { title: string; blurb: string; methods: MethodDoc[] }>();
 
   for (const { name, params, service } of methods) {
@@ -297,7 +426,7 @@ export function buildPages(): Map<string, string> {
   const pages = new Map<string, string>();
   for (const [slug, { title, blurb, methods: list }] of [...bySlug].sort()) {
     list.sort((a, b) => a.name.localeCompare(b.name));
-    pages.set(`${slug}.md`, renderPage(slug, title, blurb, list));
+    pages.set(`${slug}.md`, renderPage(slug, title, blurb, list, decls));
   }
   pages.set("README.md", renderIndex(pages, bySlug));
   return pages;

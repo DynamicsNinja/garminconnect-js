@@ -4,7 +4,7 @@
 
 Registered Garmin devices, their settings, alarms and solar data.
 
-Every method below hangs off a `Garmin` instance. See the [README](../../README.md#-quick-start) for how to construct one:
+Every method below hangs off a `Garmin` instance. See [Installation & setup](../../README.md#-installation--setup) for how to construct one:
 
 ```ts
 import { GarminClient, Garmin, FileTokenStore } from "garminconnect-js";
@@ -39,6 +39,10 @@ garmin.getDeviceAlarms(): Promise<unknown[]>
 const result = await garmin.getDeviceAlarms();
 ```
 
+**Returns**
+
+`unknown` — Garmin's response is passed through unparsed. Cast it to whatever you need; this library does not model it.
+
 no HTTP path of its own: calls `getDevices()` once, then `getDeviceSettings(device.deviceId)` once per device (N+1 fan-out, sequential, ported faithfully — do not parallelize), concatenating each device's `alarms`; a device with no alarms contributes nothing, never throws for that case
 
 Verification: ✅ live-verified
@@ -52,6 +56,16 @@ garmin.getDeviceLastUsed(): Promise<DeviceLastUsed | null>
 ```ts
 const result = await garmin.getDeviceLastUsed();
 ```
+
+**Returns**
+
+`DeviceLastUsed`:
+
+| Field | Type | Always present |
+|---|---|---|
+| `userDeviceId` | `number | string` | no |
+
+Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
 
 passes through unchecked; also used internally by `pushWorkoutToDevice` to resolve a missing `deviceId`
 
@@ -67,6 +81,16 @@ garmin.getDevices(): Promise<Device[] | null>
 const result = await garmin.getDevices();
 ```
 
+**Returns**
+
+An array of `Device`:
+
+| Field | Type | Always present |
+|---|---|---|
+| `deviceId` | `number | string` | no |
+
+Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
+
 passes through unchecked; undocumented per-device shape, `deviceId` is the field the other device methods key off of
 
 Verification: ✅ live-verified
@@ -80,6 +104,16 @@ garmin.getDeviceSettings(deviceId: number | string): Promise<DeviceSettings | nu
 ```ts
 const result = await garmin.getDeviceSettings(activityId);
 ```
+
+**Returns**
+
+`DeviceSettings`:
+
+| Field | Type | Always present |
+|---|---|---|
+| `alarms` | `unknown[]` | no |
+
+Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
 
 `deviceId` coerced to an int, validated positive, re-stringified before being placed in the path; passes through unchecked. Two-call sequence: get a `deviceId` from a `getDevices()` entry first, then pass it here
 
@@ -95,6 +129,10 @@ garmin.getDeviceSolarData(deviceId: number | string, startdate: string | Date, e
 const result = await garmin.getDeviceSolarData(activityId, "2026-09-24");
 ```
 
+**Returns**
+
+`unknown` — Garmin's response is passed through unparsed. Cast it to whatever you need; this library does not model it.
+
 the only raising method in this group: throws `GarminConnectionError` if the response is falsy or missing the `deviceSolarInput` key; returns `resp.deviceSolarInput`, NOT the envelope. `enddate` defaults to `startdate`, and `singleDayView` is sent `"true"` exactly when `enddate` was omitted
 
 Verification: ✅ live-verified
@@ -108,6 +146,10 @@ garmin.getPrimaryTrainingDevice(): Promise<PrimaryTrainingDevice | null>
 ```ts
 const result = await garmin.getPrimaryTrainingDevice();
 ```
+
+**Returns**
+
+`PrimaryTrainingDevice` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
 
 passes through unchecked
 

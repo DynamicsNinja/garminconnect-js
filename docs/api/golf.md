@@ -4,7 +4,7 @@
 
 Scorecards, shot data, club and player stats.
 
-Every method below hangs off a `Garmin` instance. See the [README](../../README.md#-quick-start) for how to construct one:
+Every method below hangs off a `Garmin` instance. See [Installation & setup](../../README.md#-installation--setup) for how to construct one:
 
 ```ts
 import { GarminClient, Garmin, FileTokenStore } from "garminconnect-js";
@@ -38,6 +38,10 @@ garmin.getGolfClubStats(limit?: number): Promise<GolfClubStats[] | null>
 const result = await garmin.getGolfClubStats();
 ```
 
+**Returns**
+
+An array of `GolfClubStats` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
+
 defaults `limit=1000`; validated positive; GETs `/gcs-golfcommunity/api/v2/club/player`; hyphenated query params `per-page` and `include-stats` (literal `"true"`). **Inventory's `returns` column says "dict"; live-verified WRONG** — the test account returned a JSON ARRAY of 17 club entries (`{id, clubTypeId, shaftLength, flexTypeId, averageDistance, adviceDistance, retired, deleted, lastModifiedTime}`), not a single object
 
 Verification: ✅ live-verified
@@ -51,6 +55,10 @@ garmin.getGolfScorecard(scorecardId: number | string): Promise<GolfScorecardDeta
 ```ts
 const result = await garmin.getGolfScorecard(activityId);
 ```
+
+**Returns**
+
+`GolfScorecardDetail` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
 
 GETs `/gcs-golfcommunity/api/v2/scorecard/detail`; hyphenated query params `scorecard-ids` and `include-longest-shot-distance` (sent as the literal string `"true"`); passes through unchecked
 
@@ -66,6 +74,10 @@ garmin.getGolfShotData(scorecardId: number | string, holeNumbers?: string): Prom
 const result = await garmin.getGolfShotData(activityId);
 ```
 
+**Returns**
+
+`GolfShotData` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
+
 GETs `/gcs-golfcommunity/api/v2/shot/scorecard/{scorecardId}/hole`; `holeNumbers` accepts commas or hyphens as separators (spaces stripped), re-joined with `-` before sending as the hyphenated `hole-numbers` param; **if any requested hole number is >9, the filter is silently dropped and all 18 holes are requested instead** (Garmin's endpoint drops double-digit hole numbers from a filtered query); omitting `holeNumbers` also fetches all 18; passes through unchecked
 
 Verification: ⚠️ attempted, unconfirmed
@@ -80,6 +92,10 @@ garmin.getGolfSummary(start?: number, limit?: number): Promise<GolfScorecardSumm
 const result = await garmin.getGolfSummary();
 ```
 
+**Returns**
+
+`GolfScorecardSummary` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
+
 defaults `start=0, limit=100`; `start` validated non-negative, `limit` validated positive (throws `GarminError` otherwise); query params are literally hyphenated (`per-page`, `start`), matching Garmin's own naming. **Inventory's `returns` column says "list"; live-verified WRONG** — the test account (0 rounds recorded) returned a single pagination-envelope OBJECT `{pageNumber, rowsPerPage, totalRows}`, not an array
 
 Verification: ✅ live-verified
@@ -93,6 +109,10 @@ garmin.getGolfUserStats(): Promise<GolfUserStats | null>
 ```ts
 const result = await garmin.getGolfUserStats();
 ```
+
+**Returns**
+
+`GolfUserStats` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
 
 GETs `/gcs-golfcommunity/api/v2/player/stats`; handicap and strokes-gained overview, no params; passes through unchecked
 

@@ -4,7 +4,7 @@
 
 Workout CRUD, per-sport upload helpers, scheduling, and pushing to a device. For building the workout JSON itself, see [WORKOUTS.md](../../WORKOUTS.md) — `buildWorkout` is far easier than hand-writing it.
 
-Every method below hangs off a `Garmin` instance. See the [README](../../README.md#-quick-start) for how to construct one:
+Every method below hangs off a `Garmin` instance. See [Installation & setup](../../README.md#-installation--setup) for how to construct one:
 
 ```ts
 import { GarminClient, Garmin, FileTokenStore } from "garminconnect-js";
@@ -49,6 +49,10 @@ garmin.deleteWorkout(workoutId: number | string): Promise<unknown>
 const result = await garmin.deleteWorkout(activityId);
 ```
 
+**Returns**
+
+`unknown` — Garmin's response is passed through unparsed. Cast it to whatever you need; this library does not model it.
+
 UNCERTAIN upstream null handling; deletes the template from the workout library, irreversible
 
 Verification: ✅ live-verified
@@ -62,6 +66,10 @@ garmin.downloadWorkout(workoutId: number | string): Promise<Buffer>
 ```ts
 const result = await garmin.downloadWorkout(activityId);
 ```
+
+**Returns**
+
+A `Buffer` of file bytes.
 
 UNCERTAIN upstream null handling; FIT-file bytes
 
@@ -77,6 +85,10 @@ garmin.getNextScheduledWorkout(): Promise<CalendarItem | {}>
 const result = await garmin.getNextScheduledWorkout();
 ```
 
+**Returns**
+
+`CalendarItem | {}`
+
 computed from two `getScheduledWorkouts` calls (this month + next, handling Dec->Jan rollover); returns `{}` if nothing matches, never throws
 
 Verification: ✅ live-verified
@@ -90,6 +102,17 @@ garmin.getScheduledWorkoutById(scheduledWorkoutId: number | string): Promise<Wor
 ```ts
 const result = await garmin.getScheduledWorkoutById(activityId);
 ```
+
+**Returns**
+
+`WorkoutRecord`:
+
+| Field | Type | Always present |
+|---|---|---|
+| `workoutId` | `number` | no |
+| `workoutName` | `string` | no |
+
+Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
 
 uses a DIFFERENT base (`/workout-service/schedule`) than `getScheduledWorkouts` (`/calendar-service`); passes through unchecked
 
@@ -105,6 +128,16 @@ garmin.getScheduledWorkouts(year: number | string, month: number | string): Prom
 const result = await garmin.getScheduledWorkouts(activityId, activityId);
 ```
 
+**Returns**
+
+`CalendarMonth`:
+
+| Field | Type | Always present |
+|---|---|---|
+| `calendarItems` | `CalendarItem[]` | no |
+
+Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
+
 `month` is 1-12 on the way in, converted to 0-indexed on the wire; validates `year>=2000`, `month` 1-12; passes through unchecked
 
 Verification: ✅ live-verified
@@ -118,6 +151,17 @@ garmin.getWorkoutById(workoutId: number | string): Promise<WorkoutRecord | null>
 ```ts
 const result = await garmin.getWorkoutById(activityId);
 ```
+
+**Returns**
+
+`WorkoutRecord`:
+
+| Field | Type | Always present |
+|---|---|---|
+| `workoutId` | `number` | no |
+| `workoutName` | `string` | no |
+
+Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
 
 passes through unchecked
 
@@ -133,6 +177,17 @@ garmin.getWorkouts(start?: number, limit?: number): Promise<WorkoutRecord[] | nu
 const result = await garmin.getWorkouts();
 ```
 
+**Returns**
+
+An array of `WorkoutRecord`:
+
+| Field | Type | Always present |
+|---|---|---|
+| `workoutId` | `number` | no |
+| `workoutName` | `string` | no |
+
+Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
+
 defaults `start=0, limit=100`; passes through unchecked, stays nullable (does NOT coalesce to `[]`)
 
 Verification: ✅ live-verified
@@ -146,6 +201,33 @@ garmin.pushWorkoutToDevice(workoutId?: number | string, deviceId?: number | stri
 ```ts
 const result = await garmin.pushWorkoutToDevice();
 ```
+
+**Returns**
+
+An array of `DeviceMessage`:
+
+| Field | Type | Always present |
+|---|---|---|
+| `messageId` | `number` | yes |
+| `messageType` | `string` | yes |
+| `messageStatus` | `string` | yes |
+| `deviceId` | `number` | yes |
+| `deviceName` | `string` | yes |
+| `fileType` | `string` | yes |
+| `messageUrl` | `string` | yes |
+| `messageName` | `string` | yes |
+| `priority` | `number` | yes |
+| `metaDataId` | `number` | yes |
+| `wifiSetup` | `boolean` | yes |
+| `hidden` | `boolean` | yes |
+| `applicationKey` | `string | null` | yes |
+| `firmwareVersion` | `string | null` | yes |
+| `deviceXmlDataType` | `string | null` | yes |
+| `createdTimeStamp` | `string | null` | yes |
+| `updatedTimeStamp` | `string | null` | yes |
+| `uniqueIdentifier` | `string | null` | yes |
+| `groupName` | `string | null` | yes |
+| `appDetails` | `unknown` | yes |
 
 multi-call: resolves a missing `deviceId` via `/device-service/deviceservice/mylastused`'s `userDeviceId`, a missing `workoutId` via `getWorkouts(0,1)`'s first result (throws if none), then reads `getWorkoutById(workoutId).workoutName` for the push message; UNCERTAIN upstream null handling on the final POST
 
@@ -161,6 +243,17 @@ garmin.scheduleWorkout(workoutId: number | string, dateStr: string | Date): Prom
 const result = await garmin.scheduleWorkout(activityId, "2026-09-24");
 ```
 
+**Returns**
+
+`WorkoutRecord`:
+
+| Field | Type | Always present |
+|---|---|---|
+| `workoutId` | `number` | no |
+| `workoutName` | `string` | no |
+
+Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
+
 `dateStr` routed through `formatDate`; UNCERTAIN upstream null handling
 
 Verification: ✅ live-verified
@@ -174,6 +267,10 @@ garmin.unscheduleWorkout(scheduledWorkoutId: number | string): Promise<unknown>
 ```ts
 const result = await garmin.unscheduleWorkout(activityId);
 ```
+
+**Returns**
+
+`unknown` — Garmin's response is passed through unparsed. Cast it to whatever you need; this library does not model it.
 
 removes the calendar entry without deleting the workout template; irreversible; UNCERTAIN upstream null handling
 
@@ -189,6 +286,17 @@ garmin.updateWorkout(workoutId: number | string, workoutJson: Record<string, unk
 const result = await garmin.updateWorkout(activityId, "workoutJson");
 ```
 
+**Returns**
+
+`WorkoutRecord`:
+
+| Field | Type | Always present |
+|---|---|---|
+| `workoutId` | `number` | no |
+| `workoutName` | `string` | no |
+
+Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
+
 full-replace PUT; forces `workoutId` into the body to match the path id; unlike `uploadWorkout`, a string must resolve to an object, not an array; UNCERTAIN upstream null handling
 
 Verification: ✅ live-verified
@@ -202,6 +310,17 @@ garmin.uploadCyclingWorkout(workout: WorkoutInput): Promise<WorkoutRecord | null
 ```ts
 const result = await garmin.uploadCyclingWorkout(payload);
 ```
+
+**Returns**
+
+`WorkoutRecord`:
+
+| Field | Type | Always present |
+|---|---|---|
+| `workoutId` | `number` | no |
+| `workoutName` | `string` | no |
+
+Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
 
 same pattern, default `sportType` `{sportTypeId:2, sportTypeKey:"cycling", displayOrder:2}`
 
@@ -217,6 +336,17 @@ garmin.uploadRunningWorkout(workout: WorkoutInput): Promise<WorkoutRecord | null
 const result = await garmin.uploadRunningWorkout(payload);
 ```
 
+**Returns**
+
+`WorkoutRecord`:
+
+| Field | Type | Always present |
+|---|---|---|
+| `workoutId` | `number` | no |
+| `workoutName` | `string` | no |
+
+Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
+
 fills the default `running` `sportType` (`{sportTypeId:1, sportTypeKey:"running", displayOrder:1}`) if the caller didn't supply one, then delegates to `uploadWorkout`; see gotchas for where the body shape came from
 
 Verification: ✅ live-verified
@@ -230,6 +360,17 @@ garmin.uploadStrengthWorkout(workout: WorkoutInput): Promise<WorkoutRecord | nul
 ```ts
 const result = await garmin.uploadStrengthWorkout(payload);
 ```
+
+**Returns**
+
+`WorkoutRecord`:
+
+| Field | Type | Always present |
+|---|---|---|
+| `workoutId` | `number` | no |
+| `workoutName` | `string` | no |
+
+Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
 
 same pattern, default `sportType` `{sportTypeId:5, sportTypeKey:"strength_training", displayOrder:5}`
 
@@ -245,6 +386,17 @@ garmin.uploadSwimmingWorkout(workout: WorkoutInput): Promise<WorkoutRecord | nul
 const result = await garmin.uploadSwimmingWorkout(payload);
 ```
 
+**Returns**
+
+`WorkoutRecord`:
+
+| Field | Type | Always present |
+|---|---|---|
+| `workoutId` | `number` | no |
+| `workoutName` | `string` | no |
+
+Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
+
 same pattern, default `sportType` `{sportTypeId:4, sportTypeKey:"swimming", displayOrder:3}`
 
 Verification: ✅ live-verified
@@ -258,6 +410,17 @@ garmin.uploadWorkout(workoutJson: Record<string, unknown> | unknown[] | string):
 ```ts
 const result = await garmin.uploadWorkout("workoutJson");
 ```
+
+**Returns**
+
+`WorkoutRecord`:
+
+| Field | Type | Always present |
+|---|---|---|
+| `workoutId` | `number` | no |
+| `workoutName` | `string` | no |
+
+Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
 
 a string is JSON-parsed (throws `GarminError` on invalid JSON or a non-object/array result); UNCERTAIN upstream null handling
 

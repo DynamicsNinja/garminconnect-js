@@ -4,7 +4,7 @@
 
 Earned, available and in-progress badges, plus ad-hoc, badge and virtual challenges.
 
-Every method below hangs off a `Garmin` instance. See the [README](../../README.md#-quick-start) for how to construct one:
+Every method below hangs off a `Garmin` instance. See [Installation & setup](../../README.md#-installation--setup) for how to construct one:
 
 ```ts
 import { GarminClient, Garmin, FileTokenStore } from "garminconnect-js";
@@ -41,6 +41,10 @@ garmin.getAdhocChallenges(start: number, limit: number): Promise<AdhocChallenge[
 const result = await garmin.getAdhocChallenges(1, 1);
 ```
 
+**Returns**
+
+An array of `AdhocChallenge` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
+
 GETs `/adhocchallenge-service/adHocChallenge/historical`; `start` validated non-negative, `limit` validated positive (throws `GarminError` otherwise); passes through unchecked; live-verified as a JSON ARRAY, not the `dict` the inventory's `returns` column names (see gotchas)
 
 Verification: ✅ live-verified
@@ -54,6 +58,10 @@ garmin.getAvailableBadgeChallenges(start: number, limit: number): Promise<Availa
 ```ts
 const result = await garmin.getAvailableBadgeChallenges(1, 1);
 ```
+
+**Returns**
+
+An array of `AvailableBadgeChallenge` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
 
 GETs `/badgechallenge-service/badgeChallenge/available`; same `start`/`limit` validation; passes through unchecked; same array-not-dict correction and same live `start=0` -> 400 discovery as `getBadgeChallenges`
 
@@ -69,6 +77,20 @@ garmin.getAvailableBadges(): Promise<Badge[] | null>
 const result = await garmin.getAvailableBadges();
 ```
 
+**Returns**
+
+An array of `Badge`:
+
+| Field | Type | Always present |
+|---|---|---|
+| `badgeId` | `number` | no |
+| `badgeProgressValue` | `number` | no |
+| `badgeTargetValue` | `number` | no |
+| `badgeLimitCount` | `number` | no |
+| `badgeEarnedNumber` | `number` | no |
+
+Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
+
 GETs `/badge-service/badge/available?showExclusiveBadge=true`; passes through unchecked, stays nullable
 
 Verification: ✅ live-verified
@@ -82,6 +104,10 @@ garmin.getBadgeChallenges(start: number, limit: number): Promise<BadgeChallenge[
 ```ts
 const result = await garmin.getBadgeChallenges(1, 1);
 ```
+
+**Returns**
+
+An array of `BadgeChallenge` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
 
 GETs `/badgechallenge-service/badgeChallenge/completed`; same `start`/`limit` validation as `getAdhocChallenges`; passes through unchecked; same array-not-dict correction. **Live discovery**: Garmin's server itself rejects `start=0` with a 400 (`"start should > 0."`) on this endpoint despite upstream's own client-side validation allowing it — the client-side check here faithfully matches upstream (non-negative), the 400 is Garmin's server, not a wrong URL; call with `start>=1` in practice
 
@@ -97,6 +123,20 @@ garmin.getEarnedBadges(): Promise<Badge[] | null>
 const result = await garmin.getEarnedBadges();
 ```
 
+**Returns**
+
+An array of `Badge`:
+
+| Field | Type | Always present |
+|---|---|---|
+| `badgeId` | `number` | no |
+| `badgeProgressValue` | `number` | no |
+| `badgeTargetValue` | `number` | no |
+| `badgeLimitCount` | `number` | no |
+| `badgeEarnedNumber` | `number` | no |
+
+Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
+
 GETs `/badge-service/badge/earned`; passes through unchecked, stays nullable (does NOT coalesce to `[]`)
 
 Verification: ✅ live-verified
@@ -110,6 +150,20 @@ garmin.getInProgressBadges(): Promise<Badge[]>
 ```ts
 const result = await garmin.getInProgressBadges();
 ```
+
+**Returns**
+
+An array of `Badge`:
+
+| Field | Type | Always present |
+|---|---|---|
+| `badgeId` | `number` | no |
+| `badgeProgressValue` | `number` | no |
+| `badgeTargetValue` | `number` | no |
+| `badgeLimitCount` | `number` | no |
+| `badgeEarnedNumber` | `number` | no |
+
+Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
 
 no HTTP path of its own: calls `getEarnedBadges()` and `getAvailableBadges()`, filters each with upstream's `is_badge_in_progress` predicate (progress truthy; if `progress === target`, only "in progress" when `badgeLimitCount` is set and `badgeEarnedNumber < badgeLimitCount`), then merges both filtered lists into a `Map` keyed by `badgeId` (available overwrites earned on collision, same key-position semantics as Python's `dict.update`); never raises — a `null` from either upstream call is treated as `[]`
 
@@ -125,6 +179,10 @@ garmin.getInprogressVirtualChallenges(start: number, limit: number): Promise<Inp
 const result = await garmin.getInprogressVirtualChallenges(1, 1);
 ```
 
+**Returns**
+
+An array of `InprogressVirtualChallenge` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
+
 GETs `/badgechallenge-service/virtualChallenge/inProgress`; **asymmetric validation**: `start` validated POSITIVE here (rejects `start=0`), unlike the non-negative `start` on the four challenge methods above; `limit` validated positive; passes through unchecked; same array-not-dict correction
 
 Verification: ✅ live-verified
@@ -138,6 +196,10 @@ garmin.getNonCompletedBadgeChallenges(start: number, limit: number): Promise<Non
 ```ts
 const result = await garmin.getNonCompletedBadgeChallenges(1, 1);
 ```
+
+**Returns**
+
+An array of `NonCompletedBadgeChallenge` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
 
 GETs `/badgechallenge-service/badgeChallenge/non-completed`; same `start`/`limit` validation; passes through unchecked; same array-not-dict correction and same live `start=0` -> 400 discovery as `getBadgeChallenges`
 

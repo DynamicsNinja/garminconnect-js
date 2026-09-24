@@ -4,7 +4,7 @@
 
 Training status and readiness, race predictions, FTP, lactate threshold, heart-rate and power zones, endurance and hill scores, fitness age.
 
-Every method below hangs off a `Garmin` instance. See the [README](../../README.md#-quick-start) for how to construct one:
+Every method below hangs off a `Garmin` instance. See [Installation & setup](../../README.md#-installation--setup) for how to construct one:
 
 ```ts
 import { GarminClient, Garmin, FileTokenStore } from "garminconnect-js";
@@ -49,6 +49,10 @@ garmin.getCyclingFtp(): Promise<CyclingFtpResult | null>
 const result = await garmin.getCyclingFtp();
 ```
 
+**Returns**
+
+`CyclingFtpResult` = Record<string, unknown> | Record<string, unknown>[]
+
 latest value only; use `getFunctionalThresholdPowerRange` for history
 
 Verification: ✅ live-verified
@@ -62,6 +66,10 @@ garmin.getEnduranceScore(startdate: string | Date, enddate?: string | Date): Pro
 ```ts
 const result = await garmin.getEnduranceScore("2026-09-24");
 ```
+
+**Returns**
+
+`EnduranceScoreResult` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
 
 TWO branches by presence of `enddate`, see gotchas: no `enddate` hits the single-day endpoint; with `enddate` hits `.../stats` with hard-coded `aggregation="weekly"`
 
@@ -77,6 +85,10 @@ garmin.getFitnessAgeData(cdate: string | Date): Promise<FitnessAgeResult | null>
 const result = await garmin.getFitnessAgeData("2026-09-24");
 ```
 
+**Returns**
+
+`FitnessAgeResult` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
+
 passes through unchecked
 
 Verification: ✅ live-verified
@@ -90,6 +102,10 @@ garmin.getFunctionalThresholdPowerRange(start: string | Date, end: string | Date
 ```ts
 const result = await garmin.getFunctionalThresholdPowerRange("2026-09-24", "2026-09-24");
 ```
+
+**Returns**
+
+`FtpRangeResult` = Record<string, unknown> | Record<string, unknown>[]
 
 defaults `sport="RUNNING"`, `aggregation="daily"`; `sport` upper-cased and validated (`^[A-Z_]+$`); `aggregation` restricted to `{daily,weekly,monthly,yearly}`; passes through unchecked
 
@@ -105,6 +121,10 @@ garmin.getHeartRateZones(): Promise<HeartRateZoneEntry[] | null>
 const result = await garmin.getHeartRateZones();
 ```
 
+**Returns**
+
+An array of `HeartRateZoneEntry` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
+
 passes through unchecked
 
 Verification: ✅ live-verified
@@ -118,6 +138,10 @@ garmin.getHillScore(startdate: string | Date, enddate?: string | Date): Promise<
 ```ts
 const result = await garmin.getHillScore("2026-09-24");
 ```
+
+**Returns**
+
+`HillScoreResult` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
 
 TWO branches by presence of `enddate`, same shape as `getEnduranceScore` but the range branch hard-codes `aggregation="daily"` (NOT `"weekly"` — do not conflate the two), see gotchas
 
@@ -133,6 +157,10 @@ garmin.getLactateThreshold(latest?: boolean, startDate?: string | Date, endDate?
 const result = await garmin.getLactateThreshold();
 ```
 
+**Returns**
+
+`LactateThresholdLatest | LactateThresholdRange`
+
 defaults `latest=true`, `aggregation="daily"`. TWO DIFFERENT branches, see gotchas: `latest=true` returns `{speed_and_heart_rate, power}` from two GETs; `latest=false` (requires `startDate`, throws otherwise) returns `{speed, heart_rate, power}` from three GETs
 
 Verification: ✅ live-verified
@@ -146,6 +174,10 @@ garmin.getMaxMetrics(cdate: string | Date): Promise<MaxMetricsResult | null>
 ```ts
 const result = await garmin.getMaxMetrics("2026-09-24");
 ```
+
+**Returns**
+
+`MaxMetricsResult` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
 
 the date is repeated twice in the path (start=end=cdate); passes through unchecked
 
@@ -161,6 +193,10 @@ garmin.getMaxMetricsRange(start: string | Date, end: string | Date): Promise<Max
 const result = await garmin.getMaxMetricsRange("2026-09-24", "2026-09-24");
 ```
 
+**Returns**
+
+`MaxMetricsResult` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
+
 throws `GarminError` if `start > end`; passes through unchecked
 
 Verification: ✅ live-verified
@@ -174,6 +210,16 @@ garmin.getMorningTrainingReadiness(cdate: string | Date): Promise<TrainingReadin
 ```ts
 const result = await garmin.getMorningTrainingReadiness("2026-09-24");
 ```
+
+**Returns**
+
+`TrainingReadinessEntry`:
+
+| Field | Type | Always present |
+|---|---|---|
+| `inputContext` | `string` | no |
+
+Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
 
 delegates to `getTrainingReadiness`, no HTTP call of its own; filters for `inputContext === "AFTER_WAKEUP_RESET"`, falls back to the first entry; `null` for a falsy or empty result
 
@@ -189,6 +235,10 @@ garmin.getPowerZones(): Promise<PowerZoneEntry[] | null>
 const result = await garmin.getPowerZones();
 ```
 
+**Returns**
+
+An array of `PowerZoneEntry` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
+
 passes through unchecked
 
 Verification: ✅ live-verified
@@ -202,6 +252,10 @@ garmin.getPowerZonesForSport(sport: string): Promise<PowerZonesForSportResult | 
 ```ts
 const result = await garmin.getPowerZonesForSport("sport");
 ```
+
+**Returns**
+
+`PowerZonesForSportResult` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
 
 `sport` upper-cased and validated the same way as `getFunctionalThresholdPowerRange`
 
@@ -217,6 +271,10 @@ garmin.getRacePredictions(startdate?: string | Date, enddate?: string | Date, ty
 const result = await garmin.getRacePredictions();
 ```
 
+**Returns**
+
+`RacePredictionsResult` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
+
 TWO branches, all-or-nothing params (throws on a partial combination), see gotchas: no params hits `.../latest/{displayName}`; all three hit `.../{type}/{displayName}`, capped at a 366-day span
 
 Verification: ✅ live-verified
@@ -230,6 +288,10 @@ garmin.getRunningTolerance(startdate: string | Date, enddate: string | Date, agg
 ```ts
 const result = await garmin.getRunningTolerance("2026-09-24", "2026-09-24");
 ```
+
+**Returns**
+
+An array of `RunningToleranceEntry` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
 
 defaults `aggregation="weekly"`; restricted to `{daily,weekly}` (narrower than the FTP/lactate methods); passes through unchecked
 
@@ -245,6 +307,16 @@ garmin.getTrainingReadiness(cdate: string | Date): Promise<TrainingReadinessEntr
 const result = await garmin.getTrainingReadiness("2026-09-24");
 ```
 
+**Returns**
+
+An array of `TrainingReadinessEntry`:
+
+| Field | Type | Always present |
+|---|---|---|
+| `inputContext` | `string` | no |
+
+Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
+
 passes through unchecked
 
 Verification: ✅ live-verified
@@ -258,6 +330,10 @@ garmin.getTrainingStatus(cdate: string | Date): Promise<TrainingStatusResult | n
 ```ts
 const result = await garmin.getTrainingStatus("2026-09-24");
 ```
+
+**Returns**
+
+`TrainingStatusResult` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
 
 passes through unchecked
 

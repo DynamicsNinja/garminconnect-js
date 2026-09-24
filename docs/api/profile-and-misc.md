@@ -4,7 +4,7 @@
 
 User profile and settings, goals, nutrition logs, training plans, and the odds and ends — lifestyle logging, a data-reload request, the GraphQL passthrough, and `logout`.
 
-Every method below hangs off a `Garmin` instance. See the [README](../../README.md#-quick-start) for how to construct one:
+Every method below hangs off a `Garmin` instance. See [Installation & setup](../../README.md#-installation--setup) for how to construct one:
 
 ```ts
 import { GarminClient, Garmin, FileTokenStore } from "garminconnect-js";
@@ -51,6 +51,10 @@ garmin.displayName(): Promise<string>
 const result = await garmin.displayName();
 ```
 
+**Returns**
+
+`string`
+
 Verification: —
 
 ## fullName
@@ -63,6 +67,10 @@ garmin.fullName(): Promise<string>
 const result = await garmin.fullName();
 ```
 
+**Returns**
+
+`string`
+
 Verification: —
 
 ## getAdaptiveTrainingPlanById
@@ -74,6 +82,10 @@ garmin.getAdaptiveTrainingPlanById(planId: number | string): Promise<AdaptiveTra
 ```ts
 const result = await garmin.getAdaptiveTrainingPlanById(activityId);
 ```
+
+**Returns**
+
+`AdaptiveTrainingPlanDetail` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
 
 GETs `/trainingplan-service/trainingplan/fbt-adaptive/{planId}`, a distinct sub-path from `getTrainingPlanById`'s `phased` path; passes through unchecked
 
@@ -89,6 +101,10 @@ garmin.getGoals(status?: "active" | "future" | "past", start?: number, limit?: n
 const result = await garmin.getGoals();
 ```
 
+**Returns**
+
+An array of `Goal` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
+
 defaults `status="active", **start=1**, limit=30` — `start` defaults to 1, NOT upstream's 0, because goal-service is 1-INDEXED and `start=0` silently returns `[]`; throws `GarminError` before any request for an invalid `status`. **Paginated, multi-call**: starting at `start`, fetches successive pages of `limit` entries (incrementing `start` by `limit` each call) until a page comes back empty/falsy, same fixed-page-size pattern as `getActivitiesByDate`; throws `GarminError` if `MAX_PAGINATED_REQUESTS` (2000) pages are fetched without ever seeing an empty one. **Sends the load-bearing `Sec-Fetch-Site: same-origin` header on every request** — without it `goal-service` silently returns `[]` for newer custom accumulation-goal types (upstream issue #431); no error, no 404, just wrong data
 
 Verification: ✅ live-verified
@@ -102,6 +118,10 @@ garmin.getLifestyleLoggingData(cdate: string | Date): Promise<LifestyleLoggingDa
 ```ts
 const result = await garmin.getLifestyleLoggingData("2026-09-24");
 ```
+
+**Returns**
+
+`LifestyleLoggingData` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
 
 GETs `/lifestylelogging-service/dailyLog/{cdate}`; passes through unchecked. Grouped under `misc` per the plan's explicit instruction, even though it superficially resembles a wellness-daily endpoint
 
@@ -117,6 +137,10 @@ garmin.getNutritionDailyFoodLog(cdate: string | Date): Promise<NutritionDailyFoo
 const result = await garmin.getNutritionDailyFoodLog("2026-09-24");
 ```
 
+**Returns**
+
+`NutritionDailyFoodLog` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
+
 GETs `/nutrition-service/food/logs/{cdate}`; passes through unchecked
 
 Verification: ✅ live-verified
@@ -130,6 +154,10 @@ garmin.getNutritionDailyMeals(cdate: string | Date): Promise<NutritionDailyMeals
 ```ts
 const result = await garmin.getNutritionDailyMeals("2026-09-24");
 ```
+
+**Returns**
+
+`NutritionDailyMeals` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
 
 GETs `/nutrition-service/meals/{cdate}`; passes through unchecked
 
@@ -145,6 +173,10 @@ garmin.getNutritionDailySettings(cdate: string | Date): Promise<NutritionDailySe
 const result = await garmin.getNutritionDailySettings("2026-09-24");
 ```
 
+**Returns**
+
+`NutritionDailySettings` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
+
 GETs `/nutrition-service/settings/{cdate}`; passes through unchecked
 
 Verification: ✅ live-verified
@@ -158,6 +190,10 @@ garmin.getTrainingPlanById(planId: number | string): Promise<TrainingPlanDetail 
 ```ts
 const result = await garmin.getTrainingPlanById(activityId);
 ```
+
+**Returns**
+
+`TrainingPlanDetail` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
 
 GETs `/trainingplan-service/trainingplan/phased/{planId}`; passes through unchecked
 
@@ -173,6 +209,16 @@ garmin.getTrainingPlans(): Promise<TrainingPlansResult | null>
 const result = await garmin.getTrainingPlans();
 ```
 
+**Returns**
+
+`TrainingPlansResult`:
+
+| Field | Type | Always present |
+|---|---|---|
+| `trainingPlanList` | `unknown[]` | no |
+
+Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
+
 GETs `/trainingplan-service/trainingplan/plans`; no params; passes through unchecked
 
 Verification: ✅ live-verified
@@ -187,6 +233,19 @@ garmin.getUserProfile(): Promise<SocialProfile>
 const result = await garmin.getUserProfile();
 ```
 
+**Returns**
+
+`SocialProfile`:
+
+| Field | Type | Always present |
+|---|---|---|
+| `displayName` | `string` | yes |
+| `userName` | `string` | yes |
+| `fullName` | `string` | yes |
+| `profileId` | `number` | yes |
+
+Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
+
 Verification: ✅ live-verified
 
 ## getUserprofileSettings
@@ -198,6 +257,10 @@ garmin.getUserprofileSettings(): Promise<UserprofileSettings | null>
 ```ts
 const result = await garmin.getUserprofileSettings();
 ```
+
+**Returns**
+
+`UserprofileSettings` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
 
 GETs `/userprofile-service/userprofile/settings` (SINGULAR "settings", distinct from `getUserSettings`'s "user-settings" — the two paths are one character apart and easy to transpose); passes through unchecked. Upstream naming ruling (Task 12), applies to the three rows above: upstream's `get_user_profile`, `get_full_name`, and `get_unit_system` were NOT ported as separate methods — they map onto this port's PRE-EXISTING `getUserSettings()`, `fullName()`, and `unitSystem()` respectively (see `src/services/userProfile.ts` for the full rationale: this port's own `getUserProfile()` already existed with a different, unrelated meaning — `/userprofile-service/socialProfile` — before this task, and repointing/duplicating it was rejected as unsafe)
 
@@ -213,6 +276,18 @@ garmin.getUserSettings(): Promise<UserSettings>
 const result = await garmin.getUserSettings();
 ```
 
+**Returns**
+
+`UserSettings`:
+
+| Field | Type | Always present |
+|---|---|---|
+| `id` | `number` | no |
+| `userData` | `{` | no |
+| `measurementSystem` | `string` | no |
+
+Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
+
 Verification: ✅ live-verified
 
 ## logout
@@ -224,6 +299,10 @@ garmin.logout(): Promise<void>
 ```ts
 const result = await garmin.logout();
 ```
+
+**Returns**
+
+Nothing.
 
 clears the configured `TokenStore` (`host.client.tokenStore.clear()`); makes **no HTTP call**, matching upstream exactly (the token is never revoked server-side). Does NOT clear the in-memory tokens already held by the calling `GarminClient` instance — there is no public API to do that, and this method's host is deliberately scoped to `{ client }` only. **NEVER call this against a `FileTokenStore` pointed at `./tokens`** — see the repo-wide safety note this task shipped with
 
@@ -239,6 +318,10 @@ garmin.queryGarminGraphql(query: Record<string, unknown>): Promise<GraphqlResult
 const result = await garmin.queryGarminGraphql("query");
 ```
 
+**Returns**
+
+`GraphqlResult` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
+
 POSTs the caller's GraphQL body verbatim to `/graphql-gateway/graphql`; UNCERTAIN upstream null handling (upstream calls `.json()` directly with no null-check). **The composed URL is this task's highest-risk item**: upstream's own constant is `"graphql-gateway/graphql"`, no leading slash, unlike every other constant in `gc.py` — but this port's `connectapi` composes the request URL by plain string concatenation (`` `https://connectapi.${domain}${path}` ``), not `URL`-relative joining, so omitting the leading slash here would silently glue onto the hostname (`connectapi.garmin.comgraphql-gateway/graphql`) rather than 404 — the usual "a 404 means the URL is wrong" heuristic would not even catch it. The leading slash is therefore hardcoded and deliberate; `tests/services/misc.test.ts` pins the literal composed URL
 
 Verification: ✅ live-verified
@@ -252,6 +335,10 @@ garmin.requestReload(cdate: string | Date): Promise<ReloadRequestResult | null>
 ```ts
 const result = await garmin.requestReload("2026-09-24");
 ```
+
+**Returns**
+
+`ReloadRequestResult` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
 
 POSTs `/wellness-service/wellness/epoch/request/{cdate}` with no JSON body; asks Garmin to reload/recompute a day's data (Garmin offloads older data, so this forces it back); UNCERTAIN upstream null handling
 
@@ -267,6 +354,10 @@ garmin.unitSystem(): Promise<string | undefined>
 const result = await garmin.unitSystem();
 ```
 
+**Returns**
+
+`string | undefined`
+
 Verification: ✅ live-verified
 
 ## userName
@@ -278,5 +369,9 @@ garmin.userName(): Promise<string>
 ```ts
 const result = await garmin.userName();
 ```
+
+**Returns**
+
+`string`
 
 Verification: —

@@ -4,7 +4,7 @@
 
 Menstrual-cycle tracking and pregnancy. **The write methods here are irreversible health-data writes with no delete endpoint** — read the warning at the top of `src/services/womensHealth.ts` before calling one.
 
-Every method below hangs off a `Garmin` instance. See the [README](../../README.md#-quick-start) for how to construct one:
+Every method below hangs off a `Garmin` instance. See [Installation & setup](../../README.md#-installation--setup) for how to construct one:
 
 ```ts
 import { GarminClient, Garmin, FileTokenStore } from "garminconnect-js";
@@ -44,6 +44,10 @@ garmin.confirmMenstrualPeriodStart(periodStartDate: string | Date, periodLength:
 const result = await garmin.confirmMenstrualPeriodStart("2026-09-24", 1, 1);
 ```
 
+**Returns**
+
+`unknown` — Garmin's response is passed through unparsed. Cast it to whatever you need; this library does not model it.
+
 POSTs `/periodichealth-service/menstrualcycle/{periodStartDate}` directly, NOT the `dayview`/`calendar`/`lastconfirmed`/`summary` sub-paths; UNCERTAIN upstream null handling
 
 Verification: ✅ live-verified
@@ -57,6 +61,10 @@ garmin.getMenstrualCalendarData(startdate: string | Date, enddate: string | Date
 ```ts
 const result = await garmin.getMenstrualCalendarData("2026-09-24", "2026-09-24");
 ```
+
+**Returns**
+
+`MenstrualCalendarData` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
 
 passes through unchecked; Garmin rejects windows of 92+ inclusive days per upstream's docstring, not enforced here (caller's responsibility, matching upstream)
 
@@ -72,6 +80,10 @@ garmin.getMenstrualCycleSummary(fordate: string | Date): Promise<MenstrualCycleS
 const result = await garmin.getMenstrualCycleSummary("2026-09-24");
 ```
 
+**Returns**
+
+`MenstrualCycleSummary` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
+
 passes through unchecked
 
 Verification: ✅ live-verified
@@ -85,6 +97,10 @@ garmin.getMenstrualDataForDate(fordate: string | Date): Promise<MenstrualDayView
 ```ts
 const result = await garmin.getMenstrualDataForDate("2026-09-24");
 ```
+
+**Returns**
+
+`MenstrualDayView` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
 
 passes through unchecked
 
@@ -100,6 +116,10 @@ garmin.getMenstrualLastConfirmed(fordate: string | Date): Promise<MenstrualLastC
 const result = await garmin.getMenstrualLastConfirmed("2026-09-24");
 ```
 
+**Returns**
+
+`MenstrualLastConfirmed` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
+
 passes through unchecked
 
 Verification: ✅ live-verified
@@ -113,6 +133,10 @@ garmin.getMenstrualReports(fordate: string | Date, numberOfCycles?: number, opti
 ```ts
 const result = await garmin.getMenstrualReports("2026-09-24");
 ```
+
+**Returns**
+
+`MenstrualReports` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
 
 defaults `numberOfCycles=6, nextReport=false, reportType="CYCLE"`, `todayCalendarDate` defaults to today; `numberOfCycles` restricted to `{1,6,12}` or throws `GarminError`; passes through unchecked
 
@@ -128,6 +152,10 @@ garmin.getPregnancySummary(): Promise<PregnancySummary | null>
 const result = await garmin.getPregnancySummary();
 ```
 
+**Returns**
+
+`PregnancySummary` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
+
 passes through unchecked
 
 Verification: ✅ live-verified
@@ -141,6 +169,10 @@ garmin.initMenstrualCycleSetup(periodStartDate: string | Date, periodLength: num
 ```ts
 const result = await garmin.initMenstrualCycleSetup("2026-09-24", 1, 1);
 ```
+
+**Returns**
+
+`unknown` — Garmin's response is passed through unparsed. Cast it to whatever you need; this library does not model it.
 
 does NOT also update tracking-preference settings (call `updateMenstrualSettings` separately for that); not intended for an already-configured account; UNCERTAIN upstream null handling
 
@@ -156,6 +188,10 @@ garmin.updateMenstrualCalendar(startdate: string | Date, enddate: string | Date,
 const result = await garmin.updateMenstrualCalendar("2026-09-24", "2026-09-24", "2026-09-24");
 ```
 
+**Returns**
+
+`unknown` — Garmin's response is passed through unparsed. Cast it to whatever you need; this library does not model it.
+
 **full replace, not a merge**; each `cycleDatesLists` group must be non-empty, consecutive calendar dates, and fall within `[startdate, enddate]`, else throws `GarminError`; UNCERTAIN upstream null handling
 
 Verification: ✅ live-verified
@@ -170,6 +206,10 @@ garmin.updateMenstrualDailyLog(calendarDate: string | Date, options?: {symptoms?
 const result = await garmin.updateMenstrualDailyLog("2026-09-24");
 ```
 
+**Returns**
+
+`unknown` — Garmin's response is passed through unparsed. Cast it to whatever you need; this library does not model it.
+
 **full-day replace, not a merge**; at least one optional field required or throws `GarminError`; `notes: undefined` preserves the existing note, `notes: ""` clears it (distinct, load-bearing); `discharge` rejects combining `"NO_DISCHARGE"` with any other value; UNCERTAIN upstream null handling
 
 Verification: ✅ live-verified
@@ -183,6 +223,10 @@ garmin.updateMenstrualSettings(settings: Record<string, unknown>, options?: {use
 ```ts
 const result = await garmin.updateMenstrualSettings("settings");
 ```
+
+**Returns**
+
+`unknown` — Garmin's response is passed through unparsed. Cast it to whatever you need; this library does not model it.
 
 `settings` must be non-empty or throws `GarminError`; multi-step: GETs `/userprofile-service/userprofile/user-settings`, overlays `settings` onto the current `userMenstrualCycleSettings`, then PUTs the same endpoint, including `id` if resolvable; UNCERTAIN upstream null handling
 

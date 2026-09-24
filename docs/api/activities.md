@@ -4,7 +4,7 @@
 
 Listing and searching activities, their detail (splits, weather, HR/power zones, exercise sets), manual creation, file import/upload and download, and the activity/gear association.
 
-Every method below hangs off a `Garmin` instance. See the [README](../../README.md#-quick-start) for how to construct one:
+Every method below hangs off a `Garmin` instance. See [Installation & setup](../../README.md#-installation--setup) for how to construct one:
 
 ```ts
 import { GarminClient, Garmin, FileTokenStore } from "garminconnect-js";
@@ -65,6 +65,10 @@ garmin.addGearToActivity(gearUUID: string, activityId: number | string): Promise
 const result = await garmin.addGearToActivity(activityId, activityId);
 ```
 
+**Returns**
+
+`GearLinkResult` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
+
 on 404 re-raises as `GarminConnectionError` ("gear not found (likely retired/removed)"); inventory places this row under "gear"
 
 Verification: ✅ live-verified
@@ -78,6 +82,10 @@ garmin.countActivities(): Promise<number>
 ```ts
 const result = await garmin.countActivities();
 ```
+
+**Returns**
+
+`number`
 
 returns the envelope's `totalCount`, not the whole response; throws `GarminError` if Garmin returns nothing or a non-numeric `totalCount`
 
@@ -93,6 +101,10 @@ garmin.createManualActivity(startDatetime: string, timeZone: string, typeKey: st
 const result = await garmin.createManualActivity("startDatetime", "timeZone", "typeKey", 1, 1, "activityName");
 ```
 
+**Returns**
+
+`unknown` — Garmin's response is passed through unparsed. Cast it to whatever you need; this library does not model it.
+
 **converts units**: `distanceKm * 1000` → meters, `durationMin * 60` → seconds, before building the request body; `startDatetime` is NOT routed through `formatDate` (it's a full local timestamp, not a bare calendar date) — **must include milliseconds**, e.g. `"2026-09-22T10:00:00.000"` (upstream's documented pattern); omitting them produced a live HTTP 500 `ValueInstantiationException` from Garmin during verification. Live-verified: the converted `summaryDTO.distance`/`summaryDTO.duration` were read back via `getActivity` and matched the expected meters/seconds exactly (5.5km/30min → 5500m/1800s)
 
 Verification: ✅ live-verified
@@ -106,6 +118,10 @@ garmin.createManualActivityFromJson(payload: Record<string, unknown>): Promise<u
 ```ts
 const result = await garmin.createManualActivityFromJson("payload");
 ```
+
+**Returns**
+
+`unknown` — Garmin's response is passed through unparsed. Cast it to whatever you need; this library does not model it.
 
 sends `payload` to Garmin verbatim, no shape validation; UNCERTAIN upstream null handling
 
@@ -121,6 +137,10 @@ garmin.deleteActivity(activityId: number | string): Promise<unknown>
 const result = await garmin.deleteActivity(activityId);
 ```
 
+**Returns**
+
+`unknown` — Garmin's response is passed through unparsed. Cast it to whatever you need; this library does not model it.
+
 UNCERTAIN upstream null handling (see gotchas); resolves to `null` on success (204). Live-verified on synthetic fixtures created by the probe itself (never against pre-existing data) — create → delete → poll-confirm gone via `getActivities`
 
 Verification: ✅ live-verified
@@ -134,6 +154,10 @@ garmin.downloadActivity(activityId: number | string, format?: ActivityDownloadFo
 ```ts
 const result = await garmin.downloadActivity(activityId);
 ```
+
+**Returns**
+
+A `Buffer` of file bytes.
 
 `ActivityDownloadFormat` is `"ORIGINAL" | "TCX" | "GPX" | "KML" | "CSV"`, default `"ORIGINAL"`
 
@@ -149,6 +173,10 @@ garmin.downloadHealthSnapshot(requestedDate: string | Date): Promise<Buffer>
 const result = await garmin.downloadHealthSnapshot("2026-09-24");
 ```
 
+**Returns**
+
+A `Buffer` of file bytes.
+
 routed through `formatDate`; UNCERTAIN upstream null handling, routed through `client.download`
 
 Verification: ✅ live-verified
@@ -162,6 +190,21 @@ garmin.getActivities(start?: number, limit?: number): Promise<Activity[]>
 ```ts
 const result = await garmin.getActivities();
 ```
+
+**Returns**
+
+An array of `Activity`:
+
+| Field | Type | Always present |
+|---|---|---|
+| `activityId` | `number` | yes |
+| `activityName` | `string` | no |
+| `startTimeLocal` | `string` | no |
+| `distance` | `number` | no |
+| `duration` | `number` | no |
+| `activityType` | `Record<string, unknown>` | no |
+
+Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
 
 defaults `start=0, limit=20`
 
@@ -177,6 +220,21 @@ garmin.getActivitiesByDate(startdate: string | Date, enddate?: string | Date, ac
 const result = await garmin.getActivitiesByDate("2026-09-24");
 ```
 
+**Returns**
+
+An array of `Activity`:
+
+| Field | Type | Always present |
+|---|---|---|
+| `activityId` | `number` | yes |
+| `activityName` | `string` | no |
+| `startTimeLocal` | `string` | no |
+| `distance` | `number` | no |
+| `duration` | `number` | no |
+| `activityType` | `Record<string, unknown>` | no |
+
+Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
+
 replicates upstream's internal pagination: fetches fixed pages of 20, incrementing `start` by 20, until an empty page (normal end) or 2000 pages without one (throws `GarminError`)
 
 Verification: ✅ live-verified
@@ -190,6 +248,10 @@ garmin.getActivitiesForDate(fordate: string | Date): Promise<ActivitiesForDateRe
 ```ts
 const result = await garmin.getActivitiesForDate("2026-09-24");
 ```
+
+**Returns**
+
+`ActivitiesForDateResponse` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
 
 passes through unchecked; upstream's constant name is `garmin_connect_activity_fordate` but the resolved path is `/mobile-gateway/heartRate/...`, not an activities-service path
 
@@ -205,6 +267,21 @@ garmin.getActivity(activityId: number | string): Promise<Activity>
 const result = await garmin.getActivity(activityId);
 ```
 
+**Returns**
+
+`Activity`:
+
+| Field | Type | Always present |
+|---|---|---|
+| `activityId` | `number` | yes |
+| `activityName` | `string` | no |
+| `startTimeLocal` | `string` | no |
+| `distance` | `number` | no |
+| `duration` | `number` | no |
+| `activityType` | `Record<string, unknown>` | no |
+
+Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
+
 Verification: ✅ live-verified
 
 ## getActivityDetails
@@ -216,6 +293,10 @@ garmin.getActivityDetails(activityId: number | string, maxchart?: number, maxpol
 ```ts
 const result = await garmin.getActivityDetails(activityId);
 ```
+
+**Returns**
+
+`ActivityDetails` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
 
 defaults `maxchart=2000, maxpoly=4000`, sent as `maxChartSize`/`maxPolylineSize`; passes through unchecked
 
@@ -231,6 +312,16 @@ garmin.getActivityExerciseSets(activityId: number | string): Promise<ActivityExe
 const result = await garmin.getActivityExerciseSets(activityId);
 ```
 
+**Returns**
+
+`ActivityExerciseSets`:
+
+| Field | Type | Always present |
+|---|---|---|
+| `exerciseSets` | `unknown[]` | no |
+
+Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
+
 passes through unchecked
 
 Verification: ✅ live-verified
@@ -244,6 +335,10 @@ garmin.getActivityGear(activityId: number | string): Promise<ActivityGear[] | nu
 ```ts
 const result = await garmin.getActivityGear(activityId);
 ```
+
+**Returns**
+
+An array of `ActivityGear` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
 
 passes through unchecked; returns an ARRAY (fixed in Task 7's fix-round-1, was previously mistyped as a single object — see gotchas); inventory places this row under the "gear" section, not "activities" (see gotchas)
 
@@ -259,6 +354,10 @@ garmin.getActivityHrInTimezones(activityId: number | string): Promise<ActivityHr
 const result = await garmin.getActivityHrInTimezones(activityId);
 ```
 
+**Returns**
+
+`ActivityHrInTimezones` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
+
 passes through unchecked
 
 Verification: ✅ live-verified
@@ -272,6 +371,10 @@ garmin.getActivityPowerInTimezones(activityId: number | string): Promise<Activit
 ```ts
 const result = await garmin.getActivityPowerInTimezones(activityId);
 ```
+
+**Returns**
+
+`ActivityPowerInTimezones` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
 
 passes through unchecked
 
@@ -287,6 +390,10 @@ garmin.getActivitySplits(activityId: number | string): Promise<ActivitySplits | 
 const result = await garmin.getActivitySplits(activityId);
 ```
 
+**Returns**
+
+`ActivitySplits` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
+
 passes through unchecked
 
 Verification: ✅ live-verified
@@ -300,6 +407,10 @@ garmin.getActivitySplitSummaries(activityId: number | string): Promise<ActivityS
 ```ts
 const result = await garmin.getActivitySplitSummaries(activityId);
 ```
+
+**Returns**
+
+`ActivitySplitSummaries` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
 
 passes through unchecked
 
@@ -315,6 +426,10 @@ garmin.getActivityTypedSplits(activityId: number | string): Promise<ActivityType
 const result = await garmin.getActivityTypedSplits(activityId);
 ```
 
+**Returns**
+
+`ActivityTypedSplits` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
+
 passes through unchecked; richer detail than `getActivitySplits` for some activity types (e.g. Bouldering)
 
 Verification: ✅ live-verified
@@ -328,6 +443,10 @@ garmin.getActivityTypes(): Promise<ActivityTypesResponse | null>
 ```ts
 const result = await garmin.getActivityTypes();
 ```
+
+**Returns**
+
+`ActivityTypesResponse` = ActivityType[]
 
 passes through unchecked; `ActivityTypesResponse` is `ActivityType[]` (154 entries observed live: `{typeId, typeKey, parentTypeId, isHidden, restricted, trimmable}`) — **the upstream inventory's `returns` column says "dict", but the live response is an array; this type reflects the observed reality, not that label**
 
@@ -343,6 +462,10 @@ garmin.getActivityWeather(activityId: number | string): Promise<ActivityWeather 
 const result = await garmin.getActivityWeather(activityId);
 ```
 
+**Returns**
+
+`ActivityWeather` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
+
 passes through unchecked
 
 Verification: ✅ live-verified
@@ -356,6 +479,10 @@ garmin.getGearActivities(gearUUID: string, limit?: number): Promise<GearActivity
 ```ts
 const result = await garmin.getGearActivities(activityId);
 ```
+
+**Returns**
+
+An array of `GearActivity` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
 
 `limit` clamped to 1000; returns `[]` on a 404 instead of throwing; inventory places this row under "gear"
 
@@ -371,6 +498,21 @@ garmin.getLastActivity(): Promise<Activity | null>
 const result = await garmin.getLastActivity();
 ```
 
+**Returns**
+
+`Activity`:
+
+| Field | Type | Always present |
+|---|---|---|
+| `activityId` | `number` | yes |
+| `activityName` | `string` | no |
+| `startTimeLocal` | `string` | no |
+| `distance` | `number` | no |
+| `duration` | `number` | no |
+| `activityType` | `Record<string, unknown>` | no |
+
+Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
+
 delegates to `getActivities(0, 1)`, returns the last element or `null`
 
 Verification: ✅ live-verified
@@ -384,6 +526,10 @@ garmin.getPersonalRecord(): Promise<PersonalRecords | null>
 ```ts
 const result = await garmin.getPersonalRecord();
 ```
+
+**Returns**
+
+`PersonalRecords` = PersonalRecord[]
 
 GETs `/personalrecord-service/personalrecord/prs/{displayName}`; no args; passes through unchecked. `PersonalRecords` is `PersonalRecord[]` — **the upstream inventory's `returns` column says "dict"; live-verified WRONG**, the test account returned `array[0]`. Note the plural type name: upstream's method name is singular but the payload is a list, so the result type is named for what it is. Same discovery/closure story as `uploadActivity` above (no inventory task ever ported this row; closed in Task 15's reconciliation pass)
 
@@ -399,6 +545,10 @@ garmin.getProgressSummaryBetweenDates(startdate: string | Date, enddate: string 
 const result = await garmin.getProgressSummaryBetweenDates("2026-09-24", "2026-09-24");
 ```
 
+**Returns**
+
+`ProgressSummary` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
+
 defaults `metric="distance", groupbyactivities=true`; both dates routed through `formatDate`; passes through unchecked
 
 Verification: ✅ live-verified
@@ -412,6 +562,10 @@ garmin.importActivity(file: Blob, filename: string): Promise<ImportActivityResul
 ```ts
 const result = await garmin.importActivity(file, "filename");
 ```
+
+**Returns**
+
+`ImportActivityResult` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
 
 multipart upload to `/upload-service/upload/{ext}` (extension from `filename`, must be `fit`/`gpx`/`tcx`) with the load-bearing `NK`/`origin`/custom `User-Agent` headers that make Garmin treat it as an import rather than a device sync; a 409 is re-raised as `GarminConnectionError` ("Activity already exists (duplicate): ...")
 
@@ -427,6 +581,10 @@ garmin.removeGearFromActivity(gearUUID: string, activityId: number | string): Pr
 const result = await garmin.removeGearFromActivity(activityId, activityId);
 ```
 
+**Returns**
+
+`GearLinkResult` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
+
 **PUT**, not DELETE; same 404-handling pattern as `addGearToActivity`; inventory places this row under "gear"
 
 Verification: ✅ live-verified
@@ -440,6 +598,10 @@ garmin.setActivityDescription(activityId: number | string, description: string):
 ```ts
 const result = await garmin.setActivityDescription(activityId, "description");
 ```
+
+**Returns**
+
+`unknown` — Garmin's response is passed through unparsed. Cast it to whatever you need; this library does not model it.
 
 UNCERTAIN upstream null handling; resolves to `null` on success. Live-verified: `description` read back via `getActivity` after the call
 
@@ -455,6 +617,10 @@ garmin.setActivityExerciseSets(activityId: number | string, payload: ActivityExe
 const result = await garmin.setActivityExerciseSets(activityId, payload);
 ```
 
+**Returns**
+
+`unknown` — Garmin's response is passed through unparsed. Cast it to whatever you need; this library does not model it.
+
 **replace-all semantics**, `payload` sent verbatim; UNCERTAIN upstream null handling. See gotchas for the payload shape Garmin actually requires (undocumented upstream)
 
 Verification: ✅ live-verified
@@ -468,6 +634,10 @@ garmin.setActivityName(activityId: number | string, activityName: string): Promi
 ```ts
 const result = await garmin.setActivityName(activityId, "activityName");
 ```
+
+**Returns**
+
+`unknown` — Garmin's response is passed through unparsed. Cast it to whatever you need; this library does not model it.
 
 UNCERTAIN upstream null handling; resolves to `null` on success. Live-verified: value read back via `getActivity` after the call, not just that the request was accepted
 
@@ -483,6 +653,10 @@ garmin.setActivityType(activityId: number | string, typeId: number, typeKey: str
 const result = await garmin.setActivityType(activityId, activityId, "typeKey", activityId);
 ```
 
+**Returns**
+
+`unknown` — Garmin's response is passed through unparsed. Cast it to whatever you need; this library does not model it.
+
 UNCERTAIN upstream null handling; resolves to `null` on success. Live-verified: `activityTypeDTO` read back via `getActivity` after the call
 
 Verification: ✅ live-verified
@@ -496,6 +670,10 @@ garmin.uploadActivity(file: Blob, filename: string): Promise<UploadActivityResul
 ```ts
 const result = await garmin.uploadActivity(file, "filename");
 ```
+
+**Returns**
+
+`UploadActivityResult` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
 
 multipart upload to the PLAIN `/upload-service/upload` path, no extension suffix and none of `importActivity`'s load-bearing import headers (ordinary device-sync-shaped upload, distinct from `importActivity`'s spoofed-client import); UNCERTAIN upstream null handling. No inventory task ever ported this row — discovered missing by `tests/parity.test.ts` during this task's reconciliation pass and closed here
 

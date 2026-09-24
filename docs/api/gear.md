@@ -4,7 +4,7 @@
 
 Shoes, bikes and other equipment: CRUD, stats, and which activity types they default to.
 
-Every method below hangs off a `Garmin` instance. See the [README](../../README.md#-quick-start) for how to construct one:
+Every method below hangs off a `Garmin` instance. See [Installation & setup](../../README.md#-installation--setup) for how to construct one:
 
 ```ts
 import { GarminClient, Garmin, FileTokenStore } from "garminconnect-js";
@@ -39,6 +39,10 @@ garmin.createGear(gearType: string, brand: string, model: string, name: string, 
 const result = await garmin.createGear("gearType", "brand", "model", "name", "2026-09-24");
 ```
 
+**Returns**
+
+`unknown` — Garmin's response is passed through unparsed. Cast it to whatever you need; this library does not model it.
+
 POSTs `/gear-service/gear/v2`; defaults `usageType="DISTANCE", notes=""`; `firstUseDate` routed through `formatDate`; `gearType`/`usageType` upper-cased via `validateSportKey`; **converts** `maxUsageDistanceKm` -> `maxUsageDistanceMeters` (`round(km*1000)`, floor 1) and `maxUsageDurationMin` -> `maxUsageDurationSeconds` (`round(min*60)`, floor 1) — the opposite direction from `addWeighIn`'s "send raw" rule; UNCERTAIN upstream null handling (implemented as a raw pass-through)
 
 Verification: ✅ live-verified
@@ -52,6 +56,10 @@ garmin.deleteGear(gearUUID: string): Promise<unknown>
 ```ts
 const result = await garmin.deleteGear(activityId);
 ```
+
+**Returns**
+
+`unknown` — Garmin's response is passed through unparsed. Cast it to whatever you need; this library does not model it.
 
 **NOT upstream parity**: upstream python-garminconnect has no delete-gear method. `DELETE /gear-service/gear/v2/{gearUUID}`, resolves `null` on success (204). **The UUID must be HYPHENATED** — `getGear` returns them WITHOUT hyphens and that form 404s, so this method re-inserts them for you when handed the bare 32-char form; only hand-rolled URLs hit the 404. IRREVERSIBLE: removes the gear AND its activity history
 
@@ -67,6 +75,10 @@ garmin.getGear(userProfileNumber: number | string): Promise<Gear[] | null>
 const result = await garmin.getGear(activityId);
 ```
 
+**Returns**
+
+An array of `Gear` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
+
 hits `/gear-service/gear/filterGear?userProfilePk=...`; passes through unchecked; returns an ARRAY of gear entries (fixed in Task 7's fix-round-1, was previously mistyped as a single object — see gotchas). This is the dedicated gear-CRUD service (`src/services/gear.ts`), distinct from `getActivityGear` (activities service, reuses the same base URL with `activityId` instead)
 
 Verification: ✅ live-verified
@@ -80,6 +92,10 @@ garmin.getGearDefaults(userProfileNumber: number | string): Promise<GearDefaults
 ```ts
 const result = await garmin.getGearDefaults(activityId);
 ```
+
+**Returns**
+
+An array of `GearDefaults` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
 
 GETs `/gear-service/gear/user/{userProfileNumber}/activityTypes`; passes through unchecked; returns an ARRAY of `{uuid, activityTypePk, defaultGear}` entries (fixed in Task 7's fix-round-1, was previously mistyped as a single object — see gotchas)
 
@@ -95,6 +111,10 @@ garmin.getGearStats(gearUUID: string): Promise<GearStats>
 const result = await garmin.getGearStats(activityId);
 ```
 
+**Returns**
+
+`GearStats` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
+
 GETs `/gear-service/gear/stats/{gearUUID}`; `gearUUID` validated via `validateUuid` (hex, hyphens optional); returns `{}` on a 404 instead of throwing; other errors re-raised
 
 Verification: ✅ live-verified
@@ -108,6 +128,10 @@ garmin.setGearActivityDefaults(gearUUID: string, activityTypeKeys: string[]): Pr
 ```ts
 const result = await garmin.setGearActivityDefaults(activityId, ["running"]);
 ```
+
+**Returns**
+
+`unknown` — Garmin's response is passed through unparsed. Cast it to whatever you need; this library does not model it.
 
 **NOT upstream parity**: a WORKING replacement for `setGearDefault`, whose upstream endpoint is dead. Read-modify-writes the v2 record: GETs `/gear-service/gear/v2/{uuid}`, replaces `associatedActivityTypes` with `[{activityTypeKey, defaultGear: true, preferredGear: false}]` per key, PUTs the whole record back. Keys are **lowercase** (`"running"`), matching `createGear` — NOT `setGearDefault`'s upper-cased form. `[]` clears all defaults. Concurrent callers can clobber each other
 
