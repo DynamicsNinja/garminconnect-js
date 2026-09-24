@@ -20,8 +20,8 @@ confirmed against a live Garmin account, not merely unit-tested —
 
 | Method | Verified |
 |---|---|
-| [`displayName`](#displayname) | — |
-| [`fullName`](#fullname) | — |
+| [`displayName`](#displayname) | ✅ live-verified (indirectly) |
+| [`fullName`](#fullname) | ✅ live-verified (indirectly) |
 | [`getAdaptiveTrainingPlanById`](#getadaptivetrainingplanbyid) | ✅ live-verified |
 | [`getGoals`](#getgoals) | ✅ live-verified |
 | [`getLifestyleLoggingData`](#getlifestyleloggingdata) | ✅ live-verified |
@@ -37,7 +37,7 @@ confirmed against a live Garmin account, not merely unit-tested —
 | [`queryGarminGraphql`](#querygarmingraphql) | ✅ live-verified |
 | [`requestReload`](#requestreload) | ✅ live-verified |
 | [`unitSystem`](#unitsystem) | ✅ live-verified |
-| [`userName`](#username) | — |
+| [`userName`](#username) | ✅ live-verified (indirectly) |
 
 ---
 
@@ -55,7 +55,7 @@ const result = await garmin.displayName();
 
 `string`
 
-Verification: —
+Verification: ✅ live-verified (indirectly)
 
 ## fullName
 
@@ -71,7 +71,7 @@ const result = await garmin.fullName();
 
 `string`
 
-Verification: —
+Verification: ✅ live-verified (indirectly)
 
 ## getAdaptiveTrainingPlanById
 
@@ -374,4 +374,4 @@ const result = await garmin.userName();
 
 `string`
 
-Verification: —
+Verification: ✅ live-verified (indirectly)

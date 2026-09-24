@@ -27,7 +27,7 @@ confirmed against a live Garmin account, not merely unit-tested —
 | [`getScheduledWorkouts`](#getscheduledworkouts) | ✅ live-verified |
 | [`getWorkoutById`](#getworkoutbyid) | ✅ live-verified |
 | [`getWorkouts`](#getworkouts) | ✅ live-verified |
-| [`pushWorkoutToDevice`](#pushworkouttodevice) | — |
+| [`pushWorkoutToDevice`](#pushworkouttodevice) | ✅ live-verified |
 | [`scheduleWorkout`](#scheduleworkout) | ✅ live-verified |
 | [`unscheduleWorkout`](#unscheduleworkout) | ✅ live-verified |
 | [`updateWorkout`](#updateworkout) | ✅ live-verified |
@@ -231,7 +231,7 @@ An array of `DeviceMessage`:
 
 multi-call: resolves a missing `deviceId` via `/device-service/deviceservice/mylastused`'s `userDeviceId`, a missing `workoutId` via `getWorkouts(0,1)`'s first result (throws if none), then reads `getWorkoutById(workoutId).workoutName` for the push message; on the final POST
 
-Verification: —
+Verification: ✅ live-verified
 
 ## scheduleWorkout
 

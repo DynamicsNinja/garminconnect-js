@@ -1,4 +1,5 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
@@ -34,6 +35,57 @@ function verifiedMethods(): string[] {
 
 /** Phrases that assert a method has NOT been verified. */
 const NEGATIVE = /not live-verified|unverifiable|unverified|never live-tested|implemented but not/i;
+
+/** Test files the DEFAULT suite runs — mirroring vitest.config.ts's include and exclude. */
+function countedTestFiles(dir: string, out: string[] = []): string[] {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      if (entry.name === "live") continue; // excluded from the default run
+      countedTestFiles(full, out);
+    } else if (entry.name.endsWith(".test.ts")) {
+      out.push(full);
+    }
+  }
+  return out;
+}
+
+describe("README test-count claim", () => {
+  /**
+   * "521 tests across 35 files" sat in the README while the suite was at 625 across 44 — the
+   * fourth stale number this project has shipped in prose, after the method count, the coverage
+   * table and four source comments. A number in a README is a claim; this makes it one the
+   * repository checks.
+   *
+   * The FILE count is asserted exactly, because it is countable here — and it must mirror
+   * vitest's own exclude, or it reports 45 where the suite runs 44 and fails on a correct README.
+   * The TEST count gets a band instead: counting `it(` blocks is a proxy that misses `it.each`,
+   * so demanding equality would fail on prose that is right. Overstating is the failure that
+   * actually misleads a reader, so the upper bound is tight and the lower bound catches staleness.
+   */
+  it("states the real number of test files, and a test count neither inflated nor stale", () => {
+    const files = countedTestFiles(fileURLToPath(new URL(".", import.meta.url)));
+    const its = files.reduce(
+      (n, f) => n + (readFileSync(f, "utf8").match(/^\s*it\(/gm) ?? []).length,
+      0,
+    );
+
+    const claim = /(\d+) tests across (\d+) files/.exec(README);
+    expect(claim, "README no longer states '<N> tests across <M> files'").not.toBeNull();
+    const claimedTests = Number(claim?.[1]);
+    const claimedFiles = Number(claim?.[2]);
+
+    expect(claimedFiles, "README's test-FILE count is wrong").toBe(files.length);
+    expect(
+      claimedTests,
+      `README claims ${String(claimedTests)} tests but only ~${String(its)} exist — do not overstate the suite.`,
+    ).toBeLessThanOrEqual(Math.round(its * 1.05));
+    expect(
+      claimedTests,
+      `README claims ${String(claimedTests)} tests and the suite has ~${String(its)} — stale.`,
+    ).toBeGreaterThanOrEqual(Math.round(its * 0.9));
+  });
+});
 
 describe("README vs AGENTS.md verification drift", () => {
   it("finds verified methods to check against at all", () => {

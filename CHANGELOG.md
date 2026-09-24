@@ -62,6 +62,10 @@ a broken result. Each is recorded with its reason in `tests/parity.test.ts`.
   has a recorded round. `getGolfShotData` returns an unexplained 410 against a fabricated id.
 - EU accounts return `412` on every write until upload consent is granted in Garmin Connect's own
   settings. This is account state, not a library error.
+- Login and the first token refresh in each process fetch the OAuth consumer key from
+  `thegarth.s3.amazonaws.com`, as `garth` does. If that host is unreachable, login fails.
+- `@types/node` is an optional peer dependency — needed only for type-checking against the
+  `Buffer` return types, and not installed into consumers' projects automatically.
 
 [Unreleased]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/DynamicsNinja/garminconnect-js/releases/tag/v0.1.0

@@ -50,11 +50,18 @@
     "README.md",
     "AGENTS.md",
     "WORKOUTS.md",
-    "NOTICE"
+    "NOTICE",
+    "CHANGELOG.md",
+    "SECURITY.md"
   ],
   "dependencies": {},
   "peerDependencies": {
     "@types/node": ">=18"
+  },
+  "peerDependenciesMeta": {
+    "@types/node": {
+      "optional": true
+    }
   },
   "scripts": {
     "build": "tsup",

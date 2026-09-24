@@ -367,6 +367,8 @@ const VERDICT: Record<string, string> = {
   attempted: "⚠️ attempted, unconfirmed",
   no: "❌ not live-verified",
   "n/a": "— not applicable",
+  // "via getUserProfile": a cached accessor, verified through the call it reads from.
+  via: "✅ live-verified (indirectly)",
 };
 
 function verdictOf(verified: string): string {
