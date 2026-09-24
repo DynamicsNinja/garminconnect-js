@@ -12,6 +12,9 @@
 [![Maintenance][maintenance-shield]][maintenance-url]
 [![Buy Me a Coffee][bmc-shield]][bmc-url]
 
+<sub>**Unofficial.** Not affiliated with, endorsed by, or supported by Garmin. Garmin and Garmin
+Connect are trademarks of Garmin Ltd. or its subsidiaries.</sub>
+
 </div>
 
 A zero-dependency TypeScript client for Garmin Connect, for **Node and Next.js server runtimes**.
