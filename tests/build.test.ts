@@ -32,9 +32,17 @@ describe("package contract", () => {
     expect(pkg.engines.node).toBe(">=18");
   });
 
-  it("exports types before import and require", async () => {
+  it("gives import and require each their own types, listed first", async () => {
+    // One shared `types` ahead of both pointed CommonJS projects at the ESM `.d.ts`, which fails
+    // under `"module": "node16"` with TS1479. `tests/dist.test.ts` compiles a real consumer.
     const pkg = JSON.parse(await readFile("package.json", "utf8"));
-    expect(Object.keys(pkg.exports["."])[0]).toBe("types");
+    for (const [subpath, ext] of [[".", "index"], ["./exercises", "exercises"]] as const) {
+      const entry = pkg.exports[subpath];
+      expect(Object.keys(entry.import)[0], `${subpath} import`).toBe("types");
+      expect(Object.keys(entry.require)[0], `${subpath} require`).toBe("types");
+      expect(entry.import.types).toBe(`./dist/${ext}.d.ts`);
+      expect(entry.require.types).toBe(`./dist/${ext}.d.cts`);
+    }
   });
 
   it("does not import React or DOM-only globals anywhere in src", async () => {

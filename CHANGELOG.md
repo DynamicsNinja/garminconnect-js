@@ -22,6 +22,11 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- **CommonJS TypeScript projects can import the package under `"module": "node16"`.** `exports`
+  had one `types` entry ahead of both `import` and `require`, so a CommonJS project resolved the
+  ESM `.d.ts` and failed with TS1479 before seeing any of our types. `import` and `require` now
+  each carry their own `types` (`.d.ts` / `.d.cts`), for the root and `garminconnect-js/exercises`.
+  A new test compiles a real CommonJS and ESM consumer against the built package.
 - `npm run smoke:builder`'s strength probe sent the exercise name `"CARDIO"`, which is not a real
   exercise, so Garmin stored its warm-up step with no exercise. The probe only asserted the squat
   step and never noticed; the new type caught it. It now sends `JUMPING_JACKS`.

@@ -122,11 +122,13 @@ describe("subpath packaging", () => {
       exports: Record<string, Record<string, string> | string>;
       typesVersions: Record<string, Record<string, string[]>>;
     };
-    const sub = pkg.exports["./exercises"] as Record<string, string>;
+    const sub = pkg.exports["./exercises"] as unknown as Record<string, Record<string, string>>;
     expect(sub, "package.json must export ./exercises").toBeDefined();
-    expect(Object.keys(sub)[0], "types must come first").toBe("types");
-    expect(sub["import"]).toBe("./dist/exercises.js");
-    expect(sub["require"]).toBe("./dist/exercises.cjs");
+    // Each condition carries its own types, first: ESM `.d.ts` for import, `.d.cts` for require.
+    expect(sub["import"]).toEqual({ types: "./dist/exercises.d.ts", default: "./dist/exercises.js" });
+    expect(sub["require"]).toEqual({ types: "./dist/exercises.d.cts", default: "./dist/exercises.cjs" });
+    expect(Object.keys(sub["import"]!)[0], "types must come first").toBe("types");
+    expect(Object.keys(sub["require"]!)[0], "types must come first").toBe("types");
     // `exports` is invisible to moduleResolution "node"/"node10"; typesVersions is what those
     // consumers read, and without it the subpath imports with no types at all.
     expect(pkg.typesVersions["*"]!["exercises"]).toEqual(["./dist/exercises.d.ts"]);

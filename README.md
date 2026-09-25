@@ -605,7 +605,7 @@ Goodbye.
 npm test
 ```
 
-691 tests across 48 files, all against mocked HTTP (via `msw`) — no network access and no
+693 tests across 48 files, all against mocked HTTP (via `msw`) — no network access and no
 credentials required. Covers auth/SSO/MFA, token storage and refresh, the HTTP fetcher's retry
 and error handling, every service method, and the public build output.
 

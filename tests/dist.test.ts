@@ -1,6 +1,8 @@
 import { createRequire } from "node:module";
-import { existsSync, readFileSync } from "node:fs";
+import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
+import ts from "typescript";
 import { pathToFileURL } from "node:url";
 import { describe, expect, it } from "vitest";
 
@@ -150,4 +152,60 @@ describeExercises("built exercises subpath (dist)", () => {
         .toBe(false);
     }
   });
+});
+
+/**
+ * A consumer's-eye type check: compile a CommonJS and an ESM file that import the package, the way
+ * a user's project would, against the real `dist` and `package.json`.
+ *
+ * Why: `exports` once had a single `types` condition ahead of `import`/`require`, so a CommonJS
+ * project resolved the ESM `.d.ts` and, under `"module": "node16"`, failed with TS1479 before
+ * reaching any of our types. Nothing loaded the declarations from a CJS project, so it shipped.
+ */
+describeBuilt("built declarations from a consumer project", () => {
+  function compile(kind: "commonjs" | "module"): string[] {
+    const dir = mkdtempSync(path.join(os.tmpdir(), "gcjs-consumer-"));
+    try {
+      const pkgDir = path.join(dir, "node_modules", "garminconnect-js");
+      cpSync(DIST, path.join(pkgDir, "dist"), { recursive: true });
+      cpSync("package.json", path.join(pkgDir, "package.json"));
+      writeFileSync(path.join(dir, "package.json"), JSON.stringify({ type: kind }));
+      const file = path.join(dir, kind === "commonjs" ? "consumer.cts" : "consumer.mts");
+      writeFileSync(
+        file,
+        [
+          'import { buildWorkout, GarminClient } from "garminconnect-js";',
+          'import { exercise, EXERCISES } from "garminconnect-js/exercises";',
+          "void GarminClient; void EXERCISES;",
+          'buildWorkout("x", { sport: "strength_training" })',
+          '  .interval({ reps: 8, exercise: exercise("SQUAT", "BARBELL_BACK_SQUAT") })',
+          '  .interval({ reps: 8, exercise: { category: "SQUAT", name: "BARBELL_BACK_SQUAT" } });',
+          "",
+        ].join("\n"),
+      );
+      const program = ts.createProgram([file], {
+        module: ts.ModuleKind.Node16,
+        moduleResolution: ts.ModuleResolutionKind.Node16,
+        target: ts.ScriptTarget.ES2022,
+        strict: true,
+        noEmit: true,
+        skipLibCheck: false,
+        types: ["node"],
+        typeRoots: [path.resolve("node_modules", "@types")],
+      });
+      return ts
+        .getPreEmitDiagnostics(program)
+        .map((d) => ts.flattenDiagnosticMessageText(d.messageText, "\n"));
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }
+
+  it("compiles from a CommonJS project under node16 resolution", () => {
+    expect(compile("commonjs")).toEqual([]);
+  }, 60_000);
+
+  it("compiles from an ESM project under node16 resolution", () => {
+    expect(compile("module")).toEqual([]);
+  }, 60_000);
 });

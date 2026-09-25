@@ -33,14 +33,24 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
     },
     "./exercises": {
-      "types": "./dist/exercises.d.ts",
-      "import": "./dist/exercises.js",
-      "require": "./dist/exercises.cjs"
+      "import": {
+        "types": "./dist/exercises.d.ts",
+        "default": "./dist/exercises.js"
+      },
+      "require": {
+        "types": "./dist/exercises.d.cts",
+        "default": "./dist/exercises.cjs"
+      }
     },
     "./package.json": "./package.json"
   },
