@@ -1,0 +1,68 @@
+<!doctype html>
+<!--
+  Source for social-preview.png (GitHub Settings -> Social preview, which has no API).
+  Regenerate with headless Edge/Chrome:
+    msedge --headless --disable-gpu --hide-scrollbars --force-device-scale-factor=1 \
+      --window-size=1280,640 --screenshot=social-preview.png social-preview.html
+-->
+<html>
+<head>
+<meta charset="utf-8">
+<title>garminconnect-js social preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@700;800;900&family=Space+Grotesk:wght@500&display=block" rel="stylesheet">
+<style>
+  html, body { margin: 0; width: 1280px; height: 640px; overflow: hidden; }
+  body {
+    background: linear-gradient(135deg, #0b1320 0%, #0e1b2c 55%, #0f2436 100%);
+    font-family: Inter, sans-serif;
+    position: relative;
+  }
+  .title {
+    position: absolute; top: 194px; left: 0; right: 0; text-align: center;
+    font-weight: 900; font-size: 126px; letter-spacing: -4px; line-height: 1;
+    color: #f3f6fa;
+  }
+  .title span {
+    background: linear-gradient(90deg, #4ea1ff, #34d1b4);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .sub {
+    position: absolute; top: 336px; left: 0; right: 0; text-align: center;
+    font-weight: 700; font-size: 38px; color: #9fb0c6;
+  }
+  .pills {
+    position: absolute; top: 440px; left: 0; right: 0;
+    display: flex; justify-content: center; gap: 18px;
+  }
+  .pill {
+    font-family: "Space Grotesk", sans-serif; font-weight: 500; font-size: 25px;
+    color: #c9d6e6; background: #15283d; border: 1.5px solid #27425f;
+    border-radius: 26px; padding: 11px 23px;
+  }
+  svg { position: absolute; left: 0; top: 520px; }
+</style>
+</head>
+<body>
+  <div class="title">garminconnect<span>-js</span></div>
+  <div class="sub">Unofficial TypeScript client for Garmin Connect</div>
+  <div class="pills">
+    <div class="pill">165 typed methods</div>
+    <div class="pill">Workout builder</div>
+    <div class="pill">1830 verified exercises</div>
+    <div class="pill">Node &amp; Next.js</div>
+  </div>
+  <svg width="1280" height="100" viewBox="0 0 1280 100">
+    <defs>
+      <linearGradient id="fade" x1="0" x2="1" y1="0" y2="0">
+        <stop offset="0" stop-color="#2f6fb8" stop-opacity="0"/>
+        <stop offset="0.4" stop-color="#3b82d6"/>
+        <stop offset="0.6" stop-color="#3b82d6"/>
+        <stop offset="1" stop-color="#2a8f8a" stop-opacity="0.3"/>
+      </linearGradient>
+    </defs>
+    <polyline fill="none" stroke="url(#fade)" stroke-width="3" stroke-linejoin="round"
+      points="0,64 520,64 548,40 572,92 600,10 624,76 640,64 1280,64"/>
+  </svg>
+</body>
+</html>
