@@ -240,6 +240,7 @@ describe("metrics: max metrics / FTP", () => {
 
   it("getFunctionalThresholdPowerRange rejects an invalid aggregation before any request", async () => {
     await expect(
+      // @ts-expect-error deliberately invalid, to test the runtime guard plain-JS callers still hit
       makeGarmin().getFunctionalThresholdPowerRange("2026-09-01", "2026-09-22", "RUNNING", "hourly"),
     ).rejects.toThrow(/aggregation must be one of/);
     expect(seen).toHaveLength(0);
@@ -344,6 +345,7 @@ describe("metrics: getRunningTolerance", () => {
 
   it("rejects an aggregation outside {daily, weekly} before any request", async () => {
     await expect(
+      // @ts-expect-error deliberately invalid, to test the runtime guard plain-JS callers still hit
       makeGarmin().getRunningTolerance("2026-09-01", "2026-09-22", "monthly"),
     ).rejects.toThrow(/aggregation must be one of daily, weekly/);
     expect(seen).toHaveLength(0);

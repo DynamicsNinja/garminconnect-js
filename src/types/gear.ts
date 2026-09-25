@@ -29,3 +29,15 @@ export interface GearStats {
 export interface GearDefaults {
   [key: string]: unknown;
 }
+
+/**
+ * `usageType` for `createGear`, read live from `/gear-service/gear/v2/usagetypes`. `createGear`
+ * upper-cases it before sending, so lower case works too. Note `"TIME"` is NOT valid — Garmin
+ * rejects it with a 400; the duration option is `DURATION`.
+ */
+export type GearUsageType =
+  | "NONE"
+  | "DISTANCE"
+  | "DURATION"
+  | "DATE"
+  | Lowercase<"NONE" | "DISTANCE" | "DURATION" | "DATE">;

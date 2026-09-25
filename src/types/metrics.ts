@@ -84,3 +84,12 @@ export interface PowerZoneEntry {
 export interface PowerZonesForSportResult {
   [key: string]: unknown;
 }
+
+/**
+ * `aggregation` for `getFunctionalThresholdPowerRange` and `getLactateThreshold`. Case-sensitive:
+ * anything else throws `GarminError` before a request is sent.
+ */
+export type FtpAggregation = "daily" | "weekly" | "monthly" | "yearly";
+
+/** `aggregation` for `getRunningTolerance` — narrower than {@link FtpAggregation}. */
+export type RunningToleranceAggregation = "daily" | "weekly";

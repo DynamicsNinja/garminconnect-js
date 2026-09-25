@@ -47,6 +47,9 @@ import type {
   WorkoutSegment,
   WorkoutTypeRef,
 } from "./types/workouts.js";
+// Type-only: erased from the emitted JavaScript, so the root bundle still carries none of the
+// catalogue's data. Only the name unions reach the declarations.
+import type { ExerciseCategoryWithNames, ExerciseName } from "./exercises.js";
 
 /**
  * `displayOrder` for each sport, as Garmin itself stores it. It is cosmetic — a workout is accepted
@@ -99,6 +102,26 @@ const EQUIPMENT: Record<EquipmentKey, number> = {
   pull_buoy: 4,
   snorkel: 5,
 };
+
+/**
+ * A step's exercise: a category, and optionally one of THAT category's exercise names.
+ *
+ * `name` autocompletes once `category` is set, and a name from another category (or a typo) is a
+ * compile error. That matters because Garmin does not reject a bad name: it stores it as `""` and
+ * returns success. `STRETCH` and `UNKNOWN` have no names, so they take `category` alone.
+ *
+ * The last member lets a category typed as the whole `ExerciseCategory` union (read from config,
+ * or a loop) through without a name. TypeScript cannot match such a value against a 53-member
+ * union on its own; it stops decomposing at 25.
+ */
+export type WorkoutExercise =
+  | {
+      [C in ExerciseCategory]: {
+        category: C;
+        name?: C extends ExerciseCategoryWithNames ? ExerciseName<C> : never;
+      };
+    }[ExerciseCategory]
+  | { category: ExerciseCategory; name?: undefined };
 
 /** How a step ends. Supply exactly one. Every option here is live-verified. */
 export interface StepEnd {
@@ -163,12 +186,12 @@ export interface StepOptions extends StepEnd {
   /** Swim only. */
   equipment?: EquipmentKey;
   /**
-   * Strength/HIIT. `category` is constrained to the 40 values Garmin accepts, because an invalid
+   * Strength/HIIT. `category` is constrained to the 53 values Garmin accepts, because an invalid
    * one fails the ENTIRE upload with `400 "Invalid category"`, not just this step. `name` is the
    * specific exercise — Garmin's SCREAMING_SNAKE_CASE key, not the display name the web UI shows —
-   * and is optional; a category on its own is accepted.
+   * and is optional; a category on its own is accepted. See {@link WorkoutExercise}.
    */
-  exercise?: { category: ExerciseCategory; name?: string };
+  exercise?: WorkoutExercise;
   /** Strength/HIIT, in kilograms. Garmin stores kg and round-trips with small drift. */
   weightKg?: number;
   /** Free-text note shown on the device. */

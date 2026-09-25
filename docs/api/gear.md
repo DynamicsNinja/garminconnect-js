@@ -32,7 +32,7 @@ confirmed against a live Garmin account, not merely unit-tested —
 ## createGear
 
 ```ts
-garmin.createGear(gearType: string, brand: string, model: string, name: string, firstUseDate: string | Date, usageType?: string, maxUsageDistanceKm?: number, maxUsageDurationMin?: number, notes?: string, activityTypeKeys?: string[]): Promise<unknown>
+garmin.createGear(gearType: string, brand: string, model: string, name: string, firstUseDate: string | Date, usageType?: GearUsageType, maxUsageDistanceKm?: number, maxUsageDurationMin?: number, notes?: string, activityTypeKeys?: string[]): Promise<unknown>
 ```
 
 ```ts

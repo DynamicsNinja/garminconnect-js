@@ -397,13 +397,23 @@ nested and time-boxed repeats, swim strokes/drills/equipment, strength exercises
 multi-sport bricks. `uploadWorkout` still accepts raw JSON, so the builder is optional.
 
 For strength work, Garmin accepts an unknown exercise `name` and silently stores it as an empty
-string — no error, just a step with no exercise. All 1830 verified names ship as a separate entry
-point so that becomes a compile error, and so callers who don't need them never pay for them:
+string — no error, just a step with no exercise. So the builder type-checks it: once you pick a
+`category`, `name` autocompletes to that category's names, and anything else is a compile error.
+All 1830 names were verified one by one against a live account:
 
 ```ts
-import { exercise } from "garminconnect-js/exercises";
+.interval({ reps: 8, exercise: { category: "SQUAT", name: "BARBELL_BACK_SQUAT" }, weightKg: 60 })
+```
 
-.interval({ reps: 8, exercise: exercise("SQUAT", "BARBELL_BACK_SQUAT"), weightKg: 60 })
+The catalogue itself is a separate entry point, `garminconnect-js/exercises`, so its data never
+reaches the root bundle. Import it when you need the list or a runtime check:
+
+```ts
+import { EXERCISES, exercise, isExerciseName } from "garminconnect-js/exercises";
+
+EXERCISES.SQUAT;                                  // all 106 squat names, e.g. for a picker
+exercise("SQUAT", "BARBELL_BACK_SQUAT");          // the same compile-time check, as a helper
+isExerciseName("SQUAT", nameFromYourDatabase);    // for names that are only strings at runtime
 ```
 
 **→ [`WORKOUTS.md`](WORKOUTS.md) is the full guide**, with a worked example for every sport and a
@@ -595,7 +605,7 @@ Goodbye.
 npm test
 ```
 
-681 tests across 47 files, all against mocked HTTP (via `msw`) — no network access and no
+691 tests across 48 files, all against mocked HTTP (via `msw`) — no network access and no
 credentials required. Covers auth/SSO/MFA, token storage and refresh, the HTTP fetcher's retry
 and error handling, every service method, and the public build output.
 

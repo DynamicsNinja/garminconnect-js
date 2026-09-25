@@ -6,6 +6,26 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- **Exercise names autocomplete and are checked in the workout builder.** A step's `exercise`
+  option is now typed `WorkoutExercise` (exported): once `category` is set, `name` offers only that
+  category's verified names, and a typo or a name from another category is a compile error —
+  previously it compiled, and Garmin silently stored `""`. Type-only: the root bundle's JavaScript
+  still carries none of the catalogue. **Breaking for TypeScript callers** passing a name held in a
+  plain `string`; check it with `isExerciseName` and cast.
+- **Fixed-value parameters are now literal unions instead of `string`**, so they autocomplete:
+  `aggregation` on `getFunctionalThresholdPowerRange` and `getLactateThreshold` (`FtpAggregation`),
+  on `getRunningTolerance` (`RunningToleranceAggregation`), and `createGear`'s `usageType`
+  (`GearUsageType`, either case). These values were already rejected at runtime; now `tsc` catches
+  them first.
+
+### Fixed
+
+- `npm run smoke:builder`'s strength probe sent the exercise name `"CARDIO"`, which is not a real
+  exercise, so Garmin stored its warm-up step with no exercise. The probe only asserted the squat
+  step and never noticed; the new type caught it. It now sends `JUMPING_JACKS`.
+
 ## [0.5.0] — 2026-09-24
 
 ### Added

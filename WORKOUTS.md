@@ -225,8 +225,9 @@ If Garmin adds one before this library catches up, cast it: `category: "NEW_ONE"
 > `{ category: "SQUAT", name: "BARBELL_BENCH_PRESS" }` stores as `""`. You get a workout whose step
 > has a category but no exercise, with no error anywhere.
 
-So `category` fails loudly and `name` fails quietly. If the exercise matters to you, **read the
-workout back and check `exerciseName` is non-empty.**
+So `category` fails loudly and `name` fails quietly. The builder's types catch a wrong name at
+compile time (below); for a name that only arrives as a string at runtime, check it with
+`isExerciseName` or **read the workout back and check `exerciseName` is non-empty.**
 
 ### The name list ships separately: `garminconnect-js/exercises`
 
@@ -245,6 +246,13 @@ buildWorkout("Lower body", { sport: "strength_training" })
       .rest(90),
   )
   .build();
+```
+
+You don't need the helper for the check: a step's `exercise` option is typed the same way, so a
+plain object literal is checked too, and `name` autocompletes once `category` is set:
+
+```ts
+.interval({ reps: 8, exercise: { category: "SQUAT", name: "BARBELL_BACK_SQUAT" } })
 ```
 
 Write the wrong name, or the right name under the wrong category, and it no longer sails through to

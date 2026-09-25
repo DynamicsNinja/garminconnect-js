@@ -19,7 +19,9 @@ import * as workouts from "./services/workouts.js";
 import * as womensHealth from "./services/womensHealth.js";
 import type { ActivityDownloadFormat, ActivityExerciseSets } from "./types/activities.js";
 import type { CourseInput, CourseUpdate } from "./types/courses.js";
+import type { GearUsageType } from "./types/gear.js";
 import type { GoalStatus } from "./types/goals.js";
+import type { FtpAggregation, RunningToleranceAggregation } from "./types/metrics.js";
 import type { WorkoutInput } from "./types/workouts.js";
 import type { WeightScaleFields } from "./util/fit.js";
 
@@ -349,7 +351,7 @@ export class Garmin {
     model: string,
     name: string,
     firstUseDate: string | Date,
-    usageType?: string,
+    usageType?: GearUsageType,
     maxUsageDistanceKm?: number,
     maxUsageDurationMin?: number,
     notes?: string,
@@ -532,7 +534,7 @@ export class Garmin {
     start: string | Date,
     end: string | Date,
     sport?: string,
-    aggregation?: string,
+    aggregation?: FtpAggregation,
   ) {
     return metrics.getFunctionalThresholdPowerRange(this, start, end, sport, aggregation);
   }
@@ -540,7 +542,7 @@ export class Garmin {
     latest?: boolean,
     startDate?: string | Date,
     endDate?: string | Date,
-    aggregation?: string,
+    aggregation?: FtpAggregation,
   ) {
     return metrics.getLactateThreshold(this, latest, startDate, endDate, aggregation);
   }
@@ -553,7 +555,11 @@ export class Garmin {
   getEnduranceScore(startdate: string | Date, enddate?: string | Date) {
     return metrics.getEnduranceScore(this, startdate, enddate);
   }
-  getRunningTolerance(startdate: string | Date, enddate: string | Date, aggregation?: string) {
+  getRunningTolerance(
+    startdate: string | Date,
+    enddate: string | Date,
+    aggregation?: RunningToleranceAggregation,
+  ) {
     return metrics.getRunningTolerance(this, startdate, enddate, aggregation);
   }
   getRacePredictions(

@@ -96,7 +96,7 @@ Verification: ✅ live-verified
 ## getFunctionalThresholdPowerRange
 
 ```ts
-garmin.getFunctionalThresholdPowerRange(start: string | Date, end: string | Date, sport?: string, aggregation?: string): Promise<FtpRangeResult | null>
+garmin.getFunctionalThresholdPowerRange(start: string | Date, end: string | Date, sport?: string, aggregation?: FtpAggregation): Promise<FtpRangeResult | null>
 ```
 
 ```ts
@@ -150,7 +150,7 @@ Verification: ✅ live-verified
 ## getLactateThreshold
 
 ```ts
-garmin.getLactateThreshold(latest?: boolean, startDate?: string | Date, endDate?: string | Date, aggregation?: string): Promise<LactateThresholdLatest | LactateThresholdRange>
+garmin.getLactateThreshold(latest?: boolean, startDate?: string | Date, endDate?: string | Date, aggregation?: FtpAggregation): Promise<LactateThresholdLatest | LactateThresholdRange>
 ```
 
 ```ts
@@ -282,7 +282,7 @@ Verification: ✅ live-verified
 ## getRunningTolerance
 
 ```ts
-garmin.getRunningTolerance(startdate: string | Date, enddate: string | Date, aggregation?: string): Promise<RunningToleranceEntry[] | null>
+garmin.getRunningTolerance(startdate: string | Date, enddate: string | Date, aggregation?: RunningToleranceAggregation): Promise<RunningToleranceEntry[] | null>
 ```
 
 ```ts

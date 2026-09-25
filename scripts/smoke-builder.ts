@@ -269,7 +269,7 @@ await probe(
   "strength_training",
   () =>
     buildWorkout("[builder] strength", { sport: "strength_training" })
-      .warmup({ time: 300, exercise: { category: "CARDIO", name: "CARDIO" } })
+      .warmup({ time: 300, exercise: { category: "CARDIO", name: "JUMPING_JACKS" } })
       .repeat(3, (r) =>
         r
           .interval({ reps: 8, exercise: { category: "SQUAT", name: "BARBELL_BACK_SQUAT" }, weightKg: 60 })

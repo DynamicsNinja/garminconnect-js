@@ -67,5 +67,6 @@ export type {
   StrokeKey,
   DrillKey,
   EquipmentKey,
+  WorkoutExercise,
 } from "./workout-builder.js";
 export type { WeightScaleFields } from "./util/fit.js";
