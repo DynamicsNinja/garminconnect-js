@@ -1206,3 +1206,23 @@ passing test suite built entirely on assumed request/response shapes does not co
 are correct. For write endpoints (`addWeighIn`, `deleteWeighIn`, `login`, `upload`) a live
 round-trip against a real (non-production-critical) account is what actually verifies behavior —
 a request-shape assertion against a mock only verifies internal consistency.
+
+## 9. The MCP server (`mcp/`, npm `garminconnect-mcp`)
+
+A workspace package that exposes this library to Claude over MCP (stdio, for Claude Desktop).
+It holds NO Garmin knowledge of its own:
+
+- **Workout tools** (`preview_workout`, `create_workout`, `update_workout`, `search_exercises`) wrap
+  `workoutFromSpec` + `WORKOUT_SPEC_JSON_SCHEMA` + `garminconnect-js/exercises`.
+- **Every other tool is generated** from `garminconnect-js/manifest` (one per `Garmin` method,
+  snake_case), minus the exclusions in `mcp/src/method-tools.ts` (`EXCLUDED`, `OPT_IN`), each with
+  a reason. Annotations come from the manifest's safety class.
+- It imports the library ONLY through `garminconnect-js`, `/exercises` and `/manifest`, resolved to
+  `../src` by `mcp/tsconfig.json` `paths` and INLINED by tsup. An ESLint rule forbids
+  `../../src` imports. So after changing a `Garmin` method, run `npm run manifest`; the MCP tools
+  follow automatically, and `npm run check` (which runs `check -w mcp`) fails if they break.
+- Released in lockstep: `npm run bump -- X.Y.Z` bumps both versions, and one `vX.Y.Z` tag publishes
+  the library, then the server (`publish.yml`). `tests/mcp-package.test.ts` pins that.
+- `npm run smoke:mcp` round-trips a workout through the real server against the TEST account only
+  (same `GARMIN_TEST_PROFILE_ID` gate as every write script).
+- stdout is reserved for MCP frames; the server logs to stderr only.

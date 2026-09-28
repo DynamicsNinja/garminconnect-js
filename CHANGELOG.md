@@ -8,6 +8,10 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- **`garminconnect-mcp`**, a new package in `mcp/`: an MCP server for Claude Desktop. Describe a
+  workout in plain English and Claude previews it, saves it, schedules it and sends it to your
+  watch; every other library method is available as a tool too. Generated from
+  `garminconnect-js/manifest` and released in lockstep with the library. See `mcp/README.md`.
 - **`workoutFromSpec(spec, EXERCISES)`**: build a workout from plain JSON (a database row, a form,
   an LLM tool call). It is replayed through `buildWorkout`, so every builder guard applies, and it
   is stricter than the builder: unknown keys and unknown exercise names are rejected with the JSON
