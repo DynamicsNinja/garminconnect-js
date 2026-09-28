@@ -4582,7 +4582,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
         }
       }
     ],
-    "safety": "write",
+    "safety": "destructive",
     "io": "json"
   },
   {

@@ -55,6 +55,7 @@ describe("method manifest", () => {
     expect(method("unscheduleWorkout").safety).toBe("destructive");
     expect(method("updateMenstrualDailyLog").safety).toBe("destructive");
     expect(method("logout").safety).toBe("destructive");
+    expect(method("queryGarminGraphql").safety).toBe("destructive");
   });
 
   it("maps parameter types to JSON Schema", () => {

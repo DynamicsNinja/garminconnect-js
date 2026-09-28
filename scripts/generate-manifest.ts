@@ -44,6 +44,8 @@ export const SAFETY_OVERRIDES: Readonly<Record<string, Safety>> = {
   updateMenstrualDailyLog: "destructive",
   updateMenstrualCalendar: "destructive",
   setActivityExerciseSets: "destructive",
+  // Runs an arbitrary GraphQL body verbatim; a mutation looks the same as a query at this layer.
+  queryGarminGraphql: "destructive",
 };
 
 export function classify(name: string): Safety {
