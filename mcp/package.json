@@ -27,7 +27,9 @@
   },
   "files": [
     "dist",
-    "README.md"
+    "README.md",
+    "LICENSE",
+    "NOTICE"
   ],
   "engines": {
     "node": ">=18"
@@ -37,7 +39,8 @@
     "typecheck": "tsc --noEmit -p .",
     "test": "vitest run",
     "check": "npm run typecheck && npm run build && npm test",
-    "prepublishOnly": "npm run check"
+    "prepublishOnly": "npm run check",
+    "prepack": "node -e \"for (const f of ['LICENSE','NOTICE']) require('fs').copyFileSync('../'+f, f)\""
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.1"

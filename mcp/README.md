@@ -47,8 +47,8 @@ it, and pushes it to your device.
   predictions, activities (list, details, download, upload files), gear, courses, devices, badges,
   weigh-ins, and more. One tool per library method.
 
-Tools that delete or overwrite data are marked destructive, so Claude Desktop asks before running
-them even if you auto-approve the rest.
+Tools that delete or overwrite data are marked destructive. Claude is told to confirm with you
+before calling one, even if you've auto-approved the rest.
 
 **Not exposed:** `logout` (it would delete your saved session), the raw-JSON workout uploads (the
 checked `create_workout` replaces them), and the raw GraphQL passthrough unless you opt in.
@@ -63,6 +63,10 @@ checked `create_workout` replaces them), and the raw GraphQL passthrough unless 
 | `GARMIN_MCP_ENABLE_GRAPHQL` | off | Set to `1` to expose `query_garmin_graphql` |
 
 Set them under `"env"` in the Claude Desktop config entry.
+
+If you set `GARMIN_MCP_TOKEN_DIR` in the Claude Desktop config, set the same value when running
+`npx garminconnect-mcp login` (e.g. `GARMIN_MCP_TOKEN_DIR=/path/to/dir npx garminconnect-mcp
+login`), or the server won't find the session you signed in with.
 
 ## Good to know
 

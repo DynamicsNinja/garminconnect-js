@@ -33,14 +33,32 @@ jobs:
           fi
 
       - run: npm ci
-      # `npm publish` runs prepublishOnly, which is `npm run check` — the same gate CI runs.
+      # `npm publish` runs prepublishOnly, which is the ROOT `npm run check` — the same gate CI
+      # runs, and (because this is a workspace) it also runs `check -w mcp`, which is what
+      # actually executes tests/mcp-package.test.ts's version-lockstep assertion.
       # No token: npm authenticates through trusted publishing (configured on npmjs.com for
       # DynamicsNinja/garminconnect-js + publish.yml) and attaches provenance automatically.
       - run: npm publish
 
       # The MCP server ships from the same tag, AFTER the library. tests/mcp-package.test.ts (run by
-      # both packages' prepublishOnly) guarantees its version equals the library's.
-      # FIRST RELEASE ONLY: garminconnect-mcp must exist on npm before trusted publishing can be
-      # configured for it — the maintainer publishes it once by hand (`npm publish -w mcp`), then
-      # adds this repo + publish.yml as its trusted publisher on npmjs.com.
-      - run: npm publish -w mcp
+      # the root prepublishOnly above) guarantees its version equals the library's.
+      #
+      # Skip if this version is already on npm, so a re-run after a partial failure (e.g. the
+      # library publish above succeeded but this step failed or the job was cancelled) and a
+      # manual first publish both work without erroring on "you cannot publish over the previously
+      # published version".
+      #
+      # FIRST RELEASE SEQUENCE (trusted publishing can't be configured for a package that doesn't
+      # exist on npm yet): 1) the maintainer publishes garminconnect-mcp once by hand, with a
+      # token, at the version this tag names (`npm publish -w mcp`); 2) THEN configure this repo +
+      # publish.yml as its trusted publisher on npmjs.com; 3) only then push the `vX.Y.Z` tag that
+      # triggers this workflow — by that point this step is a no-op (the version already exists)
+      # and just confirms it.
+      - name: Publish mcp (skip if this version is already published)
+        run: |
+          version="$(node -p "require('./mcp/package.json').version")"
+          if npm view "garminconnect-mcp@$version" version >/dev/null 2>&1; then
+            echo "garminconnect-mcp@$version is already published; skipping."
+          else
+            npm publish -w mcp
+          fi

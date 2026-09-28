@@ -44,6 +44,8 @@ export const SAFETY_OVERRIDES: Readonly<Record<string, Safety>> = {
   updateMenstrualDailyLog: "destructive",
   updateMenstrualCalendar: "destructive",
   setActivityExerciseSets: "destructive",
+  // Replaces the WHOLE defaults list for the gear, not a merge: `[]` clears every default.
+  setGearActivityDefaults: "destructive",
   // Runs an arbitrary GraphQL body verbatim; a mutation looks the same as a query at this layer.
   queryGarminGraphql: "destructive",
 };
@@ -62,6 +64,16 @@ export function classify(name: string): Safety {
 
 const NULLISH = ts.TypeFlags.Undefined | ts.TypeFlags.Null | ts.TypeFlags.Void;
 const DATE: JsonSchema = { type: "string", format: "date", description: "Calendar date, YYYY-MM-DD (UTC)" };
+// A BARE `Date` param (not `string | Date`) is a moment in time, not a calendar date: methods like
+// `setBloodPressure`/`addHydrationData`/`addWeighIn`/`addWeighInWithTimestamps` pass it straight to
+// `formatLocalTimestamp`, which throws if handed a plain string. `paramsOf` marks such params
+// `coerce: "date"` so a caller like the MCP server can convert a JSON string to a real `Date`
+// before invoking the method.
+const DATETIME: JsonSchema = {
+  type: "string",
+  format: "date-time",
+  description: "A moment in time, ISO 8601, e.g. 2026-09-28T07:30:00 (local) or with Z/offset",
+};
 const isNamed = (t: ts.Type, name: string) => t.getSymbol()?.getName() === name;
 
 function unmappable(type: ts.Type, checker: ts.TypeChecker, where: string): Error {
@@ -82,7 +94,7 @@ export function typeToSchema(
   if (type.flags & ts.TypeFlags.String) return { type: "string" };
   if (type.flags & ts.TypeFlags.Number) return { type: "number" };
   if (type.flags & ts.TypeFlags.Boolean) return { type: "boolean" };
-  if (isNamed(type, "Date")) return DATE;
+  if (isNamed(type, "Date")) return DATETIME;
   if (checker.isTupleType(type)) {
     const items = checker
       .getTypeArguments(type as ts.TypeReference)
@@ -143,6 +155,9 @@ function objectToSchema(type: ts.Type, checker: ts.TypeChecker, where: string, s
   };
 }
 
+/** Param names this library and Garmin's own API treat as an id, for the `number | string` wording. */
+const ID_LIKE_NAME = /(?:id|pk|uuid)$/i;
+
 function paramsOf(member: ts.MethodDeclaration, checker: ts.TypeChecker, method: string): ManifestParam[] {
   const out: ManifestParam[] = [];
   member.parameters.forEach((param, i) => {
@@ -154,7 +169,16 @@ function paramsOf(member: ts.MethodDeclaration, checker: ts.TypeChecker, method:
     } else if (out[i - 1]?.role === "file" && name === "filename") {
       out.push({ name, optional, role: "filename", schema: { type: "string" } });
     } else {
-      out.push({ name, optional, schema: typeToSchema(type, checker, `${method}(${name})`) });
+      const schema = typeToSchema(type, checker, `${method}(${name})`);
+      const p: ManifestParam = { name, optional, schema };
+      if (schema["format"] === "date-time") p.coerce = "date";
+      if (Array.isArray(schema["type"]) && (schema["type"] as unknown[]).includes("integer")) {
+        // number|string union: `typeToSchema` doesn't know the param name, so decide the
+        // "id" wording here — `activityId`/`gearUUID` get it, `year`/`month` do not.
+        const { description: _unused, ...rest } = schema;
+        p.schema = ID_LIKE_NAME.test(name) ? { ...rest, description: "Numeric id" } : rest;
+      }
+      out.push(p);
     }
   });
   return out;
@@ -173,13 +197,36 @@ const humanize = (name: string) => {
   return `${words.charAt(0).toUpperCase()}${words.slice(1)}.`;
 };
 
+/**
+ * `stripParityChatter` (garmin-source.ts) removes AGENTS.md's upstream-provenance bookkeeping,
+ * which is shared with `docs/api` generation. This removes a second layer of purely INTERNAL
+ * jargon that only makes sense to someone developing this library, not someone calling a tool —
+ * "passes through unchecked", "UNCERTAIN upstream null handling", "(see gotchas)"/"See gotchas",
+ * "no proven inverse write ... in this task". Kept manifest-only (not in `stripParityChatter`) so
+ * `docs/api`'s prose, which IS for a developer of this library, is unaffected.
+ */
+function stripJargon(text: string): string {
+  return text
+    .replace(/[,;]?\s*passes through unchecked\.?/gi, "")
+    .replace(/no proven inverse write[^.;]*/gi, "")
+    .replace(/\(see gotchas\)/gi, "")
+    .replace(/see gotchas\.?/gi, "")
+    .replace(/UNCERTAIN[^.;]*[.;]?/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .replace(/\s+([,.;])/g, "$1")
+    .replace(/[.;]{2,}/g, ".")
+    .replace(/^[\s;,.]+/, "")
+    .replace(/[\s;,]+$/, "")
+    .trim();
+}
+
 function describe(
   name: string,
   member: ts.MethodDeclaration,
   checker: ts.TypeChecker,
   notes: ReturnType<typeof parseAgentsTable>,
 ): string {
-  const note = stripParityChatter(notes.get(name)?.notes ?? "");
+  const note = stripJargon(stripParityChatter(notes.get(name)?.notes ?? ""));
   const symbol = checker.getSymbolAtLocation(member.name);
   const doc = symbol ? ts.displayPartsToString(symbol.getDocumentationComment(checker)).trim() : "";
   const text = (note || doc || humanize(name)).replace(/\s+/g, " ").trim();

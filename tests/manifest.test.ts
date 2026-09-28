@@ -56,6 +56,27 @@ describe("method manifest", () => {
     expect(method("updateMenstrualDailyLog").safety).toBe("destructive");
     expect(method("logout").safety).toBe("destructive");
     expect(method("queryGarminGraphql").safety).toBe("destructive");
+    // Replaces the WHOLE gear-defaults list, not a merge: `[]` clears every default.
+    expect(method("setGearActivityDefaults").safety).toBe("destructive");
+  });
+
+  it("marks every bare-Date param for coercion, and only those", () => {
+    for (const m of GARMIN_METHODS) {
+      for (const p of m.params) {
+        if (p.schema["format"] === "date-time") {
+          expect(p.coerce, `${m.name}.${p.name}`).toBe("date");
+        } else {
+          expect(p.coerce, `${m.name}.${p.name}`).toBeUndefined();
+        }
+      }
+    }
+    expect(method("addWeighIn").params.find((p) => p.name === "when")).toMatchObject({
+      coerce: "date",
+      schema: { type: "string", format: "date-time" },
+    });
+    // `string | Date` stays a calendar date, not a coerced moment-in-time.
+    expect(method("getSleepData").params[0]).toMatchObject({ schema: { format: "date" } });
+    expect(method("getSleepData").params[0]!.coerce).toBeUndefined();
   });
 
   it("maps parameter types to JSON Schema", () => {
@@ -77,6 +98,24 @@ describe("method manifest", () => {
     expect(method("importActivity").params.map((p) => p.role)).toEqual(["file", "filename"]);
     expect(method("downloadWorkout").io).toBe("binary-out");
     expect(method("getSleepData").io).toBe("json");
+  });
+
+  it("only gives 'Numeric id' wording to number|string params whose name looks like an id", () => {
+    expect(method("getActivity").params[0]).toMatchObject({ name: "activityId", schema: { description: "Numeric id" } });
+    expect(method("deleteBloodPressure").params[0]).toMatchObject({ name: "version" });
+    expect(method("deleteBloodPressure").params[0]!.schema["description"]).toBeUndefined();
+    for (const p of method("getScheduledWorkouts").params) {
+      expect(p.schema["description"], p.name).toBeUndefined();
+    }
+  });
+
+  it("strips internal-jargon phrases out of descriptions", () => {
+    for (const m of GARMIN_METHODS) {
+      expect(m.description, m.name).not.toMatch(/passes through unchecked/i);
+      expect(m.description, m.name).not.toMatch(/UNCERTAIN upstream/i);
+      expect(m.description, m.name).not.toMatch(/see gotchas/i);
+      expect(m.description, m.name).not.toMatch(/no proven inverse write/i);
+    }
   });
 
   it("gives every method a non-empty, bounded description", () => {

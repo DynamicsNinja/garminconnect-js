@@ -70,6 +70,22 @@ describe("workout tools", () => {
     expect(textOf(await client.callTool({ name: "search_exercises", arguments: { query: "back squat" } }))).toContain("BARBELL_BACK_SQUAT");
   });
 
+  it("upper-cases a lowercase category before searching", async () => {
+    const { client } = await setup();
+    const result = await client.callTool({ name: "search_exercises", arguments: { query: "back", category: "squat" } });
+    expect(result.isError, textOf(result)).toBeFalsy();
+    expect(textOf(result)).toContain("SQUAT / BARBELL_BACK_SQUAT");
+  });
+
+  it("reports an unknown category instead of silently finding nothing", async () => {
+    const { client } = await setup();
+    const result = await client.callTool({ name: "search_exercises", arguments: { query: "back", category: "not_a_category" } });
+    expect(result.isError, textOf(result)).toBeFalsy();
+    const text = textOf(result);
+    expect(text).toContain('Unknown category "not_a_category"');
+    expect(text).toContain("SQUAT");
+  });
+
   it("exposes the spec schema with $defs at the tool root", async () => {
     const { client } = await setup();
     const tool = (await client.listTools()).tools.find((t) => t.name === "create_workout")!;

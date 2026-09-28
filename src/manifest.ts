@@ -20,6 +20,8 @@ export interface ManifestParam {
   schema: JsonSchema;
   /** `file` is a `Blob` argument; `filename` is the name that travels with it. */
   role?: "file" | "filename";
+  /** `"date"`: a bare `Date` param (schema `format: "date-time"`) — the caller must convert a JSON string to a real `Date` before calling the method. */
+  coerce?: "date";
 }
 
 export interface ManifestMethod {

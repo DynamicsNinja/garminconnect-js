@@ -9,3 +9,7 @@ tokens-real/
 export/
 tests/fixtures/*
 !tests/fixtures/workout-specs.ts
+# Copied into mcp/ by mcp/package.json's `prepack` script from the root LICENSE/NOTICE, so the
+# published tarball carries them; the copies are build output, not source.
+mcp/LICENSE
+mcp/NOTICE

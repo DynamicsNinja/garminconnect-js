@@ -23,6 +23,20 @@ const asJson = (w: WorkoutInput) => w as unknown as Record<string, unknown>;
 
 const UNITS = "Paces are minutes as decimals (4:30 = 4.5), distances metres, times seconds.";
 
+const CATEGORY_SET = new Set<string>(WORKOUT_EXERCISE_CATEGORIES);
+
+/**
+ * Resolves a caller-supplied category against `WORKOUT_EXERCISE_CATEGORIES`. Categories are
+ * SCREAMING_SNAKE_CASE (`"SQUAT"`), and a model or a human is more likely to type `"squat"`, so a
+ * case miss is corrected rather than rejected outright. Returns `null` only when even the
+ * upper-cased form isn't a real category.
+ */
+export function resolveExerciseCategory(category: string): string | null {
+  if (CATEGORY_SET.has(category)) return category;
+  const upper = category.toUpperCase();
+  return CATEGORY_SET.has(upper) ? upper : null;
+}
+
 export function searchExercises(query: string, category?: string, limit = 25): string[] {
   const words = query.toUpperCase().split(/[^A-Z0-9]+/).filter(Boolean);
   if (words.length === 0 && !category) return [];
@@ -69,8 +83,8 @@ export const workoutTools: ToolFactory = ({ session }) => [
       description:
         "Save a workout to the user's Garmin Connect workout library. Only after the user has confirmed a " +
         "preview_workout of the same spec. Look exercise names up with search_exercises first; an unknown name is " +
-        "rejected. Afterwards, schedule_workout puts it on the calendar and push_workout_to_device sends it to the " +
-        `watch. ${UNITS}`,
+        "rejected. Afterwards, schedule_workout (if available) puts it on the calendar and push_workout_to_device " +
+        `(if available) sends it to the watch. ${UNITS}`,
       inputSchema: specInput(),
       annotations: { title: "Create workout", readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
     },
@@ -117,7 +131,18 @@ export const workoutTools: ToolFactory = ({ session }) => [
     },
     run: async (input) => {
       const query = typeof input["query"] === "string" ? input["query"] : "";
-      const hits = searchExercises(query, input["category"] as string | undefined);
+      const rawCategory = input["category"];
+      let category: string | undefined;
+      if (typeof rawCategory === "string") {
+        const resolved = resolveExerciseCategory(rawCategory);
+        if (resolved === null) {
+          return textResult(
+            `Unknown category "${rawCategory}". Valid categories: ${WORKOUT_EXERCISE_CATEGORIES.join(", ")}`,
+          );
+        }
+        category = resolved;
+      }
+      const hits = searchExercises(query, category);
       return textResult(
         hits.length > 0 ? hits.join("\n") : "No matching exercises. Try fewer or different words, or a category alone (e.g. SQUAT).",
       );

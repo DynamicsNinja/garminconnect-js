@@ -97,6 +97,31 @@ describe("methodTools", () => {
     expect(calls).toEqual([]);
   });
 
+  it("coerces an ISO 8601 date-time string for a bare-Date param (add_weigh_in's `when`)", async () => {
+    const { fetchImpl, calls } = fakeFetch({ "POST /weight-service/user-weight": () => json({ ok: true }) });
+    const client = await connect(deps(fetchImpl), [methodTools]);
+    const result = await client.callTool({
+      name: "add_weigh_in",
+      arguments: { weightValue: 70, when: "2026-09-27T07:30:00" },
+    });
+    expect(result.isError, textOf(result)).toBeFalsy();
+    const call = calls.find((c) => c.method === "POST" && c.url.includes("/weight-service/user-weight"));
+    expect(call).toBeDefined();
+    expect((call!.body as { dateTimestamp?: string }).dateTimestamp).toContain("2026-09-27");
+  });
+
+  it("rejects a non-date `when` before calling Garmin", async () => {
+    const { fetchImpl, calls } = fakeFetch({});
+    const client = await connect(deps(fetchImpl), [methodTools]);
+    const result = await client.callTool({
+      name: "add_weigh_in",
+      arguments: { weightValue: 70, when: "not a date" },
+    });
+    expect(result.isError).toBe(true);
+    expect(textOf(result)).toContain("expected an ISO 8601 date-time");
+    expect(calls).toEqual([]);
+  });
+
   it("passes Garmin HTTP errors back as tool errors", async () => {
     const { fetchImpl } = fakeFetch({ ...PROFILE_ROUTE, "GET /activity-service/activity/9": () => json({ message: "nope" }, 500) });
     const client = await connect(deps(fetchImpl), [methodTools]);

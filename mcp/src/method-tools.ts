@@ -56,6 +56,16 @@ async function argsFor(m: ManifestMethod, input: Record<string, unknown>): Promi
       args.push(upload.blob);
     } else if (p.role === "filename") {
       args.push(filename);
+    } else if (p.coerce === "date" && input[p.name] !== undefined) {
+      const raw = input[p.name];
+      if (typeof raw !== "string") {
+        throw new Error(`${p.name}: expected an ISO 8601 date-time, got ${JSON.stringify(raw)}`);
+      }
+      const date = new Date(raw);
+      if (Number.isNaN(date.getTime())) {
+        throw new Error(`${p.name}: expected an ISO 8601 date-time, got ${JSON.stringify(raw)}`);
+      }
+      args.push(date);
     } else {
       args.push(input[p.name]);
     }
