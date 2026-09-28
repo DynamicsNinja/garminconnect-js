@@ -63,6 +63,9 @@ describe("workout tools", () => {
     expect(searchExercises("squat", "LUNGE").every((l) => l.startsWith("LUNGE / "))).toBe(true);
     expect(searchExercises("", "PLANK").length).toBeGreaterThan(0);
     expect(searchExercises("")).toEqual([]);
+    expect(searchExercises("squat")[0]).toBe("SQUAT / SQUAT");
+    expect(searchExercises("push up")[0]).toBe("PUSH_UP / PUSH_UP");
+    expect(searchExercises("back squat")).toContain("SQUAT / BARBELL_BACK_SQUAT");
     const { client } = await setup();
     expect(textOf(await client.callTool({ name: "search_exercises", arguments: { query: "back squat" } }))).toContain("BARBELL_BACK_SQUAT");
   });

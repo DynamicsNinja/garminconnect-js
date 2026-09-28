@@ -74,7 +74,7 @@ function target(step: Doc, secondary: boolean): string | undefined {
     case "no.target":
       return undefined;
     case "pace.zone":
-      return one && two ? `${pace(one)}–${pace(two)} /km` : undefined;
+      return one !== undefined && two !== undefined ? `${pace(one)}–${pace(two)} /km` : undefined;
     case "speed.zone":
       return range("m/s");
     case "heart.rate.zone":

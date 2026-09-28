@@ -26,18 +26,24 @@ const UNITS = "Paces are minutes as decimals (4:30 = 4.5), distances metres, tim
 export function searchExercises(query: string, category?: string, limit = 25): string[] {
   const words = query.toUpperCase().split(/[^A-Z0-9]+/).filter(Boolean);
   if (words.length === 0 && !category) return [];
-  const hits: { line: string; score: number }[] = [];
+  const joined = words.join("_");
+  const hits: { line: string; nameExact: number; catExact: number; score: number }[] = [];
   for (const [cat, names] of Object.entries(EXERCISES) as [string, readonly string[]][]) {
     if (category && cat !== category) continue;
     for (const name of names) {
       const parts = name.split("_").filter(Boolean);
       const matched = words.filter((w) => parts.some((p) => p.startsWith(w))).length;
       if (words.length > 0 && matched === 0) continue;
-      hits.push({ line: `${cat} / ${name}`, score: matched * 100 - parts.length });
+      hits.push({
+        line: `${cat} / ${name}`,
+        nameExact: name === joined ? 1 : 0,
+        catExact: cat === joined ? 1 : 0,
+        score: matched * 100 - parts.length,
+      });
     }
   }
   return hits
-    .sort((a, b) => b.score - a.score || a.line.localeCompare(b.line))
+    .sort((a, b) => b.nameExact - a.nameExact || b.catExact - a.catExact || b.score - a.score || a.line.localeCompare(b.line))
     .slice(0, limit)
     .map((h) => h.line);
 }
