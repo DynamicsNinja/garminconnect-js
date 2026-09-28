@@ -6,5 +6,4 @@ dist/
 *.log
 tokens/
 tokens-real/
-tests/fixtures/
 export/

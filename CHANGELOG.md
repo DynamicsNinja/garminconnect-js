@@ -6,6 +6,18 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **`workoutFromSpec(spec, EXERCISES)`**: build a workout from plain JSON (a database row, a form,
+  an LLM tool call). It is replayed through `buildWorkout`, so every builder guard applies, and it
+  is stricter than the builder: unknown keys and unknown exercise names are rejected with the JSON
+  path and the closest valid names. `WORKOUT_SPORTS` is exported alongside it.
+
+### Fixed
+
+- **A reversed pace range is no longer stored backwards.** `target: { pace: { minPerKm: [5, 4.5] } }`
+  put the slower speed first; both orders now store the faster speed in `targetValueOne`.
+
 ## [0.6.0] — 2026-09-25
 
 ### Changed

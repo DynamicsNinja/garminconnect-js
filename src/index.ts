@@ -57,7 +57,7 @@ export type * from "./types/misc.js";
  * Fluent workout builder — NOT upstream parity, a convenience layer over `uploadWorkout`, which
  * still accepts raw JSON unchanged. See `src/workout-builder.ts`.
  */
-export { buildWorkout, WorkoutBuilder, WorkoutStepList } from "./workout-builder.js";
+export { buildWorkout, WorkoutBuilder, WorkoutStepList, WORKOUT_SPORTS } from "./workout-builder.js";
 export type {
   WorkoutSport,
   WorkoutBuildOptions,
@@ -70,3 +70,16 @@ export type {
   WorkoutExercise,
 } from "./workout-builder.js";
 export type { WeightScaleFields } from "./util/fit.js";
+
+/**
+ * JSON twin of `buildWorkout`: a workout as data, replayed through the builder. Pass `EXERCISES`
+ * from `garminconnect-js/exercises` as the catalogue. See `src/workout-spec.ts`.
+ */
+export { workoutFromSpec } from "./workout-spec.js";
+export type {
+  WorkoutSpec,
+  WorkoutSpecStep,
+  WorkoutSpecLeg,
+  SimpleStepType,
+  ExerciseCatalogue,
+} from "./workout-spec.js";

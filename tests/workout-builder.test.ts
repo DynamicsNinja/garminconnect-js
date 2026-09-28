@@ -309,4 +309,14 @@ describe("buildWorkout", () => {
       ).toThrow(/cannot be both/);
     });
   });
+
+  it("stores a reversed pace range the same as the ordered one (faster speed first)", () => {
+    // An LLM or a form will send [slow, fast] as often as [fast, slow]. Garmin needs the larger
+    // m/s value in targetValueOne either way; every other range target already sorts.
+    const step = (minPerKm: [number, number]) =>
+      buildWorkout("x", { sport: "running" })
+        .interval({ distance: 1000, target: { pace: { minPerKm } } })
+        .build().workoutSegments[0]!.workoutSteps[0];
+    expect(step([5, 4.5])).toEqual(step([4.5, 5]));
+  });
 });

@@ -78,6 +78,9 @@ const SPORTS = {
  */
 export type WorkoutSport = keyof typeof SPORTS;
 
+/** Every `WorkoutSport`, at runtime — for validating JSON input and building schemas. */
+export const WORKOUT_SPORTS = Object.keys(SPORTS) as readonly WorkoutSport[];
+
 export type StrokeKey = Lowercase<keyof typeof WORKOUT_STROKE_TYPE_ID>;
 export type DrillKey = Lowercase<keyof typeof WORKOUT_DRILL_TYPE_ID>;
 export type EquipmentKey = Lowercase<keyof typeof WORKOUT_EQUIPMENT_TYPE_ID>;
@@ -266,13 +269,13 @@ function targetOf(t: StepTarget | undefined, secondary = false): Record<string, 
   }
 
   if ("pace" in t) {
-    // Garmin wants SPEEDS, faster (larger) first — so the fast end of the pace range, which is the
-    // SMALLER minutes-per-km number, becomes targetValueOne.
-    const [fast, slow] =
+    // Garmin wants SPEEDS, faster (larger) first. Either input order is accepted: the two speeds
+    // are sorted here, exactly as `range(..., descending)` does for speed targets.
+    const [a, b] =
       "minPerKm" in t.pace
         ? [paceToMps(t.pace.minPerKm[0]), paceToMps(t.pace.minPerKm[1])]
         : [milePaceToMps(t.pace.minPerMile[0]), milePaceToMps(t.pace.minPerMile[1])];
-    return { ...typed(TARGET.PACE_ZONE, "pace.zone"), [oneField]: fast, [twoField]: slow };
+    return { ...typed(TARGET.PACE_ZONE, "pace.zone"), [oneField]: Math.max(a, b), [twoField]: Math.min(a, b) };
   }
   if ("speedMetresPerSecond" in t) return range(TARGET.SPEED_ZONE, "speed.zone", t.speedMetresPerSecond, true);
   if ("powerZone" in t) return zone(TARGET.POWER_ZONE, "power.zone", t.powerZone);
