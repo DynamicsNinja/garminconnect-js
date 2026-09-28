@@ -52,6 +52,16 @@
         "default": "./dist/exercises.cjs"
       }
     },
+    "./manifest": {
+      "import": {
+        "types": "./dist/manifest.d.ts",
+        "default": "./dist/manifest.js"
+      },
+      "require": {
+        "types": "./dist/manifest.d.cts",
+        "default": "./dist/manifest.cjs"
+      }
+    },
     "./package.json": "./package.json"
   },
   "files": [
@@ -94,6 +104,7 @@
     "smoke:gaps": "tsx scripts/smoke-writes-gaps.ts",
     "check": "npm run typecheck && npm run lint && npm run build && npm test",
     "docs:api": "tsx scripts/generate-api-docs.ts",
+    "manifest": "tsx scripts/generate-manifest.ts",
     "prepublishOnly": "npm run check"
   },
   "devDependencies": {
@@ -113,6 +124,9 @@
     "*": {
       "exercises": [
         "./dist/exercises.d.ts"
+      ],
+      "manifest": [
+        "./dist/manifest.d.ts"
       ]
     }
   }

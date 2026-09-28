@@ -445,6 +445,20 @@ await garmin.uploadWorkout(workout);
   constants, so it follows the library, and it leaves exercise names out on purpose (runtime check
   instead). Its root has no `oneOf`, so it's usable as a tool input schema.
 
+### `garminconnect-js/manifest`: every method, machine-readable
+
+`GARMIN_METHODS` describes every `Garmin` method: `name`, `category` (the docs/api slug),
+`description`, `params` (each with a JSON Schema, `optional`, and `role: "file" | "filename"` for
+`Blob` inputs), `safety` (`read` / `write` / `destructive`) and `io` (`json` / `binary-in` /
+`binary-out`). It exists so tools can be GENERATED from this library; the MCP server in `mcp/` is
+one.
+
+It is generated from `src/garmin.ts` by `scripts/generate-manifest.ts` using the TypeScript
+compiler, and committed as `src/generated/manifest.ts`. `tests/manifest.test.ts` fails if it is
+stale, so **after changing any `Garmin` method signature, run `npm run manifest`**. A new method
+whose name fits no safety prefix fails generation until it is added to `SAFETY_OVERRIDES` with a
+reason.
+
 ## 4. These methods do NOT exist (mostly)
 
 **165 methods**, covering 151 of upstream python-garminconnect's 154 public methods. The other

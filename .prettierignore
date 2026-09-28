@@ -1,0 +1,3 @@
+# Generated, and compared byte-for-byte by tests; formatting them would make those tests fail.
+src/generated/
+docs/api/

@@ -36,7 +36,7 @@ describe("package contract", () => {
     // One shared `types` ahead of both pointed CommonJS projects at the ESM `.d.ts`, which fails
     // under `"module": "node16"` with TS1479. `tests/dist.test.ts` compiles a real consumer.
     const pkg = JSON.parse(await readFile("package.json", "utf8"));
-    for (const [subpath, ext] of [[".", "index"], ["./exercises", "exercises"]] as const) {
+    for (const [subpath, ext] of [[".", "index"], ["./exercises", "exercises"], ["./manifest", "manifest"]] as const) {
       const entry = pkg.exports[subpath];
       expect(Object.keys(entry.import)[0], `${subpath} import`).toBe("types");
       expect(Object.keys(entry.require)[0], `${subpath} require`).toBe("types");

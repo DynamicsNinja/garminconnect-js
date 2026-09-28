@@ -14,6 +14,9 @@ All notable changes to this project are documented here. The format follows
   path and the closest valid names. `WORKOUT_SPORTS` is exported alongside it.
 - **`WORKOUT_SPEC_JSON_SCHEMA`**: the JSON Schema for `workoutFromSpec`'s input, built from the
   library's own constants so it follows every release.
+- **`garminconnect-js/manifest`**: `GARMIN_METHODS`, a generated, machine-readable description of
+  every `Garmin` method (JSON Schema parameters, a read/write/destructive safety class, file
+  input/output), for building tools on top of this library.
 
 ### Fixed
 
