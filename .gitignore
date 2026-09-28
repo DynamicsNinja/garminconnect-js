@@ -7,3 +7,5 @@ dist/
 tokens/
 tokens-real/
 export/
+tests/fixtures/*
+!tests/fixtures/workout-specs.ts
