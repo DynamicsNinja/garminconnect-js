@@ -1,0 +1,45 @@
+{
+  "name": "garminconnect-mcp",
+  "version": "0.6.0",
+  "description": "MCP server for Garmin Connect: create workouts and read your Garmin data from Claude. Built on garminconnect-js.",
+  "keywords": [
+    "garmin",
+    "garmin-connect",
+    "mcp",
+    "model-context-protocol",
+    "claude",
+    "workouts"
+  ],
+  "homepage": "https://github.com/DynamicsNinja/garminconnect-js/tree/main/mcp#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DynamicsNinja/garminconnect-js.git",
+    "directory": "mcp"
+  },
+  "bugs": {
+    "url": "https://github.com/DynamicsNinja/garminconnect-js/issues"
+  },
+  "author": "ificko",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "garminconnect-mcp": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit -p .",
+    "test": "vitest run",
+    "check": "npm run typecheck && npm run build && npm test",
+    "prepublishOnly": "npm run check"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.1"
+  }
+}

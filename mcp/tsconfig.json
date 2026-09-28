@@ -1,0 +1,14 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    // The server uses the library ONLY through its three public entry points, resolved to THIS
+    // commit's source. tsup inlines them at build time (see tsup.config.ts), so a published server
+    // always contains exactly the library it was tested against.
+    "paths": {
+      "garminconnect-js": ["../src/index.ts"],
+      "garminconnect-js/exercises": ["../src/exercises.ts"],
+      "garminconnect-js/manifest": ["../src/manifest.ts"]
+    }
+  },
+  "include": ["src", "tests", "scripts"]
+}

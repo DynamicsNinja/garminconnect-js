@@ -46,7 +46,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ["tests/**/*.ts", "scripts/**/*.ts"],
+    files: ["tests/**/*.ts", "scripts/**/*.ts", "mcp/tests/**/*.ts", "mcp/scripts/**/*.ts"],
     rules: {
       // Test and script code intentionally reaches into internals and uses
       // loose typing (fixtures, mocked fetch, CLI prompts) that the
@@ -68,6 +68,25 @@ export default tseslint.config(
       "@typescript-eslint/no-unused-vars": [
         "error",
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^_" },
+      ],
+    },
+  },
+  {
+    // The MCP server may use the library ONLY through its public entry points. Reaching into
+    // ../../src would couple it to internals that are free to change between releases.
+    files: ["mcp/**/*.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              regex: "^(\\.\\./)+\\.\\./src/",
+              message:
+                'Import from "garminconnect-js", "garminconnect-js/exercises" or "garminconnect-js/manifest" instead.',
+            },
+          ],
+        },
       ],
     },
   },

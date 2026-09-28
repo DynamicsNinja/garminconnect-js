@@ -74,6 +74,7 @@
     "CHANGELOG.md",
     "SECURITY.md"
   ],
+  "workspaces": ["mcp"],
   "dependencies": {},
   "peerDependencies": {
     "@types/node": ">=18"
@@ -89,7 +90,7 @@
     "test:watch": "vitest",
     "test:live": "vitest run --config vitest.live.config.ts",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint src tests scripts examples",
+    "lint": "eslint src tests scripts examples mcp/src mcp/tests",
     "format": "prettier --write .",
     "login": "tsx scripts/login.ts",
     "record": "tsx scripts/record-fixtures.ts",
@@ -102,7 +103,7 @@
     "login:real": "tsx scripts/login.ts ./tokens-real GARMIN_REAL",
     "smoke:real": "tsx scripts/smoke-readonly-real.ts",
     "smoke:gaps": "tsx scripts/smoke-writes-gaps.ts",
-    "check": "npm run typecheck && npm run lint && npm run build && npm test",
+    "check": "npm run typecheck && npm run lint && npm run build && npm test && npm run check -w mcp",
     "docs:api": "tsx scripts/generate-api-docs.ts",
     "manifest": "tsx scripts/generate-manifest.ts",
     "prepublishOnly": "npm run check"
