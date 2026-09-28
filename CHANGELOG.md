@@ -12,6 +12,8 @@ All notable changes to this project are documented here. The format follows
   an LLM tool call). It is replayed through `buildWorkout`, so every builder guard applies, and it
   is stricter than the builder: unknown keys and unknown exercise names are rejected with the JSON
   path and the closest valid names. `WORKOUT_SPORTS` is exported alongside it.
+- **`WORKOUT_SPEC_JSON_SCHEMA`**: the JSON Schema for `workoutFromSpec`'s input, built from the
+  library's own constants so it follows every release.
 
 ### Fixed
 

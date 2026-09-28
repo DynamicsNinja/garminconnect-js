@@ -406,6 +406,45 @@ strength's exercise pair and weight, the brick's two segments and transitions fl
 The probe asserts the STORED document rather than the POST's status, deliberately: a 2xx is how
 `uploadWalkingWorkout` came to be marked verified while storing a null sport.
 
+### `workoutFromSpec` (src/workout-spec.ts): workouts as JSON
+
+**NOT upstream parity**, and not a `Garmin` method. It's the JSON twin of `buildWorkout`, for input
+that cannot hold callbacks: a database row, a form, an LLM tool call.
+
+```ts
+import { workoutFromSpec } from "garminconnect-js";
+import { EXERCISES } from "garminconnect-js/exercises";
+
+const workout = workoutFromSpec(
+  {
+    name: "6x400",
+    sport: "running",
+    steps: [
+      { type: "warmup", lapButton: true },
+      { type: "repeat", times: 6, steps: [
+        { type: "interval", distance: 400, target: { pace: { minPerKm: [4, 4.2] } } },
+        { type: "recovery", time: 120 },
+      ] },
+      { type: "cooldown", time: 600 },
+    ],
+  },
+  EXERCISES, // REQUIRED: the catalogue is a parameter so the root bundle stays free of it
+);
+await garmin.uploadWorkout(workout);
+```
+
+- A step is `{ type, ...StepOptions }` with `type` one of `warmup cooldown interval recovery main
+  other rest`, or a block: `{ type: "repeat", times, steps }` / `{ type: "repeatForSeconds",
+  seconds, steps }`. Multi-sport uses `legs: [{ sport, steps }]` instead of `steps`.
+- It REPLAYS the spec through the real builder, so every builder guard applies.
+- It is STRICTER than the builder: unknown keys throw with the JSON path
+  (`workout.steps[1].steps[0]: unknown key "pace"; did you mean target: { pace: … }?`), and an
+  exercise name missing from the catalogue throws with the closest valid names. Garmin itself
+  would store it as `""`.
+- `WORKOUT_SPEC_JSON_SCHEMA` (draft 2020-12) describes the input. It's built from the same
+  constants, so it follows the library, and it leaves exercise names out on purpose (runtime check
+  instead). Its root has no `oneOf`, so it's usable as a tool input schema.
+
 ## 4. These methods do NOT exist (mostly)
 
 **165 methods**, covering 151 of upstream python-garminconnect's 154 public methods. The other

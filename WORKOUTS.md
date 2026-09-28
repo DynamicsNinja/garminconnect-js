@@ -524,3 +524,33 @@ await garmin.uploadWorkout(workout);
 `WORKOUT_EQUIPMENT_TYPE_ID`, `WORKOUT_SWIM_INSTRUCTION_TYPE_ID` and `WORKOUT_INTENSITY_TYPE_ID` are
 all exported, and every id in them was read from Garmin's own
 `GET /workout-service/workout/types`.
+
+## From JSON
+
+When a workout arrives as data (from a database, a form, or an AI assistant), use
+`workoutFromSpec` instead of the fluent builder. It takes the same options, as JSON, and runs
+them through the same builder:
+
+```ts
+import { workoutFromSpec } from "garminconnect-js";
+import { EXERCISES } from "garminconnect-js/exercises";
+
+const workout = workoutFromSpec(
+  {
+    name: "Legs",
+    sport: "strength_training",
+    steps: [
+      { type: "warmup", time: 300 },
+      { type: "repeat", times: 3, steps: [
+        { type: "interval", reps: 8, exercise: { category: "SQUAT", name: "BARBELL_BACK_SQUAT" }, weightKg: 60 },
+        { type: "rest", restSeconds: 90 },
+      ] },
+    ],
+  },
+  EXERCISES,
+);
+```
+
+Mistakes are reported with where they are, e.g.
+`workout.steps[1].steps[0].exercise.name: "Barbell Back Squat" is not an exercise in SQUAT; closest: BARBELL_BACK_SQUAT`.
+`WORKOUT_SPEC_JSON_SCHEMA` is the matching JSON Schema.

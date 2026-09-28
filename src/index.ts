@@ -83,3 +83,4 @@ export type {
   SimpleStepType,
   ExerciseCatalogue,
 } from "./workout-spec.js";
+export { WORKOUT_SPEC_JSON_SCHEMA, type JsonSchemaDocument } from "./workout-spec-schema.js";
