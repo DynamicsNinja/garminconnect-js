@@ -64,12 +64,26 @@ const check = (label: string, ok: boolean, detail = "") => {
 };
 
 type Doc = Record<string, unknown>;
+
+// If `create_workout`'s text has no parseable id — or it threw after Garmin may have already
+// stored the workout — the workout would otherwise leak on the test account, since both the
+// verification and the `finally` delete key off `workoutId`. `SPEC.name` is timestamped, so it
+// uniquely identifies the workout `create_workout` was trying to make; recover its id by name.
+const findWorkoutIdByName = async (): Promise<string | undefined> => {
+  const list = JSON.parse(await call("get_workouts", {})) as Doc[];
+  const match = list.find((w) => w["workoutName"] === SPEC.name);
+  const id = match?.["workoutId"];
+  return id === undefined ? undefined : String(id);
+};
+
 let workoutId: string | undefined;
 try {
   console.log(await call("preview_workout", { spec: SPEC }), "\n");
   const created = await call("create_workout", { spec: SPEC });
-  workoutId = /Created workout (\d+)/.exec(created)?.[1];
-  check("create_workout returned an id", workoutId !== undefined, created.split("\n")[0]);
+  const parsedId = /Created workout (\d+)/.exec(created)?.[1];
+  check("create_workout returned an id", parsedId !== undefined, created.split("\n")[0]);
+  // The check above still records the regression as FAIL even when recovery below succeeds.
+  workoutId = parsedId ?? (await findWorkoutIdByName());
   if (workoutId) {
     const stored = JSON.parse(await call("get_workout_by_id", { workoutId })) as Doc;
     const segment = (stored["workoutSegments"] as Doc[])[0]!;
@@ -87,6 +101,9 @@ try {
     check("pace stored fastest first despite reversed input", one > two && Math.abs(one - 1000 / 240) < 0.01, `${one} / ${two}`);
   }
 } finally {
+  // Covers `create_workout` throwing after Garmin may have already stored the workout (e.g. the
+  // server errored building the response, not the write itself) with the same by-name lookup.
+  if (!workoutId) workoutId = await findWorkoutIdByName().catch(() => undefined);
   if (workoutId) {
     await call("delete_workout", { workoutId });
     const after = await client.callTool({ name: "get_workout_by_id", arguments: { workoutId } });
