@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.7.0] — 2026-09-29
+
 ### Added
 
 - **`garminconnect-mcp`**, a new package in `mcp/`: an MCP server for Claude Desktop. Describe a
@@ -180,7 +182,8 @@ a broken result. Each is recorded with its reason in `tests/parity.test.ts`.
 - `@types/node` is an optional peer dependency — needed only for type-checking against the
   `Buffer` return types, and not installed into consumers' projects automatically.
 
-[Unreleased]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.3.1...v0.4.0

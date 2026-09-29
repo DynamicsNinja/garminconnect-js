@@ -57,7 +57,12 @@ jobs:
       - name: Publish mcp (skip if this version is already published)
         run: |
           version="$(node -p "require('./mcp/package.json').version")"
-          if npm view "garminconnect-mcp@$version" version >/dev/null 2>&1; then
+          if ! npm view garminconnect-mcp name >/dev/null 2>&1; then
+            # Not on npm at all yet: trusted publishing cannot work for it, so attempting it only
+            # fails after the library has already shipped. Say so loudly and leave it to the
+            # maintainer's one-time manual publish described above.
+            echo "::warning::garminconnect-mcp is not on npm yet. Publish $version once by hand (npm publish -w mcp), then configure trusted publishing for it."
+          elif npm view "garminconnect-mcp@$version" version >/dev/null 2>&1; then
             echo "garminconnect-mcp@$version is already published; skipping."
           else
             npm publish -w mcp
