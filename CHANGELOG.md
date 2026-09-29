@@ -6,6 +6,20 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.7.1] — 2026-09-29
+
+No changes to `garminconnect-js`; it is released in lockstep with the MCP server.
+
+### Changed (`@dynamicsninja/garminconnect-mcp`)
+
+- **A full user guide** in the package README: requirements, a one-time global install (running
+  it through `npx` breaks when Claude Desktop starts several copies at once, on any OS), Claude
+  Desktop setup for Windows and macOS/Linux, example requests, how workout previews and tool
+  approvals work, troubleshooting, updating, and use from other MCP clients such as Claude Code.
+- The "not logged in" message now says `garminconnect-mcp login`, matching the guide.
+- The server now tells MCP clients its title ("Garmin Connect (unofficial)"), website and an icon.
+  Claude Desktop does not show icons for servers added in its config file; other clients may.
+
 ## [0.7.0] — 2026-09-29
 
 ### Added
@@ -182,7 +196,8 @@ a broken result. Each is recorded with its reason in `tests/parity.test.ts`.
 - `@types/node` is an optional peer dependency — needed only for type-checking against the
   `Buffer` return types, and not installed into consumers' projects automatically.
 
-[Unreleased]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.7.1...HEAD
+[0.7.1]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.4.0...v0.5.0
