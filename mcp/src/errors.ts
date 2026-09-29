@@ -2,8 +2,10 @@ import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { GarminAuthError, GarminHttpError, GarminRateLimitError } from "garminconnect-js";
 import { NotLoggedInError } from "./session.js";
 
-export const LOGIN_HINT =
-  "call the `sign_in_to_garmin` tool to sign in (or run `garminconnect-mcp login` in a terminal), then try again";
+// A Desktop Extension user has no terminal and no `garminconnect-mcp` command; the npm-install
+// route documents `garminconnect-mcp login` separately (see README), but this hint has to work
+// for both, so it names only the tool every install method has.
+export const LOGIN_HINT = "call the `sign_in_to_garmin` tool to sign in, then try again";
 
 /** Plain-language text for a failure. Library messages are already free of tokens. */
 export function describeError(error: unknown): string {

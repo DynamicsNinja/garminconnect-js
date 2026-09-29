@@ -34,5 +34,10 @@ export default defineConfig([
     outExtension: () => ({ js: ".mjs" }),
     // CommonJS dependencies (ajv) call require(); give the ESM bundle one.
     banner: { js: "import { createRequire as __gcCreateRequire } from 'node:module'; const require = __gcCreateRequire(import.meta.url);" },
+    // Keep the MIT/license comments of the inlined dependencies (MCP SDK, ajv, …) in the bundle,
+    // collected at the end of the file, instead of esbuild's default of stripping them.
+    esbuildOptions(options) {
+      options.legalComments = "eof";
+    },
   },
 ]);

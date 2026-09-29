@@ -111,6 +111,7 @@ export async function startSignInPage(options: SignInPageOptions): Promise<SignI
   let client: SignInClient | null = null;
   let mfaState: MfaState | null = null;
   let finished = false;
+  let signedInName = "your Garmin account";
   let isClosed = false;
   let idle: NodeJS.Timeout | undefined;
   let port = 0; // cached: server.address() is null once the server has closed
@@ -174,7 +175,7 @@ export async function startSignInPage(options: SignInPageOptions): Promise<SignI
       res.writeHead(200, HEADERS);
       res.end(body);
     };
-    if (finished) return sendDone(res);
+    if (finished) return sendDone(res, signedInName);
     if (req.method === "GET") return send(mfaState ? mfaForm(key) : credentialsForm(key));
     if (req.method !== "POST") return notFound(res);
 
@@ -185,7 +186,7 @@ export async function startSignInPage(options: SignInPageOptions): Promise<SignI
 
   async function step(form: URLSearchParams, res: http.ServerResponse, send: (body: string) => void): Promise<void> {
     // A submit that waited behind the one that signed in gets the done page, not a second sign-in.
-    if (finished) return sendDone(res);
+    if (finished) return sendDone(res, signedInName);
     // The browser gave up while this submit waited, or the page closed: do not sign in behind its back.
     if (res.destroyed) return;
     if (isClosed) return notFound(res);
@@ -226,6 +227,7 @@ export async function startSignInPage(options: SignInPageOptions): Promise<SignI
     mfaState = null;
     options.onSignedIn();
     const name = await signedIn.displayName().catch(() => "your Garmin account");
+    signedInName = name; // so a later request (a reload, a second tab) also shows the real name
     // The browser may have dropped this request mid-login (a cancelled double click, a closed tab);
     // sendDone closes the page either way.
     sendDone(res, name);
@@ -241,8 +243,11 @@ export async function startSignInPage(options: SignInPageOptions): Promise<SignI
   // A later server error must not crash the MCP process (an unhandled "error" would) or print anything.
   server.on("error", () => void close());
   // An open sign-in page must never be the reason the MCP process stays alive; the idle timer
-  // (also unref'd) closes it anyway.
+  // (also unref'd) closes it anyway. `server.unref()` alone only covers the listening socket
+  // itself — an ACCEPTED connection is a separate handle that otherwise keeps the process up for
+  // as long as it stays open (e.g. ~90s of keep-alive after stdin closes), so unref every socket too.
   server.unref();
+  server.on("connection", (socket) => socket.unref());
   port = (server.address() as AddressInfo).port;
   touch();
   return { url: `http://127.0.0.1:${port}/${key}`, closed, close };

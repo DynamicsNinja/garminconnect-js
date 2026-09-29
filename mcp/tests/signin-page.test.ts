@@ -150,7 +150,9 @@ describe("sign-in page", () => {
       // A refused or reset connection is fine (the page already closed); a response must be the done page.
       if (s.status === "fulfilled") {
         expect(s.value.status).toBe(200);
-        expect(s.value.body).toContain("Signed in as");
+        // The real signed-in name, not a generic placeholder — including on the trailing reload,
+        // which hits the already-`finished` branch rather than `finish()` itself.
+        expect(s.value.body).toContain("Signed in as runner42");
         expect(s.value.body).not.toContain(PASSWORD);
       }
     }
