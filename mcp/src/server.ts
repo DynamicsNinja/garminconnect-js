@@ -7,6 +7,7 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import { GarminAuthError } from "garminconnect-js";
 import { errorResult } from "./errors.js";
+import { SERVER_ICON } from "./icon.js";
 import type { McpConfig, Session } from "./session.js";
 
 export interface ToolDef {
@@ -31,7 +32,13 @@ export function createServer(deps: ServerDeps, factories: readonly ToolFactory[]
   }
 
   const server = new Server(
-    { name: "garminconnect-mcp", version: deps.version ?? "0.0.0" },
+    {
+      name: "garminconnect-mcp",
+      title: "Garmin Connect (unofficial)",
+      version: deps.version ?? "0.0.0",
+      websiteUrl: "https://github.com/DynamicsNinja/garminconnect-js/tree/main/mcp#readme",
+      icons: [SERVER_ICON],
+    },
     { capabilities: { tools: {} } },
   );
   server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: tools.map((t) => t.tool) }));

@@ -11,6 +11,20 @@ const tool = (name: string, run: () => Promise<never> | ReturnType<typeof textRe
 describe("createServer", () => {
   const deps = () => ({ config: testConfig(), session: sessionFor(fakeFetch({}).fetchImpl) });
 
+  it("introduces itself with a title and an icon", async () => {
+    // Without an icon, clients such as Claude Desktop show a generic one on the permission
+    // prompt. Deliberately our own watch glyph, not Garmin's logo: this is not a Garmin product.
+    const client = await connect(deps(), []);
+    const info = client.getServerVersion()!;
+    expect(info).toMatchObject({ name: "garminconnect-mcp", title: "Garmin Connect (unofficial)" });
+    expect(info.websiteUrl).toMatch(/^https:\/\/github\.com\/DynamicsNinja\/garminconnect-js/);
+    const icon = info.icons?.[0];
+    expect(icon?.mimeType).toBe("image/svg+xml");
+    expect(icon?.src).toMatch(/^data:image\/svg\+xml;base64,/);
+    const svg = Buffer.from(icon!.src.split(",")[1]!, "base64").toString("utf8");
+    expect(svg).toMatch(/^<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg"/);
+  });
+
   it("lists and runs tools", async () => {
     const client = await connect(deps(), [tool("hello", () => textResult("hi"))]);
     expect((await client.listTools()).tools.map((t) => t.name)).toEqual(["hello"]);
