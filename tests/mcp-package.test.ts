@@ -15,8 +15,9 @@ describe("garminconnect-mcp package contract", () => {
     expect(mcp.version, "run `npm run bump -- <version>` to bump both").toBe(root.version);
   });
 
-  it("depends only on the MCP SDK; the library is bundled, not installed", () => {
-    expect(Object.keys(mcp.dependencies as object)).toEqual(["@modelcontextprotocol/sdk"]);
+  it("depends only on the MCP SDK and ajv; the library is bundled, not installed", () => {
+    // ajv validates tool arguments. The SDK already depends on it, so it adds nothing to install.
+    expect(Object.keys(mcp.dependencies as object).sort()).toEqual(["@modelcontextprotocol/sdk", "ajv"]);
     expect(readFileSync("mcp/tsup.config.ts", "utf8")).toContain("noExternal: [/^garminconnect-js/]");
   });
 

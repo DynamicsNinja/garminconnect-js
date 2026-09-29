@@ -1216,7 +1216,9 @@ It holds NO Garmin knowledge of its own:
   `workoutFromSpec` + `WORKOUT_SPEC_JSON_SCHEMA` + `garminconnect-js/exercises`.
 - **Every other tool is generated** from `garminconnect-js/manifest` (one per `Garmin` method,
   snake_case), minus the exclusions in `mcp/src/method-tools.ts` (`EXCLUDED`, `OPT_IN`), each with
-  a reason. Annotations come from the manifest's safety class.
+  a reason. Annotations come from the manifest's safety class. Arguments are checked against
+  the tool's input schema (`mcp/src/validate.ts`, ajv) before any Garmin call, because the
+  low-level MCP `Server` does not; a wrong type or an unknown argument is a tool error.
 - It imports the library ONLY through `garminconnect-js`, `/exercises` and `/manifest`, resolved to
   `../src` by `mcp/tsconfig.json` `paths` and INLINED by tsup. An ESLint rule forbids
   `../../src` imports. So after changing a `Garmin` method, run `npm run manifest`; the MCP tools

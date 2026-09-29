@@ -23,7 +23,8 @@ export async function readUpload(filePath: unknown): Promise<{ blob: Blob; filen
   let data: Buffer;
   try {
     data = await readFile(p);
-  } catch {
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "EISDIR") throw new Error(`${p} is a folder, not a file`);
     throw new Error(`Cannot read ${p}: the file does not exist or is not readable`);
   }
   return { blob: new Blob([data]), filename: path.basename(p) };
@@ -45,9 +46,21 @@ export function sniffExtension(bytes: Uint8Array): string {
   return "bin";
 }
 
+/**
+ * Writes the bytes under `dir`, never replacing an earlier file: a second download of the same
+ * thing becomes `name-2.ext`, then `name-3.ext`. The exclusive-create flag makes the check and the
+ * write one step, so two downloads racing for a name cannot both claim it.
+ */
 export async function saveDownload(dir: string, baseName: string, bytes: Uint8Array): Promise<{ path: string; bytes: number }> {
   await mkdir(dir, { recursive: true });
-  const target = path.join(dir, `${baseName}.${sniffExtension(bytes)}`);
-  await writeFile(target, bytes);
-  return { path: target, bytes: bytes.length };
+  const ext = sniffExtension(bytes);
+  for (let n = 1; ; n++) {
+    const target = path.join(dir, `${baseName}${n === 1 ? "" : `-${n}`}.${ext}`);
+    try {
+      await writeFile(target, bytes, { flag: "wx" });
+      return { path: target, bytes: bytes.length };
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+    }
+  }
 }

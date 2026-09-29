@@ -1,3 +1,4 @@
+import Ajv2020 from "ajv/dist/2020.js";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -128,5 +129,48 @@ describe("methodTools", () => {
     const result = await client.callTool({ name: "get_activity", arguments: { activityId: 9 } });
     expect(result.isError).toBe(true);
     expect(textOf(result)).toMatch(/^Garmin returned HTTP 500/);
+  });
+
+  describe("argument validation against the tool's own input schema", () => {
+    // The low-level MCP Server does not check arguments, so without this a wrong type reached the
+    // library, and a misspelt optional argument was silently dropped.
+    const call = async (name: string, args: Record<string, unknown>) => {
+      const { fetchImpl, calls } = fakeFetch({});
+      const client = await connect(deps(fetchImpl), [methodTools]);
+      return { result: await client.callTool({ name, arguments: args }), calls };
+    };
+
+    it("rejects a wrong type before calling Garmin", async () => {
+      const { result, calls } = await call("get_activities", { start: "abc" });
+      expect(result.isError).toBe(true);
+      expect(textOf(result)).toBe("Invalid arguments for get_activities: start must be number");
+      expect(calls).toEqual([]);
+    });
+
+    it("rejects an argument the tool does not take", async () => {
+      const { result, calls } = await call("get_activities", { start: 0, lmit: 5 });
+      expect(result.isError).toBe(true);
+      expect(textOf(result)).toBe('Invalid arguments for get_activities: unknown argument "lmit"');
+      expect(calls).toEqual([]);
+    });
+
+    it("rejects a missing required argument", async () => {
+      const { result } = await call("get_sleep_data", {});
+      expect(textOf(result)).toBe('Invalid arguments for get_sleep_data: missing required argument "cdate"');
+    });
+
+    it("compiles every generated tool's schema, so no tool first fails when it is called", () => {
+      // Validators compile lazily; a schema ajv cannot compile would otherwise only surface on use.
+      const tools = methodTools(deps(fakeFetch({}).fetchImpl, { enableGraphql: true }));
+      const ajv = new Ajv2020({ strict: false, validateFormats: false });
+      for (const { tool } of tools) {
+        expect(() => ajv.compile(tool.inputSchema), tool.name).not.toThrow();
+      }
+    });
+
+    it("rejects a value outside an enum, listing the allowed ones", async () => {
+      const { result } = await call("download_activity", { activityId: 1, format: "PDF" });
+      expect(textOf(result)).toMatch(/^Invalid arguments for download_activity: format must be one of ORIGINAL, TCX, GPX/);
+    });
   });
 });

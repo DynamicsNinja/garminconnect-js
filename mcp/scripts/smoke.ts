@@ -1,6 +1,6 @@
 /**
  * Drives the REAL server through an MCP client against the TEST account: preview, create, read
- * back, assert the STORED workout, delete. A 2xx proves nothing (that is how the walking/hiking
+ * back, assert the STORED workout, update it and read back again, delete. A 2xx proves nothing (that is how the walking/hiking
  * helpers once shipped "verified" while storing a null sport), so this checks the stored document.
  *
  *   npm run smoke:mcp
@@ -70,7 +70,8 @@ type Doc = Record<string, unknown>;
 // verification and the `finally` delete key off `workoutId`. `SPEC.name` is timestamped, so it
 // uniquely identifies the workout `create_workout` was trying to make; recover its id by name.
 const findWorkoutIdByName = async (): Promise<string | undefined> => {
-  const list = JSON.parse(await call("get_workouts", {})) as Doc[];
+  // Not the default page of 100: a busy test account could push the new workout out of it.
+  const list = JSON.parse(await call("get_workouts", { start: 0, limit: 1000 })) as Doc[];
   const match = list.find((w) => w["workoutName"] === SPEC.name);
   const id = match?.["workoutId"];
   return id === undefined ? undefined : String(id);
@@ -99,6 +100,31 @@ try {
     const one = interval["targetValueOne"] as number;
     const two = interval["targetValueTwo"] as number;
     check("pace stored fastest first despite reversed input", one > two && Math.abs(one - 1000 / 240) < 0.01, `${one} / ${two}`);
+
+    // update_workout replaces the whole workout. Change the repeat count and the recovery, then
+    // read back: the stored document must be the NEW spec, still with globally unique stepOrders.
+    const updated = {
+      ...SPEC,
+      steps: [
+        SPEC.steps[0]!,
+        { type: "repeat", times: 5, steps: [
+          { type: "interval", distance: 400, target: { pace: { minPerKm: [4, 4.2] } } },
+          { type: "recovery", time: 90 },
+        ] },
+        SPEC.steps[2]!,
+      ],
+    };
+    await call("update_workout", { workoutId, spec: updated });
+    const after = JSON.parse(await call("get_workout_by_id", { workoutId })) as Doc;
+    const afterSteps = ((after["workoutSegments"] as Doc[])[0]!["workoutSteps"]) as Doc[];
+    const afterRepeat = afterSteps[1]!;
+    const afterRecovery = (afterRepeat["workoutSteps"] as Doc[])[1]!;
+    const afterOrders: number[] = [];
+    const walkAfter = (list: Doc[]) => list.forEach((s) => { afterOrders.push(s["stepOrder"] as number); if (s["type"] === "RepeatGroupDTO") walkAfter(s["workoutSteps"] as Doc[]); });
+    walkAfter(afterSteps);
+    check("update_workout stored the new repeat count", afterRepeat["numberOfIterations"] === 5, String(afterRepeat["numberOfIterations"]));
+    check("update_workout stored the new recovery", afterRecovery["endConditionValue"] === 90, String(afterRecovery["endConditionValue"]));
+    check("stepOrders still globally unique after update", new Set(afterOrders).size === afterOrders.length, afterOrders.join(","));
   }
 } finally {
   // Covers `create_workout` throwing after Garmin may have already stored the workout (e.g. the

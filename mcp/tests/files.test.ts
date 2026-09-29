@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -33,6 +33,11 @@ describe("readUpload", () => {
   it("rejects a missing file", async () => {
     await expect(readUpload(path.join(dir, "missing.fit"))).rejects.toThrow(/Cannot read .*missing\.fit/);
   });
+  it("says so when the path is a directory", async () => {
+    const folder = path.join(dir, "rides.gpx");
+    mkdirSync(folder);
+    await expect(readUpload(folder)).rejects.toThrow(/rides\.gpx is a folder, not a file/);
+  });
 });
 
 describe("sniffExtension", () => {
@@ -56,5 +61,17 @@ describe("saveDownload", () => {
     const saved = await saveDownload(dir, "download_workout-42", bytes('{"x":1}'));
     expect(saved).toEqual({ path: path.join(dir, "download_workout-42.json"), bytes: 7 });
     expect(readFileSync(saved.path, "utf8")).toBe('{"x":1}');
+  });
+
+  it("never overwrites an earlier download of the same thing", async () => {
+    // Downloading activity 42 as GPX, then again after an edit, must keep both copies.
+    const dir = mkdtempSync(path.join(os.tmpdir(), "gc-dl-"));
+    const first = await saveDownload(dir, "download_workout-42", bytes('{"v":1}'));
+    const second = await saveDownload(dir, "download_workout-42", bytes('{"v":2}'));
+    const third = await saveDownload(dir, "download_workout-42", bytes('{"v":3}'));
+    expect(second.path).toBe(path.join(dir, "download_workout-42-2.json"));
+    expect(third.path).toBe(path.join(dir, "download_workout-42-3.json"));
+    expect(readFileSync(first.path, "utf8")).toBe('{"v":1}');
+    expect(readFileSync(second.path, "utf8")).toBe('{"v":2}');
   });
 });

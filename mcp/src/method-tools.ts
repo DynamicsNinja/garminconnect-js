@@ -3,6 +3,7 @@ import { GARMIN_METHODS, type ManifestMethod } from "garminconnect-js/manifest";
 import { readUpload, saveDownload } from "./files.js";
 import { jsonResult } from "./results.js";
 import type { ServerDeps, ToolDef, ToolFactory } from "./server.js";
+import { argumentValidator } from "./validate.js";
 
 /** Methods deliberately NOT exposed, each with the reason. */
 export const EXCLUDED: Readonly<Record<string, string>> = {
@@ -82,11 +83,14 @@ function downloadName(m: ManifestMethod, input: Record<string, unknown>): string
 }
 
 function toolFor(m: ManifestMethod, deps: ServerDeps): ToolDef {
+  const name = toolName(m.name);
+  const inputSchema = inputSchemaOf(m);
+  const checkArguments = argumentValidator(name, inputSchema);
   return {
     tool: {
-      name: toolName(m.name),
+      name,
       description: descriptionOf(m),
-      inputSchema: inputSchemaOf(m),
+      inputSchema,
       annotations: {
         title: m.name,
         readOnlyHint: m.safety === "read",
@@ -96,7 +100,8 @@ function toolFor(m: ManifestMethod, deps: ServerDeps): ToolDef {
       },
     },
     async run(input) {
-      const args = await argsFor(m, input); // file errors surface BEFORE any Garmin call
+      checkArguments(input);
+      const args = await argsFor(m, input); // argument and file errors surface BEFORE any Garmin call
       const garmin = await deps.session.get();
       const fn = (garmin as unknown as Record<string, unknown>)[m.name];
       if (typeof fn !== "function") throw new Error(`garminconnect-js has no method ${m.name}`);
