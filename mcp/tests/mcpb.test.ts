@@ -81,10 +81,15 @@ describeBuilt("Desktop Extension (.mcpb)", () => {
   it("would crash on Node 18/20 as .js, and does not as .mjs", () => {
     // The extension folder ships with no package.json, so there is no "type": "module" for Node to
     // read. Node 22 auto-detects ESM from source; Node 18/20 don't, and throw "Cannot use import
-    // statement outside a module" instead. `--no-experimental-detect-module` (available on this
-    // machine's Node 22) turns off that auto-detection and reproduces Node 18/20's behavior, without
-    // needing a second Node install. This proves the OLD `server/index.js` naming used to fail here,
-    // and confirms the current `.mjs` naming does not.
+    // statement outside a module" instead. `--no-experimental-detect-module` turns off that
+    // auto-detection and reproduces Node 18/20's behavior on a newer Node, without needing a second
+    // Node install. Node 18/20 themselves don't recognize the flag at all (auto-detection didn't
+    // exist yet to turn off) and exhibit the old behavior unconditionally, so it's only added when
+    // the running Node accepts it. This proves the OLD `server/index.js` naming used to fail, on
+    // whichever Node this test happens to run under, and confirms the current `.mjs` naming does not.
+    const probe = spawnSync(process.execPath, ["--no-experimental-detect-module", "-e", ""], { encoding: "utf8" });
+    const forceOldBehavior = probe.stderr.includes("bad option") ? [] : ["--no-experimental-detect-module"];
+
     // `--help` exits with process.exitCode = 2 by design (cli.ts's usage branch), so use spawnSync
     // rather than execFileSync, which would throw on that nonzero-but-expected exit code.
     const server = path.join(unpacked, "server", "index.mjs");
@@ -94,14 +99,14 @@ describeBuilt("Desktop Extension (.mcpb)", () => {
       // package.json declaring "type": "module" — exactly what shipped before this fix round.
       copyFileSync(server, asDotJs);
 
-      const before = spawnSync(process.execPath, ["--no-experimental-detect-module", asDotJs, "--help"], { encoding: "utf8" });
+      const before = spawnSync(process.execPath, [...forceOldBehavior, asDotJs, "--help"], { encoding: "utf8" });
       expect(before.stderr).toContain("Cannot use import statement outside a module");
     } finally {
       rmSync(asDotJs, { force: true });
     }
 
     // The real, shipped .mjs file must run fine under the same reproduction flag.
-    const after = spawnSync(process.execPath, ["--no-experimental-detect-module", server, "--help"], { encoding: "utf8" });
+    const after = spawnSync(process.execPath, [...forceOldBehavior, server, "--help"], { encoding: "utf8" });
     expect(after.stderr).toContain(`garminconnect-mcp ${pkg.version}`);
     expect(after.stderr).not.toContain("SyntaxError");
   });
