@@ -25,11 +25,22 @@ describe("summarizeWorkout", () => {
         "6x400 — running",
         "1. Warm-up: until lap button",
         "2. Repeat 6×:",
-        "   1. Interval: 400 m · @ 4:00–4:12 /km",
+        "   1. Interval: 400 m · @ 4:00–4:12 /km (6:26–6:46 /mi)",
         "   2. Recovery: 2:00",
         "3. Cool-down: 10:00",
       ].join("\n"),
     );
+  });
+
+  it("shows a per-mile pace in both units, so a mile runner can check it", () => {
+    // Garmin stores speed only, so the unit the user asked in is gone by the time we summarise.
+    // 8:30–9:30 /mi is 5:17–5:54 /km.
+    const text = summary({
+      name: "Tempo",
+      sport: "running",
+      steps: [{ type: "interval", distance: 1609, target: { pace: { minPerMile: [8.5, 9.5] } } }],
+    });
+    expect(text).toContain("@ 5:17–5:54 /km (8:30–9:30 /mi)");
   });
 
   it("renders swim, strength, zones and time-based repeats", () => {

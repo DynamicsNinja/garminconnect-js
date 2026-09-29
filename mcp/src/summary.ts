@@ -23,7 +23,9 @@ export function clock(seconds: number): string {
 }
 
 const metres = (m: number) => (m >= 1000 ? `${+(m / 1000).toFixed(2)} km` : `${trim(m)} m`);
-const pace = (metresPerSecond: number) => clock(1000 / metresPerSecond);
+/** Seconds per `unitMetres` at a speed in m/s, as m:ss. */
+const pace = (metresPerSecond: number, unitMetres: number) => clock(unitMetres / metresPerSecond);
+const MILE_METRES = 1609.344;
 
 const STEP_LABEL: Record<string, string> = {
   warmup: "Warm-up",
@@ -74,7 +76,10 @@ function target(step: Doc, secondary: boolean): string | undefined {
     case "no.target":
       return undefined;
     case "pace.zone":
-      return one !== undefined && two !== undefined ? `${pace(one)}–${pace(two)} /km` : undefined;
+      // Garmin keeps only the speeds, not the unit the user asked in, so show both.
+      return one !== undefined && two !== undefined
+        ? `${pace(one, 1000)}–${pace(two, 1000)} /km (${pace(one, MILE_METRES)}–${pace(two, MILE_METRES)} /mi)`
+        : undefined;
     case "speed.zone":
       return range("m/s");
     case "heart.rate.zone":
