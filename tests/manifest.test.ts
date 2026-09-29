@@ -41,6 +41,12 @@ describe("method manifest", () => {
     expect(committed === renderManifest(buildManifest()), "src/generated/manifest.ts is stale. Run `npm run manifest` and commit.").toBe(true);
   }, 120_000);
 
+  it("is the same on every platform: no CR characters from a CRLF checkout", () => {
+    // Doc comments read from a Windows (CRLF) clone once leaked "\r\n" into the JSON strings, so
+    // the committed manifest matched locally and was "stale" in CI's LF checkout.
+    expect(JSON.stringify(GARMIN_METHODS)).not.toContain("\\r");
+  });
+
   it("describes every Garmin method exactly once", () => {
     expect([...byName.keys()].sort()).toEqual(garminMethodNames().sort());
     expect(GARMIN_METHODS).toHaveLength(byName.size);

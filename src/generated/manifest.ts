@@ -3096,7 +3096,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
                             },
                             "numberOfIterations": {
                               "type": "number",
-                              "description": "The iteration count for a COUNT-based repeat. **Nullable**, because a repeat can instead be\r\nTIME-based: Garmin's HIIT designer offers \"Repeat Until Time Is\", which stores\r\n`endCondition: time`, the seconds in `endConditionValue`, and `numberOfIterations: null`.\r\nConfirmed live 2026-09-23. Upstream types this as a plain required number, which cannot\r\nexpress the time-based form."
+                              "description": "The iteration count for a COUNT-based repeat. **Nullable**, because a repeat can instead be\nTIME-based: Garmin's HIIT designer offers \"Repeat Until Time Is\", which stores\n`endCondition: time`, the seconds in `endConditionValue`, and `numberOfIterations: null`.\nConfirmed live 2026-09-23. Upstream types this as a plain required number, which cannot\nexpress the time-based form."
                             },
                             "workoutSteps": {
                               "type": "array",
@@ -3296,7 +3296,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
                             },
                             "numberOfIterations": {
                               "type": "number",
-                              "description": "The iteration count for a COUNT-based repeat. **Nullable**, because a repeat can instead be\r\nTIME-based: Garmin's HIIT designer offers \"Repeat Until Time Is\", which stores\r\n`endCondition: time`, the seconds in `endConditionValue`, and `numberOfIterations: null`.\r\nConfirmed live 2026-09-23. Upstream types this as a plain required number, which cannot\r\nexpress the time-based form."
+                              "description": "The iteration count for a COUNT-based repeat. **Nullable**, because a repeat can instead be\nTIME-based: Garmin's HIIT designer offers \"Repeat Until Time Is\", which stores\n`endCondition: time`, the seconds in `endConditionValue`, and `numberOfIterations: null`.\nConfirmed live 2026-09-23. Upstream types this as a plain required number, which cannot\nexpress the time-based form."
                             },
                             "workoutSteps": {
                               "type": "array",
@@ -3496,7 +3496,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
                             },
                             "numberOfIterations": {
                               "type": "number",
-                              "description": "The iteration count for a COUNT-based repeat. **Nullable**, because a repeat can instead be\r\nTIME-based: Garmin's HIIT designer offers \"Repeat Until Time Is\", which stores\r\n`endCondition: time`, the seconds in `endConditionValue`, and `numberOfIterations: null`.\r\nConfirmed live 2026-09-23. Upstream types this as a plain required number, which cannot\r\nexpress the time-based form."
+                              "description": "The iteration count for a COUNT-based repeat. **Nullable**, because a repeat can instead be\nTIME-based: Garmin's HIIT designer offers \"Repeat Until Time Is\", which stores\n`endCondition: time`, the seconds in `endConditionValue`, and `numberOfIterations: null`.\nConfirmed live 2026-09-23. Upstream types this as a plain required number, which cannot\nexpress the time-based form."
                             },
                             "workoutSteps": {
                               "type": "array",
@@ -3696,7 +3696,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
                             },
                             "numberOfIterations": {
                               "type": "number",
-                              "description": "The iteration count for a COUNT-based repeat. **Nullable**, because a repeat can instead be\r\nTIME-based: Garmin's HIIT designer offers \"Repeat Until Time Is\", which stores\r\n`endCondition: time`, the seconds in `endConditionValue`, and `numberOfIterations: null`.\r\nConfirmed live 2026-09-23. Upstream types this as a plain required number, which cannot\r\nexpress the time-based form."
+                              "description": "The iteration count for a COUNT-based repeat. **Nullable**, because a repeat can instead be\nTIME-based: Garmin's HIIT designer offers \"Repeat Until Time Is\", which stores\n`endCondition: time`, the seconds in `endConditionValue`, and `numberOfIterations: null`.\nConfirmed live 2026-09-23. Upstream types this as a plain required number, which cannot\nexpress the time-based form."
                             },
                             "workoutSteps": {
                               "type": "array",

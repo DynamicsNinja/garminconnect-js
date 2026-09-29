@@ -64,6 +64,15 @@ export function classify(name: string): Safety {
 
 const NULLISH = ts.TypeFlags.Undefined | ts.TypeFlags.Null | ts.TypeFlags.Void;
 const DATE: JsonSchema = { type: "string", format: "date", description: "Calendar date, YYYY-MM-DD (UTC)" };
+
+/**
+ * A symbol's doc comment, with line endings normalised. A multi-line comment carries the line
+ * endings of the checkout it was read from: CRLF on a Windows clone, LF on CI. Left alone they
+ * end up as "\r\n" inside the JSON strings, so the same commit generated different manifests on
+ * the two platforms and the drift test failed in CI only.
+ */
+const docOf = (symbol: ts.Symbol, checker: ts.TypeChecker): string =>
+  ts.displayPartsToString(symbol.getDocumentationComment(checker)).replace(/\r\n?/g, "\n").trim();
 // A BARE `Date` param (not `string | Date`) is a moment in time, not a calendar date: methods like
 // `setBloodPressure`/`addHydrationData`/`addWeighIn`/`addWeighInWithTimestamps` pass it straight to
 // `formatLocalTimestamp`, which throws if handed a plain string. `paramsOf` marks such params
@@ -137,7 +146,7 @@ function objectToSchema(type: ts.Type, checker: ts.TypeChecker, where: string, s
   for (const prop of checker.getPropertiesOfType(type)) {
     const name = prop.getName();
     const schema = typeToSchema(checker.getTypeOfSymbol(prop), checker, `${where}.${name}`, inner);
-    const doc = ts.displayPartsToString(prop.getDocumentationComment(checker)).trim();
+    const doc = docOf(prop, checker);
     properties[name] = doc ? { ...schema, description: doc } : schema;
     if (!(prop.flags & ts.SymbolFlags.Optional)) required.push(name);
   }
@@ -235,7 +244,7 @@ function describe(
 ): string {
   const note = stripJargon(stripParityChatter(notes.get(name)?.notes ?? ""));
   const symbol = checker.getSymbolAtLocation(member.name);
-  const doc = symbol ? ts.displayPartsToString(symbol.getDocumentationComment(checker)).trim() : "";
+  const doc = symbol ? docOf(symbol, checker) : "";
   const text = (note || doc || humanize(name)).replace(/\s+/g, " ").trim();
   return text.length > MAX_DESCRIPTION ? `${text.slice(0, MAX_DESCRIPTION - 1)}…` : text;
 }
@@ -245,6 +254,9 @@ export function buildManifest(): ManifestMethod[] {
     target: ts.ScriptTarget.ES2022,
     module: ts.ModuleKind.ESNext,
     moduleResolution: ts.ModuleResolutionKind.Bundler,
+    // Same libs as tsconfig.json. Without this TypeScript adds the DOM lib, so a Garmin type that
+    // happened to share a name with a browser global could resolve to the wrong declaration.
+    lib: ["lib.es2022.d.ts"],
     strict: true,
     types: ["node"],
     skipLibCheck: true,
