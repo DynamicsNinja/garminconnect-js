@@ -32,10 +32,34 @@ it, and pushes it to your device.
    }
    ```
 
-   On Windows, if Claude Desktop cannot start `npx`, use
-   `"command": "cmd", "args": ["/c", "npx", "-y", "@dynamicsninja/garminconnect-mcp"]`.
+   **On Windows, install it once instead of using `npx`.** Claude Desktop starts several copies
+   of each server at the same moment (for chat and for its Cowork and Code sessions). With `npx`
+   they all unpack the package into the same cache folder at once, and the install breaks
+   (`ERR_MODULE_NOT_FOUND ... ajv\dist\2020.js`). Install it globally:
 
-3. Restart Claude Desktop.
+   ```sh
+   npm install -g @dynamicsninja/garminconnect-mcp
+   ```
+
+   then point Claude Desktop straight at it (use the path `npm root -g` prints, with forward
+   slashes):
+
+   ```json
+   {
+     "mcpServers": {
+       "garmin": {
+         "command": "node",
+         "args": ["C:/Users/<you>/AppData/Roaming/npm/node_modules/@dynamicsninja/garminconnect-mcp/dist/cli.js"]
+       }
+     }
+   }
+   ```
+
+   Update later with `npm install -g @dynamicsninja/garminconnect-mcp@latest`. If an earlier
+   `npx` attempt left a broken copy, delete `%LOCALAPPDATA%\npm-cache\_npx` before retrying.
+
+3. **Quit Claude Desktop completely** (tray icon → Quit; closing the window leaves it running)
+   and start it again.
 
 ## What it can do
 
