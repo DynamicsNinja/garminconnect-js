@@ -56,7 +56,8 @@ describe("@dynamicsninja/garminconnect-mcp package contract", () => {
       expect(existsSync(path.join(scratch, "NOTICE"))).toBe(true);
       expect(readFileSync(path.join(scratch, "LICENSE"), "utf8")).toEqual(readFileSync("LICENSE", "utf8"));
     } finally {
-      rmSync(scratch, { recursive: true, force: true });
+      // Windows can hold the just-written files briefly (indexer, antivirus); retry the delete.
+      rmSync(scratch, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
     }
-  });
+  }, 30_000); // spawns a shell and Node: slow under a busy full-suite run on Windows
 });

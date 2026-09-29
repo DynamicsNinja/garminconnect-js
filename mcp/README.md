@@ -10,69 +10,107 @@ through an [MCP](https://modelcontextprotocol.io) server built on
 Claude previews the workout, waits for your OK, saves it to your Garmin workout library, schedules
 it, and pushes it to your device.
 
+Unofficial: not made by, or affiliated with, Garmin.
+
+## What you need
+
+- [Node.js](https://nodejs.org) 18 or newer (`node --version` to check).
+- A Garmin Connect account.
+- [Claude Desktop](https://claude.ai/download), or any other MCP client (see
+  [Other MCP clients](#other-mcp-clients)).
+
 ## Set up
 
-1. **Sign in once** (in a terminal; your password never passes through Claude):
+### 1. Install
 
-   ```sh
-   npx @dynamicsninja/garminconnect-mcp login
-   ```
+```sh
+npm install -g @dynamicsninja/garminconnect-mcp
+```
 
-   It asks for your Garmin email, password and, if enabled, your MFA code. The session is saved to
-   `~/.garminconnect-mcp/tokens` and renews itself as long as you use it at least once every 30 days.
+Install it once rather than running it through `npx`: Claude Desktop starts several copies of a
+server at the same moment, and parallel `npx` installs into one cache folder can break each other
+(`ERR_MODULE_NOT_FOUND … ajv/dist/2020.js`).
 
-2. **Add it to Claude Desktop**: Settings → Developer → Edit Config, then in
-   `claude_desktop_config.json`:
+### 2. Sign in to Garmin
 
-   ```json
-   {
-     "mcpServers": {
-       "garmin": { "command": "npx", "args": ["-y", "@dynamicsninja/garminconnect-mcp"] }
-     }
-   }
-   ```
+In a terminal (your password never passes through Claude):
 
-   **On Windows, install it once instead of using `npx`.** Claude Desktop starts several copies
-   of each server at the same moment (for chat and for its Cowork and Code sessions). With `npx`
-   they all unpack the package into the same cache folder at once, and the install breaks
-   (`ERR_MODULE_NOT_FOUND ... ajv\dist\2020.js`). Install it globally:
+```sh
+garminconnect-mcp login
+```
 
-   ```sh
-   npm install -g @dynamicsninja/garminconnect-mcp
-   ```
+It asks for your Garmin email, password and, if you use it, your MFA code. The session is saved to
+`~/.garminconnect-mcp/tokens` and renews itself as long as it is used at least once every 30 days.
 
-   then point Claude Desktop straight at it (use the path `npm root -g` prints, with forward
-   slashes):
+### 3. Add it to Claude Desktop
 
-   ```json
-   {
-     "mcpServers": {
-       "garmin": {
-         "command": "node",
-         "args": ["C:/Users/<you>/AppData/Roaming/npm/node_modules/@dynamicsninja/garminconnect-mcp/dist/cli.js"]
-       }
-     }
-   }
-   ```
+Settings → Developer → **Edit Config**, and add a `garmin` entry to `claude_desktop_config.json`.
+Point `node` at the installed server. To find the path, run `npm root -g` and append
+`/@dynamicsninja/garminconnect-mcp/dist/cli.js`.
 
-   Update later with `npm install -g @dynamicsninja/garminconnect-mcp@latest`. If an earlier
-   `npx` attempt left a broken copy, delete `%LOCALAPPDATA%\npm-cache\_npx` before retrying.
+**Windows** (use forward slashes):
 
-3. **Quit Claude Desktop completely** (tray icon → Quit; closing the window leaves it running)
-   and start it again.
+```json
+{
+  "mcpServers": {
+    "garmin": {
+      "command": "node",
+      "args": ["C:/Users/<you>/AppData/Roaming/npm/node_modules/@dynamicsninja/garminconnect-mcp/dist/cli.js"]
+    }
+  }
+}
+```
+
+**macOS / Linux**:
+
+```json
+{
+  "mcpServers": {
+    "garmin": {
+      "command": "node",
+      "args": ["/usr/local/lib/node_modules/@dynamicsninja/garminconnect-mcp/dist/cli.js"]
+    }
+  }
+}
+```
+
+If `node` itself is not found (common with nvm), use its full path from `which node` as `command`.
+
+### 4. Restart Claude Desktop
+
+**Quit it completely**: tray / menu-bar icon → Quit. Closing the window leaves it running, and it
+will not read the new config. Start it again, open a new chat, and the Garmin tools appear under
+the tools icon in the message box.
+
+## Using it
+
+Just ask. Some things to try:
+
+- "Create a strength workout: 3 rounds of 10 back squats at 60 kg, 12 push-ups and a 1-minute
+  plank, 90 s rest between rounds."
+- "Build a swim set for a 25 m pool: 400 easy, 8×100 free on 15 s rest, 200 cool-down."
+- "Schedule that workout for Thursday and send it to my watch."
+- "How did I sleep last night, and what's my training readiness today?"
+- "Summarise my last run: distance, pace, average heart rate and training effect."
+- "What are my race predictions, and how has my HRV trended this month?"
+
+**Workouts are always previewed first.** Claude shows the workout in readable form (steps, targets,
+paces in /km and /mi) and saves nothing until you confirm. Exercise names are checked against
+Garmin's catalogue, and a mistake in a workout comes back to Claude with exactly where it is, so
+it can fix it.
+
+**Claude Desktop asks before each tool call.** You can allow a tool once or always. Tools that
+delete or overwrite data (deleting activities, workouts, gear, weigh-ins, and so on) are marked
+destructive, and Claude is told to confirm with you before using them.
 
 ## What it can do
 
-- **Workouts**: `preview_workout`, `create_workout`, `update_workout`, `search_exercises`, for every
-  sport the builder supports (running, cycling, swimming, strength, HIIT, yoga, pilates, mobility,
-  cardio, rucking, multi-sport). Workouts are checked before anything is sent: an unknown exercise
-  name or a malformed step is reported back to Claude with exactly where the problem is.
-- **Everything else in garminconnect-js**: sleep, HRV, stress, training readiness and status, race
-  predictions, activities (list, details, download, upload files), gear, courses, devices, badges,
-  weigh-ins, and more. One tool per library method.
-
-Tools that delete or overwrite data are marked destructive. Claude is told to confirm with you
-before calling one, even if you've auto-approved the rest.
+- **Workouts**: `preview_workout`, `create_workout`, `update_workout`, `search_exercises`, for
+  running, cycling, swimming, strength, HIIT, yoga, pilates, mobility, cardio, rucking and
+  multi-sport; plus listing, scheduling, sending to your watch and deleting.
+- **Everything else in garminconnect-js**: sleep, HRV, stress, Body Battery, training readiness and
+  status, race predictions, activities (list, details, download, upload files), gear, courses,
+  devices, badges, weigh-ins, and more. One tool per library method.
 
 **Not exposed:** `logout` (it would delete your saved session), the raw-JSON workout uploads (the
 checked `create_workout` replaces them), and the raw GraphQL passthrough unless you opt in.
@@ -86,17 +124,57 @@ checked `create_workout` replaces them), and the raw GraphQL passthrough unless 
 | `GARMIN_MCP_GROUPS` | all | Comma-separated tool groups: `wellness`, `activities`, `metrics`, `workouts`, `gear`, `courses`, `devices`, `badges-challenges`, `body-composition-weight`, `womens-health`, `golf`, `profile-and-misc`. The workout-builder tools are always on. Fewer groups means less of Claude's context used. |
 | `GARMIN_MCP_ENABLE_GRAPHQL` | off | Set to `1` to expose `query_garmin_graphql` |
 
-Set them under `"env"` in the Claude Desktop config entry.
+Set them under `"env"` in the config entry, for example:
 
-If you set `GARMIN_MCP_TOKEN_DIR` in the Claude Desktop config, set the same value when running
-`npx @dynamicsninja/garminconnect-mcp login` (e.g.
-`GARMIN_MCP_TOKEN_DIR=/path/to/dir npx @dynamicsninja/garminconnect-mcp login`), or the server
-won't find the session you signed in with.
+```json
+"garmin": {
+  "command": "node",
+  "args": ["…/dist/cli.js"],
+  "env": { "GARMIN_MCP_GROUPS": "workouts,metrics,wellness,activities" }
+}
+```
+
+If you change `GARMIN_MCP_TOKEN_DIR`, sign in with the same value
+(`GARMIN_MCP_TOKEN_DIR=/path/to/dir garminconnect-mcp login`), or the server won't find your
+session.
+
+## Troubleshooting
+
+- **The tools don't appear.** Make sure Claude Desktop was fully quit and restarted (step 4). Then
+  Settings → Developer → `garmin` shows the server's status and a link to its log.
+- **"Not logged in to Garmin"** or **"session expired"**: run `garminconnect-mcp login` again. The
+  running server picks up the new session on the next request; no restart needed.
+- **`ERR_MODULE_NOT_FOUND`** after trying `npx`: delete the `_npx` folder in your npm cache
+  (`npm config get cache` shows where) and use the global install above.
+- **"Garmin is rate limiting requests"**: Garmin throttles bursts of calls. Wait a minute and ask
+  again.
+- **HTTP 412 when saving anything (EU accounts)**: grant upload consent in Garmin Connect's
+  settings once; until then Garmin refuses every write.
+- **Very detailed activity data looks cut off**: a single tool result is capped at 100,000
+  characters, and per-second activity data (`get_activity_details`) is usually larger. Ask for a
+  summary instead, or download the activity file (`download_activity`) and open it elsewhere.
+
+## Updating
+
+```sh
+npm install -g @dynamicsninja/garminconnect-mcp@latest
+```
+
+then quit and restart Claude Desktop. Your saved session is kept.
+
+## Other MCP clients
+
+Any client that can start a stdio server works. The command is `garminconnect-mcp` (or
+`node …/dist/cli.js`). For example, in Claude Code:
+
+```sh
+claude mcp add garmin -- garminconnect-mcp
+```
 
 ## Good to know
 
 - Dates are calendar dates in UTC (`YYYY-MM-DD`).
 - Everything runs on your machine. Your Garmin session stays in your token folder and is sent only
   to Garmin.
-- Garmin Connect's API is unofficial and can change; this server moves in lockstep with
+- Garmin Connect's API is unofficial and can change. This server is released in lockstep with
   garminconnect-js, and each release is tested against the library version it contains.
