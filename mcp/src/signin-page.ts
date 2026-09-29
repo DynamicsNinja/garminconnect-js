@@ -6,7 +6,7 @@
  * Only 127.0.0.1, a random port, and a random one-time key in the URL; the exact Host is checked
  * (DNS rebinding) and the key is re-checked in every POST (other sites cannot submit to it).
  */
-import { randomBytes } from "node:crypto";
+import { randomBytes, timingSafeEqual } from "node:crypto";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
 import type { LoginResult, MfaState } from "garminconnect-js";
@@ -100,6 +100,13 @@ const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 export async function startSignInPage(options: SignInPageOptions): Promise<SignInPage> {
   const key = randomBytes(32).toString("base64url");
+  const keyBytes = Buffer.from(key);
+  /** Constant-time key check (length first; the length of a 43-char key is no secret). */
+  const isKey = (candidate: string | null | undefined): boolean => {
+    if (candidate == null) return false;
+    const bytes = Buffer.from(candidate);
+    return bytes.length === keyBytes.length && timingSafeEqual(bytes, keyBytes);
+  };
   const idleMs = options.idleMs ?? 15 * 60_000;
   let client: SignInClient | null = null;
   let mfaState: MfaState | null = null;
@@ -142,30 +149,43 @@ export async function startSignInPage(options: SignInPageOptions): Promise<SignI
     idle.unref();
   };
 
+  /** Once signed in, the page shuts down after this response, even if the browser already dropped it. */
+  const closeAfter = (res: http.ServerResponse) => {
+    if (res.destroyed || res.writableFinished) void close();
+    else res.once("close", () => void close());
+  };
+  const sendDone = (res: http.ServerResponse, name = "your Garmin account") => {
+    closeAfter(res);
+    if (res.destroyed) return;
+    res.writeHead(200, HEADERS);
+    res.end(donePage(name));
+  };
+
   const notFound = (res: http.ServerResponse) => {
     res.writeHead(404, { "cache-control": "no-store" });
     res.end();
   };
 
   async function handle(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
-    if (req.headers.host !== `127.0.0.1:${port}` || req.url !== `/${key}`) return notFound(res);
+    const path = req.url ?? "";
+    if (req.headers.host !== `127.0.0.1:${port}` || !path.startsWith("/") || !isKey(path.slice(1))) return notFound(res);
     touch();
     const send = (body: string) => {
       res.writeHead(200, HEADERS);
       res.end(body);
     };
-    if (finished) return send(donePage("your Garmin account"));
+    if (finished) return sendDone(res);
     if (req.method === "GET") return send(mfaState ? mfaForm(key) : credentialsForm(key));
     if (req.method !== "POST") return notFound(res);
 
     const form = await readBody(req);
-    if (form.get("key") !== key) return notFound(res);
+    if (!isKey(form.get("key"))) return notFound(res);
     return serialized(() => step(form, res, send));
   }
 
   async function step(form: URLSearchParams, res: http.ServerResponse, send: (body: string) => void): Promise<void> {
     // A submit that waited behind the one that signed in gets the done page, not a second sign-in.
-    if (finished) return send(donePage("your Garmin account"));
+    if (finished) return sendDone(res);
     // The browser gave up while this submit waited, or the page closed: do not sign in behind its back.
     if (res.destroyed) return;
     if (isClosed) return notFound(res);
@@ -206,16 +226,20 @@ export async function startSignInPage(options: SignInPageOptions): Promise<SignI
     mfaState = null;
     options.onSignedIn();
     const name = await signedIn.displayName().catch(() => "your Garmin account");
-    // "close" fires whether the response was delivered or the browser dropped the connection.
-    res.once("close", () => void close());
-    res.writeHead(200, HEADERS);
-    res.end(donePage(name));
+    // The browser may have dropped this request mid-login (a cancelled double click, a closed tab);
+    // sendDone closes the page either way.
+    sendDone(res, name);
   }
 
+  let onListenError: (e: Error) => void = () => {};
   await new Promise<void>((resolve, reject) => {
-    server.once("error", reject);
+    onListenError = reject;
+    server.once("error", onListenError);
     server.listen(0, "127.0.0.1", () => resolve());
   });
+  server.off("error", onListenError);
+  // A later server error must not crash the MCP process (an unhandled "error" would) or print anything.
+  server.on("error", () => void close());
   port = (server.address() as AddressInfo).port;
   touch();
   return { url: `http://127.0.0.1:${port}/${key}`, closed, close };

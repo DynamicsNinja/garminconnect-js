@@ -159,6 +159,28 @@ describe("sign-in page", () => {
     await page.closed;
   });
 
+  it("still shuts down promptly when the browser drops the request during a slow login", async () => {
+    let resets = 0;
+    const slow = (): SignInClient => {
+      const inner = fakeClient("ok");
+      return { ...inner, login: (e, p) => new Promise((r) => setTimeout(r, 100)).then(() => inner.login(e, p)) };
+    };
+    page = await startSignInPage({ createClient: slow, onSignedIn: () => resets++ });
+    const u = new URL(page.url);
+    const body = new URLSearchParams({ key: keyOf(page.url), step: "credentials", email: "a@b.c", password: PASSWORD }).toString();
+    const req = http.request({
+      host: u.hostname, port: u.port, path: u.pathname, method: "POST",
+      headers: { host: u.host, "content-type": "application/x-www-form-urlencoded", "content-length": Buffer.byteLength(body) },
+    });
+    req.on("error", () => {}); // the abort below
+    req.end(body);
+    setTimeout(() => req.destroy(), 30); // the tab closes (or the first click is cancelled) mid-login
+
+    const timedOut = new Promise<string>((r) => setTimeout(() => r("still open"), 2000));
+    expect(await Promise.race([page.closed.then(() => "closed"), timedOut])).toBe("closed");
+    expect(resets).toBe(1);
+  });
+
   it("closes itself after the idle time", async () => {
     page = await startSignInPage({ createClient: () => fakeClient("ok"), onSignedIn: () => {}, idleMs: 50 });
     await page.closed;
