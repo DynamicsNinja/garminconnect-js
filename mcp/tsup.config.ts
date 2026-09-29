@@ -28,6 +28,10 @@ export default defineConfig([
     sourcemap: false,
     define: { __MCP_VERSION__: JSON.stringify(version) },
     noExternal: [/.*/],
+    // The extension folder ships with no package.json, so there is no "type": "module" for Node to
+    // read. Node 22 auto-detects ESM from source; Node 18/20 don't and fail with "Cannot use import
+    // statement outside a module". A `.mjs` extension forces ESM regardless of Node version.
+    outExtension: () => ({ js: ".mjs" }),
     // CommonJS dependencies (ajv) call require(); give the ESM bundle one.
     banner: { js: "import { createRequire as __gcCreateRequire } from 'node:module'; const require = __gcCreateRequire(import.meta.url);" },
   },

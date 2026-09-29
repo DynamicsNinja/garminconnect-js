@@ -14,10 +14,10 @@
   "keywords": ["garmin", "garmin-connect", "workouts", "fitness", "running", "training"],
   "server": {
     "type": "node",
-    "entry_point": "server/index.js",
+    "entry_point": "server/index.mjs",
     "mcp_config": {
       "command": "node",
-      "args": ["${__dirname}/server/index.js"],
+      "args": ["${__dirname}/server/index.mjs"],
       "env": {
         "GARMIN_MCP_GROUPS": "${user_config.groups}",
         "GARMIN_MCP_DOWNLOAD_DIR": "${user_config.download_dir}",
@@ -37,7 +37,8 @@
       "type": "directory",
       "title": "Download folder",
       "description": "Optional. Where downloaded activity and workout files are saved. Empty uses Downloads/garmin.",
-      "required": false
+      "required": false,
+      "default": "${HOME}/Downloads/garmin"
     },
     "enable_graphql": {
       "type": "boolean",
