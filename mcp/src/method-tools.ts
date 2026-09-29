@@ -114,16 +114,44 @@ function toolFor(m: ManifestMethod, deps: ServerDeps): ToolDef {
   };
 }
 
-export const methodTools: ToolFactory = (deps) => {
-  const known = new Set(GARMIN_METHODS.map((m) => m.category));
-  if (deps.config.groups) {
-    const unknown = [...deps.config.groups].filter((g) => !known.has(g));
-    if (unknown.length > 0) {
-      throw new Error(`Unknown GARMIN_MCP_GROUPS value(s): ${unknown.join(", ")}. Valid: ${[...known].sort().join(", ")}`);
-    }
+/** Every valid `GARMIN_MCP_GROUPS`/manifest `groups` value, taken from the manifest's own categories. */
+export const KNOWN_GROUPS: ReadonlySet<string> = new Set(GARMIN_METHODS.map((m) => m.category));
+
+/**
+ * Resolves the caller's requested groups against the known set, case-insensitively and trimmed
+ * (the extension's `groups` setting is free text, so a user can type `Workouts` or ` workouts `).
+ * An unknown name is dropped, not fatal — this used to `throw`, which stopped the WHOLE server
+ * (`method-tools.ts` is loaded before any tool is registered), turning a typo in a settings box
+ * into "no Garmin tools at all" for an extension user with no terminal to see why. Unknown names
+ * are reported on stderr (never stdout, which carries MCP frames) instead. If nothing requested
+ * survives resolution, every group loads rather than none.
+ */
+function resolveGroups(requested: ReadonlySet<string> | null): ReadonlySet<string> | null {
+  if (requested === null) return null;
+  const byLower = new Map([...KNOWN_GROUPS].map((g) => [g.toLowerCase(), g]));
+  const resolved = new Set<string>();
+  const unknown: string[] = [];
+  for (const raw of requested) {
+    const match = byLower.get(raw.trim().toLowerCase());
+    if (match) resolved.add(match);
+    else unknown.push(raw);
   }
+  if (unknown.length > 0) {
+    process.stderr.write(
+      `garminconnect-mcp: ignoring unknown GARMIN_MCP_GROUPS value(s): ${unknown.join(", ")}. Valid: ${[...KNOWN_GROUPS].sort().join(", ")}\n`,
+    );
+  }
+  if (resolved.size === 0) {
+    process.stderr.write("garminconnect-mcp: no valid GARMIN_MCP_GROUPS value remained; loading all tool groups.\n");
+    return null;
+  }
+  return resolved;
+}
+
+export const methodTools: ToolFactory = (deps) => {
+  const groups = resolveGroups(deps.config.groups);
   return GARMIN_METHODS.filter((m) => !Object.hasOwn(EXCLUDED, m.name))
     .filter((m) => !Object.hasOwn(OPT_IN, m.name) || deps.config[OPT_IN[m.name]!])
-    .filter((m) => deps.config.groups === null || deps.config.groups.has(m.category))
+    .filter((m) => groups === null || groups.has(m.category))
     .map((m) => toolFor(m, deps));
 };

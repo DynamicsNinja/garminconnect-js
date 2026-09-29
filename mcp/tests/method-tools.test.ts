@@ -1,10 +1,11 @@
 import Ajv2020 from "ajv/dist/2020.js";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { GARMIN_METHODS } from "garminconnect-js/manifest";
-import { EXCLUDED, methodTools, OPT_IN, toolName } from "../src/method-tools.js";
+import { EXCLUDED, KNOWN_GROUPS, methodTools, OPT_IN, toolName } from "../src/method-tools.js";
 import { connect, fakeFetch, json, PROFILE_ROUTE, sessionFor, testConfig, textOf } from "./helpers.js";
 import type { McpConfig } from "../src/session.js";
 
@@ -42,10 +43,41 @@ describe("methodTools", () => {
     expect(names({ enableGraphql: true })).toContain("query_garmin_graphql");
   });
 
-  it("filters by group and rejects unknown groups", () => {
+  it("filters by group", () => {
     const wellness = GARMIN_METHODS.filter((m) => m.category === "wellness").map((m) => toolName(m.name));
     expect(names({ groups: new Set(["wellness"]) }).sort()).toEqual(wellness.sort());
-    expect(() => names({ groups: new Set(["welness"]) })).toThrow(/Unknown GARMIN_MCP_GROUPS value\(s\): welness\. Valid: .*wellness/);
+  });
+
+  it("matches group names case-insensitively and trims them", () => {
+    const wellness = GARMIN_METHODS.filter((m) => m.category === "wellness").map((m) => toolName(m.name));
+    expect(names({ groups: new Set([" Wellness "]) }).sort()).toEqual(wellness.sort());
+  });
+
+  it("ignores unknown group names instead of throwing", () => {
+    const wellness = GARMIN_METHODS.filter((m) => m.category === "wellness").map((m) => toolName(m.name));
+    expect(names({ groups: new Set(["wellness", "welness"]) }).sort()).toEqual(wellness.sort());
+  });
+
+  it("falls back to every group when none of the requested ones are valid", () => {
+    expect(names({ groups: new Set(["welness", "bogus"]) }).sort()).toEqual(names().sort());
+  });
+
+  it("lists every real group in the extension manifest template's description, and only real groups", () => {
+    const templatePath = fileURLToPath(new URL("../extension/manifest.template.json", import.meta.url));
+    const template = JSON.parse(readFileSync(templatePath, "utf8")) as {
+      user_config: { groups: { description: string } };
+    };
+    const description = template.user_config.groups.description;
+    // The description names the groups as a plain comma-separated list, e.g.
+    // "...to load: activities, badges-challenges, ..., workouts. Empty loads...". Pull out the
+    // list between "load:" and the following sentence's full stop.
+    const listText = description.match(/load:\s*([a-z][a-z-]*(?:,\s*[a-z][a-z-]*)*)\./)?.[1];
+    expect(listText, description).toBeTruthy();
+    const named = listText!.split(",").map((g) => g.trim());
+    expect(named.length).toBeGreaterThan(0);
+    for (const g of named) expect(KNOWN_GROUPS.has(g), g).toBe(true);
+    // And every real group is actually named, so the description can't silently go stale either way.
+    expect(new Set(named)).toEqual(KNOWN_GROUPS);
   });
 
   it("replaces a Blob parameter with filePath in the input schema", () => {

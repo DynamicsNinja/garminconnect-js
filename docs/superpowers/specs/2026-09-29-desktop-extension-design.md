@@ -59,9 +59,15 @@ Built by `npm run build:mcpb -w mcp` into `mcp/dist-mcpb/garminconnect-mcp-<vers
     `GARMIN_MCP_DOWNLOAD_DIR: "${user_config.download_dir}"`,
     `GARMIN_MCP_ENABLE_GRAPHQL: "${user_config.enable_graphql}"`.
   - `user_config` (all optional): `groups` (string, default empty = all), `download_dir`
-    (directory, default `${HOME}/Downloads/garmin`), `enable_graphql` (boolean, default false).
-    The server treats an empty string as unset and `"true"` as enabled for GraphQL (today only
-    `"1"`); `loadConfig` is extended accordingly, with tests.
+    (directory, default `""`), `enable_graphql` (boolean, default false). The `download_dir`
+    default is an empty string, not `${HOME}/Downloads/garmin`: mcpb substitutes `${HOME}`-style
+    OS placeholders BEFORE `${user_config.*}` placeholders, and a default containing `${HOME}`
+    has no `${user_config...}` in it to trigger that pass, so it reaches the server unexpanded, as
+    the literal string `${HOME}/Downloads/garmin`. `loadConfig` treats any setting value that
+    CONTAINS `${` as unset (not only a value that is entirely one template), and additionally
+    treats a non-absolute `download_dir` as unset, so an empty or unexpanded value falls back to
+    `~/Downloads/garmin` either way. The server treats an empty string as unset and `"true"` as
+    enabled for GraphQL (today only `"1"`); `loadConfig` is extended accordingly, with tests.
   - `compatibility: { platforms: ["darwin","win32","linux"], runtimes: { node: ">=18.0.0" } }`.
   - `tools`: the four workout tools plus `sign_in_to_garmin`, and `tools_generated: true`.
   - `privacy_policies: ["https://github.com/DynamicsNinja/garminconnect-js/blob/main/mcp/PRIVACY.md"]`.
@@ -79,8 +85,9 @@ Hand-written, always registered, no arguments, `readOnlyHint: false`, `destructi
   returns "A Garmin sign-in page opened in your browser: <url>. Sign in there (including any MFA
   code), then tell me when you're done." The URL is included so the user can open it manually.
 - `LOGIN_HINT` (used by every "not logged in"/"session expired" error) becomes: "call the
-  `sign_in_to_garmin` tool to sign in (or run `garminconnect-mcp login` in a terminal), then try
-  again".
+  `sign_in_to_garmin` tool to sign in, then try again" — an extension user has no terminal and no
+  `garminconnect-mcp` command, so the hint names only the tool every install method has; the npm
+  route still documents `garminconnect-mcp login` separately in the README.
 
 Opening the browser: `start "" <url>` via `cmd /c` on win32, `open` on darwin, `xdg-open`
 elsewhere; spawned detached, output ignored, failures ignored (the URL is in the result). The

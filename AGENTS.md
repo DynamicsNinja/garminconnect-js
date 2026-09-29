@@ -1243,7 +1243,13 @@ It holds NO Garmin knowledge of its own:
   POST, and the password is read once by `GarminClient#login` and never stored, logged, or returned
   to the MCP client — only the resulting tokens are (via the configured `FileTokenStore`). MFA state
   is held in memory for that one page instance only.
-- **`loadConfig`** (`mcp/src/session.ts`) treats an empty string or an unsubstituted `${...}`
-  template as unset, falling back to the default — a Desktop Extension can pass either for an
-  optional `user_config` field left blank (e.g. `groups`), and `GARMIN_MCP_ENABLE_GRAPHQL` accepts
-  `"true"` as well as `"1"`.
+- **`loadConfig`** (`mcp/src/session.ts`) treats an empty string, or any value that still CONTAINS
+  `${` (an unsubstituted `${user_config.*}` template, or a manifest default like
+  `${HOME}/Downloads/garmin` that mcpb never expands because it has no `${user_config...}` in it to
+  trigger that substitution pass), as unset, falling back to the default. `download_dir`
+  additionally falls back on a non-absolute value. `GARMIN_MCP_ENABLE_GRAPHQL` accepts `"true"` as
+  well as `"1"`.
+- **`GARMIN_MCP_GROUPS`** (`mcp/src/method-tools.ts`) is matched against the manifest's categories
+  case-insensitively and trimmed. An unknown name is dropped and reported on stderr rather than
+  thrown — this is a free-text extension setting, and a typo used to stop the whole server before
+  any tool was registered. If nothing requested resolves, every group loads.

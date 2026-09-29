@@ -10,10 +10,16 @@ export interface McpConfig {
   enableGraphql: boolean;
 }
 
-/** A setting's value, or undefined when it is empty or an unsubstituted `${...}` template. */
+/**
+ * A setting's value, or undefined when it is empty or still carries an unsubstituted
+ * `${...}` template. mcpb substitutes `${HOME}`-style OS placeholders before
+ * `${user_config.*}` placeholders, so a value can come through with `${` left in it from
+ * either kind — not only a value that is ENTIRELY a template, like `${user_config.groups}`.
+ * `${HOME}/Downloads/garmin` (a literal, unexpanded `${HOME}`) must be treated as unset too.
+ */
 const setting = (value: string | undefined): string | undefined => {
   const v = value?.trim();
-  return v && !/^\$\{[^}]*\}$/.test(v) ? v : undefined;
+  return v && !v.includes("${") ? v : undefined;
 };
 
 export function loadConfig(env: Record<string, string | undefined> = process.env): McpConfig {
@@ -23,9 +29,12 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     .map((g) => g.trim())
     .filter(Boolean);
   const graphql = (setting(env["GARMIN_MCP_ENABLE_GRAPHQL"]) ?? "").toLowerCase();
+  // A relative path is also treated as unset: it's never what a "Downloads folder" picker means,
+  // and it would otherwise resolve against whatever directory the server happens to start in.
+  const downloadDir = setting(env["GARMIN_MCP_DOWNLOAD_DIR"]);
   return {
     tokenDir: setting(env["GARMIN_MCP_TOKEN_DIR"]) ?? path.join(home, ".garminconnect-mcp", "tokens"),
-    downloadDir: setting(env["GARMIN_MCP_DOWNLOAD_DIR"]) ?? path.join(home, "Downloads", "garmin"),
+    downloadDir: downloadDir && path.isAbsolute(downloadDir) ? downloadDir : path.join(home, "Downloads", "garmin"),
     groups: groups.length > 0 ? new Set(groups) : null,
     enableGraphql: graphql === "1" || graphql === "true",
   };

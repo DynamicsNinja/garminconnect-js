@@ -18,7 +18,12 @@ All notable changes to this project are documented here. The format follows
 ### Fixed (`@dynamicsninja/garminconnect-mcp`)
 
 - Empty or unsubstituted settings (as a Desktop Extension may pass them) are treated as unset, and
-  `GARMIN_MCP_ENABLE_GRAPHQL` accepts `true` as well as `1`.
+  `GARMIN_MCP_ENABLE_GRAPHQL` accepts `true` as well as `1`. A `download_dir` still carrying a
+  literal, unexpanded `${HOME}` (mcpb never expands that in a manifest default) or a relative path
+  is also treated as unset and falls back to `~/Downloads/garmin`.
+- `GARMIN_MCP_GROUPS` values are now matched case-insensitively and trimmed, and an unknown group
+  name is ignored (logged to stderr) instead of stopping the whole server; if none of the requested
+  names are valid, every tool group loads instead of none.
 
 ## [0.7.1] — 2026-09-29
 

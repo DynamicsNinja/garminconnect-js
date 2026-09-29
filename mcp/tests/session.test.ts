@@ -40,6 +40,27 @@ describe("loadConfig", () => {
     expect(c.enableGraphql).toBe(false);
   });
 
+  it("treats a literal, unexpanded ${HOME} as unset, because mcpb never substitutes it here", () => {
+    // mcpb expands `${HOME}`-style OS placeholders BEFORE `${user_config.*}` placeholders. A
+    // manifest default of "${HOME}/Downloads/garmin" is never expanded by that substitution pass
+    // (there is no `${user_config...}` in it to trigger it), so the server would otherwise receive
+    // this literal string as the configured download directory.
+    expect(loadConfig({ GARMIN_MCP_DOWNLOAD_DIR: "${HOME}/Downloads/garmin" }).downloadDir).toBe(
+      path.join(os.homedir(), "Downloads", "garmin"),
+    );
+  });
+
+  it("treats a relative download dir as unset", () => {
+    expect(loadConfig({ GARMIN_MCP_DOWNLOAD_DIR: "Downloads/garmin" }).downloadDir).toBe(
+      path.join(os.homedir(), "Downloads", "garmin"),
+    );
+  });
+
+  it("keeps an absolute download dir", () => {
+    const abs = path.join(os.tmpdir(), "somewhere-else");
+    expect(loadConfig({ GARMIN_MCP_DOWNLOAD_DIR: abs }).downloadDir).toBe(abs);
+  });
+
   it("accepts true as well as 1 for GraphQL (extension booleans arrive as text)", () => {
     expect(loadConfig({ GARMIN_MCP_ENABLE_GRAPHQL: "true" }).enableGraphql).toBe(true);
     expect(loadConfig({ GARMIN_MCP_ENABLE_GRAPHQL: "TRUE" }).enableGraphql).toBe(true);
