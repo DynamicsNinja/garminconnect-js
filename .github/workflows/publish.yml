@@ -38,7 +38,19 @@ jobs:
       # actually executes tests/mcp-package.test.ts's version-lockstep assertion.
       # No token: npm authenticates through trusted publishing (configured on npmjs.com for
       # DynamicsNinja/garminconnect-js + publish.yml) and attaches provenance automatically.
-      - run: npm publish
+      #
+      # Skipped when this version is already on npm, so re-running the workflow for the same tag
+      # (after the MCP publish or the Desktop Extension steps below failed) resumes instead of
+      # dying on "cannot publish over the previously published version". The gate ran on the first
+      # attempt, before that version could reach npm.
+      - name: Publish library (skip if this version is already published)
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          if npm view "garminconnect-js@$version" version >/dev/null 2>&1; then
+            echo "garminconnect-js@$version is already published; skipping."
+          else
+            npm publish
+          fi
 
       # The MCP server ships from the same tag, AFTER the library. tests/mcp-package.test.ts (run by
       # the root prepublishOnly above) guarantees its version equals the library's.
