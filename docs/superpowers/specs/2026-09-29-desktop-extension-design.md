@@ -30,7 +30,7 @@ server-reported icon for hand-configured servers. A Desktop Extension (`.mcpb`) 
 - `manifest_version: "0.4"`; required: `manifest_version`, `name`, `version`, `description`,
   `author.name`, `server`.
 - Node server: `server: { type: "node", entry_point, mcp_config: { command: "node",
-  args: ["${__dirname}/server/index.js"], env: { KEY: "${user_config.x}" } } }`.
+  args: ["${__dirname}/server/index.mjs"], env: { KEY: "${user_config.x}" } } }`.
 - `icon`: PNG (relative path). `user_config` types `string | number | boolean | directory | file`
   with `title`, `description`, `required`, `default`, `sensitive`.
 - `compatibility: { platforms, runtimes: { node } }`; `tools` + `tools_generated`;
@@ -44,9 +44,11 @@ server-reported icon for hand-configured servers. A Desktop Extension (`.mcpb`) 
 Built by `npm run build:mcpb -w mcp` into `mcp/dist-mcpb/garminconnect-mcp-<version>.mcpb`
 (gitignored), containing exactly:
 
-- `server/index.js` — the server bundled with **all** dependencies inlined (MCP SDK, ajv, the
+- `server/index.mjs` — the server bundled with **all** dependencies inlined (MCP SDK, ajv, the
   library), a separate tsup build from the npm `dist/cli.js` (which keeps the SDK/ajv external).
-  Runs with no `node_modules`.
+  Runs with no `node_modules`. It is `.mjs` because the extension folder has no `package.json`
+  to say `"type": "module"`: Node 22 detects ESM from the source, but Node 18 and 20 load a `.js`
+  file as CommonJS and fail on the first `import` (found by CI on Node 18).
 - `icon.png` — 512×512, rasterized at build time from the same SVG as `mcp/src/icon.ts` (which
   is refactored to export the SVG string so both use one source).
 - `manifest.json` — generated from `mcp/extension/manifest.template.json` plus `mcp/package.json`
@@ -132,7 +134,7 @@ A `node:http` server started on demand:
   returns the URL and calls the injected opener once; the new `LOGIN_HINT` text.
 - `mcp/tests/mcpb.test.ts` (runs when `dist-mcpb` exists; `check -w mcp` builds it first):
   `mcpb validate` passes; manifest version equals `mcp/package.json`; archive contents are exactly
-  `manifest.json`, `icon.png`, `server/index.js`; `server/index.js` copied alone into an empty
+  `manifest.json`, `icon.png`, `server/index.mjs`; `server/index.mjs` copied alone into an empty
   temp dir answers an MCP initialize + `tools/list`.
 - `loadConfig`: empty strings are unset; `enable_graphql` accepts `"true"` and `"1"`.
 - Manual, once, on the maintainer's Windows machine: double-click install; icon and tools appear;
