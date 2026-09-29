@@ -36,9 +36,10 @@
   },
   "scripts": {
     "build": "tsup",
+    "build:mcpb": "tsx scripts/build-mcpb.ts",
     "typecheck": "tsc --noEmit -p .",
     "test": "vitest run",
-    "check": "npm run typecheck && npm run build && npm test",
+    "check": "npm run typecheck && npm run build && npm run build:mcpb && npm test",
     "prepublishOnly": "npm run check",
     "prepack": "node -e \"for (const f of ['LICENSE','NOTICE']) require('fs').copyFileSync('../'+f, f)\""
   },
@@ -48,5 +49,9 @@
   },
   "publishConfig": {
     "access": "public"
+  },
+  "devDependencies": {
+    "@anthropic-ai/mcpb": "^2.1.2",
+    "@resvg/resvg-js": "^2.6.2"
   }
 }

@@ -1,0 +1,63 @@
+{
+  "manifest_version": "0.4",
+  "name": "garminconnect-mcp",
+  "display_name": "Garmin Connect (unofficial)",
+  "version": "0.0.0",
+  "description": "",
+  "long_description": "Talk to Claude to build Garmin workouts (running, cycling, swimming, strength, HIIT and more), schedule them and send them to your watch, and to read your sleep, HRV, stress, training readiness, activities and the rest of your Garmin Connect data.\n\nSign in once through a page that opens in your browser; your password goes only to Garmin. Everything runs on your computer.\n\nUnofficial: not made by, or affiliated with, Garmin.",
+  "author": { "name": "ificko", "url": "https://github.com/DynamicsNinja" },
+  "homepage": "https://github.com/DynamicsNinja/garminconnect-js/tree/main/mcp#readme",
+  "repository": { "type": "git", "url": "https://github.com/DynamicsNinja/garminconnect-js" },
+  "support": "https://github.com/DynamicsNinja/garminconnect-js/issues",
+  "icon": "icon.png",
+  "license": "MIT",
+  "keywords": ["garmin", "garmin-connect", "workouts", "fitness", "running", "training"],
+  "server": {
+    "type": "node",
+    "entry_point": "server/index.js",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/server/index.js"],
+      "env": {
+        "GARMIN_MCP_GROUPS": "${user_config.groups}",
+        "GARMIN_MCP_DOWNLOAD_DIR": "${user_config.download_dir}",
+        "GARMIN_MCP_ENABLE_GRAPHQL": "${user_config.enable_graphql}"
+      }
+    }
+  },
+  "user_config": {
+    "groups": {
+      "type": "string",
+      "title": "Tool groups",
+      "description": "Optional. Comma-separated groups to load, e.g. workouts,metrics,wellness,activities. Empty loads everything. Fewer groups use less of Claude's context.",
+      "required": false,
+      "default": ""
+    },
+    "download_dir": {
+      "type": "directory",
+      "title": "Download folder",
+      "description": "Optional. Where downloaded activity and workout files are saved. Empty uses Downloads/garmin.",
+      "required": false
+    },
+    "enable_graphql": {
+      "type": "boolean",
+      "title": "Raw GraphQL tool",
+      "description": "Expose the unrestricted Garmin GraphQL tool. Off unless you need it.",
+      "required": false,
+      "default": false
+    }
+  },
+  "tools": [
+    { "name": "sign_in_to_garmin", "description": "Sign in to Garmin Connect through a page in your browser." },
+    { "name": "preview_workout", "description": "Show a workout in readable form without saving it." },
+    { "name": "create_workout", "description": "Save a workout to your Garmin workout library." },
+    { "name": "update_workout", "description": "Replace an existing workout." },
+    { "name": "search_exercises", "description": "Find Garmin exercise names for strength and HIIT steps." }
+  ],
+  "tools_generated": true,
+  "compatibility": {
+    "platforms": ["darwin", "win32", "linux"],
+    "runtimes": { "node": ">=18.0.0" }
+  },
+  "privacy_policies": ["https://github.com/DynamicsNinja/garminconnect-js/blob/main/mcp/PRIVACY.md"]
+}

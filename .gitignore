@@ -13,3 +13,5 @@ tests/fixtures/*
 # published tarball carries them; the copies are build output, not source.
 mcp/LICENSE
 mcp/NOTICE
+mcp/dist-bundle/
+mcp/dist-mcpb/
