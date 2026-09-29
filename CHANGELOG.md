@@ -6,11 +6,15 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.8.0] — 2026-09-29
+
+No changes to `garminconnect-js`; it is released in lockstep with the MCP server.
+
 ### Added (`@dynamicsninja/garminconnect-mcp`)
 
 - **A Claude Desktop Extension** (`garminconnect-mcp-<version>.mcpb`, attached to each GitHub
   Release): double-click to install, with an icon and settings for tool groups, download folder and
-  GraphQL. Nothing else to install.
+  GraphQL. No npm install and no config file to edit.
 - **`sign_in_to_garmin`**: signs in without a terminal through a page served only on this computer
   (supports MFA; the password goes only to Garmin and is never stored). The "not logged in" message
   now points to it.
@@ -215,7 +219,8 @@ a broken result. Each is recorded with its reason in `tests/parity.test.ts`.
 - `@types/node` is an optional peer dependency — needed only for type-checking against the
   `Buffer` return types, and not installed into consumers' projects automatically.
 
-[Unreleased]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.7.1...HEAD
+[Unreleased]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.5.0...v0.6.0
