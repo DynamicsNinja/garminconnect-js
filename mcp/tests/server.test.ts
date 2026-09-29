@@ -37,7 +37,7 @@ describe("createServer", () => {
     const d = deps();
     const client = await connect(d, [tool("auth", () => Promise.reject(new GarminAuthError("expired")))]);
     const result = await client.callTool({ name: "auth", arguments: {} });
-    expect(textOf(result)).toContain("npx garminconnect-mcp login");
+    expect(textOf(result)).toContain("npx @dynamicsninja/garminconnect-mcp login");
     expect(d.session.resets).toBe(1);
   });
 

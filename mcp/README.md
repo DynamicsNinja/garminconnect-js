@@ -1,4 +1,4 @@
-# garminconnect-mcp
+# @dynamicsninja/garminconnect-mcp
 
 Talk to Claude to create Garmin workouts, and read or manage the rest of your Garmin Connect data,
 through an [MCP](https://modelcontextprotocol.io) server built on
@@ -15,7 +15,7 @@ it, and pushes it to your device.
 1. **Sign in once** (in a terminal; your password never passes through Claude):
 
    ```sh
-   npx garminconnect-mcp login
+   npx @dynamicsninja/garminconnect-mcp login
    ```
 
    It asks for your Garmin email, password and, if enabled, your MFA code. The session is saved to
@@ -27,13 +27,13 @@ it, and pushes it to your device.
    ```json
    {
      "mcpServers": {
-       "garmin": { "command": "npx", "args": ["-y", "garminconnect-mcp"] }
+       "garmin": { "command": "npx", "args": ["-y", "@dynamicsninja/garminconnect-mcp"] }
      }
    }
    ```
 
    On Windows, if Claude Desktop cannot start `npx`, use
-   `"command": "cmd", "args": ["/c", "npx", "-y", "garminconnect-mcp"]`.
+   `"command": "cmd", "args": ["/c", "npx", "-y", "@dynamicsninja/garminconnect-mcp"]`.
 
 3. Restart Claude Desktop.
 
@@ -65,8 +65,9 @@ checked `create_workout` replaces them), and the raw GraphQL passthrough unless 
 Set them under `"env"` in the Claude Desktop config entry.
 
 If you set `GARMIN_MCP_TOKEN_DIR` in the Claude Desktop config, set the same value when running
-`npx garminconnect-mcp login` (e.g. `GARMIN_MCP_TOKEN_DIR=/path/to/dir npx garminconnect-mcp
-login`), or the server won't find the session you signed in with.
+`npx @dynamicsninja/garminconnect-mcp login` (e.g.
+`GARMIN_MCP_TOKEN_DIR=/path/to/dir npx @dynamicsninja/garminconnect-mcp login`), or the server
+won't find the session you signed in with.
 
 ## Good to know
 

@@ -10,7 +10,7 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
-- **`garminconnect-mcp`**, a new package in `mcp/`: an MCP server for Claude Desktop. Describe a
+- **`@dynamicsninja/garminconnect-mcp`**, a new package in `mcp/`: an MCP server for Claude Desktop. Describe a
   workout in plain English and Claude previews it, saves it, schedules it and sends it to your
   watch; every other library method is available as a tool too. Generated from
   `garminconnect-js/manifest` and released in lockstep with the library. See `mcp/README.md`.

@@ -1207,7 +1207,7 @@ are correct. For write endpoints (`addWeighIn`, `deleteWeighIn`, `login`, `uploa
 round-trip against a real (non-production-critical) account is what actually verifies behavior —
 a request-shape assertion against a mock only verifies internal consistency.
 
-## 9. The MCP server (`mcp/`, npm `garminconnect-mcp`)
+## 9. The MCP server (`mcp/`, npm `@dynamicsninja/garminconnect-mcp`)
 
 A workspace package that exposes this library to Claude over MCP (stdio, for Claude Desktop).
 It holds NO Garmin knowledge of its own:

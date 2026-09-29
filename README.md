@@ -422,7 +422,7 @@ reference for every option. Runnable versions of those examples live in
 
 ## 🤖 Use it from Claude
 
-[`garminconnect-mcp`](mcp/README.md) puts this library behind an MCP server, so you can ask Claude
+[`@dynamicsninja/garminconnect-mcp`](mcp/README.md) puts this library behind an MCP server, so you can ask Claude
 Desktop to build a workout, schedule it and send it to your watch, or to read your sleep and
 training data. It ships from this repo, in lockstep with the library.
 
@@ -517,7 +517,7 @@ The four write commands (`smoke:write`, `smoke:gaps`, `smoke:builder`, `smoke:ma
 they are for a disposable test account, never a real one. `smoke:real` has the inverse gate: it
 refuses if the profile DOES match.
 
-Release: `npm run bump -- X.Y.Z` bumps the library and `garminconnect-mcp` together; pushing tag
+Release: `npm run bump -- X.Y.Z` bumps the library and `@dynamicsninja/garminconnect-mcp` together; pushing tag
 `vX.Y.Z` publishes both.
 
 **Credentials from a `.env` file:** the dev scripts (`npm run login`, `npm run demo`,

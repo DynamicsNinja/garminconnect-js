@@ -5,11 +5,21 @@ import { describe, expect, it } from "vitest";
 
 const read = (p: string): Record<string, unknown> => JSON.parse(readFileSync(p, "utf8")) as Record<string, unknown>;
 
-describe("garminconnect-mcp package contract", () => {
+describe("@dynamicsninja/garminconnect-mcp package contract", () => {
   const root = read("package.json");
   const mcp = read("mcp/package.json");
   const mcpScripts = mcp.scripts as Record<string, string>;
   const prepack = mcpScripts.prepack ?? "";
+
+  it("publishes under the maintainer's scope, publicly", () => {
+    // npm rejected the unscoped `garminconnect-mcp` as too similar to `garmin-connect-mcp`. A
+    // scoped package is private unless told otherwise, so without publishConfig the release
+    // workflow's plain `npm publish -w mcp` would fail or publish a private package.
+    expect(mcp.name).toBe("@dynamicsninja/garminconnect-mcp");
+    expect(mcp.publishConfig).toEqual({ access: "public" });
+    // The command users run stays short, whatever the package is called.
+    expect(mcp.bin).toEqual({ "garminconnect-mcp": "dist/cli.js" });
+  });
 
   it("is released in lockstep with the library", () => {
     expect(mcp.version, "run `npm run bump -- <version>` to bump both").toBe(root.version);
