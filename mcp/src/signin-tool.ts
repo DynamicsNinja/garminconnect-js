@@ -8,8 +8,14 @@ import { textResult } from "./results.js";
 import type { ToolFactory } from "./server.js";
 import { startSignInPage, type SignInClient, type SignInPage } from "./signin-page.js";
 
+/** Only ever a `startSignInPage` URL: 127.0.0.1, a numeric port, and a URL-safe key. */
+const SAFE_SIGNIN_URL = /^http:\/\/127\.0\.0\.1:\d+\/[A-Za-z0-9_-]+$/;
+
 /** Opens a URL in the default browser. Output is discarded (stdout carries MCP frames). */
 export function openInBrowser(url: string): void {
+  // `cmd /c start` parses `&`/`^` etc. as shell metacharacters; refuse anything that isn't the
+  // exact shape this module itself generates rather than risk that on a would-be malicious URL.
+  if (!SAFE_SIGNIN_URL.test(url)) return;
   const [command, args] =
     process.platform === "win32"
       ? ["cmd", ["/c", "start", "", url]]
@@ -44,6 +50,9 @@ export function signInTools(options: SignInToolOptions = {}): ToolFactory {
   const openUrl = options.openUrl ?? openInBrowser;
   const createClient = options.createClient ?? tokenStoreClient;
   let page: SignInPage | null = null;
+  // Two overlapping calls both seeing `page === null` would otherwise start two servers; cache
+  // the in-flight start so concurrent calls share one page.
+  let starting: Promise<SignInPage> | null = null;
 
   return ({ config, session }) => [
     {
@@ -58,17 +67,22 @@ export function signInTools(options: SignInToolOptions = {}): ToolFactory {
       },
       async run() {
         try {
+          // `getUserProfile` is cached per `Garmin` (one fetch, reused after), so this check is
+          // cheap on repeat calls; `server.ts` resets the session on any `GarminAuthError` from a
+          // tool, so a truly expired session is never cached across calls either.
           const profile = await (await session.get()).getUserProfile();
           return textResult(`Already signed in to Garmin as ${profile.displayName}.`);
         } catch (error) {
           if (!(error instanceof GarminAuthError)) throw error;
         }
         if (!page) {
-          const started = await startSignInPage({
+          starting ??= startSignInPage({
             createClient: () => createClient(config.tokenDir),
             onSignedIn: () => session.reset(),
             idleMs: options.idleMs,
           });
+          const started = await starting;
+          starting = null;
           page = started;
           void started.closed.then(() => {
             if (page === started) page = null;

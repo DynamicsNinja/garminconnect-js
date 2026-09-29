@@ -240,6 +240,9 @@ export async function startSignInPage(options: SignInPageOptions): Promise<SignI
   server.off("error", onListenError);
   // A later server error must not crash the MCP process (an unhandled "error" would) or print anything.
   server.on("error", () => void close());
+  // An open sign-in page must never be the reason the MCP process stays alive; the idle timer
+  // (also unref'd) closes it anyway.
+  server.unref();
   port = (server.address() as AddressInfo).port;
   touch();
   return { url: `http://127.0.0.1:${port}/${key}`, closed, close };
