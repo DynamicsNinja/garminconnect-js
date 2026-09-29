@@ -3,7 +3,7 @@ import http from "node:http";
 import { describe, expect, it, vi } from "vitest";
 import { Garmin, GarminAuthError, GarminClient, type LoginResult } from "garminconnect-js";
 import { openInBrowser, signInTools } from "../src/signin-tool.js";
-import type { SignInClient } from "../src/signin-page.js";
+import { startSignInPage, type SignInClient } from "../src/signin-page.js";
 import type { Session } from "../src/session.js";
 import { NotLoggedInError } from "../src/session.js";
 import { connect, fakeFetch, PROFILE_ROUTE, sessionFor, testConfig, textOf } from "./helpers.js";
@@ -203,6 +203,33 @@ describe("sign_in_to_garmin", () => {
     expect(opened[0]).toBe(opened[1]);
     expect(textOf(first)).toContain(opened[0]!);
     expect(textOf(second)).toContain(opened[0]!);
+    await expectClosedAfterIdle(opened[0]!, idleMs);
+  });
+
+  it("retries after a failed page start instead of rethrowing the same error forever", async () => {
+    const opened: string[] = [];
+    const idleMs = 50;
+    let calls = 0;
+    // Fails to start once (e.g. the port bind or the underlying http.Server itself threw), then
+    // delegates to the real thing.
+    const startPage: typeof startSignInPage = (opts) => {
+      calls++;
+      return calls === 1 ? Promise.reject(new Error("boom: could not start the sign-in page")) : startSignInPage(opts);
+    };
+    const client = await connect({ config: testConfig(), session: neverSignedInSession() }, [
+      signInTools({ openUrl: (u) => opened.push(u), createClient: unusedClient, idleMs, startPage }),
+    ]);
+
+    const first = await client.callTool({ name: "sign_in_to_garmin", arguments: {} });
+    expect(first.isError).toBe(true);
+    expect(textOf(first)).toContain("boom: could not start the sign-in page");
+    expect(opened).toEqual([]); // never got far enough to open a browser
+
+    const second = textOf(await client.callTool({ name: "sign_in_to_garmin", arguments: {} }));
+    expect(calls).toBe(2);
+    expect(opened).toHaveLength(1);
+    expect(opened[0]).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/[A-Za-z0-9_-]{43}$/);
+    expect(second).toContain(opened[0]!);
     await expectClosedAfterIdle(opened[0]!, idleMs);
   });
 });

@@ -44,11 +44,14 @@ export interface SignInToolOptions {
   openUrl?: (url: string) => void;
   createClient?: (tokenDir: string) => SignInClient;
   idleMs?: number;
+  /** Test-only injection point for `startSignInPage`; defaults to the real one. */
+  startPage?: typeof startSignInPage;
 }
 
 export function signInTools(options: SignInToolOptions = {}): ToolFactory {
   const openUrl = options.openUrl ?? openInBrowser;
   const createClient = options.createClient ?? tokenStoreClient;
+  const startPage = options.startPage ?? startSignInPage;
   let page: SignInPage | null = null;
   // Two overlapping calls both seeing `page === null` would otherwise start two servers; cache
   // the in-flight start so concurrent calls share one page.
@@ -76,13 +79,20 @@ export function signInTools(options: SignInToolOptions = {}): ToolFactory {
           if (!(error instanceof GarminAuthError)) throw error;
         }
         if (!page) {
-          starting ??= startSignInPage({
+          starting ??= startPage({
             createClient: () => createClient(config.tokenDir),
             onSignedIn: () => session.reset(),
             idleMs: options.idleMs,
           });
-          const started = await starting;
-          starting = null;
+          let started: SignInPage;
+          try {
+            started = await starting;
+          } finally {
+            // A rejected start must not be cached: the next call needs to retry, not rethrow the
+            // same stale failure forever. `starting` is only ever set from inside this `if`
+            // block, so clearing it here can never race a later successful start's own promise.
+            starting = null;
+          }
           page = started;
           void started.closed.then(() => {
             if (page === started) page = null;
