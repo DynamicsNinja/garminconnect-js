@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write # attach the .mcpb to the tag's GitHub Release
   id-token: write # npm trusted publishing (OIDC) and provenance
 
 jobs:
@@ -66,4 +66,20 @@ jobs:
             echo "@dynamicsninja/garminconnect-mcp@$version is already published; skipping."
           else
             npm publish -w mcp
+          fi
+
+      # The Claude Desktop Extension, attached to this tag's GitHub Release.
+      - name: Build Desktop Extension
+        run: |
+          npm run build -w mcp
+          npm run build:mcpb -w mcp
+      - name: Attach it to the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          file="$(ls mcp/dist-mcpb/*.mcpb)"
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" "$file" --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" "$file" --verify-tag --generate-notes
           fi

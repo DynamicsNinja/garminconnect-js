@@ -21,7 +21,19 @@ Unofficial: not made by, or affiliated with, Garmin.
 
 ## Set up
 
-### 1. Install
+### Easiest: the Claude Desktop Extension
+
+1. Download `garminconnect-mcp-<version>.mcpb` from the
+   [latest release](https://github.com/DynamicsNinja/garminconnect-js/releases/latest).
+2. Double-click it (or drag it onto Claude Desktop's Settings → Extensions) and choose **Install**.
+3. Ask Claude something about your Garmin data. The first time, Claude opens a Garmin sign-in page
+   in your browser; sign in there (with your MFA code if you use one) and tell Claude you're done.
+
+Optional settings (tool groups, download folder) are under Settings → Extensions → Garmin Connect.
+
+### Other ways to install: npm
+
+#### 1. Install
 
 ```sh
 npm install -g @dynamicsninja/garminconnect-mcp
@@ -31,7 +43,7 @@ Install it once rather than running it through `npx`: Claude Desktop starts seve
 server at the same moment, and parallel `npx` installs into one cache folder can break each other
 (`ERR_MODULE_NOT_FOUND … ajv/dist/2020.js`).
 
-### 2. Sign in to Garmin
+#### 2. Sign in to Garmin
 
 In a terminal (your password never passes through Claude):
 
@@ -42,7 +54,7 @@ garminconnect-mcp login
 It asks for your Garmin email, password and, if you use it, your MFA code. The session is saved to
 `~/.garminconnect-mcp/tokens` and renews itself as long as it is used at least once every 30 days.
 
-### 3. Add it to Claude Desktop
+#### 3. Add it to Claude Desktop
 
 Settings → Developer → **Edit Config**, and add a `garmin` entry to `claude_desktop_config.json`.
 Point `node` at the installed server. To find the path, run `npm root -g` and append
@@ -76,7 +88,7 @@ Point `node` at the installed server. To find the path, run `npm root -g` and ap
 
 If `node` itself is not found (common with nvm), use its full path from `which node` as `command`.
 
-### 4. Restart Claude Desktop
+#### 4. Restart Claude Desktop
 
 **Quit it completely**: tray / menu-bar icon → Quit. Closing the window leaves it running, and it
 will not read the new config. Start it again, open a new chat, and the Garmin tools appear under
@@ -105,6 +117,8 @@ destructive, and Claude is told to confirm with you before using them.
 
 ## What it can do
 
+- **`sign_in_to_garmin`**: signs you in through a page that opens in your browser, MFA included —
+  no terminal needed. See [Easiest: the Claude Desktop Extension](#easiest-the-claude-desktop-extension) above.
 - **Workouts**: `preview_workout`, `create_workout`, `update_workout`, `search_exercises`, for
   running, cycling, swimming, strength, HIIT, yoga, pilates, mobility, cardio, rucking and
   multi-sport; plus listing, scheduling, sending to your watch and deleting.
@@ -142,8 +156,11 @@ session.
 
 - **The tools don't appear.** Make sure Claude Desktop was fully quit and restarted (step 4). Then
   Settings → Developer → `garmin` shows the server's status and a link to its log.
-- **"Not logged in to Garmin"** or **"session expired"**: run `garminconnect-mcp login` again. The
-  running server picks up the new session on the next request; no restart needed.
+- **"Not logged in to Garmin"** or **"session expired"**: ask Claude to sign in again (it calls
+  `sign_in_to_garmin`), or run `garminconnect-mcp login` again. The running server picks up the new
+  session on the next request; no restart needed.
+- **Sign-in page didn't open**: Claude's reply includes the link; open it in any browser on this
+  computer. It expires after 15 minutes — ask Claude to sign in again.
 - **`ERR_MODULE_NOT_FOUND`** after trying `npx`: delete the `_npx` folder in your npm cache
   (`npm config get cache` shows where) and use the global install above.
 - **"Garmin is rate limiting requests"**: Garmin throttles bursts of calls. Wait a minute and ask
@@ -175,6 +192,6 @@ claude mcp add garmin -- garminconnect-mcp
 
 - Dates are calendar dates in UTC (`YYYY-MM-DD`).
 - Everything runs on your machine. Your Garmin session stays in your token folder and is sent only
-  to Garmin.
+  to Garmin. See [PRIVACY.md](PRIVACY.md) for the full picture.
 - Garmin Connect's API is unofficial and can change. This server is released in lockstep with
   garminconnect-js, and each release is tested against the library version it contains.

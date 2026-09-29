@@ -1228,3 +1228,22 @@ It holds NO Garmin knowledge of its own:
 - `npm run smoke:mcp` round-trips a workout through the real server against the TEST account only
   (same `GARMIN_TEST_PROFILE_ID` gate as every write script).
 - stdout is reserved for MCP frames; the server logs to stderr only.
+- **Ships as a Claude Desktop Extension too**: `npm run build:mcpb -w mcp` (needs `npm run build -w
+  mcp` first, which produces `dist-bundle/`) stages a self-contained `dist-mcpb/stage` — the built
+  server as `server/index.mjs`, an icon rasterized from `SERVER_ICON_SVG`, and `manifest.json` built
+  from `extension/manifest.template.json` plus `package.json`'s `version`/`description` — validates
+  it and packs `dist-mcpb/garminconnect-mcp-<version>.mcpb` with Anthropic's `mcpb` CLI. `npm run
+  check -w mcp` runs both steps, so the `.mcpb` is rebuilt on every check. `publish.yml` attaches it
+  to the tag's GitHub Release after publishing to npm.
+- **`sign_in_to_garmin`** (`mcp/src/signin-tool.ts` + `mcp/src/signin-page.ts`) signs a user in
+  without a terminal, for the Desktop Extension. It serves a one-off HTML form on `127.0.0.1` at a
+  random port, opens it in the default browser, and closes it after a successful sign-in or 15
+  minutes idle. Safety rules baked into the page: only `127.0.0.1` (the exact `Host` header is
+  checked, refusing DNS rebinding), a random 32-byte one-time key in the URL and re-checked on every
+  POST, and the password is read once by `GarminClient#login` and never stored, logged, or returned
+  to the MCP client — only the resulting tokens are (via the configured `FileTokenStore`). MFA state
+  is held in memory for that one page instance only.
+- **`loadConfig`** (`mcp/src/session.ts`) treats an empty string or an unsubstituted `${...}`
+  template as unset, falling back to the default — a Desktop Extension can pass either for an
+  optional `user_config` field left blank (e.g. `groups`), and `GARMIN_MCP_ENABLE_GRAPHQL` accepts
+  `"true"` as well as `"1"`.

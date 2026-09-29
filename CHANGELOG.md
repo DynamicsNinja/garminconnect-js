@@ -6,6 +6,20 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added (`@dynamicsninja/garminconnect-mcp`)
+
+- **A Claude Desktop Extension** (`garminconnect-mcp-<version>.mcpb`, attached to each GitHub
+  Release): double-click to install, with an icon and settings for tool groups, download folder and
+  GraphQL. Nothing else to install.
+- **`sign_in_to_garmin`**: signs in without a terminal through a page served only on this computer
+  (supports MFA; the password goes only to Garmin and is never stored). The "not logged in" message
+  now points to it.
+
+### Fixed (`@dynamicsninja/garminconnect-mcp`)
+
+- Empty or unsubstituted settings (as a Desktop Extension may pass them) are treated as unset, and
+  `GARMIN_MCP_ENABLE_GRAPHQL` accepts `true` as well as `1`.
+
 ## [0.7.1] — 2026-09-29
 
 No changes to `garminconnect-js`; it is released in lockstep with the MCP server.
