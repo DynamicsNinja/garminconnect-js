@@ -51,7 +51,7 @@ describe("createServer", () => {
     const d = deps();
     const client = await connect(d, [tool("auth", () => Promise.reject(new GarminAuthError("expired")))]);
     const result = await client.callTool({ name: "auth", arguments: {} });
-    expect(textOf(result)).toContain("run `garminconnect-mcp login` in a terminal");
+    expect(textOf(result)).toContain("call the `sign_in_to_garmin` tool");
     expect(d.session.resets).toBe(1);
   });
 

@@ -98,7 +98,7 @@ describe("workout tools", () => {
     const deps = { config: testConfig(), session: sessionFor(fakeFetch({}).fetchImpl) };
     const all = TOOL_FACTORIES.flatMap((f) => f(deps)).map((t) => t.tool.name);
     const generated = GARMIN_METHODS.filter((m) => !(m.name in EXCLUDED) && !(m.name in OPT_IN)).length;
-    expect(all).toHaveLength(generated + 4);
+    expect(all).toHaveLength(generated + 5);
     expect(new Set(all).size).toBe(all.length);
   });
 });
