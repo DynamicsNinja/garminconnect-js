@@ -10,17 +10,24 @@ export interface McpConfig {
   enableGraphql: boolean;
 }
 
+/** A setting's value, or undefined when it is empty or an unsubstituted `${...}` template. */
+const setting = (value: string | undefined): string | undefined => {
+  const v = value?.trim();
+  return v && !/^\$\{[^}]*\}$/.test(v) ? v : undefined;
+};
+
 export function loadConfig(env: Record<string, string | undefined> = process.env): McpConfig {
   const home = os.homedir();
-  const groups = (env["GARMIN_MCP_GROUPS"] ?? "")
+  const groups = (setting(env["GARMIN_MCP_GROUPS"]) ?? "")
     .split(",")
     .map((g) => g.trim())
     .filter(Boolean);
+  const graphql = (setting(env["GARMIN_MCP_ENABLE_GRAPHQL"]) ?? "").toLowerCase();
   return {
-    tokenDir: env["GARMIN_MCP_TOKEN_DIR"] || path.join(home, ".garminconnect-mcp", "tokens"),
-    downloadDir: env["GARMIN_MCP_DOWNLOAD_DIR"] || path.join(home, "Downloads", "garmin"),
+    tokenDir: setting(env["GARMIN_MCP_TOKEN_DIR"]) ?? path.join(home, ".garminconnect-mcp", "tokens"),
+    downloadDir: setting(env["GARMIN_MCP_DOWNLOAD_DIR"]) ?? path.join(home, "Downloads", "garmin"),
     groups: groups.length > 0 ? new Set(groups) : null,
-    enableGraphql: env["GARMIN_MCP_ENABLE_GRAPHQL"] === "1",
+    enableGraphql: graphql === "1" || graphql === "true",
   };
 }
 

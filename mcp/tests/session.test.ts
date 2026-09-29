@@ -24,6 +24,27 @@ describe("loadConfig", () => {
     });
     expect(c).toEqual({ tokenDir: "/t", downloadDir: "/d", groups: new Set(["workouts", "metrics"]), enableGraphql: true });
   });
+
+  it("treats empty and unsubstituted extension settings as unset", () => {
+    // Claude Desktop extensions pass settings as env strings; an unset optional setting may arrive
+    // as "" or, depending on the client, as the literal template.
+    const c = loadConfig({
+      GARMIN_MCP_GROUPS: "${user_config.groups}",
+      GARMIN_MCP_DOWNLOAD_DIR: "",
+      GARMIN_MCP_TOKEN_DIR: "  ",
+      GARMIN_MCP_ENABLE_GRAPHQL: "${user_config.enable_graphql}",
+    });
+    expect(c.groups).toBeNull();
+    expect(c.downloadDir).toBe(path.join(os.homedir(), "Downloads", "garmin"));
+    expect(c.tokenDir).toBe(path.join(os.homedir(), ".garminconnect-mcp", "tokens"));
+    expect(c.enableGraphql).toBe(false);
+  });
+
+  it("accepts true as well as 1 for GraphQL (extension booleans arrive as text)", () => {
+    expect(loadConfig({ GARMIN_MCP_ENABLE_GRAPHQL: "true" }).enableGraphql).toBe(true);
+    expect(loadConfig({ GARMIN_MCP_ENABLE_GRAPHQL: "TRUE" }).enableGraphql).toBe(true);
+    expect(loadConfig({ GARMIN_MCP_ENABLE_GRAPHQL: "false" }).enableGraphql).toBe(false);
+  });
 });
 
 describe("fileSession", () => {
