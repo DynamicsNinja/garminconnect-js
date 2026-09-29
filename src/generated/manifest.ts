@@ -775,7 +775,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getActivitiesForDate",
     "category": "activities",
-    "description": "upstream's constant name is `garmin_connect_activity_fordate` but the resolved path is `/mobile-gateway/heartRate/.`, not an activities-service path",
+    "description": "upstream's constant name is `garmin_connect_activity_fordate` but the resolved path is `/mobile-gateway/heartRate/...`, not an activities-service path",
     "params": [
       {
         "name": "fordate",
@@ -1053,7 +1053,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "importActivity",
     "category": "activities",
-    "description": "multipart upload to `/upload-service/upload/{ext}` (extension from `filename`, must be `fit`/`gpx`/`tcx`) with the load-bearing `NK`/`origin`/custom `User-Agent` headers that make Garmin treat it as an import rather than a device sync; a 409 is re-raised as `GarminConnectionError` (\"Activity already exists (duplicate):.\")",
+    "description": "multipart upload to `/upload-service/upload/{ext}` (extension from `filename`, must be `fit`/`gpx`/`tcx`) with the load-bearing `NK`/`origin`/custom `User-Agent` headers that make Garmin treat it as an import rather than a device sync; a 409 is re-raised as `GarminConnectionError` (\"Activity already exists (duplicate):...\")",
     "params": [
       {
         "name": "file",
@@ -1319,7 +1319,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "setActivityExerciseSets",
     "category": "activities",
-    "description": "**replace-all semantics**, `payload` sent verbatim; for the payload shape Garmin actually requires (undocumented upstream)",
+    "description": "**replace-all semantics**, `payload` sent verbatim",
     "params": [
       {
         "name": "activityId",
@@ -1511,7 +1511,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getGear",
     "category": "gear",
-    "description": "hits `/gear-service/gear/filterGear?userProfilePk=.`; returns an ARRAY of gear entries. This is the dedicated gear-CRUD service (`src/services/gear.ts`), distinct from `getActivityGear` (activities service, reuses the same base URL with `activityId` instead)",
+    "description": "hits `/gear-service/gear/filterGear?userProfilePk=...`; returns an ARRAY of gear entries. This is the dedicated gear-CRUD service (`src/services/gear.ts`), distinct from `getActivityGear` (activities service, reuses the same base URL with `activityId` instead)",
     "params": [
       {
         "name": "userProfileNumber",
@@ -2415,7 +2415,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "addBodyComposition",
     "category": "body-composition-weight",
-    "description": "builds a `.fit` binary in memory (`src/util/fit.ts`, ported from upstream `fit.py`'s `FitEncoderWeight`) and uploads it via `client.upload` to `/upload-service/upload`; `weight` validated positive/finite, throws `GarminError` otherwise; (passes `client.upload`'s result through unchecked `self.client.post(.)`)",
+    "description": "builds a `.fit` binary in memory (`src/util/fit.ts`, ported from upstream `fit.py`'s `FitEncoderWeight`) and uploads it via `client.upload` to `/upload-service/upload`; `weight` validated positive/finite, throws `GarminError` otherwise; (passes `client.upload`'s result through unchecked `self.client.post(...)`)",
     "params": [
       {
         "name": "weight",
@@ -2569,7 +2569,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getLactateThreshold",
     "category": "metrics",
-    "description": "defaults `latest=true`, `aggregation=\"daily\"`. TWO DIFFERENT branches, : `latest=true` returns `{speed_and_heart_rate, power}` from two GETs; `latest=false` (requires `startDate`, throws otherwise) returns `{speed, heart_rate, power}` from three GETs",
+    "description": "defaults `latest=true`, `aggregation=\"daily\"`. TWO DIFFERENT branches: `latest=true` returns `{speed_and_heart_rate, power}` from two GETs; `latest=false` (requires `startDate`, throws otherwise) returns `{speed, heart_rate, power}` from three GETs",
     "params": [
       {
         "name": "latest",
@@ -2652,7 +2652,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getEnduranceScore",
     "category": "metrics",
-    "description": "TWO branches by presence of `enddate`, : no `enddate` hits the single-day endpoint; with `enddate` hits `./stats` with hard-coded `aggregation=\"weekly\"`",
+    "description": "TWO branches by presence of `enddate`: no `enddate` hits the single-day endpoint; with `enddate` hits `.../stats` with hard-coded `aggregation=\"weekly\"`",
     "params": [
       {
         "name": "startdate",
@@ -2717,7 +2717,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getRacePredictions",
     "category": "metrics",
-    "description": "TWO branches, all-or-nothing params (throws on a partial combination), : no params hits `./latest/{displayName}`; all three hit `./{type}/{displayName}`, capped at a 366-day span",
+    "description": "TWO branches, all-or-nothing params (throws on a partial combination): no params hits `.../latest/{displayName}`; all three hit `.../{type}/{displayName}`, capped at a 366-day span",
     "params": [
       {
         "name": "startdate",
@@ -3006,7 +3006,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "uploadRunningWorkout",
     "category": "workouts",
-    "description": "fills the default `running` `sportType` (`{sportTypeId:1, sportTypeKey:\"running\", displayOrder:1}`) if the caller didn't supply one, then delegates to `uploadWorkout`; for where the body shape came from",
+    "description": "fills the default `running` `sportType` (`{sportTypeId:1, sportTypeKey:\"running\", displayOrder:1}`) if the caller didn't supply one, then delegates to `uploadWorkout`",
     "params": [
       {
         "name": "workout",

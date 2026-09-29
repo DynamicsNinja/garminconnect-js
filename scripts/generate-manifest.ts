@@ -210,11 +210,18 @@ function stripJargon(text: string): string {
     .replace(/[,;]?\s*passes through unchecked\.?/gi, "")
     .replace(/no proven inverse write[^.;]*/gi, "")
     .replace(/\(see gotchas\)/gi, "")
-    .replace(/see gotchas\.?/gi, "")
+    // "see gotchas for X" points at a doc the reader of a tool description cannot see, so the
+    // whole clause goes, up to the next sentence break. A following ":" is kept.
+    .replace(/[,;]?\s*see gotchas\b[^.;:]*/gi, "")
     .replace(/UNCERTAIN[^.;]*[.;]?/gi, "")
     .replace(/\s{2,}/g, " ")
     .replace(/\s+([,.;])/g, "$1")
-    .replace(/[.;]{2,}/g, ".")
+    // Collapse only the doubled punctuation a removal leaves behind. A blanket /[.;]{2,}/ also
+    // ate every literal "..." (path elisions like `/heartRate/...`, `post(...)`) in the notes.
+    .replace(/;\s*\./g, ".")
+    .replace(/\.\s*;/g, ".")
+    .replace(/;{2,}/g, ";")
+    .replace(/(?<!\.)\.\.(?!\.)/g, ".")
     .replace(/^[\s;,.]+/, "")
     .replace(/[\s;,]+$/, "")
     .trim();

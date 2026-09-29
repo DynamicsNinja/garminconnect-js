@@ -115,7 +115,19 @@ describe("method manifest", () => {
       expect(m.description, m.name).not.toMatch(/UNCERTAIN upstream/i);
       expect(m.description, m.name).not.toMatch(/see gotchas/i);
       expect(m.description, m.name).not.toMatch(/no proven inverse write/i);
+      // Removal leftovers: a dangling separator where a phrase was cut out.
+      expect(m.description, m.name).not.toMatch(/[,;]\s*:/);
+      // …or an orphaned clause that only made sense after "see gotchas".
+      expect(m.description, m.name).not.toMatch(/for (the payload shape|where the body shape)/);
     }
+  });
+
+  it("keeps literal ellipses from the notes intact while stripping jargon", () => {
+    // A blanket punctuation collapse once turned `/heartRate/...` into `/heartRate/.` and
+    // `.../stats` into `./stats`, which reads as a different path.
+    expect(method("getActivitiesForDate").description).toContain("/mobile-gateway/heartRate/...");
+    expect(method("getEnduranceScore").description).toContain(".../stats");
+    expect(method("addBodyComposition").description).toContain("post(...)");
   });
 
   it("gives every method a non-empty, bounded description", () => {
