@@ -48,8 +48,9 @@ export function createServer(deps: ServerDeps, factories: readonly ToolFactory[]
     try {
       return await def.run(request.params.arguments ?? {});
     } catch (error) {
-      // After `login` in a terminal, the next call must use the NEW tokens, not the cached client.
-      if (error instanceof GarminAuthError) deps.session.reset();
+      // After `login` in a terminal, the next call must use the NEW tokens, not the cached client;
+      // and with configured credentials, a rejected session signs in again.
+      if (error instanceof GarminAuthError) deps.session.reset({ rejected: true });
       return errorResult(error);
     }
   });

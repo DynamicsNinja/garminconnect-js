@@ -9,7 +9,9 @@ export const LOGIN_HINT = "call the `sign_in_to_garmin` tool to sign in, then tr
 
 /** Plain-language text for a failure. Library messages are already free of tokens. */
 export function describeError(error: unknown): string {
-  if (error instanceof NotLoggedInError) return `Not logged in to Garmin: ${LOGIN_HINT}.`;
+  if (error instanceof NotLoggedInError) {
+    return error.reason ? `Not logged in to Garmin (${error.reason}): ${LOGIN_HINT}.` : `Not logged in to Garmin: ${LOGIN_HINT}.`;
+  }
   if (error instanceof GarminAuthError) {
     return `Garmin session expired or was rejected (${error.message}): ${LOGIN_HINT}.`;
   }

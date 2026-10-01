@@ -1249,6 +1249,15 @@ It holds NO Garmin knowledge of its own:
   trigger that substitution pass), as unset, falling back to the default. `download_dir`
   additionally falls back on a non-absolute value. `GARMIN_MCP_ENABLE_GRAPHQL` accepts `"true"` as
   well as `"1"`.
+- **Unattended sign-in from config** (`fileSession` in `mcp/src/session.ts`): the extension's
+  `garmin_email` / `garmin_password` settings (`sensitive: true`) reach the server as
+  `GARMIN_EMAIL` / `GARMIN_PASSWORD`; `loadConfig` sets `credentials` only when BOTH are set (the
+  password is not trimmed). Saved tokens always win. Credentials are used only when there are none
+  or after `server.ts` resets the session with `{ rejected: true }` on a `GarminAuthError`, and at
+  most ONCE per process — a wrong password retried per tool call would get the account locked. A
+  failed attempt (or MFA, which config cannot complete) surfaces as `NotLoggedInError.reason` and
+  still points at `sign_in_to_garmin`. A plain `reset()` (e.g. after `sign_in_to_garmin`) clears
+  the rejected flag.
 - **`GARMIN_MCP_GROUPS`** (`mcp/src/method-tools.ts`) is matched against the manifest's categories
   case-insensitively and trimmed. An unknown name is dropped and reported on stderr rather than
   thrown â€” this is a free-text extension setting, and a typo used to stop the whole server before

@@ -52,6 +52,19 @@ describeBuilt("Desktop Extension (.mcpb)", () => {
     expect(png.subarray(0, 8)).toEqual(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
   });
 
+  it("offers Garmin email and password settings, the password marked sensitive", () => {
+    const manifest = JSON.parse(readFileSync(path.join(unpacked, "manifest.json"), "utf8")) as {
+      server: { mcp_config: { env: Record<string, string> } };
+      user_config: Record<string, { type: string; sensitive?: boolean; required?: boolean }>;
+    };
+    expect(manifest.user_config["garmin_email"]).toMatchObject({ type: "string", required: false });
+    expect(manifest.user_config["garmin_password"]).toMatchObject({ type: "string", sensitive: true, required: false });
+    expect(manifest.server.mcp_config.env).toMatchObject({
+      GARMIN_EMAIL: "${user_config.garmin_email}",
+      GARMIN_PASSWORD: "${user_config.garmin_password}",
+    });
+  });
+
   it("packs a zip named for the version", () => {
     expect(readFileSync(archive).subarray(0, 2).toString()).toBe("PK");
   });

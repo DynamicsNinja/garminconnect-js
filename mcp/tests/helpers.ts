@@ -56,19 +56,28 @@ export const PROFILE_ROUTE = {
 };
 
 export function testConfig(overrides: Partial<McpConfig> = {}): McpConfig {
-  return { tokenDir: "/nonexistent", downloadDir: os.tmpdir(), groups: null, enableGraphql: false, ...overrides };
+  return {
+    tokenDir: "/nonexistent",
+    downloadDir: os.tmpdir(),
+    groups: null,
+    enableGraphql: false,
+    credentials: null,
+    ...overrides,
+  };
 }
 
 /** A session over an in-memory client that talks to `fetchImpl`, counting resets. */
-export function sessionFor(fetchImpl: typeof fetch): Session & { resets: number } {
+export function sessionFor(fetchImpl: typeof fetch): Session & { resets: number; rejectedResets: number } {
   const client = new GarminClient({ fetchImpl, retries: 0 });
   client.setTokens(TOKENS);
   const garmin = new Garmin(client);
   const session = {
     resets: 0,
+    rejectedResets: 0,
     get: async () => garmin,
-    reset() {
+    reset(options?: { rejected?: boolean }) {
       session.resets++;
+      if (options?.rejected) session.rejectedResets++;
     },
   };
   return session;

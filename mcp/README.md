@@ -148,6 +148,9 @@ Set them under `"env"` in the config entry, for example:
 }
 ```
 
+`GARMIN_EMAIL` and `GARMIN_PASSWORD`, when both are set, work like the extension's email and password
+settings: the server signs in by itself when there is no saved session (not with MFA).
+
 If you change `GARMIN_MCP_TOKEN_DIR`, sign in with the same value
 (`GARMIN_MCP_TOKEN_DIR=/path/to/dir garminconnect-mcp login`), or the server won't find your
 session.

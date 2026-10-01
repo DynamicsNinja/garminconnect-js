@@ -4,7 +4,7 @@
   "display_name": "Garmin Connect (unofficial)",
   "version": "0.0.0",
   "description": "",
-  "long_description": "Talk to Claude to build Garmin workouts (running, cycling, swimming, strength, HIIT and more), schedule them and send them to your watch, and to read your sleep, HRV, stress, training readiness, activities and the rest of your Garmin Connect data.\n\nSign in once through a page that opens in your browser; your password goes only to Garmin. Everything runs on your computer.\n\nUnofficial: not made by, or affiliated with, Garmin.",
+  "long_description": "Talk to Claude to build Garmin workouts (running, cycling, swimming, strength, HIIT and more), schedule them and send them to your watch, and to read your sleep, HRV, stress, training readiness, activities and the rest of your Garmin Connect data.\n\nSign in once through a page that opens in your browser, or enter your Garmin email and password in the extension settings; either way your password goes only to Garmin. Everything runs on your computer.\n\nUnofficial: not made by, or affiliated with, Garmin.",
   "author": { "name": "ificko", "url": "https://github.com/DynamicsNinja" },
   "homepage": "https://github.com/DynamicsNinja/garminconnect-js/tree/main/mcp#readme",
   "repository": { "type": "git", "url": "https://github.com/DynamicsNinja/garminconnect-js" },
@@ -21,11 +21,28 @@
       "env": {
         "GARMIN_MCP_GROUPS": "${user_config.groups}",
         "GARMIN_MCP_DOWNLOAD_DIR": "${user_config.download_dir}",
-        "GARMIN_MCP_ENABLE_GRAPHQL": "${user_config.enable_graphql}"
+        "GARMIN_MCP_ENABLE_GRAPHQL": "${user_config.enable_graphql}",
+        "GARMIN_EMAIL": "${user_config.garmin_email}",
+        "GARMIN_PASSWORD": "${user_config.garmin_password}"
       }
     }
   },
   "user_config": {
+    "garmin_email": {
+      "type": "string",
+      "title": "Garmin email",
+      "description": "Optional. With the password below, the extension signs in by itself instead of opening a sign-in page. Not usable with two-step verification: leave both empty and use the sign-in page instead.",
+      "required": false,
+      "default": ""
+    },
+    "garmin_password": {
+      "type": "string",
+      "title": "Garmin password",
+      "description": "Optional. Kept in your system's secure storage by Claude and sent only to Garmin. Used only when there is no saved sign-in, and tried once per start, so a wrong password can't lock your account.",
+      "sensitive": true,
+      "required": false,
+      "default": ""
+    },
     "groups": {
       "type": "string",
       "title": "Tool groups",

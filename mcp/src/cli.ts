@@ -29,7 +29,7 @@ try {
     const profile = await new Garmin(client).getUserProfile();
     console.error(`Logged in as ${profile.displayName}. Session saved to ${config.tokenDir}.`);
   } else if (command === undefined) {
-    const server = createServer({ config, session: fileSession(config.tokenDir), version }, TOOL_FACTORIES);
+    const server = createServer({ config, session: fileSession(config.tokenDir, { credentials: config.credentials }), version }, TOOL_FACTORIES);
     await server.connect(new StdioServerTransport());
   } else {
     console.error(USAGE);

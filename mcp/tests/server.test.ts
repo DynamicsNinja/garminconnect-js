@@ -53,6 +53,8 @@ describe("createServer", () => {
     const result = await client.callTool({ name: "auth", arguments: {} });
     expect(textOf(result)).toContain("call the `sign_in_to_garmin` tool");
     expect(d.session.resets).toBe(1);
+    // Marked as a rejection, so a session with configured credentials signs in again.
+    expect(d.session.rejectedResets).toBe(1);
   });
 
   it("refuses duplicate tool names", () => {
