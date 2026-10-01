@@ -6,6 +6,19 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.8.1] � 2026-10-01
+
+No changes to `garminconnect-js`; it is released in lockstep with the MCP server.
+
+### Added (`@dynamicsninja/garminconnect-mcp`)
+
+- **Sign in from the extension settings**: optional *Garmin email* and *Garmin password* settings
+  (the password marked sensitive, so Claude Desktop keeps it in the system's secure storage). With
+  both set, the server signs in by itself when there is no saved session, or after Garmin rejects
+  it. Saved sessions always take priority, and the automatic sign-in is tried at most once per
+  start, so a wrong password cannot get the account locked. Accounts with two-step verification
+  still use `sign_in_to_garmin`. `GARMIN_EMAIL` / `GARMIN_PASSWORD` do the same for npm installs.
+
 ## [0.8.0] — 2026-09-29
 
 No changes to `garminconnect-js`; it is released in lockstep with the MCP server.
@@ -219,7 +232,8 @@ a broken result. Each is recorded with its reason in `tests/parity.test.ts`.
 - `@types/node` is an optional peer dependency — needed only for type-checking against the
   `Buffer` return types, and not installed into consumers' projects automatically.
 
-[Unreleased]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.8.1...HEAD
+[0.8.1]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.6.0...v0.7.0
