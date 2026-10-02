@@ -6,6 +6,18 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.8.2] — 2026-10-02
+
+No changes to `garminconnect-js`; it is released in lockstep with the MCP server.
+
+### Fixed (`@dynamicsninja/garminconnect-mcp`)
+
+- **Sign in with a Garmin username**: older Garmin accounts sign in with a username rather than an
+  email, but the sign-in page's email-only field would not let the browser submit one. The field
+  now accepts either, and the extension setting, the `login` prompt and the error messages say
+  "email or username". The `garmin_email` setting and `GARMIN_EMAIL` keep their names, so saved
+  settings keep working.
+
 ## [0.8.1] — 2026-10-01
 
 No changes to `garminconnect-js`; it is released in lockstep with the MCP server.
@@ -232,7 +244,8 @@ a broken result. Each is recorded with its reason in `tests/parity.test.ts`.
 - `@types/node` is an optional peer dependency â€” needed only for type-checking against the
   `Buffer` return types, and not installed into consumers' projects automatically.
 
-[Unreleased]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.8.1...HEAD
+[Unreleased]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.8.2...HEAD
+[0.8.2]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.8.1...v0.8.2
 [0.8.1]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.7.0...v0.7.1
