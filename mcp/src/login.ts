@@ -14,9 +14,9 @@ export interface LoginIo {
 
 /** Sign in once. The client's token store saves the session; nothing is printed to stdout. */
 export async function login(io: LoginIo, client: LoginClient, env: Record<string, string | undefined> = process.env): Promise<void> {
-  const email = env["GARMIN_EMAIL"]?.trim() || (await io.ask("Garmin email: ")).trim();
+  const email = env["GARMIN_EMAIL"]?.trim() || (await io.ask("Garmin email or username: ")).trim();
   const password = env["GARMIN_PASSWORD"] || (await io.askHidden("Garmin password: "));
-  if (!email || !password) throw new Error("Email and password are required.");
+  if (!email || !password) throw new Error("Email (or username) and password are required.");
   const result = await client.login(email, password);
   if (result.state === "mfa_required") {
     const code = (await io.ask("MFA code from Garmin: ")).trim();

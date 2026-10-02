@@ -58,7 +58,7 @@ function credentialsForm(key: string, error?: string, email = ""): string {
     `<h1>Sign in to Garmin Connect</h1><p>For the Garmin tools in Claude. Your password goes only to Garmin.</p>
 ${error ? `<div class="error">${escape(error)}</div>` : ""}
 <form method="post"><input type="hidden" name="key" value="${escape(key)}"><input type="hidden" name="step" value="credentials">
-<label for="email">Email</label><input id="email" name="email" type="email" autocomplete="username" required value="${escape(email)}">
+<label for="email">Email or username</label><input id="email" name="email" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required value="${escape(email)}">
 <label for="password">Password</label><input id="password" name="password" type="password" autocomplete="current-password" required>
 <button type="submit">Sign in</button></form>`,
   );

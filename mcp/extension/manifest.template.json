@@ -4,7 +4,7 @@
   "display_name": "Garmin Connect (unofficial)",
   "version": "0.0.0",
   "description": "",
-  "long_description": "Talk to Claude to build Garmin workouts (running, cycling, swimming, strength, HIIT and more), schedule them and send them to your watch, and to read your sleep, HRV, stress, training readiness, activities and the rest of your Garmin Connect data.\n\nSign in once through a page that opens in your browser, or enter your Garmin email and password in the extension settings; either way your password goes only to Garmin. Everything runs on your computer.\n\nUnofficial: not made by, or affiliated with, Garmin.",
+  "long_description": "Talk to Claude to build Garmin workouts (running, cycling, swimming, strength, HIIT and more), schedule them and send them to your watch, and to read your sleep, HRV, stress, training readiness, activities and the rest of your Garmin Connect data.\n\nSign in once through a page that opens in your browser, or enter your Garmin email (or username) and password in the extension settings; either way your password goes only to Garmin. Everything runs on your computer.\n\nUnofficial: not made by, or affiliated with, Garmin.",
   "author": { "name": "ificko", "url": "https://github.com/DynamicsNinja" },
   "homepage": "https://github.com/DynamicsNinja/garminconnect-js/tree/main/mcp#readme",
   "repository": { "type": "git", "url": "https://github.com/DynamicsNinja/garminconnect-js" },
@@ -30,7 +30,7 @@
   "user_config": {
     "garmin_email": {
       "type": "string",
-      "title": "Garmin email",
+      "title": "Garmin email or username",
       "description": "Optional. With the password below, the extension signs in by itself instead of opening a sign-in page. Not usable with two-step verification: leave both empty and use the sign-in page instead.",
       "required": false,
       "default": ""

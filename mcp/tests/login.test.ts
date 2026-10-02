@@ -11,7 +11,7 @@ const io = (answers: Record<string, string>): LoginIo => ({
 describe("login", () => {
   it("logs in without MFA", async () => {
     const client = { login: vi.fn().mockResolvedValue({ state: "success" }), resumeLogin: vi.fn() };
-    await login(io({ "Garmin email: ": "a@b.c", "Garmin password: ": "pw" }), client, {});
+    await login(io({ "Garmin email or username: ": "a@b.c", "Garmin password: ": "pw" }), client, {});
     expect(client.login).toHaveBeenCalledWith("a@b.c", "pw");
     expect(client.resumeLogin).not.toHaveBeenCalled();
   });
@@ -22,7 +22,7 @@ describe("login", () => {
       login: vi.fn().mockResolvedValue({ state: "mfa_required", mfaState }),
       resumeLogin: vi.fn().mockResolvedValue(undefined),
     };
-    await login(io({ "Garmin email: ": "a@b.c", "Garmin password: ": "pw", "MFA code from Garmin: ": " 123456 " }), client, {});
+    await login(io({ "Garmin email or username: ": "a@b.c", "Garmin password: ": "pw", "MFA code from Garmin: ": " 123456 " }), client, {});
     expect(client.resumeLogin).toHaveBeenCalledWith(mfaState, "123456");
   });
 
@@ -34,6 +34,6 @@ describe("login", () => {
 
   it("refuses an empty password", async () => {
     const client = { login: vi.fn(), resumeLogin: vi.fn() };
-    await expect(login(io({ "Garmin email: ": "a@b.c" }), client, {})).rejects.toThrow("Email and password are required.");
+    await expect(login(io({ "Garmin email or username: ": "a@b.c" }), client, {})).rejects.toThrow("Email (or username) and password are required.");
   });
 });

@@ -115,14 +115,14 @@ export function fileSession(tokenDir: string, options: FileSessionOptions = {}):
         const result = await login(client, credentials);
         if (result.state === "mfa_required") {
           throw new Error(
-            "this Garmin account uses two-step verification, which can't be completed from the email and password in the settings",
+            "this Garmin account uses two-step verification, which can't be completed from the email (or username) and password in the settings",
           );
         }
         rejected = false;
         return new Garmin(client);
       } catch (error) {
         const why = error instanceof Error ? error.message : String(error);
-        autoSignInFailure = `signing in with the configured Garmin email and password failed: ${why}`;
+        autoSignInFailure = `signing in with the configured Garmin email (or username) and password failed: ${why}`;
       }
     }
     if (!hasTokens) {

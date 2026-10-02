@@ -76,6 +76,18 @@ describe("sign-in page", () => {
     expect((await request(page.url, { host: `localhost:${url.port}` })).status).toBe(404);
   });
 
+  it("accepts a plain username, not just an email (older Garmin accounts have one)", async () => {
+    const calls: string[] = [];
+    page = await startSignInPage({ createClient: () => fakeClient("ok", calls), onSignedIn: () => {} });
+    const form = (await request(page.url)).body;
+    expect(form).toContain('id="email" name="email" type="text"'); // type="email" would block "runner42" in the browser
+    expect(form).toContain("Email or username");
+
+    const res = await request(page.url, { body: { key: keyOf(page.url), step: "credentials", email: "runner42", password: PASSWORD } });
+    expect(res.status).toBe(200);
+    expect(calls).toContain("login:runner42");
+  });
+
   it("rejects a POST whose form key does not match", async () => {
     page = await startSignInPage({ createClient: () => fakeClient("ok"), onSignedIn: () => {} });
     const res = await request(page.url, { body: { key: "nope", step: "credentials", email: "a@b.c", password: PASSWORD } });
