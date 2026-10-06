@@ -201,6 +201,18 @@ describe("upstream parity", () => {
       createCalendarEvent: "upstream has no calendar events — POST /calendar-service/event",
       updateCalendarEvent: "upstream has no calendar events — full-record PUT /calendar-service/event/{id}",
       deleteCalendarEvent: "upstream has no calendar events — DELETE /calendar-service/event/{id}",
+      // Food logging (Connect+ only): request shapes from Taxuspt/garmin_mcp, verified live on a
+      // Connect+ account by scripts/smoke-nutrition-real.ts on 2026-10-06.
+      getNutritionFoodLogRange: "upstream has no food-log range — GET /nutrition-service/food/logs/range",
+      searchFoods: "upstream cannot search foods — GET /nutrition-service/food/search",
+      getCustomFoods: "upstream has no custom foods — GET /nutrition-service/customFood",
+      getCustomFoodServingUnits: "upstream has no custom foods — GET .../metadata/customFoodServingUnits",
+      createCustomFood: "upstream has no custom foods — PUT /nutrition-service/customFood",
+      updateCustomFood: "upstream has no custom foods — the same PUT with foodId and servingId",
+      deleteCustomFood: "upstream has no custom foods — DELETE /nutrition-service/customFood/{id}",
+      logFood: "upstream cannot log food — PUT /nutrition-service/food/logs",
+      quickAddFood: "upstream cannot log food — PUT /nutrition-service/food/logs/quickAdd",
+      deleteFoodLogs: "upstream cannot log food — DELETE /nutrition-service/food/logs/{date} with { logIds }",
     };
 
     const rows = parseInventoryRows();

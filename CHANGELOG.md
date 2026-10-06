@@ -8,7 +8,7 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
-Fourteen methods for Garmin endpoints that python-garminconnect does not wrap, taken from what
+Twenty-four methods for Garmin endpoints that python-garminconnect does not wrap, taken from what
 [Taxuspt/garmin_mcp](https://github.com/Taxuspt/garmin_mcp) calls or found by probing. Each was
 verified live on 2026-10-06 by writing, reading the stored value back, and restoring.
 
@@ -23,6 +23,14 @@ verified live on 2026-10-06 by writing, reading the stored value back, and resto
 - **`getDailyStats`**: per-day calories or steps for any range, fetched in 28-day windows.
 - **`getScheduledWorkoutSummaries`** and **`getTrainingPlanWorkouts`**: compact schedule reads
   over Garmin's GraphQL gateway. The summaries lag a fresh schedule by a few seconds.
+
+- **Food logging** (needs Garmin Connect+, which needs a paired Garmin device): `searchFoods`,
+  `getCustomFoods`, `getCustomFoodServingUnits`, `createCustomFood`, `updateCustomFood`,
+  `deleteCustomFood`, `logFood`, `quickAddFood`, `deleteFoodLogs`, and
+  `getNutritionFoodLogRange` (which works without Connect+). Logging picks the meal from the time
+  of day, or picks a valid time for a named meal; Garmin rejects a snack logged inside another
+  meal's window. Verified on a Connect+ account by `scripts/smoke-nutrition-real.ts`, which
+  deletes everything it creates.
 
 The MCP server gets the matching tools automatically, and a `calendar-events` tool group.
 

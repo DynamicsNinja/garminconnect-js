@@ -33,6 +33,7 @@ import type {
   HeartRateZoneUpdate,
   RunningToleranceAggregation,
 } from "./types/metrics.js";
+import type { CustomFoodInput, FoodLogInput, QuickAddInput } from "./types/nutrition.js";
 import type { DailyStatsType } from "./types/wellness.js";
 import type { WorkoutInput } from "./types/workouts.js";
 import type { WeightScaleFields } from "./util/fit.js";
@@ -848,6 +849,46 @@ export class Garmin {
   }
   getNutritionDailySettings(cdate: string | Date) {
     return nutrition.getNutritionDailySettings(this, cdate);
+  }
+  /** NOT upstream parity. Daily food logs over a range; works without Connect+. */
+  getNutritionFoodLogRange(startdate: string | Date, enddate: string | Date) {
+    return nutrition.getNutritionFoodLogRange(this, startdate, enddate);
+  }
+  /** NOT upstream parity. Food catalogue search. Needs Garmin Connect+. */
+  searchFoods(query: string, start?: number, limit?: number) {
+    return nutrition.searchFoods(this, query, start, limit);
+  }
+  /** NOT upstream parity. Your custom foods, optionally filtered by name (limit <= 20). Needs Connect+. */
+  getCustomFoods(search?: string, start?: number, limit?: number) {
+    return nutrition.getCustomFoods(this, search, start, limit);
+  }
+  /** NOT upstream parity. Serving units a custom food can use. Needs Connect+. */
+  getCustomFoodServingUnits() {
+    return nutrition.getCustomFoodServingUnits(this);
+  }
+  /** NOT upstream parity. Creates a custom food (per serving). Needs Connect+. */
+  createCustomFood(input: CustomFoodInput) {
+    return nutrition.createCustomFood(this, input);
+  }
+  /** NOT upstream parity. FULL REPLACE of a custom food's definition. Needs Connect+. */
+  updateCustomFood(foodId: string, servingId: string, input: CustomFoodInput) {
+    return nutrition.updateCustomFood(this, foodId, servingId, input);
+  }
+  /** NOT upstream parity. IRREVERSIBLE. Needs Connect+. */
+  deleteCustomFood(foodId: string) {
+    return nutrition.deleteCustomFood(this, foodId);
+  }
+  /** NOT upstream parity. Logs a catalogue or custom food into a meal. Needs Connect+. */
+  logFood(input: FoodLogInput) {
+    return nutrition.logFood(this, input);
+  }
+  /** NOT upstream parity. Logs an entry by name and macros ("Quick Add"). Needs Connect+. */
+  quickAddFood(input: QuickAddInput) {
+    return nutrition.quickAddFood(this, input);
+  }
+  /** NOT upstream parity. Deletes log entries from one day, any number at once. IRREVERSIBLE. */
+  deleteFoodLogs(date: string | Date, logIds: string[]) {
+    return nutrition.deleteFoodLogs(this, date, logIds);
   }
 
   // --- training plans ---

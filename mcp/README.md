@@ -124,7 +124,7 @@ destructive, and Claude is told to confirm with you before using them.
   multi-sport; plus listing, scheduling, sending to your watch and deleting.
 - **Everything else in garminconnect-js**: sleep, HRV, stress, Body Battery, training readiness and
   status, race predictions, activities (list, details, download, upload files, RPE and feel), gear, courses, race calendar,
-  devices, badges, weigh-ins, and more. One tool per library method.
+  devices, badges, weigh-ins, food logging (with Garmin Connect+), and more. One tool per library method.
 
 **Not exposed:** `logout` (it would delete your saved session), the raw-JSON workout uploads (the
 checked `create_workout` replaces them), and the raw GraphQL passthrough unless you opt in.

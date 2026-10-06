@@ -26,7 +26,8 @@ file is authoritative, and the differences are not cosmetic:
   the two GraphQL schedule reads (fourteen methods) have no upstream equivalent either.** Their
   endpoints come from Taxuspt/garmin_mcp or were found here, and each was re-verified live on
   2026-10-06. Note the RPE is stored TIMES TEN and the schedule summaries lag writes by seconds
-  (section 3).
+  (section 3). **Food logging (ten more methods) needs Garmin Connect+**, which needs a paired
+  device: every one but `getNutritionFoodLogRange` is a bare 403 without it.
 - **`getGoals` defaults `start` to 1, not upstream's 0**, because `goal-service` is 1-indexed and
   `start=0` returns `[]` on an account that has goals — a deliberate divergence (section 6).
 - **Return types follow live responses, not upstream's docs.** At least seven endpoints upstream
@@ -248,6 +249,16 @@ Every identifier above (`GarminClient`, `Garmin`, `FileTokenStore`) is exported 
 | `getNutritionDailyFoodLog` | `(cdate: string \| Date): Promise<NutritionDailyFoodLog \| null>` — GETs `/nutrition-service/food/logs/{cdate}`; passes through unchecked | yes — a live 6-key object on the test account for a recent date, confirming the URL; the field list is undocumented (see `NutritionDailyFoodLog`'s index-signature type) |
 | `getNutritionDailyMeals` | `(cdate: string \| Date): Promise<NutritionDailyMeals \| null>` — GETs `/nutrition-service/meals/{cdate}`; passes through unchecked | yes — a live 2-key object on the test account for a recent date, confirming the URL |
 | `getNutritionDailySettings` | `(cdate: string \| Date): Promise<NutritionDailySettings \| null>` — GETs `/nutrition-service/settings/{cdate}`; passes through unchecked | yes — `null` on the test account for a recent date (no nutrition settings configured), confirming the URL responds without a 404 |
+| `getNutritionFoodLogRange` | `(startdate: string \| Date, enddate: string \| Date): Promise<NutritionFoodLogRange \| null>` — **NOT upstream parity**. GETs `/nutrition-service/food/logs/range?startDate&endDate`: `{dailyNutritionSummaries}`, one day-log per day that has anything logged. The ONLY food-logging call that works without Connect+ (returns no days then) | yes — a day with three probe entries came back as one summary; `[]` on accounts with nothing logged |
+| `searchFoods` | `(query: string, start?: number, limit?: number): Promise<FoodSearchResult \| null>` — **NOT upstream parity** (from Taxuspt/garmin_mcp). GETs `/nutrition-service/food/search?searchExpression&start&limit` (defaults 0/20): `{results: Food[], moreDataAvailable}`; catalogue foods carry `source: "FATSECRET"` and several servings each. **Needs Garmin Connect+**, which needs a paired Garmin device — a bare `403 ForbiddenException` without it | yes — 2026-10-06 on a real account with Connect+ (`scripts/smoke-nutrition-real.ts`, which deletes everything it creates); the test account gets 403 |
+| `getCustomFoods` | `(search?: string, start?: number, limit?: number): Promise<CustomFoodList \| null>` — **NOT upstream parity**. GETs `/nutrition-service/customFood` with `includeContent=true`: `{customFoods, moreDataAvailable}`. **`limit` is capped at 20** (Garmin 400s above it — garmin_mcp ships that bug). There is NO get-by-id: `GET /customFood/{id}` is a 405, so search by name to read one back. Needs Connect+ | yes — 2026-10-06 on a real account with Connect+ (`scripts/smoke-nutrition-real.ts`, which deletes everything it creates); the test account gets 403 |
+| `getCustomFoodServingUnits` | `(): Promise<{servingUnits: {name}[]} \| null>` — **NOT upstream parity**. GETs `/nutrition-service/metadata/customFoodServingUnits` (13 units). Needs Connect+ | yes — 2026-10-06 on a real account with Connect+ (`scripts/smoke-nutrition-real.ts`, which deletes everything it creates); the test account gets 403 |
+| `createCustomFood` | `(input: CustomFoodInput): Promise<Food \| null>` — **NOT upstream parity**. **A PUT**, not a POST, to `/nutrition-service/customFood`; `CustomFoodInput` = `{name, calories, servingUnit? = "G", servingSize? = 100, brand?, carbs?, protein?, fat?, fiber?, sugar?, saturatedFat?, transFat?, sodium?, cholesterol?, potassium?, calcium?, iron?, vitaminD?}` per ONE serving, absolute amounts (not %DV); numbers are sent as strings, as Garmin's own client does. Returns the stored food with the `foodId`/`servingId` `logFood` takes. Needs Connect+ | yes — 2026-10-06 on a real account with Connect+ (`scripts/smoke-nutrition-real.ts`, which deletes everything it creates); the test account gets 403 — 250 kcal read back through `getCustomFoods` |
+| `updateCustomFood` | `(foodId: string, servingId: string, input: CustomFoodInput): Promise<Food \| null>` — **NOT upstream parity**. The same PUT carrying both ids. **FULL REPLACE**: a nutrient or brand left out is removed (verified: the brand was dropped) — garmin_mcp instead re-reads and merges. Needs Connect+ | yes — 2026-10-06 on a real account with Connect+ (`scripts/smoke-nutrition-real.ts`, which deletes everything it creates); the test account gets 403 — 260 kcal / protein 12 read back, brand gone |
+| `deleteCustomFood` | `(foodId: string): Promise<unknown>` — **NOT upstream parity**. `DELETE /nutrition-service/customFood/{foodId}`, resolves `null`. IRREVERSIBLE. Needs Connect+ | yes — 2026-10-06 on a real account with Connect+ (`scripts/smoke-nutrition-real.ts`, which deletes everything it creates); the test account gets 403 — no longer listed |
+| `logFood` | `(input: FoodLogInput): Promise<NutritionDailyFoodLog \| null>` — **NOT upstream parity**. PUTs `/nutrition-service/food/logs` with one `REGULAR_LOG` item and returns the whole day's log. `FoodLogInput` = `{date, foodId, servingId, servings? = 1, time?, meal?, source? = "GARMIN", regionCode?, languageCode?}` — pass the catalogue food's `source`/`regionCode`/`languageCode` for a search result. **Needs a `mealId`**, which only exists after Garmin's nutrition setup in the app (400 `mealId must not be null` otherwise; this method throws a clearer error first). The meal is the named one, else the one whose window holds `time`, else SNACKS; with a `meal` and no `time` it picks a time that fits. Garmin VALIDATES the pairing: a snack inside LUNCH's window is a 400 `"Meal time for Snacks overlap with meal type: LUNCH"`. Needs Connect+ | yes — 2026-10-06 on a real account with Connect+ (`scripts/smoke-nutrition-real.ts`, which deletes everything it creates); the test account gets 403 — a custom food at 1.5 servings at 12:30 landed in LUNCH, a catalogue food named BREAKFAST in BREAKFAST |
+| `quickAddFood` | `(input: QuickAddInput): Promise<NutritionDailyFoodLog \| null>` — **NOT upstream parity**. PUTs `/nutrition-service/food/logs/quickAdd`: an entry by `name` + `calories`/`carbs`/`protein`/`fat` with no food behind it (`QUICK_ADD`). Same meal rules as `logFood`. Needs Connect+ | yes — 2026-10-06 on a real account with Connect+ (`scripts/smoke-nutrition-real.ts`, which deletes everything it creates); the test account gets 403 — landed in SNACKS |
+| `deleteFoodLogs` | `(date: string \| Date, logIds: string[]): Promise<unknown>` — **NOT upstream parity**. `DELETE /nutrition-service/food/logs/{date}` with `{logIds}` as the body — any number in ONE call, regular and quick-add alike. `logId`s are on the entries of `getNutritionDailyFoodLog`. IRREVERSIBLE. Needs Connect+ | yes — 2026-10-06 on a real account with Connect+ (`scripts/smoke-nutrition-real.ts`, which deletes everything it creates); the test account gets 403 — three entries removed in one call, the account's own untouched |
 | `getTrainingPlans` | `(): Promise<TrainingPlansResult \| null>` — GETs `/trainingplan-service/trainingplan/plans`; no params; passes through unchecked | yes — a live ENVELOPE object on the test account: `{ trainingPlanList: [], searchFilter: {...} }`. Note the shape — the plans are under `trainingPlanList`, NOT at the top level, so treating the result as an array yields nothing (a smoke probe made exactly that mistake and could never find an id). The test account has no actual plans, so the per-plan row shape inside the list is unverified |
 | `getTrainingPlanById` | `(planId: number \| string): Promise<TrainingPlanDetail \| null>` — GETs `/trainingplan-service/trainingplan/phased/{planId}`; passes through unchecked | yes — CLOSED 2026-09-24 against an **ITP** plan (36 keys). The earlier "needs a PHASED plan" reading was WRONG: `/phased/{id}` is not restricted to `trainingPlanCategory === "PHASED"`. It serves ITP too and rejects only STATIC, which is what a Garmin Coach plan is — the 400 `"Not a phased plan."` names the path, not the required category |
 | `getAdaptiveTrainingPlanById` | `(planId: number \| string): Promise<AdaptiveTrainingPlanDetail \| null>` — GETs `/trainingplan-service/trainingplan/fbt-adaptive/{planId}`, a distinct sub-path from `getTrainingPlanById`'s `phased` path; passes through unchecked | yes — verified against a STATIC Garmin Coach plan (32 keys) and again on 2026-09-24 against an ITP plan (35 keys). Unlike `getTrainingPlanById` it also serves STATIC, so it is the more permissive of the two |
@@ -480,7 +491,7 @@ reason.
 
 ## 4. These methods do NOT exist (mostly)
 
-**179 methods**, covering 151 of upstream python-garminconnect's 154 public methods. The other
+**189 methods**, covering 151 of upstream python-garminconnect's 154 public methods. The other
 three were ported, then DELETED on 2026-09-24 once live evidence showed each can only produce a
 broken result — see `DELIBERATE_OMISSIONS` in `tests/parity.test.ts`, which requires a specific
 reason per entry and fails if one goes stale:
@@ -495,7 +506,7 @@ Everything else has a real `Garmin` counterpart, mechanically asserted by `tests
 (which reflects on `Garmin.prototype` and parses the inventory at test-run time, so it cannot
 silently drift back out of sync).
 
-**The 179-vs-154 reconciliation**: 151 upstream methods ported, plus twenty-eight that go BEYOND
+**The 189-vs-154 reconciliation**: 151 upstream methods ported, plus thirty-eight that go BEYOND
 upstream and have no inventory row of their own — `getUserProfile`, `displayName`, `userName`,
 `deleteGear`, `setGearActivityDefaults`, `getBadgeDetail`, the eight course methods (`listCourses`, `getCourse`,
 `importCourseGpx`, `createCourse`, `createCourseFromGpx`, `updateCourse`, `deleteCourse`,
@@ -504,7 +515,7 @@ endpoints Taxuspt/garmin_mcp calls that upstream does not wrap: `getActivityEven
 `setActivityEventType`, `setActivityPerceivedEffort`, `setActivityFeel`, `setHeartRateZones`,
 `deleteHeartRateZones`, `getDailyStats`, `getScheduledWorkoutSummaries`,
 `getTrainingPlanWorkouts`, and the five calendar-event methods (`listCalendarEvents`,
-`getCalendarEvent`, `createCalendarEvent`, `updateCalendarEvent`, `deleteCalendarEvent`).
+`getCalendarEvent`, `createCalendarEvent`, `updateCalendarEvent`, `deleteCalendarEvent`), and ten food-logging methods verified on a Connect+ account (`getNutritionFoodLogRange`, `searchFoods`, `getCustomFoods`, `getCustomFoodServingUnits`, `createCustomFood`, `updateCustomFood`, `deleteCustomFood`, `logFood`, `quickAddFood`, `deleteFoodLogs`).
 `tests/parity.test.ts` pins exactly that set, so another cannot appear without a reason being
 written down. `getUserProfile` fetches
 `/userprofile-service/socialProfile` — NOT upstream's `get_user_profile`, which is a different
@@ -1214,6 +1225,13 @@ success — `setGearDefault` 404ing and the walking/hiking helpers storing a nul
 probe that fails whenever reality matches the documentation is a probe that gets muted. Written
 that way, they pass today and turn into a real, loud failure the day Garmin changes its behaviour,
 which is the notification actually worth having.
+
+`scripts/smoke-nutrition-real.ts` is the one place food logging can be verified: it needs Garmin
+Connect+, which the test account can never have (Connect+ needs a paired device). It writes to a
+REAL account, so it is gated like `push-workout-real.ts` — the `--yes-write-to-real-account`
+flag, a refusal to run on the test account, no npm alias — and it leaves nothing behind: it
+deletes every log entry that did not exist before it started (never the account's own) and the
+custom food it created. Output is shapes and booleans only.
 
 **First run, 2026-09-24 — what it closed**, all previously `no`, `partially` or UNCONFIRMED:
 `getDeviceSettings` (an OBJECT of ~135 keys, which also retires the `getDeviceAlarms` `[]`-forever

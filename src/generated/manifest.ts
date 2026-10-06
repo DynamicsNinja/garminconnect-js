@@ -5004,6 +5004,441 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
     "io": "json"
   },
   {
+    "name": "getNutritionFoodLogRange",
+    "category": "profile-and-misc",
+    "description": "**NOT upstream parity**. GETs `/nutrition-service/food/logs/range?startDate&endDate`: `{dailyNutritionSummaries}`, one day-log per day that has anything logged. The ONLY food-logging call that works without Connect+ (returns no days then)",
+    "params": [
+      {
+        "name": "startdate",
+        "optional": false,
+        "schema": {
+          "type": "string",
+          "format": "date",
+          "description": "Calendar date, YYYY-MM-DD (UTC)"
+        }
+      },
+      {
+        "name": "enddate",
+        "optional": false,
+        "schema": {
+          "type": "string",
+          "format": "date",
+          "description": "Calendar date, YYYY-MM-DD (UTC)"
+        }
+      }
+    ],
+    "safety": "read",
+    "io": "json"
+  },
+  {
+    "name": "searchFoods",
+    "category": "profile-and-misc",
+    "description": "**NOT upstream parity** (from Taxuspt/garmin_mcp). GETs `/nutrition-service/food/search?searchExpression&start&limit` (defaults 0/20): `{results: Food[], moreDataAvailable}`; catalogue foods carry `source: \"FATSECRET\"` and several servings each. **Needs Garmin Connect+**, which needs a paired Garmin device — a bare `403 ForbiddenException` without it",
+    "params": [
+      {
+        "name": "query",
+        "optional": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "start",
+        "optional": true,
+        "schema": {
+          "type": "number"
+        }
+      },
+      {
+        "name": "limit",
+        "optional": true,
+        "schema": {
+          "type": "number"
+        }
+      }
+    ],
+    "safety": "read",
+    "io": "json"
+  },
+  {
+    "name": "getCustomFoods",
+    "category": "profile-and-misc",
+    "description": "**NOT upstream parity**. GETs `/nutrition-service/customFood` with `includeContent=true`: `{customFoods, moreDataAvailable}`. **`limit` is capped at 20** (Garmin 400s above it — garmin_mcp ships that bug). There is NO get-by-id: `GET /customFood/{id}` is a 405, so search by name to read one back. Needs Connect+",
+    "params": [
+      {
+        "name": "search",
+        "optional": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "start",
+        "optional": true,
+        "schema": {
+          "type": "number"
+        }
+      },
+      {
+        "name": "limit",
+        "optional": true,
+        "schema": {
+          "type": "number"
+        }
+      }
+    ],
+    "safety": "read",
+    "io": "json"
+  },
+  {
+    "name": "getCustomFoodServingUnits",
+    "category": "profile-and-misc",
+    "description": "**NOT upstream parity**. GETs `/nutrition-service/metadata/customFoodServingUnits` (13 units). Needs Connect+",
+    "params": [],
+    "safety": "read",
+    "io": "json"
+  },
+  {
+    "name": "createCustomFood",
+    "category": "profile-and-misc",
+    "description": "**NOT upstream parity**. **A PUT**, not a POST, to `/nutrition-service/customFood`; `CustomFoodInput` = `{name, calories, servingUnit? = \"G\", servingSize? = 100, brand?, carbs?, protein?, fat?, fiber?, sugar?, saturatedFat?, transFat?, sodium?, cholesterol?, potassium?, calcium?, iron?, vitaminD?}` per ONE serving, absolute amounts (not %DV); numbers are sent as strings, as Garmin's own client does. Returns the stored food with the `foodId`/`servingId` `logFood` takes. Needs Connect+",
+    "params": [
+      {
+        "name": "input",
+        "optional": false,
+        "schema": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "calories": {
+              "type": "number"
+            },
+            "servingUnit": {
+              "type": "string",
+              "description": "Default `\"G\"`."
+            },
+            "servingSize": {
+              "type": "number",
+              "description": "Size of one serving in `servingUnit`. Default 100."
+            },
+            "brand": {
+              "type": "string"
+            },
+            "carbs": {
+              "type": "number"
+            },
+            "protein": {
+              "type": "number"
+            },
+            "fat": {
+              "type": "number"
+            },
+            "fiber": {
+              "type": "number"
+            },
+            "sugar": {
+              "type": "number"
+            },
+            "saturatedFat": {
+              "type": "number"
+            },
+            "transFat": {
+              "type": "number"
+            },
+            "sodium": {
+              "type": "number"
+            },
+            "cholesterol": {
+              "type": "number"
+            },
+            "potassium": {
+              "type": "number"
+            },
+            "calcium": {
+              "type": "number"
+            },
+            "iron": {
+              "type": "number"
+            },
+            "vitaminD": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "name",
+            "calories"
+          ],
+          "additionalProperties": false
+        }
+      }
+    ],
+    "safety": "write",
+    "io": "json"
+  },
+  {
+    "name": "updateCustomFood",
+    "category": "profile-and-misc",
+    "description": "**NOT upstream parity**. The same PUT carrying both ids. **FULL REPLACE**: a nutrient or brand left out is removed (verified: the brand was dropped) — garmin_mcp instead re-reads and merges. Needs Connect+",
+    "params": [
+      {
+        "name": "foodId",
+        "optional": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "servingId",
+        "optional": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "input",
+        "optional": false,
+        "schema": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "calories": {
+              "type": "number"
+            },
+            "servingUnit": {
+              "type": "string",
+              "description": "Default `\"G\"`."
+            },
+            "servingSize": {
+              "type": "number",
+              "description": "Size of one serving in `servingUnit`. Default 100."
+            },
+            "brand": {
+              "type": "string"
+            },
+            "carbs": {
+              "type": "number"
+            },
+            "protein": {
+              "type": "number"
+            },
+            "fat": {
+              "type": "number"
+            },
+            "fiber": {
+              "type": "number"
+            },
+            "sugar": {
+              "type": "number"
+            },
+            "saturatedFat": {
+              "type": "number"
+            },
+            "transFat": {
+              "type": "number"
+            },
+            "sodium": {
+              "type": "number"
+            },
+            "cholesterol": {
+              "type": "number"
+            },
+            "potassium": {
+              "type": "number"
+            },
+            "calcium": {
+              "type": "number"
+            },
+            "iron": {
+              "type": "number"
+            },
+            "vitaminD": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "name",
+            "calories"
+          ],
+          "additionalProperties": false
+        }
+      }
+    ],
+    "safety": "write",
+    "io": "json"
+  },
+  {
+    "name": "deleteCustomFood",
+    "category": "profile-and-misc",
+    "description": "**NOT upstream parity**. `DELETE /nutrition-service/customFood/{foodId}`, resolves `null`. IRREVERSIBLE. Needs Connect+",
+    "params": [
+      {
+        "name": "foodId",
+        "optional": false,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "safety": "destructive",
+    "io": "json"
+  },
+  {
+    "name": "logFood",
+    "category": "profile-and-misc",
+    "description": "**NOT upstream parity**. PUTs `/nutrition-service/food/logs` with one `REGULAR_LOG` item and returns the whole day's log. `FoodLogInput` = `{date, foodId, servingId, servings? = 1, time?, meal?, source? = \"GARMIN\", regionCode?, languageCode?}` — pass the catalogue food's `source`/`regionCode`/`languageCode` for a search result. **Needs a `mealId`**, which only exists after Garmin's nutrition setup in the app (400 `mealId must not be null` otherwise; this method throws a clearer error first). The meal is the named one, else the one whose window holds `time`, else SNACKS; with a `meal` and no `…",
+    "params": [
+      {
+        "name": "input",
+        "optional": false,
+        "schema": {
+          "type": "object",
+          "properties": {
+            "foodId": {
+              "type": "string"
+            },
+            "servingId": {
+              "type": "string"
+            },
+            "servings": {
+              "type": "number",
+              "description": "Number of servings. Default 1."
+            },
+            "source": {
+              "type": "string",
+              "description": "The food's `foodMetaData.source`: `\"GARMIN\"` (default) for a custom food."
+            },
+            "regionCode": {
+              "type": "string"
+            },
+            "languageCode": {
+              "type": "string"
+            },
+            "date": {
+              "type": "string",
+              "format": "date",
+              "description": "`YYYY-MM-DD` or a `Date`."
+            },
+            "time": {
+              "type": "string",
+              "description": "Local time of day, `\"HH:MM\"` or `\"HH:MM:SS\"`. Default: a time inside the chosen meal (LUNCH\nwhen no meal is named). Garmin rejects a time that falls in ANOTHER meal's time window (a 400)."
+            },
+            "meal": {
+              "type": "string",
+              "enum": [
+                "BREAKFAST",
+                "LUNCH",
+                "DINNER",
+                "SNACKS"
+              ],
+              "description": "Meal to log into. Default: the meal whose window contains `time`, else SNACKS; LUNCH with no time."
+            }
+          },
+          "required": [
+            "foodId",
+            "servingId",
+            "date"
+          ],
+          "additionalProperties": false
+        }
+      }
+    ],
+    "safety": "write",
+    "io": "json"
+  },
+  {
+    "name": "quickAddFood",
+    "category": "profile-and-misc",
+    "description": "**NOT upstream parity**. PUTs `/nutrition-service/food/logs/quickAdd`: an entry by `name` + `calories`/`carbs`/`protein`/`fat` with no food behind it (`QUICK_ADD`). Same meal rules as `logFood`. Needs Connect+",
+    "params": [
+      {
+        "name": "input",
+        "optional": false,
+        "schema": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "calories": {
+              "type": "number"
+            },
+            "carbs": {
+              "type": "number"
+            },
+            "protein": {
+              "type": "number"
+            },
+            "fat": {
+              "type": "number"
+            },
+            "date": {
+              "type": "string",
+              "format": "date",
+              "description": "`YYYY-MM-DD` or a `Date`."
+            },
+            "time": {
+              "type": "string",
+              "description": "Local time of day, `\"HH:MM\"` or `\"HH:MM:SS\"`. Default: a time inside the chosen meal (LUNCH\nwhen no meal is named). Garmin rejects a time that falls in ANOTHER meal's time window (a 400)."
+            },
+            "meal": {
+              "type": "string",
+              "enum": [
+                "BREAKFAST",
+                "LUNCH",
+                "DINNER",
+                "SNACKS"
+              ],
+              "description": "Meal to log into. Default: the meal whose window contains `time`, else SNACKS; LUNCH with no time."
+            }
+          },
+          "required": [
+            "name",
+            "calories",
+            "carbs",
+            "protein",
+            "fat",
+            "date"
+          ],
+          "additionalProperties": false
+        }
+      }
+    ],
+    "safety": "write",
+    "io": "json"
+  },
+  {
+    "name": "deleteFoodLogs",
+    "category": "profile-and-misc",
+    "description": "**NOT upstream parity**. `DELETE /nutrition-service/food/logs/{date}` with `{logIds}` as the body — any number in ONE call, regular and quick-add alike. `logId`s are on the entries of `getNutritionDailyFoodLog`. IRREVERSIBLE. Needs Connect+",
+    "params": [
+      {
+        "name": "date",
+        "optional": false,
+        "schema": {
+          "type": "string",
+          "format": "date",
+          "description": "Calendar date, YYYY-MM-DD (UTC)"
+        }
+      },
+      {
+        "name": "logIds",
+        "optional": false,
+        "schema": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    ],
+    "safety": "destructive",
+    "io": "json"
+  },
+  {
     "name": "getTrainingPlans",
     "category": "profile-and-misc",
     "description": "GETs `/trainingplan-service/trainingplan/plans`; no params",

@@ -14,32 +14,111 @@ if (!(await client.loadTokens())) throw new Error("not connected to Garmin");
 const garmin = new Garmin(client);
 ```
 
-**18 methods.** The verification column says what has been
+**28 methods.** The verification column says what has been
 confirmed against a live Garmin account, not merely unit-tested —
 [`AGENTS.md`](../../AGENTS.md) carries the full evidence per method.
 
 | Method | Verified |
 |---|---|
+| [`createCustomFood`](#createcustomfood) | ✅ live-verified |
+| [`deleteCustomFood`](#deletecustomfood) | ✅ live-verified |
+| [`deleteFoodLogs`](#deletefoodlogs) | ✅ live-verified |
 | [`displayName`](#displayname) | ✅ live-verified (indirectly) |
 | [`fullName`](#fullname) | ✅ live-verified (indirectly) |
 | [`getAdaptiveTrainingPlanById`](#getadaptivetrainingplanbyid) | ✅ live-verified |
+| [`getCustomFoods`](#getcustomfoods) | ✅ live-verified |
+| [`getCustomFoodServingUnits`](#getcustomfoodservingunits) | ✅ live-verified |
 | [`getGoals`](#getgoals) | ✅ live-verified |
 | [`getLifestyleLoggingData`](#getlifestyleloggingdata) | ✅ live-verified |
 | [`getNutritionDailyFoodLog`](#getnutritiondailyfoodlog) | ✅ live-verified |
 | [`getNutritionDailyMeals`](#getnutritiondailymeals) | ✅ live-verified |
 | [`getNutritionDailySettings`](#getnutritiondailysettings) | ✅ live-verified |
+| [`getNutritionFoodLogRange`](#getnutritionfoodlogrange) | ✅ live-verified |
 | [`getTrainingPlanById`](#gettrainingplanbyid) | ✅ live-verified |
 | [`getTrainingPlans`](#gettrainingplans) | ✅ live-verified |
 | [`getUserProfile`](#getuserprofile) | ✅ live-verified |
 | [`getUserprofileSettings`](#getuserprofilesettings) | ✅ live-verified |
 | [`getUserSettings`](#getusersettings) | ✅ live-verified |
+| [`logFood`](#logfood) | ✅ live-verified |
 | [`logout`](#logout) | — not applicable |
 | [`queryGarminGraphql`](#querygarmingraphql) | ✅ live-verified |
+| [`quickAddFood`](#quickaddfood) | ✅ live-verified |
 | [`requestReload`](#requestreload) | ✅ live-verified |
+| [`searchFoods`](#searchfoods) | ✅ live-verified |
 | [`unitSystem`](#unitsystem) | ✅ live-verified |
+| [`updateCustomFood`](#updatecustomfood) | ✅ live-verified |
 | [`userName`](#username) | ✅ live-verified (indirectly) |
 
 ---
+
+## createCustomFood
+
+```ts
+garmin.createCustomFood(input: CustomFoodInput): Promise<Food | null>
+```
+
+```ts
+const result = await garmin.createCustomFood(input);
+```
+
+**Returns**
+
+`Food`:
+
+| Field | Type | Always present |
+|---|---|---|
+| `foodMetaData` | `{` | yes |
+| `foodId` | `string` | yes |
+| `foodName` | `string` | yes |
+| `brandName` | `string` | no |
+| `source` | `string` | yes |
+| `regionCode` | `string` | yes |
+| `languageCode` | `string` | yes |
+| `nutritionContents` | `FoodServing[]` | yes |
+| `foodImages` | `unknown[]` | no |
+| `isFavorite` | `boolean` | no |
+
+Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
+
+**NOT upstream parity**. **A PUT**, not a POST, to `/nutrition-service/customFood`; `CustomFoodInput` = `{name, calories, servingUnit? = "G", servingSize? = 100, brand?, carbs?, protein?, fat?, fiber?, sugar?, saturatedFat?, transFat?, sodium?, cholesterol?, potassium?, calcium?, iron?, vitaminD?}` per ONE serving, absolute amounts (not %DV); numbers are sent as strings, as Garmin's own client does. Returns the stored food with the `foodId`/`servingId` `logFood` takes. Needs Connect+
+
+Verification: ✅ live-verified
+
+## deleteCustomFood
+
+```ts
+garmin.deleteCustomFood(foodId: string): Promise<unknown>
+```
+
+```ts
+const result = await garmin.deleteCustomFood(activityId);
+```
+
+**Returns**
+
+`unknown` — Garmin's response is passed through unparsed. Cast it to whatever you need; this library does not model it.
+
+**NOT upstream parity**. `DELETE /nutrition-service/customFood/{foodId}`, resolves `null`. IRREVERSIBLE. Needs Connect+
+
+Verification: ✅ live-verified
+
+## deleteFoodLogs
+
+```ts
+garmin.deleteFoodLogs(date: string | Date, logIds: string[]): Promise<unknown>
+```
+
+```ts
+const result = await garmin.deleteFoodLogs("2026-09-24", ["running"]);
+```
+
+**Returns**
+
+`unknown` — Garmin's response is passed through unparsed. Cast it to whatever you need; this library does not model it.
+
+**NOT upstream parity**. `DELETE /nutrition-service/food/logs/{date}` with `{logIds}` as the body — any number in ONE call, regular and quick-add alike. `logId`s are on the entries of `getNutritionDailyFoodLog`. IRREVERSIBLE. Needs Connect+
+
+Verification: ✅ live-verified
 
 ## displayName
 
@@ -88,6 +167,47 @@ const result = await garmin.getAdaptiveTrainingPlanById(activityId);
 `AdaptiveTrainingPlanDetail` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
 
 GETs `/trainingplan-service/trainingplan/fbt-adaptive/{planId}`, a distinct sub-path from `getTrainingPlanById`'s `phased` path; passes through unchecked
+
+Verification: ✅ live-verified
+
+## getCustomFoods
+
+```ts
+garmin.getCustomFoods(search?: string, start?: number, limit?: number): Promise<CustomFoodList | null>
+```
+
+```ts
+const result = await garmin.getCustomFoods();
+```
+
+**Returns**
+
+`CustomFoodList`:
+
+| Field | Type | Always present |
+|---|---|---|
+| `customFoods` | `Food[]` | yes |
+| `moreDataAvailable` | `boolean` | yes |
+
+**NOT upstream parity**. GETs `/nutrition-service/customFood` with `includeContent=true`: `{customFoods, moreDataAvailable}`. **`limit` is capped at 20** (Garmin 400s above it — garmin_mcp ships that bug). There is NO get-by-id: `GET /customFood/{id}` is a 405, so search by name to read one back. Needs Connect+
+
+Verification: ✅ live-verified
+
+## getCustomFoodServingUnits
+
+```ts
+garmin.getCustomFoodServingUnits(): Promise<{servingUnits: {name}[]} | null>
+```
+
+```ts
+const result = await garmin.getCustomFoodServingUnits();
+```
+
+**Returns**
+
+`{servingUnits: {name}[]}`
+
+**NOT upstream parity**. GETs `/nutrition-service/metadata/customFoodServingUnits` (13 units). Needs Connect+
 
 Verification: ✅ live-verified
 
@@ -178,6 +298,28 @@ const result = await garmin.getNutritionDailySettings("2026-09-24");
 `NutritionDailySettings` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
 
 GETs `/nutrition-service/settings/{cdate}`; passes through unchecked
+
+Verification: ✅ live-verified
+
+## getNutritionFoodLogRange
+
+```ts
+garmin.getNutritionFoodLogRange(startdate: string | Date, enddate: string | Date): Promise<NutritionFoodLogRange | null>
+```
+
+```ts
+const result = await garmin.getNutritionFoodLogRange("2026-09-24", "2026-09-24");
+```
+
+**Returns**
+
+`NutritionFoodLogRange`:
+
+| Field | Type | Always present |
+|---|---|---|
+| `dailyNutritionSummaries` | `NutritionDailyFoodLog[]` | yes |
+
+**NOT upstream parity**. GETs `/nutrition-service/food/logs/range?startDate&endDate`: `{dailyNutritionSummaries}`, one day-log per day that has anything logged. The ONLY food-logging call that works without Connect+ (returns no days then)
 
 Verification: ✅ live-verified
 
@@ -290,6 +432,24 @@ Plus every other field Garmin sends: this type carries an index signature becaus
 
 Verification: ✅ live-verified
 
+## logFood
+
+```ts
+garmin.logFood(input: FoodLogInput): Promise<NutritionDailyFoodLog | null>
+```
+
+```ts
+const result = await garmin.logFood(input);
+```
+
+**Returns**
+
+`NutritionDailyFoodLog` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
+
+**NOT upstream parity**. PUTs `/nutrition-service/food/logs` with one `REGULAR_LOG` item and returns the whole day's log. `FoodLogInput` = `{date, foodId, servingId, servings? = 1, time?, meal?, source? = "GARMIN", regionCode?, languageCode?}` — pass the catalogue food's `source`/`regionCode`/`languageCode` for a search result. **Needs a `mealId`**, which only exists after Garmin's nutrition setup in the app (400 `mealId must not be null` otherwise; this method throws a clearer error first). The meal is the named one, else the one whose window holds `time`, else SNACKS; with a `meal` and no `time` it picks a time that fits. Garmin VALIDATES the pairing: a snack inside LUNCH's window is a 400 `"Meal time for Snacks overlap with meal type: LUNCH"`. Needs Connect+
+
+Verification: ✅ live-verified
+
 ## logout
 
 ```ts
@@ -326,6 +486,24 @@ POSTs the caller's GraphQL body verbatim to `/graphql-gateway/graphql`; (upstrea
 
 Verification: ✅ live-verified
 
+## quickAddFood
+
+```ts
+garmin.quickAddFood(input: QuickAddInput): Promise<NutritionDailyFoodLog | null>
+```
+
+```ts
+const result = await garmin.quickAddFood(input);
+```
+
+**Returns**
+
+`NutritionDailyFoodLog` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
+
+**NOT upstream parity**. PUTs `/nutrition-service/food/logs/quickAdd`: an entry by `name` + `calories`/`carbs`/`protein`/`fat` with no food behind it (`QUICK_ADD`). Same meal rules as `logFood`. Needs Connect+
+
+Verification: ✅ live-verified
+
 ## requestReload
 
 ```ts
@@ -344,6 +522,29 @@ POSTs `/wellness-service/wellness/epoch/request/{cdate}` with no JSON body; asks
 
 Verification: ✅ live-verified
 
+## searchFoods
+
+```ts
+garmin.searchFoods(query: string, start?: number, limit?: number): Promise<FoodSearchResult | null>
+```
+
+```ts
+const result = await garmin.searchFoods("query");
+```
+
+**Returns**
+
+`FoodSearchResult`:
+
+| Field | Type | Always present |
+|---|---|---|
+| `results` | `Food[]` | yes |
+| `moreDataAvailable` | `boolean` | yes |
+
+**NOT upstream parity** (from Taxuspt/garmin_mcp). GETs `/nutrition-service/food/search?searchExpression&start&limit` (defaults 0/20): `{results: Food[], moreDataAvailable}`; catalogue foods carry `source: "FATSECRET"` and several servings each. **Needs Garmin Connect+**, which needs a paired Garmin device — a bare `403 ForbiddenException` without it
+
+Verification: ✅ live-verified
+
 ## unitSystem
 
 ```ts
@@ -357,6 +558,39 @@ const result = await garmin.unitSystem();
 **Returns**
 
 `string | undefined`
+
+Verification: ✅ live-verified
+
+## updateCustomFood
+
+```ts
+garmin.updateCustomFood(foodId: string, servingId: string, input: CustomFoodInput): Promise<Food | null>
+```
+
+```ts
+const result = await garmin.updateCustomFood(activityId, activityId, input);
+```
+
+**Returns**
+
+`Food`:
+
+| Field | Type | Always present |
+|---|---|---|
+| `foodMetaData` | `{` | yes |
+| `foodId` | `string` | yes |
+| `foodName` | `string` | yes |
+| `brandName` | `string` | no |
+| `source` | `string` | yes |
+| `regionCode` | `string` | yes |
+| `languageCode` | `string` | yes |
+| `nutritionContents` | `FoodServing[]` | yes |
+| `foodImages` | `unknown[]` | no |
+| `isFavorite` | `boolean` | no |
+
+Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
+
+**NOT upstream parity**. The same PUT carrying both ids. **FULL REPLACE**: a nutrient or brand left out is removed (verified: the brand was dropped) — garmin_mcp instead re-reads and merges. Needs Connect+
 
 Verification: ✅ live-verified
 
