@@ -127,9 +127,9 @@ describe("bodyComposition service", () => {
     });
 
     it("keeps file_id.time_created at real 'now' when the health data is backdated", async () => {
-      // Upstream calls `fitEncoder.write_file_info()` with NO argument, so the
-      // file's creation time is when the .fit was produced, while
-      // write_device_info/write_weight_scale carry the caller's instant. A
+      // file_id.time_created is file metadata: the file's creation time is when
+      // the .fit was produced, while the device_info and weight_scale messages
+      // carry the caller's instant. A
       // backdated entry must not rewrite the file's own metadata timestamp.
       const backdated = "2026-06-01T08:00:00.000Z";
       const nowSecs = Math.floor((Date.now() - Date.UTC(1989, 11, 31)) / 1000);

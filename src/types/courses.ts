@@ -1,8 +1,7 @@
 /**
  * Courses (Garmin Connect "routes"): a saved track you can send to a device and follow.
  *
- * Shapes below are LIVE-OBSERVED on 2026-09-24 against the test account, not taken from any
- * upstream: python-garminconnect has no course methods at all.
+ * Shapes below are LIVE-OBSERVED on 2026-09-24 against the test account.
  */
 
 /** Course privacy, as this library names it. Garmin stores it as `rulePK`: public 1, private 2. */

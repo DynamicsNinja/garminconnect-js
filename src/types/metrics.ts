@@ -1,7 +1,6 @@
 /**
- * Garmin's payload shapes for these endpoints are undocumented upstream —
- * the inventory records only `dict`/`list`/`dict | list` return types, not
- * field-level shapes. Every interface below is deliberately loose (index
+ * Garmin's payload shapes for these endpoints are undocumented beyond
+ * object-vs-array. Every interface below is deliberately loose (index
  * signatures / `unknown`) rather than guessing fields that were never
  * observed.
  */
@@ -11,13 +10,12 @@ export interface MaxMetricsResult {
   [key: string]: unknown;
 }
 
-/** `GET /biometric-service/stats/functionalThresholdPower/range/{start}/{end}` — upstream types this `dict | list`. */
+/** `GET /biometric-service/stats/functionalThresholdPower/range/{start}/{end}` — an object or an array. */
 export type FtpRangeResult = Record<string, unknown> | Record<string, unknown>[];
 
 /**
  * `getLactateThreshold`'s `latest=true` branch. `speed_and_heart_rate` is
- * upstream's own merged-dict field name (kept verbatim, including the
- * snake_case, since it is the literal key upstream returns under).
+ * the merged object's field name — snake_case, kept as-is for compatibility.
  */
 export interface LactateThresholdLatest {
   speed_and_heart_rate: Record<string, unknown>;
@@ -67,7 +65,7 @@ export interface HillScoreResult {
   [key: string]: unknown;
 }
 
-/** `GET /biometric-service/biometric/latestFunctionalThresholdPower/CYCLING` — upstream types this `dict | list`. */
+/** `GET /biometric-service/biometric/latestFunctionalThresholdPower/CYCLING` — an object or an array. */
 export type CyclingFtpResult = Record<string, unknown> | Record<string, unknown>[];
 
 /** `GET /biometric-service/heartRateZones` entry. */

@@ -9,8 +9,8 @@
  * ---------------
  * Most of this library was verified against an EMPTY account, so dozens of methods are recorded in
  * AGENTS.md as "endpoint works, no data" rather than genuinely verified. An empty 200 cannot tell
- * you whether a response type is right — Task 13 found the inventory's `returns` column wrong in
- * BOTH directions (a `list` that was an envelope object, a `dict` that was an array), and only a
+ * you whether a response type is right — documented response shapes have turned out wrong in
+ * BOTH directions (a "list" that was an envelope object, a "dict" that was an array), and only a
  * populated response exposes that. Seeding converts a large block of those rows into real
  * verification.
  *
@@ -22,8 +22,8 @@
  *
  * The five womensHealth writes WERE excluded by the same standing rule, and are now INCLUDED under
  * an explicit, account-scoped exemption granted by the repo owner on 2026-09-23 (a blank throwaway
- * account, where permanent residue does not matter). They have no delete endpoint anywhere in
- * upstream, so what they write here is permanent by design. The gate below is what keeps that
+ * account, where permanent residue does not matter). They have no delete endpoint, so what they
+ * write here is permanent by design. The gate below is what keeps that
  * exemption scoped to this one account; src/services/womensHealth.ts records the same.
  *
  * EVERYTHING IT CREATES IS TAGGED with SEED_TAG below, so teardown can find its own fixtures and
@@ -243,8 +243,8 @@ await step("scheduleWorkout", async () => {
 console.log("\nSeeding women's health (EXPLICITLY AUTHORIZED for this account only)...");
 /**
  * Ordered deliberately: setup precedes confirmation, which precedes per-day logs, because Garmin
- * derives cycle context from the configured start. None of these five has a delete endpoint
- * anywhere in upstream — that is precisely why they were excluded by default — so everything
+ * derives cycle context from the configured start. None of these five has a delete endpoint —
+ * that is precisely why they were excluded by default — so everything
  * written here is permanent on this account by design.
  */
 const cycleStart = dayOffset(20);

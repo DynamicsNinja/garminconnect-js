@@ -12,10 +12,8 @@ import type {
 /**
  * Courses — saved tracks you can send to a device and follow.
  *
- * **NOT upstream parity**: python-garminconnect has no course methods. The endpoints come from the
- * `florianpasteur/garmin-connect` JavaScript fork, and every one of them was re-verified here,
- * live, on 2026-09-24 by a create -> read back -> update -> read back -> export -> delete round-trip on the test
- * account (`npm run smoke:gaps`). `deleteCourse` has no counterpart in that fork either.
+ * Every endpoint was verified live on 2026-09-24 by a create -> read back -> update -> read back
+ * -> export -> delete round-trip on the test account (`npm run smoke:gaps`).
  *
  * Creating a course is TWO calls. `importCourseGpx` uploads the GPX and gets back the parsed,
  * resampled track WITHOUT saving anything (`courseId: null`); `createCourse` then posts that track

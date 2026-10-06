@@ -17,7 +17,7 @@ const running = (steps: unknown[]) => ({ name: "x", sport: "running", steps });
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
 type KeysOfUnion<T> = T extends unknown ? keyof T : never;
 
-describe("workoutFromSpec: parity with buildWorkout", () => {
+describe("workoutFromSpec: same output as buildWorkout", () => {
   for (const [name, fixture] of Object.entries(SPEC_FIXTURES)) {
     it(name, () => {
       expect(build(fixture.spec)).toEqual(fixture.builder());

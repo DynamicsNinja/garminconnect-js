@@ -33,7 +33,7 @@ export interface ActivitiesHost {
   displayName(): Promise<string>;
 }
 
-/** Upstream `count_activities`: returns the envelope's `totalCount`, not the whole response. */
+/** Returns the envelope's `totalCount`, not the whole response. */
 export async function countActivities(host: ActivitiesHost): Promise<number> {
   const data = await host.client.connectapi<{ totalCount?: number }>(
     "/activitylist-service/activities/count",
@@ -88,10 +88,9 @@ export async function downloadActivity(
 }
 
 /**
- * Upstream's `garmin_connect_activity_fordate` constant points at a
- * `/mobile-gateway/heartRate/...` path despite the "activities" name and
- * despite this being the activities service — transcribed verbatim from the
- * inventory, not a typo introduced here. `fordate` is routed through
+ * Hits a `/mobile-gateway/heartRate/...` path despite the "activities" name
+ * and despite this being the activities service — that is the real
+ * endpoint, not a typo. `fordate` is routed through
  * `formatDate` like every other date-taking method in this library.
  */
 export async function getActivitiesForDate(
@@ -105,18 +104,15 @@ export async function getActivitiesForDate(
 }
 
 /**
- * Handles both response shapes `get_activities` can (in principle) hand
- * back upstream. In this port `getActivities` always coalesces to `[]`
- * (never the dict-with-`activityList`-key shape), so only the bare-array
- * branch is reachable here — kept for parity with upstream's defensive
- * handling of both shapes.
+ * `getActivities` always coalesces to `[]` (never a dict-with-`activityList`-key
+ * shape), so this only ever sees a bare array.
  */
 export async function getLastActivity(host: ActivitiesHost): Promise<Activity | null> {
   const activities = await getActivities(host, 0, 1);
   return activities.length > 0 ? (activities[activities.length - 1] ?? null) : null;
 }
 
-/** `dict`, passes through unchecked per the inventory. */
+/** Passes Garmin's response through unchecked. */
 export async function getActivityTypes(
   host: ActivitiesHost,
 ): Promise<ActivityTypesResponse | null> {
@@ -126,10 +122,8 @@ export async function getActivityTypes(
 }
 
 /**
- * UNCERTAIN (inventory): "no explicit null handling, returns raw response".
- * `client.py`'s exact behaviour on a non-2xx/empty body was not reviewed;
- * this passes `connectapi`'s own null-on-204/empty-body result straight
- * through rather than inventing a throw.
+ * Returns Garmin's raw response: `connectapi`'s own null-on-204/empty-body
+ * result is passed straight through rather than turned into a throw.
  */
 export async function deleteActivity(
   host: ActivitiesHost,
@@ -140,7 +134,7 @@ export async function deleteActivity(
   });
 }
 
-/** UNCERTAIN (inventory): "no explicit null handling, returns raw response". */
+/** Returns Garmin's raw response. */
 export async function setActivityName(
   host: ActivitiesHost,
   activityId: number | string,
@@ -152,7 +146,7 @@ export async function setActivityName(
   });
 }
 
-/** UNCERTAIN (inventory): "no explicit null handling, returns raw response". */
+/** Returns Garmin's raw response. */
 export async function setActivityType(
   host: ActivitiesHost,
   activityId: number | string,
@@ -169,7 +163,7 @@ export async function setActivityType(
   });
 }
 
-/** UNCERTAIN (inventory): "no explicit null handling, returns raw response". */
+/** Returns Garmin's raw response. */
 export async function setActivityDescription(
   host: ActivitiesHost,
   activityId: number | string,
@@ -182,11 +176,10 @@ export async function setActivityDescription(
 }
 
 // ---------------------------------------------------------------------------
-// Event type, perceived effort and feel — NOT upstream parity. python-garminconnect has none of
-// these; the request shapes come from Taxuspt/garmin_mcp and were re-verified live on 2026-10-06
-// (set, read back through getActivity, restore). All three are PARTIAL updates through the same
+// Event type, perceived effort and feel. Each verified live on 2026-10-06 (set, read back through
+// getActivity, restore). All three are PARTIAL updates through the same
 // `PUT /activity-service/activity/{id}` setActivityName uses: Garmin merges the fields it is sent.
-// Never read-modify-write the whole summaryDTO instead — garmin_mcp found that PUTting the stored
+// Never read-modify-write the whole summaryDTO instead — PUTting the stored
 // startLatitude/startLongitude pair back is rejected with a 400.
 // ---------------------------------------------------------------------------
 
@@ -270,8 +263,8 @@ export async function setActivityFeel(
 
 /**
  * Low-level entry point: `payload` is sent to Garmin verbatim, no shape
- * validation. `create_manual_activity` builds on top of this.
- * UNCERTAIN (inventory): "no explicit null handling, returns raw response".
+ * validation. `createManualActivity` builds on top of this. Returns Garmin's
+ * raw response.
  */
 export async function createManualActivityFromJson(
   host: ActivitiesHost,
@@ -291,16 +284,15 @@ export async function createManualActivityFromJson(
  * stored activity's distance/duration by 1000x/60x.
  *
  * `startDatetime` is passed through unmodified, NOT routed through
- * `formatDate`: upstream types it as a bare `str` (Garmin's local
- * start-time format), not a `YYYY-MM-DD` calendar date, so `formatDate`'s
- * stricter date-only validation would reject a legitimate value. It MUST
- * include milliseconds, e.g. `"2026-09-22T09:00:00.000"` (upstream's
- * documented pattern) — live-verified against the Garmin test account:
+ * `formatDate`: it is Garmin's local start-time format, not a `YYYY-MM-DD`
+ * calendar date, so `formatDate`'s stricter date-only validation would
+ * reject a legitimate value. It MUST include milliseconds, e.g.
+ * `"2026-09-22T09:00:00.000"` — live-verified against the Garmin test account:
  * omitting the `.000` produced an HTTP 500 `ValueInstantiationException`
  * from Garmin, while the same body with `.000` appended succeeded.
  *
  * `typeKey` is the Garmin activity type key WITHOUT the `activity_type_`
- * prefix (e.g. `"resort_skiing"`), per the inventory notes.
+ * prefix (e.g. `"resort_skiing"`).
  */
 export async function createManualActivity(
   host: ActivitiesHost,
@@ -327,11 +319,11 @@ export async function createManualActivity(
 }
 
 const ACTIVITIES_BY_DATE_PAGE_SIZE = 20;
-/** Matches upstream's `MAX_PAGINATED_REQUESTS` safety cap. */
+/** Safety cap on the number of pages fetched. */
 const MAX_PAGINATED_REQUESTS = 2000;
 
 /**
- * Replicates upstream's internal pagination loop: fetches fixed pages of
+ * Paginates internally: fetches fixed pages of
  * `ACTIVITIES_BY_DATE_PAGE_SIZE` (20), incrementing `start` by that amount
  * each call, until a page comes back empty/falsy (the normal end of data)
  * or `MAX_PAGINATED_REQUESTS` pages have been fetched without ever seeing
@@ -390,7 +382,7 @@ const IMPORT_ACTIVITY_EXTENSIONS = new Set(["fit", "gpx", "tcx"]);
  * Distinct endpoint and headers from a plain device-sync upload
  * (`client.upload()`'s default path): the `NK`/`origin`/custom `User-Agent`
  * headers are load-bearing — without them Garmin treats the request as an
- * ordinary device sync rather than an import, per the inventory notes.
+ * ordinary device sync rather than an import.
  */
 export async function importActivity(
   host: ActivitiesHost,
@@ -412,9 +404,8 @@ export async function importActivity(
     const result = await host.client.upload(file, filename, `/upload-service/upload/${pathSegment(extension)}`, {
       headers: IMPORT_UPLOAD_HEADERS,
     });
-    // Upstream: "if the client response has no `.json` attribute" (e.g. an
-    // empty body) it synthesizes this fallback instead of raising. Our
-    // `upload()` returns `null` in the equivalent case.
+    // An empty body (`upload()` returns `null`) synthesizes this fallback
+    // instead of raising.
     if (result && typeof result === "object") {
       return result as ImportActivityResult;
     }
@@ -432,9 +423,9 @@ export async function importActivity(
   }
 }
 
-// --- per-activity detail sub-resources (Task 4) ---
+// --- per-activity detail sub-resources ---
 
-/** `dict`, passes through unchecked per the inventory. */
+/** Passes Garmin's response through unchecked. */
 export async function getActivitySplits(
   host: ActivitiesHost,
   activityId: number | string,
@@ -442,7 +433,7 @@ export async function getActivitySplits(
   return host.client.connectapi<ActivitySplits>(`/activity-service/activity/${pathSegment(activityId)}/splits`);
 }
 
-/** `dict`, passes through unchecked per the inventory. Richer detail than `getActivitySplits` for some activity types (e.g. Bouldering). */
+/** Passes Garmin's response through unchecked. Richer detail than `getActivitySplits` for some activity types (e.g. Bouldering). */
 export async function getActivityTypedSplits(
   host: ActivitiesHost,
   activityId: number | string,
@@ -452,7 +443,7 @@ export async function getActivityTypedSplits(
   );
 }
 
-/** `dict`, passes through unchecked per the inventory. */
+/** Passes Garmin's response through unchecked. */
 export async function getActivitySplitSummaries(
   host: ActivitiesHost,
   activityId: number | string,
@@ -462,7 +453,7 @@ export async function getActivitySplitSummaries(
   );
 }
 
-/** `dict`, passes through unchecked per the inventory. */
+/** Passes Garmin's response through unchecked. */
 export async function getActivityWeather(
   host: ActivitiesHost,
   activityId: number | string,
@@ -470,7 +461,7 @@ export async function getActivityWeather(
   return host.client.connectapi<ActivityWeather>(`/activity-service/activity/${pathSegment(activityId)}/weather`);
 }
 
-/** `dict`, passes through unchecked per the inventory. */
+/** Passes Garmin's response through unchecked. */
 export async function getActivityHrInTimezones(
   host: ActivitiesHost,
   activityId: number | string,
@@ -480,7 +471,7 @@ export async function getActivityHrInTimezones(
   );
 }
 
-/** `dict`, passes through unchecked per the inventory. */
+/** Passes Garmin's response through unchecked. */
 export async function getActivityPowerInTimezones(
   host: ActivitiesHost,
   activityId: number | string,
@@ -491,10 +482,8 @@ export async function getActivityPowerInTimezones(
 }
 
 /**
- * `dict`, passes through unchecked per the inventory. Upstream validates `maxchart` positive and
- * `maxpoly` non-negative before the call; this port does not re-validate (matching the "no
- * explicit null handling" posture applied elsewhere in this file for un-reviewed edge cases) —
- * an invalid value is Garmin's problem to reject, not re-validated client-side here.
+ * Passes Garmin's response through unchecked. `maxchart` and `maxpoly` are not validated
+ * client-side — an invalid value is Garmin's to reject.
  */
 export async function getActivityDetails(
   host: ActivitiesHost,
@@ -507,7 +496,7 @@ export async function getActivityDetails(
   });
 }
 
-/** `dict`, passes through unchecked per the inventory. */
+/** Passes Garmin's response through unchecked. */
 export async function getActivityExerciseSets(
   host: ActivitiesHost,
   activityId: number | string,
@@ -518,7 +507,7 @@ export async function getActivityExerciseSets(
 }
 
 /**
- * UNCERTAIN (inventory): "no explicit null handling, returns raw response".
+ * Returns Garmin's raw response.
  * **Replace-all semantics** — `payload` fully overwrites the existing `exerciseSets` array on
  * Garmin's side, it is not merged. Garmin validates `exercises[].category`/`exercises[].name`
  * against its FIT enum server-side (400 "Invalid Sub-Category Passed" on unknown values).
@@ -535,14 +524,12 @@ export async function setActivityExerciseSets(
 }
 
 /**
- * Inventory places this row under the "gear" section, not "activities" — reuses `get_gear`'s base
- * URL (`/gear-service/gear/filterGear`) with an `activityId` query param instead of `userProfilePk`.
- * Implemented here per the task brief, which assigns the activity/gear-association methods to this
- * service rather than the dedicated gear service (`src/services/gear.ts`, ported in Task 7).
+ * Reuses `getGear`'s base URL (`/gear-service/gear/filterGear`) with an `activityId` query param
+ * instead of `userProfilePk`. The activity/gear-association methods live in this service rather
+ * than the dedicated gear service (`src/services/gear.ts`).
  *
- * Returns an ARRAY (`ActivityGear[]`), not a single object — confirmed live in Task 7's
- * fix-round-1 (see `ActivityGear`'s doc comment in `src/types/activities.ts`); this was fixed from
- * an earlier `ActivityGear | null` signature that mistyped it as a single object.
+ * Returns an ARRAY (`ActivityGear[]`), not a single object — confirmed live (see `ActivityGear`'s
+ * doc comment in `src/types/activities.ts`).
  */
 export async function getActivityGear(
   host: ActivitiesHost,
@@ -556,9 +543,8 @@ export async function getActivityGear(
 const GEAR_ACTIVITIES_MAX_LIMIT = 1000;
 
 /**
- * Inventory places this row under the "gear" section — see `getActivityGear`'s note.
- * `limit` is clamped to `GEAR_ACTIVITIES_MAX_LIMIT` (1000), matching upstream. On a 404, upstream
- * logs a warning and returns `[]` rather than raising; other errors are re-raised as-is.
+ * `limit` is clamped to `GEAR_ACTIVITIES_MAX_LIMIT` (1000). On a 404, returns `[]` rather than
+ * raising; other errors are re-raised as-is.
  */
 export async function getGearActivities(
   host: ActivitiesHost,
@@ -582,9 +568,8 @@ export async function getGearActivities(
 }
 
 /**
- * Inventory places this row under the "gear" section — see `getActivityGear`'s note.
  * On 404, re-raised as `GarminConnectionError` with a "gear not found (likely retired/removed)"
- * message, matching upstream; other errors re-raised as-is.
+ * message; other errors re-raised as-is.
  */
 export async function addGearToActivity(
   host: ActivitiesHost,
@@ -609,8 +594,7 @@ export async function addGearToActivity(
 }
 
 /**
- * Inventory places this row under the "gear" section — see `getActivityGear`'s note.
- * Note: unlinking is also a **PUT**, not a DELETE, matching upstream exactly. Same 404-handling
+ * Note: unlinking is also a **PUT**, not a DELETE. Same 404-handling
  * pattern as `addGearToActivity`, with a "remove ... from activity" message.
  */
 export async function removeGearFromActivity(
@@ -635,7 +619,7 @@ export async function removeGearFromActivity(
   }
 }
 
-/** `dict`, passes through unchecked per the inventory. Both dates are routed through `formatDate`. */
+/** Passes Garmin's response through unchecked. Both dates are routed through `formatDate`. */
 export async function getProgressSummaryBetweenDates(
   host: ActivitiesHost,
   startdate: string | Date,
@@ -657,8 +641,7 @@ export async function getProgressSummaryBetweenDates(
 }
 
 /**
- * UNCERTAIN (inventory): routed through `client.download`, no null-handling visible upstream.
- * Returns a ZIP file's raw bytes, matching `downloadActivity`'s `ORIGINAL` format.
+ * Routed through `client.download`. Returns a ZIP file's raw bytes, matching `downloadActivity`'s `ORIGINAL` format.
  */
 export async function downloadHealthSnapshot(
   host: ActivitiesHost,
@@ -669,11 +652,8 @@ export async function downloadHealthSnapshot(
 }
 
 /**
- * Upstream `get_personal_record`. No inventory task ever ported this row — discovered missing by
- * `tests/parity.test.ts` during Task 15's reconciliation pass and closed here rather than left
- * failing, since it is a simple unauthenticated-by-args GET with a direct precedent
- * (`getActivity`'s date-scoped sibling methods already key off `displayName()`). `null_behaviour`:
- * passes through unchecked, per the inventory.
+ * Keys off `displayName()`, like the date-scoped methods. Passes Garmin's response through
+ * unchecked.
  */
 export async function getPersonalRecord(host: ActivitiesHost): Promise<PersonalRecords | null> {
   const displayName = await host.displayName();
@@ -683,34 +663,25 @@ export async function getPersonalRecord(host: ActivitiesHost): Promise<PersonalR
 }
 
 /**
- * Upstream validates `upload_activity` and `import_activity` against the same `ActivityUploadFormat`
- * enum, so this alias is not a placeholder for a future divergence — it exists to make the shared
- * constraint explicit at both call sites rather than having one method reach into a constant named
- * for the other.
+ * `uploadActivity` and `importActivity` accept the same file formats, so this alias is not a
+ * placeholder for a future divergence — it exists to make the shared constraint explicit at both
+ * call sites rather than having one method reach into a constant named for the other.
  */
 const UPLOAD_ACTIVITY_EXTENSIONS = IMPORT_ACTIVITY_EXTENSIONS;
 
 /**
- * Upstream `upload_activity`. Like `get_personal_record`, no inventory task ever ported this row;
- * closed here during Task 15's reconciliation pass rather than left as a permanent parity-test
- * failure.
- *
  * **Distinct from `importActivity`**: this hits the PLAIN `/upload-service/upload` path with no
  * file-extension suffix and none of `importActivity`'s load-bearing `NK`/`origin`/custom
- * `User-Agent` headers — upstream's own `upload_activity` is the ordinary device-sync-shaped
- * upload, while `import_activity` (already ported) is the one that spoofs a different client to
- * make Garmin treat it as an import. Do not conflate the two; sending the import headers here (or
- * omitting them from `importActivity`) would swap their observed behaviour.
+ * `User-Agent` headers — this is the ordinary device-sync-shaped upload, while `importActivity`
+ * is the one that spoofs a different client to make Garmin treat it as an import. Do not conflate
+ * the two; sending the import headers here (or omitting them from `importActivity`) would swap
+ * their observed behaviour.
  *
- * Upstream's signature takes a filesystem path (`activity_path: str`) and reads the file itself.
- * This port follows the same Blob-based convention `importActivity` already established (this
- * library targets a server runtime, not a CLI with a trusted local filesystem convention) rather
- * than adding a second, inconsistent file-path-based entry point — a caller on Node can still
- * build a `Blob` from a file trivially (`new Blob([await readFile(path)])`).
+ * Takes a `Blob`, the same convention as `importActivity` (this library targets a server runtime,
+ * not a CLI with a trusted local filesystem) — a caller on Node can build one from a file
+ * trivially (`new Blob([await readFile(path)])`).
  *
- * UNCERTAIN upstream null handling (upstream returns "Any (raw client response)" with no explicit
- * null-guard): implemented as a straightforward pass-through, matching this project's standing
- * rule for UNCERTAIN rows.
+ * Returns Garmin's raw response.
  */
 export async function uploadActivity(
   host: ActivitiesHost,

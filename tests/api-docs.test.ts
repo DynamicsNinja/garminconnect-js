@@ -141,19 +141,13 @@ describe("generated API reference", () => {
     ).toBeGreaterThan(0.95);
   });
 
-  it("keeps upstream-parity bookkeeping and repo process language out of consumer pages", () => {
-    // These pages are read by someone who installed the package. "UNCERTAIN upstream null
-    // handling" (16 occurrences before this was stripped) tells them nothing, and "fixed in
-    // Task 7's fix-round-1" names an artefact they cannot see. Comparing against upstream is
-    // load-bearing in AGENTS.md, which an agent reads with python-garminconnect in its training
-    // data — it is noise here. A deny-list, not a budget: a count would fight accurate prose,
-    // and mentions that carry BEHAVIOUR (a corrected return type, a load-bearing header) stay.
+  it("keeps repo process language out of consumer pages", () => {
+    // These pages are read by someone who installed the package; "fixed in Task 7's fix-round-1"
+    // names an artefact they cannot see. A deny-list, not a budget: a count would fight accurate
+    // prose. (Wording about the library's origins is guarded repo-wide by no-origin-chatter.test.ts.)
     const banned: [RegExp, string][] = [
-      [/UNCERTAIN upstream null handling/i, "internal porting note"],
-      [/kept for parity with upstream/i, "internal porting note"],
       [/Task \d+'s fix-round/i, "repo process language"],
       [/\bthis task's\b/i, "repo process language"],
-      [/no inventory task ever ported/i, "repo process language"],
     ];
     const offences: string[] = [];
     for (const [file, content] of pages) {
@@ -164,7 +158,7 @@ describe("generated API reference", () => {
     expect(
       offences,
       `generated pages leaked internal notes: ${offences.join("; ")}. ` +
-        "Extend stripParityChatter() in scripts/generate-api-docs.ts rather than editing the " +
+        "Fix the note in AGENTS.md (or extend stripInternalNotes() in scripts/lib/garmin-source.ts) rather than editing the " +
         "generated file, which is overwritten.",
     ).toEqual([]);
   });

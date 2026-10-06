@@ -24,20 +24,15 @@ export async function getBodyComposition(
 }
 
 /**
- * UNCERTAIN (inventory): upstream `add_body_composition` has no null check
- * on the multipart-upload response and returns `self.client.post(...)`
- * directly; this mirrors that by returning whatever `client.upload` gives
- * back unchecked (`null` on a 204/empty body, per this library's `upload`
- * contract).
+ * Returns whatever `client.upload` gives back unchecked (`null` on a
+ * 204/empty body, per this library's `upload` contract).
  *
  * `weight` (and every optional metric) is assumed to already be in the
- * units upstream's `gc.py` assumes (kilograms for `weight`, percentages for
- * the `percent*` fields, etc.) — `gc.py` itself performs no unit conversion
- * before handing values to `FitEncoderWeight`. See `src/util/fit.ts` for the
- * scaling `write_weight_scale` DOES apply (a FIT binary-format requirement,
- * confirmed by reading upstream's `fit.py` directly — not left as a guess).
- * LIVE-VERIFIED end to end on 2026-09-23 (this note previously said it was
- * not): 69.42 kg was uploaded as a `.fit` binary and read back from
+ * expected units (kilograms for `weight`, percentages for the `percent*`
+ * fields, etc.) — no unit conversion happens before handing values to
+ * `FitEncoderWeight`. See `src/util/fit.ts` for the scaling
+ * `writeWeightScale` DOES apply (a FIT binary-format requirement).
+ * LIVE-VERIFIED end to end on 2026-09-23: 69.42 kg was uploaded as a `.fit` binary and read back from
  * `getBodyComposition` as 69.42 kg. Garmin both ACCEPTED the bytes — so the
  * CRC and header are right — and PARSED them correctly, so the x100 scaling
  * is right. A wrong CRC would have been rejected outright; a wrong scale
@@ -45,8 +40,7 @@ export async function getBodyComposition(
  * read-back could tell apart.
  *
  * `timestamp`, if given, is parsed with `new Date(timestamp)`; if omitted,
- * `new Date()` is used, matching upstream's `datetime.fromisoformat(timestamp)
- * if timestamp else datetime.now()`.
+ * `new Date()` is used.
  */
 export async function addBodyComposition(
   host: BodyCompositionHost,
@@ -63,8 +57,7 @@ export async function addBodyComposition(
   }
 
   const encoder = new FitEncoderWeight();
-  // No argument, matching upstream's bare `fitEncoder.write_file_info()`.
-  // `file_id.time_created` is file METADATA — when the .fit was produced —
+  // No argument, deliberately: `file_id.time_created` is file METADATA — when the .fit was produced —
   // and stays at the real current instant even when `when` is backdated.
   // Only the health data below carries the caller's timestamp.
   encoder.writeFileInfo();

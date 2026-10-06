@@ -2,27 +2,13 @@
  * Types for the `workouts` service (workout templates, per-sport upload
  * helpers, scheduling, and device push).
  *
- * The upstream inventory (`docs/upstream-method-inventory.md`, `workouts`
- * section) documents the six per-sport upload helpers only as "`dict` built
- * from `workout.to_dict()` of a pydantic `RunningWorkout`/`CyclingWorkout`/...
- * model" — it does not give the model's field-level shape. That shape was
- * NOT invented for this port: it was read directly from upstream's own
- * source, `garminconnect/workout.py` in cyberjunky/python-garminconnect
- * (fetched live from GitHub during this task, not from training-data
- * memory), which is the actual implementation the inventory row summarizes.
- * See workouts.ts and task-6-report.md for the full account of this
- * deviation from "transcribe from the inventory table alone".
- *
- * This port has zero runtime dependencies, so there is no pydantic model —
- * these are plain structural interfaces (`extra="allow"` on the upstream
- * models is reflected here as an index signature) and a runtime `TypeError`
- * equivalent (upstream raises if `workout` isn't an instance of the right
- * pydantic class) is NOT reproduced; the six wrappers instead do minimal
- * required-field validation on a plain object. See the workouts.ts module
- * doc comment for the full reasoning.
+ * These are plain structural interfaces: extra fields are allowed (an index
+ * signature), and the per-sport upload helpers do minimal required-field
+ * validation on a plain object rather than checking a class instance. See
+ * the workouts.ts module doc comment.
  */
 
-/** `SportType` IDs — from `/workout-service/workout/types`, transcribed from upstream `workout.py`. */
+/** `SportType` IDs — from `/workout-service/workout/types`. */
 export const WORKOUT_SPORT_TYPE_ID = {
   RUNNING: 1,
   CYCLING: 2,
@@ -35,19 +21,15 @@ export const WORKOUT_SPORT_TYPE_ID = {
   HIIT: 9,
   MULTI_SPORT: 10,
   MOBILITY: 11,
-  /** Live-only: present in Garmin's enum, absent from upstream entirely. */
+  /** Read live from Garmin's enum. */
   RUCKING: 13,
   /**
    * There is deliberately no WALKING or HIKING entry. Garmin's own workout enum
    * (`GET /workout-service/workout/types` -> `workoutSportTypes`) lists only
    * 1,2,3,4,5,6,7,8,9,10,11,13 — no walking or hiking workout sport type exists.
    *
-   * Upstream python-garminconnect's `WalkingWorkout`/`HikingWorkout` send 17 and 18, which look
-   * like Garmin ACTIVITY-type ids mistaken for workout sport types. Garmin ACCEPTS those and
-   * stores `{sportTypeId: 0, sportTypeKey: null}` — a workout with no sport. This port shipped
-   * `uploadWalkingWorkout`/`uploadHikingWorkout` for a while on parity grounds and removed them
-   * on 2026-09-24: a method whose only behaviour is to create a broken record is worse than no
-   * method, and the parity argument does not survive knowing more than upstream does.
+   * Sending 17 or 18 (Garmin ACTIVITY-type ids for walking and hiking) as a workout sport type is
+   * ACCEPTED, but Garmin stores `{sportTypeId: 0, sportTypeKey: null}` — a workout with no sport.
    *
    * For a walk or hike template, use `uploadWorkout` with `OTHER` (3) or `CARDIO_TRAINING` (6).
    */
@@ -55,7 +37,7 @@ export const WORKOUT_SPORT_TYPE_ID = {
 
 /**
  * Swim stroke types — `GET /workout-service/workout/types` -> `workoutStrokeTypes`, read live
- * 2026-09-23. Not modelled upstream. Used as a step's `strokeType`.
+ * 2026-09-23. Used as a step's `strokeType`.
  */
 export const WORKOUT_STROKE_TYPE_ID = {
   ANY_STROKE: 1,
@@ -218,7 +200,7 @@ export const WORKOUT_CONDITION_TYPE_ID = {
   FIXED_REST: 8,
   FIXED_REPETITION: 9,
   REPS: 10,
-  // 11-24 exist in Garmin's live enum but not upstream. Read from
+  // 11-24: read from
   // `GET /workout-service/workout/types` -> `workoutConditionTypes` on 2026-09-23.
   TRAINING_PEAKS_TSS: 11,
   REPETITION_TIME: 12,
@@ -248,7 +230,7 @@ export const WORKOUT_TARGET_TYPE_ID = {
   HEART_RATE_LAP: 8,
   POWER_LAP: 9,
   RESISTANCE: 15,
-  // 10-27 (minus those above) exist in Garmin's live enum but not upstream. Read from
+  // 10-27 (minus those above): read from
   // `GET /workout-service/workout/types` -> `workoutTargetTypes` on 2026-09-23.
   POWER_3S: 10,
   POWER_10S: 11,
@@ -276,7 +258,7 @@ export interface WorkoutTypeRef {
 
 /** One executable workout step (warmup, interval, recovery, cooldown, rest, ...). */
 export interface ExecutableWorkoutStep {
-  type?: string; // default "ExecutableStepDTO" upstream
+  type?: string; // "ExecutableStepDTO"
   stepOrder: number;
   stepType?: WorkoutTypeRef | null;
   endCondition?: WorkoutTypeRef | null;
@@ -285,21 +267,20 @@ export interface ExecutableWorkoutStep {
   strokeType?: WorkoutTypeRef | null;
   equipmentType?: WorkoutTypeRef | null;
   childStepId?: number | null;
-  /** Upstream's pydantic models declare `extra="allow"` on this type. */
+  /** Extra fields are allowed. */
   [key: string]: unknown;
 }
 
 /** A repeat block wrapping a set of steps (e.g. "3x" a warmup+interval pair). */
 export interface RepeatWorkoutGroup {
-  type?: string; // default "RepeatGroupDTO" upstream
+  type?: string; // "RepeatGroupDTO"
   stepOrder: number;
   stepType?: WorkoutTypeRef | null;
   /**
    * The iteration count for a COUNT-based repeat. **Nullable**, because a repeat can instead be
    * TIME-based: Garmin's HIIT designer offers "Repeat Until Time Is", which stores
    * `endCondition: time`, the seconds in `endConditionValue`, and `numberOfIterations: null`.
-   * Confirmed live 2026-09-23. Upstream types this as a plain required number, which cannot
-   * express the time-based form.
+   * Confirmed live 2026-09-23.
    */
   numberOfIterations: number | null;
   workoutSteps: (ExecutableWorkoutStep | RepeatWorkoutGroup)[];
@@ -310,7 +291,7 @@ export interface RepeatWorkoutGroup {
   [key: string]: unknown;
 }
 
-/** One segment of a workout (upstream supports multiple, e.g. for multi-sport workouts). */
+/** One segment of a workout (a workout can have several, e.g. a multi-sport workout). */
 export interface WorkoutSegment {
   segmentOrder: number;
   sportType: WorkoutTypeRef;
@@ -319,9 +300,8 @@ export interface WorkoutSegment {
 }
 
 /**
- * The shape accepted by the six per-sport upload helpers (`uploadRunningWorkout` etc.), mirroring
- * upstream's `BaseWorkout` pydantic model. `sportType` is optional here — each helper fills in the
- * correct default (matching that sport's upstream subclass default) when omitted, but an explicit
+ * The shape accepted by the six per-sport upload helpers (`uploadRunningWorkout` etc.).
+ * `sportType` is optional here — each helper fills in its sport's default when omitted, but an explicit
  * value is passed through unchanged if the caller supplies one.
  */
 export interface WorkoutInput {
@@ -361,8 +341,7 @@ export interface CalendarMonth {
  * type used to be `WorkoutRecord | null`, which was wrong in two ways at once: the response is an
  * ARRAY, and its rows are device-messaging records, not workouts. Nothing caught it because the
  * final POST had never run — the test account has no device, so the call always failed before
- * returning. This is the same "declared shape was never observed" class as the seven inventory
- * rows labelled `dict` that turned out to be arrays.
+ * returning.
  *
  * Pushing the SAME workout again returns `[]`: the message is already queued for that device.
  */

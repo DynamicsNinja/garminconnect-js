@@ -37,7 +37,7 @@ export {
   WORKOUT_STEP_TYPE_ID,
   WORKOUT_CONDITION_TYPE_ID,
   WORKOUT_TARGET_TYPE_ID,
-  // Swim/intensity enums, read live from `GET /workout-service/workout/types` — not in upstream.
+  // Swim/intensity enums, read live from `GET /workout-service/workout/types`.
   WORKOUT_STROKE_TYPE_ID,
   WORKOUT_DRILL_TYPE_ID,
   WORKOUT_EQUIPMENT_TYPE_ID,
@@ -55,7 +55,7 @@ export type * from "./types/trainingPlans.js";
 export type * from "./types/misc.js";
 
 /**
- * Fluent workout builder — NOT upstream parity, a convenience layer over `uploadWorkout`, which
+ * Fluent workout builder — a convenience layer over `uploadWorkout`, which
  * still accepts raw JSON unchanged. See `src/workout-builder.ts`.
  */
 export { buildWorkout, WorkoutBuilder, WorkoutStepList, WORKOUT_SPORTS } from "./workout-builder.js";

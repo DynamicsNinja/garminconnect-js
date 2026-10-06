@@ -99,7 +99,7 @@ const result = await garmin.getAdaptiveWorkout(activityId);
 
 Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
 
-**NOT upstream parity** (path from Taxuspt/garmin_mcp). GETs `/workout-service/fbt-adaptive/{uuid}`: a Garmin Coach workout with segments, steps and `estimatedTrainingEffect`. Coach workouts have no `workoutId`, and `getWorkoutById` cannot fetch them — `/workout-service/workout/{uuid}` is a 404. Take the uuid from `getTrainingPlanWorkouts` or `getScheduledWorkoutSummaries`
+GETs `/workout-service/fbt-adaptive/{uuid}`: a Garmin Coach workout with segments, steps and `estimatedTrainingEffect`. Coach workouts have no `workoutId`, and `getWorkoutById` cannot fetch them — `/workout-service/workout/{uuid}` is a 404. Take the uuid from `getTrainingPlanWorkouts` or `getScheduledWorkoutSummaries`
 
 Verification: ✅ live-verified
 
@@ -208,7 +208,7 @@ An array of `ScheduledWorkoutSummary`:
 
 Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
 
-**NOT upstream parity** (query from Taxuspt/garmin_mcp). POSTs the fixed GraphQL query `workoutScheduleSummariesScalar(startDate, endDate)`: every scheduled workout in the range, plan or self-scheduled (`tpType: null`), as compact rows whose `scheduledWorkoutId` is what `unscheduleWorkout` takes — `null` for a Garmin Coach workout, which also has `tpType: null` like a self-scheduled one (tell them apart by `fbtAdaptivePlanId`). Dates are validated before they are spliced into the query. A GraphQL error arrives as HTTP 200 with `errors`, turned into a `GarminError`. **It LAGS writes**: a just-scheduled workout is in the month feed at once but absent here for a few seconds
+POSTs the fixed GraphQL query `workoutScheduleSummariesScalar(startDate, endDate)`: every scheduled workout in the range, plan or self-scheduled (`tpType: null`), as compact rows whose `scheduledWorkoutId` is what `unscheduleWorkout` takes — `null` for a Garmin Coach workout, which also has `tpType: null` like a self-scheduled one (tell them apart by `fbtAdaptivePlanId`). Dates are validated before they are spliced into the query. A GraphQL error arrives as HTTP 200 with `errors`, turned into a `GarminError`. **It LAGS writes**: a just-scheduled workout is in the month feed at once but absent here for a few seconds
 
 Verification: ✅ live-verified
 
@@ -241,7 +241,7 @@ An array of `TrainingPlanWorkoutSchedule`:
 
 Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
 
-**NOT upstream parity** (query from Taxuspt/garmin_mcp). POSTs GraphQL `trainingPlanScalar(calendarDate, lang, firstDayOfWeek)` — all three arguments are REQUIRED by Garmin — and unwraps `trainingPlanWorkoutScheduleDTOS`: one entry per enrolled plan, `{trainingPlanId, planName, trainingPlanClassification, trainingPlanDetailsDTO, workoutScheduleSummaries}`. Garmin picks the window (18 workouts across several weeks for an ITP plan); `[]` with no plan
+POSTs GraphQL `trainingPlanScalar(calendarDate, lang, firstDayOfWeek)` — all three arguments are REQUIRED by Garmin — and unwraps `trainingPlanWorkoutScheduleDTOS`: one entry per enrolled plan, `{trainingPlanId, planName, trainingPlanClassification, trainingPlanDetailsDTO, workoutScheduleSummaries}`. Garmin picks the window (18 workouts across several weeks for an ITP plan); `[]` with no plan
 
 Verification: ✅ live-verified
 
@@ -332,7 +332,7 @@ An array of `DeviceMessage`:
 | `groupName` | `string | null` | yes |
 | `appDetails` | `unknown` | yes |
 
-multi-call: resolves a missing `deviceId` via `/device-service/deviceservice/mylastused`'s `userDeviceId`, a missing `workoutId` via `getWorkouts(0,1)`'s first result (throws if none), then reads `getWorkoutById(workoutId).workoutName` for the push message; on the final POST
+multi-call: resolves a missing `deviceId` via `/device-service/deviceservice/mylastused`'s `userDeviceId`, a missing `workoutId` via `getWorkouts(0,1)`'s first result (throws if none), then reads `getWorkoutById(workoutId).workoutName` for the push message on the final POST
 
 Verification: ✅ live-verified
 

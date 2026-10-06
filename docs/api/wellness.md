@@ -86,7 +86,7 @@ const result = await garmin.deleteBloodPressure(activityId, "2026-09-24");
 
 `unknown` — Garmin's response is passed through unparsed. Cast it to whatever you need; this library does not model it.
 
-no proven inverse write to round-trip against in this task
+deletes one reading by its `version`, taken from `getBloodPressure`
 
 Verification: ✅ live-verified
 
@@ -245,7 +245,7 @@ An array of `DailyStatsEntry`:
 
 Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
 
-**NOT upstream parity** (endpoint from Taxuspt/garmin_mcp). GETs `/usersummary-service/stats/daily/{start}/{end}?statsType=CALORIES|STEPS`; `statsType` is exactly `"CALORIES"` or `"STEPS"` (any other value, lower-case included, is a Garmin 404). Garmin 400s when `end - start > 27`, so longer ranges are fetched in 28-day windows and the rows concatenated; Garmin's per-request `aggregations` (averages) are DROPPED rather than returned wrong for a chunked range. A range with no data returns `[]` (Garmin answers `null`). Overlaps `getDailySteps`/`getCaloriesDaily`; this one returns total/active/resting calories together, and steps with `totalDistance` and `stepGoal`
+GETs `/usersummary-service/stats/daily/{start}/{end}?statsType=CALORIES|STEPS`; `statsType` is exactly `"CALORIES"` or `"STEPS"` (any other value, lower-case included, is a Garmin 404). Garmin 400s when `end - start > 27`, so longer ranges are fetched in 28-day windows and the rows concatenated; Garmin's per-request `aggregations` (averages) are DROPPED rather than returned wrong for a chunked range. A range with no data returns `[]` (Garmin answers `null`). Overlaps `getDailySteps`/`getCaloriesDaily`; this one returns total/active/resting calories together, and steps with `totalDistance` and `stepGoal`
 
 Verification: ✅ live-verified
 
@@ -605,7 +605,7 @@ const result = await garmin.getStressData("2026-09-24");
 
 `DailyStressData` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
 
-identical URL to `getAllDayStress`
+identical URL to `getAllDayStress`; an alias
 
 Verification: ✅ live-verified
 

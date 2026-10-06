@@ -39,8 +39,7 @@ export async function getWeighIns(
  * NOTE the read/write asymmetry: unlike `getWeighIns` above (which always
  * receives grams from Garmin), this sends `value` as the RAW number in the
  * unit named by `unitKey` — no grams conversion, no rounding. Garmin
- * converts server-side. Upstream python-garminconnect does exactly this
- * (`payload["value"] = weight`); sending a pre-converted gram figure
+ * converts server-side. Sending a pre-converted gram figure
  * alongside `unitKey: "kg"` tells Garmin "this many kilograms" and inflates
  * the stored value by 1000x — confirmed against a live account.
  */
@@ -81,22 +80,19 @@ export async function deleteWeighIn(
  * Same raw-value, no-conversion rule as `addWeighIn` above — `weight` is
  * sent as-is in `value`, in whatever unit `unitKey` names. This method's
  * only difference from `addWeighIn` is that the caller supplies the local
- * and GMT timestamp strings directly (matching upstream's
- * `add_weigh_in_with_timestamps(weight, unitKey, dateTimestamp, gmtTimestamp)`)
- * instead of a single `Date` this library derives both from.
+ * and GMT timestamp strings directly instead of a single `Date` this library
+ * derives both from.
  *
- * The two timestamps are COUPLED, exactly as upstream couples them, and this
- * is the whole subtlety of the method. Upstream resolves the local instant
- * first — from `dateTimestamp` if given, otherwise from now — and then
- * derives GMT from THAT instant (`dtGMT = dt.astimezone(UTC)`) whenever
+ * The two timestamps are COUPLED, and this is the whole subtlety of the
+ * method. The local instant is resolved first — from `dateTimestamp` if
+ * given, otherwise from `when` — and GMT is then derived from THAT instant whenever
  * `gmtTimestamp` is omitted. Deriving the two independently looks equivalent
  * but is not: a caller backdating an entry with `dateTimestamp` alone would
  * get a `gmtTimestamp` pinned to the current moment, silently writing a
  * weigh-in whose two halves describe different days.
  *
- * Both supplied strings are re-formatted rather than forwarded verbatim,
- * again matching upstream, which parses each one and emits `_fmt_ts(...)`.
- * A naive `dateTimestamp` is read as LOCAL time and a naive `gmtTimestamp`
+ * Both supplied strings are parsed and re-formatted rather than forwarded
+ * verbatim. A naive `dateTimestamp` is read as LOCAL time and a naive `gmtTimestamp`
  * as UTC — see `parseIsoLocal`/`parseIsoUtc`.
  */
 export async function addWeighInWithTimestamps(
@@ -140,12 +136,12 @@ export async function getDailyWeighIns(
 }
 
 /**
- * Multi-step, no HTTP path of its own — mirrors upstream's `delete_weigh_ins`:
- * fetches the day's weigh-ins via `getDailyWeighIns`, then:
- *  - if there are none, returns `null` (upstream logs a warning);
+ * Multi-step, no HTTP path of its own: fetches the day's weigh-ins via
+ * `getDailyWeighIns`, then:
+ *  - if there are none, returns `null`;
  *  - if there is more than one and `deleteAll` is not `true`, also returns
- *    `null` without deleting anything (upstream logs a warning instead of
- *    guessing which entry the caller meant);
+ *    `null` without deleting anything (rather than guessing which entry the
+ *    caller meant);
  *  - otherwise deletes every entry on that date via `deleteWeighIn` and
  *    returns the count deleted.
  *

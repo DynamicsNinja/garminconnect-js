@@ -116,11 +116,8 @@ export class Garmin {
 
   // --- userProfile ---
   /**
-   * Upstream `get_userprofile_settings` — `/userprofile-service/userprofile/settings` (SINGULAR
-   * "settings", distinct from `getUserSettings()`'s "user-settings"). Upstream's `get_user_profile`,
-   * `get_full_name`, and `get_unit_system` are NOT ported as separate methods here: they map onto
-   * this port's pre-existing `getUserSettings()`, `fullName()`, and `unitSystem()` respectively —
-   * see the file-level comment in `src/services/userProfile.ts` for the full ruling.
+   * `/userprofile-service/userprofile/settings` (SINGULAR "settings", distinct from
+   * `getUserSettings()`'s "user-settings" — the two paths are one character apart).
    */
   getUserprofileSettings() {
     return userProfile.getUserprofileSettings(this);
@@ -130,7 +127,7 @@ export class Garmin {
   getUserSummary(cdate: string | Date) {
     return wellness.getUserSummary(this, cdate);
   }
-  /** Alias kept for parity with python-garminconnect's get_stats. */
+  /** Alias of getUserSummary. */
   getStats(cdate: string | Date) {
     return wellness.getUserSummary(this, cdate);
   }
@@ -158,7 +155,7 @@ export class Garmin {
   getDailySteps(start: string | Date, end: string | Date) {
     return wellness.getDailySteps(this, start, end);
   }
-  /** NOT upstream parity. Per-day calorie or step totals; ranges over 28 days are chunked. */
+  /** Per-day calorie or step totals; ranges over 28 days are chunked. */
   getDailyStats(start: string | Date, end: string | Date, statsType: DailyStatsType) {
     return wellness.getDailyStats(this, start, end, statsType);
   }
@@ -268,19 +265,19 @@ export class Garmin {
   setActivityDescription(activityId: number | string, description: string) {
     return activities.setActivityDescription(this, activityId, description);
   }
-  /** NOT upstream parity. The event types `setActivityEventType` accepts. */
+  /** The event types `setActivityEventType` accepts. */
   getActivityEventTypes() {
     return activities.getActivityEventTypes(this);
   }
-  /** NOT upstream parity. Files an activity under an event type, e.g. "race" or "training". */
+  /** Files an activity under an event type, e.g. "race" or "training". */
   setActivityEventType(activityId: number | string, eventType: ActivityEventTypeKey) {
     return activities.setActivityEventType(this, activityId, eventType);
   }
-  /** NOT upstream parity. Perceived effort (RPE) 1-10, or `null` to clear it. */
+  /** Perceived effort (RPE) 1-10, or `null` to clear it. */
   setActivityPerceivedEffort(activityId: number | string, rpe: number | null) {
     return activities.setActivityPerceivedEffort(this, activityId, rpe);
   }
-  /** NOT upstream parity. "How did you feel?": 0, 25, 50, 75 or 100, or `null` to clear it. */
+  /** "How did you feel?": 0, 25, 50, 75 or 100, or `null` to clear it. */
   setActivityFeel(activityId: number | string, feel: ActivityFeel | null) {
     return activities.setActivityFeel(this, activityId, feel);
   }
@@ -408,16 +405,15 @@ export class Garmin {
     return gear.getGearStats(this, gearUUID);
   }
   /**
-   * NOT upstream parity — upstream has no delete-gear method. Endpoint discovered by observing
-   * Garmin's own web client; see `src/services/gear.ts`. IRREVERSIBLE.
+   * Endpoint discovered by observing Garmin's own web client; see `src/services/gear.ts`.
+   * IRREVERSIBLE.
    */
   deleteGear(gearUUID: string) {
     return gear.deleteGear(this, gearUUID);
   }
   /**
-   * NOT upstream parity — the replacement for upstream's `set_gear_default`, whose endpoint is
-   * dead and which this port therefore does NOT expose. Uses the v2 full-record PUT Garmin's own
-   * web client uses. See `src/services/gear.ts`.
+   * Sets which activity types default to this gear. Uses the v2 full-record PUT Garmin's own web
+   * client uses (the older dedicated default-gear endpoint is dead). See `src/services/gear.ts`.
    */
   setGearActivityDefaults(gearUUID: string, activityTypeKeys: string[]) {
     return gear.setGearActivityDefaults(this, gearUUID, activityTypeKeys);
@@ -426,7 +422,7 @@ export class Garmin {
     return gear.getGearDefaults(this, userProfileNumber);
   }
 
-  // --- courses (NOT upstream parity — python-garminconnect has no course methods) ---
+  // --- courses ---
   listCourses() {
     return courses.listCourses(this);
   }
@@ -548,9 +544,8 @@ export class Garmin {
     return bodyComposition.getBodyComposition(this, startdate, enddate);
   }
   /**
-   * `add_body_composition` is UNCERTAIN in the inventory — see
-   * `src/services/bodyComposition.ts` for what was (and wasn't) resolved by
-   * reading upstream's `fit.py` directly.
+   * Builds a `.fit` weight-scale file in memory and uploads it — see
+   * `src/services/bodyComposition.ts` and `src/util/fit.ts`.
    */
   addBodyComposition(weight: number, extra?: WeightScaleFields & { timestamp?: string }) {
     return bodyComposition.addBodyComposition(this, weight, extra);
@@ -617,11 +612,11 @@ export class Garmin {
   getHeartRateZones() {
     return metrics.getHeartRateZones(this);
   }
-  /** NOT upstream parity. Changes one heart-rate zone profile and returns it as stored. */
+  /** Changes one heart-rate zone profile and returns it as stored. */
   setHeartRateZones(update: HeartRateZoneUpdate) {
     return metrics.setHeartRateZones(this, update);
   }
-  /** NOT upstream parity. Removes a sport's own zone profile; it falls back to DEFAULT. */
+  /** Removes a sport's own zone profile; it falls back to DEFAULT. */
   deleteHeartRateZones(sport: string) {
     return metrics.deleteHeartRateZones(this, sport);
   }
@@ -681,15 +676,15 @@ export class Garmin {
   unscheduleWorkout(scheduledWorkoutId: number | string) {
     return workouts.unscheduleWorkout(this, scheduledWorkoutId);
   }
-  /** NOT upstream parity. A Garmin Coach workout by its workoutUuid (getWorkoutById cannot). */
+  /** A Garmin Coach workout by its workoutUuid (getWorkoutById cannot). */
   getAdaptiveWorkout(workoutUuid: string) {
     return workouts.getAdaptiveWorkout(this, workoutUuid);
   }
-  /** NOT upstream parity. Every scheduled workout between two dates, as compact summaries. */
+  /** Every scheduled workout between two dates, as compact summaries. */
   getScheduledWorkoutSummaries(startdate: string | Date, enddate: string | Date) {
     return workouts.getScheduledWorkoutSummaries(this, startdate, enddate);
   }
-  /** NOT upstream parity. Enrolled training plans' workouts around a date, grouped by plan. */
+  /** Enrolled training plans' workouts around a date, grouped by plan. */
   getTrainingPlanWorkouts(
     calendarDate: string | Date,
     options?: { firstDayOfWeek?: "monday" | "sunday"; lang?: string },
@@ -697,7 +692,7 @@ export class Garmin {
     return workouts.getTrainingPlanWorkouts(this, calendarDate, options);
   }
 
-  // --- calendar events (NOT upstream parity — python-garminconnect has no event methods) ---
+  // --- calendar events ---
   /** Every event between two dates, inclusive, or every event on the account with no dates. */
   listCalendarEvents(startdate?: string | Date, enddate?: string | Date) {
     return calendar.listCalendarEvents(this, startdate, enddate);
@@ -750,7 +745,7 @@ export class Garmin {
    * account-scoped exemption described in the file-level comment at the top of
    * `src/services/womensHealth.ts` — which also states the default rule that still binds every
    * other account: do not execute this against one whose data matters. There is no delete/undo
-   * endpoint for it anywhere in upstream.
+   * endpoint for it.
    */
   updateMenstrualDailyLog(
     calendarDate: string | Date,
@@ -772,7 +767,7 @@ export class Garmin {
    * account-scoped exemption described in the file-level comment at the top of
    * `src/services/womensHealth.ts` — which also states the default rule that still binds every
    * other account: do not execute this against one whose data matters. There is no delete/undo
-   * endpoint for it anywhere in upstream.
+   * endpoint for it.
    */
   updateMenstrualCalendar(
     startdate: string | Date,
@@ -795,7 +790,7 @@ export class Garmin {
    * account-scoped exemption described in the file-level comment at the top of
    * `src/services/womensHealth.ts` — which also states the default rule that still binds every
    * other account: do not execute this against one whose data matters. There is no delete/undo
-   * endpoint for it anywhere in upstream.
+   * endpoint for it.
    */
   confirmMenstrualPeriodStart(
     periodStartDate: string | Date,
@@ -822,7 +817,7 @@ export class Garmin {
 
   // --- goals ---
   /**
-   * Upstream `get_goals`. Paginated (see `src/services/goals.ts` for the loop, matching
+   * Paginated (see `src/services/goals.ts` for the loop, matching
    * `getActivitiesByDate`'s pattern) and sends the load-bearing `Sec-Fetch-Site: same-origin`
    * header on every request — without it `goal-service` silently returns `[]` for newer
    * accumulation-goal types.
@@ -858,43 +853,43 @@ export class Garmin {
   getNutritionDailySettings(cdate: string | Date) {
     return nutrition.getNutritionDailySettings(this, cdate);
   }
-  /** NOT upstream parity. Daily food logs over a range; works without Connect+. */
+  /** Daily food logs over a range; works without Connect+. */
   getNutritionFoodLogRange(startdate: string | Date, enddate: string | Date) {
     return nutrition.getNutritionFoodLogRange(this, startdate, enddate);
   }
-  /** NOT upstream parity. Food catalogue search. Needs Garmin Connect+. */
+  /** Food catalogue search. Needs Garmin Connect+. */
   searchFoods(query: string, start?: number, limit?: number) {
     return nutrition.searchFoods(this, query, start, limit);
   }
-  /** NOT upstream parity. Your custom foods, optionally filtered by name (limit <= 20). Needs Connect+. */
+  /** Your custom foods, optionally filtered by name (limit <= 20). Needs Connect+. */
   getCustomFoods(search?: string, start?: number, limit?: number) {
     return nutrition.getCustomFoods(this, search, start, limit);
   }
-  /** NOT upstream parity. Serving units a custom food can use. Needs Connect+. */
+  /** Serving units a custom food can use. Needs Connect+. */
   getCustomFoodServingUnits() {
     return nutrition.getCustomFoodServingUnits(this);
   }
-  /** NOT upstream parity. Creates a custom food (per serving). Needs Connect+. */
+  /** Creates a custom food (per serving). Needs Connect+. */
   createCustomFood(input: CustomFoodInput) {
     return nutrition.createCustomFood(this, input);
   }
-  /** NOT upstream parity. FULL REPLACE of a custom food's definition. Needs Connect+. */
+  /** FULL REPLACE of a custom food's definition. Needs Connect+. */
   updateCustomFood(foodId: string, servingId: string, input: CustomFoodInput) {
     return nutrition.updateCustomFood(this, foodId, servingId, input);
   }
-  /** NOT upstream parity. IRREVERSIBLE. Needs Connect+. */
+  /** IRREVERSIBLE. Needs Connect+. */
   deleteCustomFood(foodId: string) {
     return nutrition.deleteCustomFood(this, foodId);
   }
-  /** NOT upstream parity. Logs a catalogue or custom food into a meal. Needs Connect+. */
+  /** Logs a catalogue or custom food into a meal. Needs Connect+. */
   logFood(input: FoodLogInput) {
     return nutrition.logFood(this, input);
   }
-  /** NOT upstream parity. Logs an entry by name and macros ("Quick Add"). Needs Connect+. */
+  /** Logs an entry by name and macros ("Quick Add"). Needs Connect+. */
   quickAddFood(input: QuickAddInput) {
     return nutrition.quickAddFood(this, input);
   }
-  /** NOT upstream parity. Deletes log entries from one day, any number at once. IRREVERSIBLE. */
+  /** Deletes log entries from one day, any number at once. IRREVERSIBLE. */
   deleteFoodLogs(date: string | Date, logIds: string[]) {
     return nutrition.deleteFoodLogs(this, date, logIds);
   }
@@ -909,7 +904,7 @@ export class Garmin {
   getAdaptiveTrainingPlanById(planId: number | string) {
     return trainingPlans.getAdaptiveTrainingPlanById(this, planId);
   }
-  /** NOT upstream parity. Quits an enrolled plan ("Quit Plan"); its workouts leave the calendar. IRREVERSIBLE. */
+  /** Quits an enrolled plan ("Quit Plan"); its workouts leave the calendar. IRREVERSIBLE. */
   deleteTrainingPlan(planId: number | string) {
     return trainingPlans.deleteTrainingPlan(this, planId);
   }

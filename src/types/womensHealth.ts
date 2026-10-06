@@ -1,43 +1,34 @@
 /**
- * Response types for `src/services/womensHealth.ts`. Every read row in the inventory's
- * `womensHealth` section is labelled `returns: dict, null_behaviour: passes through unchecked` with
- * no documented field shape — the test account used for live verification has no cycle-tracking
- * data, so no real payload has ever been observed to shape these against. Honest index signatures
- * only; do not invent fields.
+ * Response types for `src/services/womensHealth.ts`. Every read returns an object, passed through
+ * unchecked, with no documented field shape. Honest index signatures only; do not invent fields.
  */
 
-/** `GET /periodichealth-service/menstrualcycle/dayview/{fordate}` (`get_menstrual_data_for_date`). */
+/** `GET /periodichealth-service/menstrualcycle/dayview/{fordate}`. */
 export interface MenstrualDayView {
   [key: string]: unknown;
 }
 
-/**
- * `GET /periodichealth-service/menstrualcycle/calendar/{startdate}/{enddate}`
- * (`get_menstrual_calendar_data`).
- */
+/** `GET /periodichealth-service/menstrualcycle/calendar/{startdate}/{enddate}`. */
 export interface MenstrualCalendarData {
   [key: string]: unknown;
 }
 
-/** `GET /periodichealth-service/menstrualcycle/lastconfirmed/{fordate}` (`get_menstrual_last_confirmed`). */
+/** `GET /periodichealth-service/menstrualcycle/lastconfirmed/{fordate}`. */
 export interface MenstrualLastConfirmed {
   [key: string]: unknown;
 }
 
-/** `GET /periodichealth-service/menstrualcycle/summary/{fordate}` (`get_menstrual_cycle_summary`). */
+/** `GET /periodichealth-service/menstrualcycle/summary/{fordate}`. */
 export interface MenstrualCycleSummary {
   [key: string]: unknown;
 }
 
-/**
- * `GET /periodichealth-service/reports/menstrualcycle/{number_of_cycles}/{fordate}`
- * (`get_menstrual_reports`).
- */
+/** `GET /periodichealth-service/reports/menstrualcycle/{numberOfCycles}/{fordate}`. */
 export interface MenstrualReports {
   [key: string]: unknown;
 }
 
-/** `GET /periodichealth-service/menstrualcycle/pregnancysnapshot` (`get_pregnancy_summary`). */
+/** `GET /periodichealth-service/menstrualcycle/pregnancysnapshot`. */
 export interface PregnancySummary {
   [key: string]: unknown;
 }

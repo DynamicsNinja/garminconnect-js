@@ -6,7 +6,7 @@
  *
  * Why this exists: Garmin validates the two halves of an exercise differently. A bad `category`
  * 400s the whole upload — loud. A bad `exerciseName` is accepted and STORED AS `""` — silent. So a
- * name list assembled from any source (the web picker's DOM, the translations bundle, upstream)
+ * name list assembled from any source (the web picker's DOM, the translations bundle, other libraries)
  * is a list of CANDIDATES until the server has echoed each one back.
  *
  * Categories are probed one per workout, because a bad one takes the whole upload down with it.

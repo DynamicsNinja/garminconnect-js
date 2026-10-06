@@ -1,5 +1,5 @@
 /**
- * Garmin's SSO web widget (`/sso/embed` + `/sso/signin`): the HTML form sign-in garth used before
+ * Garmin's SSO web widget (`/sso/embed` + `/sso/signin`): the HTML form sign-in, an alternative to
  * the mobile JSON API. It sends no `clientId`, so it sits outside the rate-limit bucket that
  * blocks the mobile route, and `login()` falls back to it when that route answers 429.
  */

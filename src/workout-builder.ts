@@ -1,8 +1,7 @@
 /**
  * A fluent builder for Garmin workouts.
  *
- * **NOT upstream parity** — upstream python-garminconnect has no equivalent. This is a convenience
- * layer over `uploadWorkout`, which still accepts raw JSON exactly as before. Nothing here changes
+ * This is a convenience layer over `uploadWorkout`, which still accepts raw JSON exactly as before. Nothing here changes
  * the wire format; `build()` returns the same `WorkoutInput` you would have written by hand.
  *
  * It exists because hand-writing that JSON has four traps, all of which were found the hard way by
@@ -73,7 +72,7 @@ const SPORTS = {
 
 /**
  * Sports you can build a workout for. Deliberately EXCLUDES walking and hiking: Garmin has no
- * workout sport type for either, and sending upstream's ids (17/18) produces a workout with
+ * workout sport type for either, and sending activity-type ids (17/18) produces a workout with
  * `sportTypeKey: null`. See `WORKOUT_SPORT_TYPE_ID`'s doc comment.
  */
 export type WorkoutSport = keyof typeof SPORTS;

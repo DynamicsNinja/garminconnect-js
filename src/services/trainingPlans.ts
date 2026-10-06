@@ -12,7 +12,7 @@ export interface TrainingPlansHost {
 }
 
 /**
- * Upstream `get_training_plans`. `null_behaviour`: passes through unchecked. No parameters.
+ * Passes Garmin's response through unchecked. No parameters.
  */
 export async function getTrainingPlans(
   host: TrainingPlansHost,
@@ -23,7 +23,7 @@ export async function getTrainingPlans(
 }
 
 /**
- * Upstream `get_training_plan_by_id`. `null_behaviour`: passes through unchecked.
+ * Passes Garmin's response through unchecked.
  */
 export async function getTrainingPlanById(
   host: TrainingPlansHost,
@@ -35,7 +35,7 @@ export async function getTrainingPlanById(
 }
 
 /**
- * Upstream `get_adaptive_training_plan_by_id`. `null_behaviour`: passes through unchecked. Note
+ * Passes Garmin's response through unchecked. Note
  * the distinct sub-path (`fbt-adaptive`) from `getTrainingPlanById`'s `phased` path.
  */
 export async function getAdaptiveTrainingPlanById(
@@ -50,7 +50,7 @@ export async function getAdaptiveTrainingPlanById(
 /**
  * Quits (removes) an enrolled training plan: `DELETE /trainingplan-service/trainingplan/trainingplan/{planId}`
  * — `trainingplan` twice, the request Garmin Connect's "Quit Plan" sends. Resolves to `null` (204).
- * NOT upstream parity. Its scheduled workouts leave the calendar; activities already done during
+ * Its scheduled workouts leave the calendar; activities already done during
  * the plan are kept (Garmin's own confirmation says so). IRREVERSIBLE. `planId` is a plan's
  * `trainingPlanId` from `getTrainingPlans`.
  */

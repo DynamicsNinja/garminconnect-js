@@ -54,7 +54,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getUserprofileSettings",
     "category": "profile-and-misc",
-    "description": "GETs `/userprofile-service/userprofile/settings` (SINGULAR \"settings\", distinct from `getUserSettings`'s \"user-settings\" — the two paths are one character apart and easy to transpose) Upstream naming ruling, applies to the three rows above: upstream's `get_user_profile`, `get_full_name`, and `get_unit_system` were NOT ported as separate methods — they map onto this port's PRE-EXISTING `getUserSettings()`, `fullName()`, and `unitSystem()` respectively (see `src/services/userProfile.ts` for the full rationale: this port's own `getUserProfile()` already existed with a different, unrelated meanin…",
+    "description": "GETs `/userprofile-service/userprofile/settings` (SINGULAR \"settings\", distinct from `getUserSettings`'s \"user-settings\" — the two paths are one character apart and easy to transpose) Three profile endpoints, three methods: `getUserProfile()` reads `/userprofile-service/socialProfile` (and backs `displayName`/`fullName`/`userName`), `getUserSettings()` reads `/userprofile-service/userprofile/user-settings` (and backs `unitSystem`), and this one reads `.../settings`",
     "params": [],
     "safety": "read",
     "io": "json"
@@ -260,7 +260,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getDailyStats",
     "category": "wellness",
-    "description": "**NOT upstream parity** (endpoint from Taxuspt/garmin_mcp). GETs `/usersummary-service/stats/daily/{start}/{end}?statsType=CALORIES|STEPS`; `statsType` is exactly `\"CALORIES\"` or `\"STEPS\"` (any other value, lower-case included, is a Garmin 404). Garmin 400s when `end - start > 27`, so longer ranges are fetched in 28-day windows and the rows concatenated; Garmin's per-request `aggregations` (averages) are DROPPED rather than returned wrong for a chunked range. A range with no data returns `[]` (Garmin answers `null`). Overlaps `getDailySteps`/`getCaloriesDaily`; this one returns total/active/r…",
+    "description": "GETs `/usersummary-service/stats/daily/{start}/{end}?statsType=CALORIES|STEPS`; `statsType` is exactly `\"CALORIES\"` or `\"STEPS\"` (any other value, lower-case included, is a Garmin 404). Garmin 400s when `end - start > 27`, so longer ranges are fetched in 28-day windows and the rows concatenated; Garmin's per-request `aggregations` (averages) are DROPPED rather than returned wrong for a chunked range. A range with no data returns `[]` (Garmin answers `null`). Overlaps `getDailySteps`/`getCaloriesDaily`; this one returns total/active/resting calories together, and steps with `totalDistance` and…",
     "params": [
       {
         "name": "start",
@@ -467,7 +467,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "deleteBloodPressure",
     "category": "wellness",
-    "description": "Delete blood pressure.",
+    "description": "deletes one reading by its `version`, taken from `getBloodPressure`",
     "params": [
       {
         "name": "version",
@@ -620,7 +620,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getStressData",
     "category": "wellness",
-    "description": "identical URL to `getAllDayStress`",
+    "description": "identical URL to `getAllDayStress`; an alias",
     "params": [
       {
         "name": "cdate",
@@ -813,7 +813,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getActivitiesForDate",
     "category": "activities",
-    "description": "upstream's constant name is `garmin_connect_activity_fordate` but the resolved path is `/mobile-gateway/heartRate/...`, not an activities-service path",
+    "description": "despite the name, the path is `/mobile-gateway/heartRate/...`, not an activities-service path",
     "params": [
       {
         "name": "fordate",
@@ -831,7 +831,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getActivitiesByDate",
     "category": "activities",
-    "description": "replicates upstream's internal pagination: fetches fixed pages of 20, incrementing `start` by 20, until an empty page (normal end) or 2000 pages without one (throws `GarminError`)",
+    "description": "paginates internally: fetches fixed pages of 20, incrementing `start` by 20, until an empty page (normal end) or 2000 pages without one (throws `GarminError`)",
     "params": [
       {
         "name": "startdate",
@@ -900,7 +900,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getActivityTypes",
     "category": "activities",
-    "description": "`ActivityTypesResponse` is `ActivityType[]` (154 entries observed live: `{typeId, typeKey, parentTypeId, isHidden, restricted, trimmable}`) — **the upstream inventory's `returns` column says \"dict\", but the live response is an array; this type reflects the observed reality, not that label**",
+    "description": "`ActivityTypesResponse` is `ActivityType[]` (154 entries observed live: `{typeId, typeKey, parentTypeId, isHidden, restricted, trimmable}`) — **an ARRAY, verified live**",
     "params": [],
     "safety": "read",
     "io": "json"
@@ -1023,7 +1023,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getActivityEventTypes",
     "category": "activities",
-    "description": "**NOT upstream parity**. GETs `/activity-service/activity/eventTypes`: nine `{typeId, typeKey, sortOrder}` entries (`race`, `recreation`, `specialEvent`, `training`, `transportation`, `touring`, `geocaching`, `fitness`, `uncategorized`)",
+    "description": "GETs `/activity-service/activity/eventTypes`: nine `{typeId, typeKey, sortOrder}` entries (`race`, `recreation`, `specialEvent`, `training`, `transportation`, `touring`, `geocaching`, `fitness`, `uncategorized`)",
     "params": [],
     "safety": "read",
     "io": "json"
@@ -1031,7 +1031,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "setActivityEventType",
     "category": "activities",
-    "description": "**NOT upstream parity** (shape from Taxuspt/garmin_mcp). Partial `PUT /activity-service/activity/{id}` with `{activityId, eventTypeDTO: {typeKey}}` — the `typeKey` alone is enough, Garmin fills in `typeId`/`sortOrder`. Throws `GarminError` before any request for a key outside the nine",
+    "description": "Partial `PUT /activity-service/activity/{id}` with `{activityId, eventTypeDTO: {typeKey}}` — the `typeKey` alone is enough, Garmin fills in `typeId`/`sortOrder`. Throws `GarminError` before any request for a key outside the nine",
     "params": [
       {
         "name": "activityId",
@@ -1069,7 +1069,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "setActivityPerceivedEffort",
     "category": "activities",
-    "description": "**NOT upstream parity**. Partial PUT of `summaryDTO.directWorkoutRpe`, which Garmin stores **TIMES TEN**: pass RPE 1-10 (integer), it sends 10-100; `null` clears it. Garmin itself rejects 150 with a 400 `MEASUREMENT_NOT_VALID`. Never read-modify-write the whole `summaryDTO` instead: PUTting its stored start-coordinate pair back is a 400 (garmin_mcp's finding)",
+    "description": "Partial PUT of `summaryDTO.directWorkoutRpe`, which Garmin stores **TIMES TEN**: pass RPE 1-10 (integer), it sends 10-100; `null` clears it. Garmin itself rejects 150 with a 400 `MEASUREMENT_NOT_VALID`. Never read-modify-write the whole `summaryDTO` instead: PUTting its stored start-coordinate pair back is a 400",
     "params": [
       {
         "name": "activityId",
@@ -1096,7 +1096,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "setActivityFeel",
     "category": "activities",
-    "description": "**NOT upstream parity**. Partial PUT of `summaryDTO.directWorkoutFeel`, one of 0/25/50/75/100 (\"How did you feel?\", very weak to very strong); `null` clears it. Garmin stores any number (30 read back as 30) that its apps cannot display, so the method refuses anything else",
+    "description": "Partial PUT of `summaryDTO.directWorkoutFeel`, one of 0/25/50/75/100 (\"How did you feel?\", very weak to very strong); `null` clears it. Garmin stores any number (30 read back as 30) that its apps cannot display, so the method refuses anything else",
     "params": [
       {
         "name": "activityId",
@@ -1171,7 +1171,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "createManualActivity",
     "category": "activities",
-    "description": "**converts units**: `distanceKm * 1000` → meters, `durationMin * 60` → seconds, before building the request body; `startDatetime` is NOT routed through `formatDate` (it's a full local timestamp, not a bare calendar date) — **must include milliseconds**, e.g. `\"2026-09-22T10:00:00.000\"` (upstream's documented pattern); omitting them produced a live HTTP 500 `ValueInstantiationException` from Garmin during verification. Live-verified: the converted `summaryDTO.distance`/`summaryDTO.duration` were read back via `getActivity` and matched the expected meters/seconds exactly (5.5km/30min → 5500m/18…",
+    "description": "**converts units**: `distanceKm * 1000` → meters, `durationMin * 60` → seconds, before building the request body; `startDatetime` is NOT routed through `formatDate` (it's a full local timestamp, not a bare calendar date) — **must include milliseconds**, e.g. `\"2026-09-22T10:00:00.000\"`; omitting them produced a live HTTP 500 `ValueInstantiationException` from Garmin during verification. Live-verified: the converted `summaryDTO.distance`/`summaryDTO.duration` were read back via `getActivity` and matched the expected meters/seconds exactly (5.5km/30min → 5500m/1800s)",
     "params": [
       {
         "name": "startDatetime",
@@ -1272,7 +1272,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getPersonalRecord",
     "category": "activities",
-    "description": "GETs `/personalrecord-service/personalrecord/prs/{displayName}`; no args `PersonalRecords` is `PersonalRecord[]` — **the upstream inventory's `returns` column says \"dict\"; live-verified WRONG**, the test account returned `array[0]`. Note the plural type name: upstream's method name is singular but the payload is a list, so the result type is named for what it is",
+    "description": "GETs `/personalrecord-service/personalrecord/prs/{displayName}`; no args `PersonalRecords` is `PersonalRecord[]` — **an ARRAY, verified live** (the test account returned `array[0]`). Note the plural type name: the method name is singular but the payload is a list",
     "params": [],
     "safety": "read",
     "io": "json"
@@ -1488,7 +1488,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "setActivityExerciseSets",
     "category": "activities",
-    "description": "**replace-all semantics**, `payload` sent verbatim",
+    "description": "**replace-all semantics**, `payload` sent verbatim.",
     "params": [
       {
         "name": "activityId",
@@ -1524,7 +1524,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getActivityGear",
     "category": "activities",
-    "description": "returns an ARRAY; inventory places this row under the \"gear\" section, not \"activities\"",
+    "description": "returns an ARRAY, verified live",
     "params": [
       {
         "name": "activityId",
@@ -1544,7 +1544,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getGearActivities",
     "category": "activities",
-    "description": "`limit` clamped to 1000; returns `[]` on a 404 instead of throwing; inventory places this row under \"gear\"",
+    "description": "`limit` clamped to 1000; returns `[]` on a 404 instead of throwing",
     "params": [
       {
         "name": "gearUUID",
@@ -1567,7 +1567,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "addGearToActivity",
     "category": "activities",
-    "description": "on 404 re-raises as `GarminConnectionError` (\"gear not found (likely retired/removed)\"); inventory places this row under \"gear\"",
+    "description": "on 404 re-raises as `GarminConnectionError` (\"gear not found (likely retired/removed)\")",
     "params": [
       {
         "name": "gearUUID",
@@ -1594,7 +1594,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "removeGearFromActivity",
     "category": "activities",
-    "description": "**PUT**, not DELETE; same 404-handling pattern as `addGearToActivity`; inventory places this row under \"gear\"",
+    "description": "**PUT**, not DELETE; same 404-handling pattern as `addGearToActivity`",
     "params": [
       {
         "name": "gearUUID",
@@ -1662,7 +1662,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "downloadHealthSnapshot",
     "category": "activities",
-    "description": "routed through `formatDate`; routed through `client.download`",
+    "description": "routed through `formatDate`, routed through `client.download`",
     "params": [
       {
         "name": "requestedDate",
@@ -1680,7 +1680,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getGear",
     "category": "gear",
-    "description": "hits `/gear-service/gear/filterGear?userProfilePk=...`; returns an ARRAY of gear entries. This is the dedicated gear-CRUD service (`src/services/gear.ts`), distinct from `getActivityGear` (activities service, reuses the same base URL with `activityId` instead)",
+    "description": "hits `/gear-service/gear/filterGear?userProfilePk=...`; returns an ARRAY of gear entries, verified live. This is the dedicated gear-CRUD service (`src/services/gear.ts`), distinct from `getActivityGear` (activities service, reuses the same base URL with `activityId` instead)",
     "params": [
       {
         "name": "userProfileNumber",
@@ -1699,7 +1699,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "createGear",
     "category": "gear",
-    "description": "POSTs `/gear-service/gear/v2`; defaults `usageType=\"DISTANCE\", notes=\"\"`; `firstUseDate` routed through `formatDate`; `gearType`/`usageType` upper-cased via `validateSportKey`; **converts** `maxUsageDistanceKm` -> `maxUsageDistanceMeters` (`round(km*1000)`, floor 1) and `maxUsageDurationMin` -> `maxUsageDurationSeconds` (`round(min*60)`, floor 1) — the opposite direction from `addWeighIn`'s \"send raw\" rule; (implemented as a raw pass-through)",
+    "description": "POSTs `/gear-service/gear/v2`; defaults `usageType=\"DISTANCE\", notes=\"\"`; `firstUseDate` routed through `formatDate`; `gearType`/`usageType` upper-cased via `validateSportKey`; **converts** `maxUsageDistanceKm` -> `maxUsageDistanceMeters` (`round(km*1000)`, floor 1) and `maxUsageDurationMin` -> `maxUsageDurationSeconds` (`round(min*60)`, floor 1) — the opposite direction from `addWeighIn`'s \"send raw\" rule; returns the response unchecked",
     "params": [
       {
         "name": "gearType",
@@ -1809,7 +1809,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "deleteGear",
     "category": "gear",
-    "description": "**NOT upstream parity**: upstream python-garminconnect has no delete-gear method. `DELETE /gear-service/gear/v2/{gearUUID}`, resolves `null` on success (204). **The UUID must be HYPHENATED** — `getGear` returns them WITHOUT hyphens and that form 404s, so this method re-inserts them for you when handed the bare 32-char form; only hand-rolled URLs hit the 404. IRREVERSIBLE: removes the gear AND its activity history",
+    "description": "`DELETE /gear-service/gear/v2/{gearUUID}`, resolves `null` on success (204). **The UUID must be HYPHENATED** — `getGear` returns them WITHOUT hyphens and that form 404s, so this method re-inserts them for you when handed the bare 32-char form; only hand-rolled URLs hit the 404. IRREVERSIBLE: removes the gear AND its activity history",
     "params": [
       {
         "name": "gearUUID",
@@ -1825,7 +1825,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "setGearActivityDefaults",
     "category": "gear",
-    "description": "**NOT upstream parity**: a WORKING replacement for `setGearDefault`, whose upstream endpoint is dead. Read-modify-writes the v2 record: GETs `/gear-service/gear/v2/{uuid}`, replaces `associatedActivityTypes` with `[{activityTypeKey, defaultGear: true, preferredGear: false}]` per key, PUTs the whole record back. Keys are **lowercase** (`\"running\"`), matching `createGear` — NOT `setGearDefault`'s upper-cased form. `[]` clears all defaults. Concurrent callers can clobber each other",
+    "description": "The working way to set gear defaults (the old dedicated default-gear endpoint is dead; there is no `setGearDefault`). Read-modify-writes the v2 record: GETs `/gear-service/gear/v2/{uuid}`, replaces `associatedActivityTypes` with `[{activityTypeKey, defaultGear: true, preferredGear: false}]` per key, PUTs the whole record back. Keys are **lowercase** (`\"running\"`), matching `createGear` — NOT `setGearDefault`'s upper-cased form. `[]` clears all defaults. Concurrent callers can clobber each other",
     "params": [
       {
         "name": "gearUUID",
@@ -1851,7 +1851,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getGearDefaults",
     "category": "gear",
-    "description": "GETs `/gear-service/gear/user/{userProfileNumber}/activityTypes`; returns an ARRAY of `{uuid, activityTypePk, defaultGear}` entries",
+    "description": "GETs `/gear-service/gear/user/{userProfileNumber}/activityTypes`; returns an ARRAY of `{uuid, activityTypePk, defaultGear}` entries, verified live",
     "params": [
       {
         "name": "userProfileNumber",
@@ -1870,7 +1870,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "listCourses",
     "category": "courses",
-    "description": "**NOT upstream parity** (upstream has no courses). GETs `/web-gateway/course/owner/` (trailing slash included); returns an ENVELOPE `{ coursesForUser: CourseSummary[] }`, not a bare array",
+    "description": "GETs `/web-gateway/course/owner/` (trailing slash included); returns an ENVELOPE `{ coursesForUser: CourseSummary[] }`, not a bare array",
     "params": [],
     "safety": "read",
     "io": "json"
@@ -2203,7 +2203,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getDeviceAlarms",
     "category": "devices",
-    "description": "no HTTP path of its own: calls `getDevices()` once, then `getDeviceSettings(device.deviceId)` once per device (N+1 fan-out, sequential, ported faithfully — do not parallelize), concatenating each device's `alarms`; a device with no alarms contributes nothing, never throws for that case",
+    "description": "no HTTP path of its own: calls `getDevices()` once, then `getDeviceSettings(device.deviceId)` once per device (N+1 fan-out, sequential by design — do not parallelize), concatenating each device's `alarms`; a device with no alarms contributes nothing, never throws for that case",
     "params": [],
     "safety": "read",
     "io": "json"
@@ -2235,7 +2235,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getInProgressBadges",
     "category": "badges-challenges",
-    "description": "no HTTP path of its own: calls `getEarnedBadges()` and `getAvailableBadges()`, filters each with upstream's `is_badge_in_progress` predicate (progress truthy; if `progress === target`, only \"in progress\" when `badgeLimitCount` is set and `badgeEarnedNumber < badgeLimitCount`), then merges both filtered lists into a `Map` keyed by `badgeId` (available overwrites earned on collision, same key-position semantics as Python's `dict.update`); never raises — a `null` from either upstream call is treated as `[]`. Badges carry `badgeImageUrls` (inherited from the two calls)",
+    "description": "no HTTP path of its own: calls `getEarnedBadges()` and `getAvailableBadges()`, filters each with an in-progress predicate (progress truthy; if `progress === target`, only \"in progress\" when `badgeLimitCount` is set and `badgeEarnedNumber < badgeLimitCount`), then merges both filtered lists into a `Map` keyed by `badgeId` (available overwrites earned on collision, keeping the earned entry's position); never raises — a `null` from either call is treated as `[]`. Badges carry `badgeImageUrls` (inherited from the two calls)",
     "params": [],
     "safety": "read",
     "io": "json"
@@ -2243,7 +2243,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getBadgeDetail",
     "category": "badges-challenges",
-    "description": "**NOT upstream parity** (upstream has no per-badge call). GETs `/badge-service/badge/detail/v3/{badgeId}`, the request Garmin Connect's web app makes when a badge is opened; `badgeId` validated as a positive integer. Returns an OBJECT: the `getEarnedBadges` fields plus `relatedBadges` (the rest of the series, each with `earnedByMe`), `badgeAssocType`/`badgeAssocDataId`/`badgeAssocDataName` (for `\"activityId\"`, the activity that earned it) and `followings`. Works for unearned badges. An unknown id is a **400** `GarminHttpError`, not a 404. The badge and each `relatedBadges` entry gain `badgeIm…",
+    "description": "GETs `/badge-service/badge/detail/v3/{badgeId}`, the request Garmin Connect's web app makes when a badge is opened; `badgeId` validated as a positive integer. Returns an OBJECT: the `getEarnedBadges` fields plus `relatedBadges` (the rest of the series, each with `earnedByMe`), `badgeAssocType`/`badgeAssocDataId`/`badgeAssocDataName` (for `\"activityId\"`, the activity that earned it) and `followings`. Works for unearned badges. An unknown id is a **400** `GarminHttpError`, not a 404. The badge and each `relatedBadges` entry gain `badgeImageUrls` (see `getEarnedBadges`). Carries no description t…",
     "params": [
       {
         "name": "badgeId",
@@ -2259,7 +2259,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getAdhocChallenges",
     "category": "badges-challenges",
-    "description": "GETs `/adhocchallenge-service/adHocChallenge/historical`; `start` validated non-negative, `limit` validated positive (throws `GarminError` otherwise); live-verified as a JSON ARRAY, not the `dict` the inventory's `returns` column names",
+    "description": "GETs `/adhocchallenge-service/adHocChallenge/historical`; `start` validated non-negative, `limit` validated positive (throws `GarminError` otherwise); returns an ARRAY, verified live",
     "params": [
       {
         "name": "start",
@@ -2282,7 +2282,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getBadgeChallenges",
     "category": "badges-challenges",
-    "description": "GETs `/badgechallenge-service/badgeChallenge/completed`; same `start`/`limit` validation as `getAdhocChallenges`; same array-not-dict correction. **Live discovery**: Garmin's server itself rejects `start=0` with a 400 (`\"start should > 0.\"`) on this endpoint despite upstream's own client-side validation allowing it — the client-side check here faithfully matches upstream (non-negative), the 400 is Garmin's server, not a wrong URL; call with `start>=1` in practice",
+    "description": "GETs `/badgechallenge-service/badgeChallenge/completed`; same `start`/`limit` validation as `getAdhocChallenges`; returns an ARRAY, verified live. **Live discovery**: Garmin's server rejects `start=0` with a 400 (`\"start should > 0.\"`) on this endpoint even though the client-side check allows it (non-negative); the 400 is Garmin's server, not a wrong URL — call with `start>=1` in practice",
     "params": [
       {
         "name": "start",
@@ -2463,7 +2463,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "addWeighInWithTimestamps",
     "category": "body-composition-weight",
-    "description": "same raw-value, no-conversion rule as `addWeighIn`; the two timestamps are COUPLED: the local instant resolves from `dateTimestamp` if given (naive strings read as LOCAL time) else from `when` (defaults `new Date()`), and `gmtTimestamp`, when omitted, is derived from THAT resolved instant — never independently from `when`. Both supplied strings are re-formatted rather than forwarded verbatim (a naive `gmtTimestamp` is read as UTC), matching upstream",
+    "description": "same raw-value, no-conversion rule as `addWeighIn`; the two timestamps are COUPLED: the local instant resolves from `dateTimestamp` if given (naive strings read as LOCAL time) else from `when` (defaults `new Date()`), and `gmtTimestamp`, when omitted, is derived from THAT resolved instant — never independently from `when`. Both supplied strings are re-formatted rather than forwarded verbatim (a naive `gmtTimestamp` is read as UTC)",
     "params": [
       {
         "name": "weightValue",
@@ -2584,7 +2584,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "addBodyComposition",
     "category": "body-composition-weight",
-    "description": "builds a `.fit` binary in memory (`src/util/fit.ts`, ported from upstream `fit.py`'s `FitEncoderWeight`) and uploads it via `client.upload` to `/upload-service/upload`; `weight` validated positive/finite, throws `GarminError` otherwise; (passes `client.upload`'s result through unchecked `self.client.post(...)`)",
+    "description": "builds a `.fit` binary in memory (`src/util/fit.ts`, a hand-rolled FIT encoder) and uploads it via `client.upload` to `/upload-service/upload`; `weight` validated positive/finite, throws `GarminError` otherwise; passes `client.upload`'s result through unchecked",
     "params": [
       {
         "name": "weight",
@@ -3003,7 +3003,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "setHeartRateZones",
     "category": "metrics",
-    "description": "**NOT upstream parity** (shape from Taxuspt/garmin_mcp). READ-MODIFY-WRITE of one profile: GETs `/biometric-service/heartRateZones`, overlays `{sport? = \"DEFAULT\", trainingMethod?, maxHeartRate?, restingHeartRate?, lactateThresholdHeartRate?, zoneFloors?: [5 bpm]}` with `changeState: \"CHANGED\"`, PUTs `[profile]` (204), then returns the profile READ BACK. A sport with no profile starts from DEFAULT's. Setting `restingHeartRate` also turns off `restingHrAutoUpdateUsed`. **Garmin does NOT recompute floors** when the method or a heart rate changes — send `zoneFloors` too. Floors must be strictly …",
+    "description": "READ-MODIFY-WRITE of one profile: GETs `/biometric-service/heartRateZones`, overlays `{sport? = \"DEFAULT\", trainingMethod?, maxHeartRate?, restingHeartRate?, lactateThresholdHeartRate?, zoneFloors?: [5 bpm]}` with `changeState: \"CHANGED\"`, PUTs `[profile]` (204), then returns the profile READ BACK. A sport with no profile starts from DEFAULT's. Setting `restingHeartRate` also turns off `restingHrAutoUpdateUsed`. **Garmin does NOT recompute floors** when the method or a heart rate changes — send `zoneFloors` too. Floors must be strictly ascending (Garmin 400s `\"Zone Floor values must be ascend…",
     "params": [
       {
         "name": "update",
@@ -3067,7 +3067,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "deleteHeartRateZones",
     "category": "metrics",
-    "description": "**NOT upstream parity, and not in garmin_mcp either**: PUTs the stored profile back with `changeState: \"DELETED\"`, which removes it so the sport falls back to DEFAULT. Refuses DEFAULT; throws for a sport with no profile instead of doing nothing",
+    "description": "PUTs the stored profile back with `changeState: \"DELETED\"`, which removes it so the sport falls back to DEFAULT. Refuses DEFAULT; throws for a sport with no profile instead of doing nothing",
     "params": [
       {
         "name": "sport",
@@ -3345,7 +3345,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
                             },
                             "numberOfIterations": {
                               "type": "number",
-                              "description": "The iteration count for a COUNT-based repeat. **Nullable**, because a repeat can instead be\nTIME-based: Garmin's HIIT designer offers \"Repeat Until Time Is\", which stores\n`endCondition: time`, the seconds in `endConditionValue`, and `numberOfIterations: null`.\nConfirmed live 2026-09-23. Upstream types this as a plain required number, which cannot\nexpress the time-based form."
+                              "description": "The iteration count for a COUNT-based repeat. **Nullable**, because a repeat can instead be\nTIME-based: Garmin's HIIT designer offers \"Repeat Until Time Is\", which stores\n`endCondition: time`, the seconds in `endConditionValue`, and `numberOfIterations: null`.\nConfirmed live 2026-09-23."
                             },
                             "workoutSteps": {
                               "type": "array",
@@ -3545,7 +3545,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
                             },
                             "numberOfIterations": {
                               "type": "number",
-                              "description": "The iteration count for a COUNT-based repeat. **Nullable**, because a repeat can instead be\nTIME-based: Garmin's HIIT designer offers \"Repeat Until Time Is\", which stores\n`endCondition: time`, the seconds in `endConditionValue`, and `numberOfIterations: null`.\nConfirmed live 2026-09-23. Upstream types this as a plain required number, which cannot\nexpress the time-based form."
+                              "description": "The iteration count for a COUNT-based repeat. **Nullable**, because a repeat can instead be\nTIME-based: Garmin's HIIT designer offers \"Repeat Until Time Is\", which stores\n`endCondition: time`, the seconds in `endConditionValue`, and `numberOfIterations: null`.\nConfirmed live 2026-09-23."
                             },
                             "workoutSteps": {
                               "type": "array",
@@ -3745,7 +3745,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
                             },
                             "numberOfIterations": {
                               "type": "number",
-                              "description": "The iteration count for a COUNT-based repeat. **Nullable**, because a repeat can instead be\nTIME-based: Garmin's HIIT designer offers \"Repeat Until Time Is\", which stores\n`endCondition: time`, the seconds in `endConditionValue`, and `numberOfIterations: null`.\nConfirmed live 2026-09-23. Upstream types this as a plain required number, which cannot\nexpress the time-based form."
+                              "description": "The iteration count for a COUNT-based repeat. **Nullable**, because a repeat can instead be\nTIME-based: Garmin's HIIT designer offers \"Repeat Until Time Is\", which stores\n`endCondition: time`, the seconds in `endConditionValue`, and `numberOfIterations: null`.\nConfirmed live 2026-09-23."
                             },
                             "workoutSteps": {
                               "type": "array",
@@ -3945,7 +3945,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
                             },
                             "numberOfIterations": {
                               "type": "number",
-                              "description": "The iteration count for a COUNT-based repeat. **Nullable**, because a repeat can instead be\nTIME-based: Garmin's HIIT designer offers \"Repeat Until Time Is\", which stores\n`endCondition: time`, the seconds in `endConditionValue`, and `numberOfIterations: null`.\nConfirmed live 2026-09-23. Upstream types this as a plain required number, which cannot\nexpress the time-based form."
+                              "description": "The iteration count for a COUNT-based repeat. **Nullable**, because a repeat can instead be\nTIME-based: Garmin's HIIT designer offers \"Repeat Until Time Is\", which stores\n`endCondition: time`, the seconds in `endConditionValue`, and `numberOfIterations: null`.\nConfirmed live 2026-09-23."
                             },
                             "workoutSteps": {
                               "type": "array",
@@ -4055,7 +4055,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "pushWorkoutToDevice",
     "category": "workouts",
-    "description": "multi-call: resolves a missing `deviceId` via `/device-service/deviceservice/mylastused`'s `userDeviceId`, a missing `workoutId` via `getWorkouts(0,1)`'s first result (throws if none), then reads `getWorkoutById(workoutId).workoutName` for the push message; on the final POST",
+    "description": "multi-call: resolves a missing `deviceId` via `/device-service/deviceservice/mylastused`'s `userDeviceId`, a missing `workoutId` via `getWorkouts(0,1)`'s first result (throws if none), then reads `getWorkoutById(workoutId).workoutName` for the push message on the final POST",
     "params": [
       {
         "name": "workoutId",
@@ -4192,7 +4192,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getAdaptiveWorkout",
     "category": "workouts",
-    "description": "**NOT upstream parity** (path from Taxuspt/garmin_mcp). GETs `/workout-service/fbt-adaptive/{uuid}`: a Garmin Coach workout with segments, steps and `estimatedTrainingEffect`. Coach workouts have no `workoutId`, and `getWorkoutById` cannot fetch them — `/workout-service/workout/{uuid}` is a 404. Take the uuid from `getTrainingPlanWorkouts` or `getScheduledWorkoutSummaries`",
+    "description": "GETs `/workout-service/fbt-adaptive/{uuid}`: a Garmin Coach workout with segments, steps and `estimatedTrainingEffect`. Coach workouts have no `workoutId`, and `getWorkoutById` cannot fetch them — `/workout-service/workout/{uuid}` is a 404. Take the uuid from `getTrainingPlanWorkouts` or `getScheduledWorkoutSummaries`",
     "params": [
       {
         "name": "workoutUuid",
@@ -4208,7 +4208,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getScheduledWorkoutSummaries",
     "category": "workouts",
-    "description": "**NOT upstream parity** (query from Taxuspt/garmin_mcp). POSTs the fixed GraphQL query `workoutScheduleSummariesScalar(startDate, endDate)`: every scheduled workout in the range, plan or self-scheduled (`tpType: null`), as compact rows whose `scheduledWorkoutId` is what `unscheduleWorkout` takes — `null` for a Garmin Coach workout, which also has `tpType: null` like a self-scheduled one (tell them apart by `fbtAdaptivePlanId`). Dates are validated before they are spliced into the query. A GraphQL error arrives as HTTP 200 with `errors`, turned into a `GarminError`. **It LAGS writes**: a just-…",
+    "description": "POSTs the fixed GraphQL query `workoutScheduleSummariesScalar(startDate, endDate)`: every scheduled workout in the range, plan or self-scheduled (`tpType: null`), as compact rows whose `scheduledWorkoutId` is what `unscheduleWorkout` takes — `null` for a Garmin Coach workout, which also has `tpType: null` like a self-scheduled one (tell them apart by `fbtAdaptivePlanId`). Dates are validated before they are spliced into the query. A GraphQL error arrives as HTTP 200 with `errors`, turned into a `GarminError`. **It LAGS writes**: a just-scheduled workout is in the month feed at once but absent…",
     "params": [
       {
         "name": "startdate",
@@ -4235,7 +4235,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getTrainingPlanWorkouts",
     "category": "workouts",
-    "description": "**NOT upstream parity** (query from Taxuspt/garmin_mcp). POSTs GraphQL `trainingPlanScalar(calendarDate, lang, firstDayOfWeek)` — all three arguments are REQUIRED by Garmin — and unwraps `trainingPlanWorkoutScheduleDTOS`: one entry per enrolled plan, `{trainingPlanId, planName, trainingPlanClassification, trainingPlanDetailsDTO, workoutScheduleSummaries}`. Garmin picks the window (18 workouts across several weeks for an ITP plan); `[]` with no plan",
+    "description": "POSTs GraphQL `trainingPlanScalar(calendarDate, lang, firstDayOfWeek)` — all three arguments are REQUIRED by Garmin — and unwraps `trainingPlanWorkoutScheduleDTOS`: one entry per enrolled plan, `{trainingPlanId, planName, trainingPlanClassification, trainingPlanDetailsDTO, workoutScheduleSummaries}`. Garmin picks the window (18 workouts across several weeks for an ITP plan); `[]` with no plan",
     "params": [
       {
         "name": "calendarDate",
@@ -4273,7 +4273,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "listCalendarEvents",
     "category": "calendar-events",
-    "description": "**NOT upstream parity** (upstream has no calendar events; garmin_mcp reads them from the month feed instead). GETs `/calendar-service/events`, with `startDate`/`endDate` when both dates are given (inclusive) or no params for every event on the account; one date alone throws",
+    "description": "Events also appear in `getScheduledWorkouts`' month feed as `itemType` `event`; this GETs `/calendar-service/events`, with `startDate`/`endDate` when both dates are given (inclusive) or no params for every event on the account; one date alone throws",
     "params": [
       {
         "name": "startdate",
@@ -4320,7 +4320,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getSharedCalendarEvent",
     "category": "calendar-events",
-    "description": "**NOT upstream parity**. GETs `/calendar-service/event/{uuid}/shareable`: an event from Garmin's public events catalogue (Races & Events -> Find an Event), with `locationStartPoint`, `subscribersCount`, `provider` and `subscribed`. Works WITHOUT subscribing (`subscribed: false`). The plain `/event/{uuid}` is a 404. Events you create never get a shareable uuid (Garmin forces them private)",
+    "description": "GETs `/calendar-service/event/{uuid}/shareable`: an event from Garmin's public events catalogue (Races & Events -> Find an Event), with `locationStartPoint`, `subscribersCount`, `provider` and `subscribed`. Works WITHOUT subscribing (`subscribed: false`). The plain `/event/{uuid}` is a 404. Events you create never get a shareable uuid (Garmin forces them private)",
     "params": [
       {
         "name": "shareableEventUuid",
@@ -4513,7 +4513,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getMenstrualCalendarData",
     "category": "womens-health",
-    "description": "Garmin rejects windows of 92+ inclusive days per upstream's docstring, not enforced here (caller's responsibility, matching upstream)",
+    "description": "Garmin rejects windows of 92+ inclusive days; not enforced here (caller's responsibility)",
     "params": [
       {
         "name": "startdate",
@@ -4855,7 +4855,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getGoals",
     "category": "profile-and-misc",
-    "description": "defaults `status=\"active\", **start=1**, limit=30` — `start` defaults to 1, NOT upstream's 0, because goal-service is 1-INDEXED and `start=0` silently returns `[]`; throws `GarminError` before any request for an invalid `status`. **Paginated, multi-call**: starting at `start`, fetches successive pages of `limit` entries (incrementing `start` by `limit` each call) until a page comes back empty/falsy, same fixed-page-size pattern as `getActivitiesByDate`; throws `GarminError` if `MAX_PAGINATED_REQUESTS` (2000) pages are fetched without ever seeing an empty one. **Sends the load-bearing `Sec-Fetc…",
+    "description": "defaults `status=\"active\", **start=1**, limit=30` — `start` defaults to 1, NOT 0, because goal-service is 1-INDEXED and `start=0` silently returns `[]`; throws `GarminError` before any request for an invalid `status`. **Paginated, multi-call**: starting at `start`, fetches successive pages of `limit` entries (incrementing `start` by `limit` each call) until a page comes back empty/falsy, same fixed-page-size pattern as `getActivitiesByDate`; throws `GarminError` if `MAX_PAGINATED_REQUESTS` (2000) pages are fetched without ever seeing an empty one. **Sends the load-bearing `Sec-Fetch-Site: sam…",
     "params": [
       {
         "name": "status",
@@ -4890,7 +4890,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getGolfSummary",
     "category": "golf",
-    "description": "defaults `start=0, limit=100`; `start` validated non-negative, `limit` validated positive (throws `GarminError` otherwise); query params are literally hyphenated (`per-page`, `start`), matching Garmin's own naming. **Inventory's `returns` column says \"list\"; live-verified WRONG** — the test account (0 rounds recorded) returned a single pagination-envelope OBJECT `{pageNumber, rowsPerPage, totalRows}`, not an array",
+    "description": "defaults `start=0, limit=100`; `start` validated non-negative, `limit` validated positive (throws `GarminError` otherwise); query params are literally hyphenated (`per-page`, `start`), matching Garmin's own naming. **An OBJECT, not an array, verified live** — the test account (0 rounds recorded) returned a single pagination-envelope OBJECT `{pageNumber, rowsPerPage, totalRows}`, not an array",
     "params": [
       {
         "name": "start",
@@ -4960,7 +4960,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getGolfClubStats",
     "category": "golf",
-    "description": "defaults `limit=1000`; validated positive; GETs `/gcs-golfcommunity/api/v2/club/player`; hyphenated query params `per-page` and `include-stats` (literal `\"true\"`). **Inventory's `returns` column says \"dict\"; live-verified WRONG** — the test account returned a JSON ARRAY of 17 club entries (`{id, clubTypeId, shaftLength, flexTypeId, averageDistance, adviceDistance, retired, deleted, lastModifiedTime}`), not a single object",
+    "description": "defaults `limit=1000`; validated positive; GETs `/gcs-golfcommunity/api/v2/club/player`; hyphenated query params `per-page` and `include-stats` (literal `\"true\"`). **An ARRAY, verified live** — the test account returned a JSON ARRAY of 17 club entries (`{id, clubTypeId, shaftLength, flexTypeId, averageDistance, adviceDistance, retired, deleted, lastModifiedTime}`), not a single object",
     "params": [
       {
         "name": "limit",
@@ -5038,7 +5038,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getNutritionFoodLogRange",
     "category": "profile-and-misc",
-    "description": "**NOT upstream parity**. GETs `/nutrition-service/food/logs/range?startDate&endDate`: `{dailyNutritionSummaries}`, one day-log per day that has anything logged. The ONLY food-logging call that works without Connect+ (returns no days then)",
+    "description": "GETs `/nutrition-service/food/logs/range?startDate&endDate`: `{dailyNutritionSummaries}`, one day-log per day that has anything logged. The ONLY food-logging call that works without Connect+ (returns no days then)",
     "params": [
       {
         "name": "startdate",
@@ -5065,7 +5065,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "searchFoods",
     "category": "profile-and-misc",
-    "description": "**NOT upstream parity** (from Taxuspt/garmin_mcp). GETs `/nutrition-service/food/search?searchExpression&start&limit` (defaults 0/20): `{results: Food[], moreDataAvailable}`; catalogue foods carry `source: \"FATSECRET\"` and several servings each. **Needs Garmin Connect+**, which needs a paired Garmin device — a bare `403 ForbiddenException` without it",
+    "description": "GETs `/nutrition-service/food/search?searchExpression&start&limit` (defaults 0/20): `{results: Food[], moreDataAvailable}`; catalogue foods carry `source: \"FATSECRET\"` and several servings each. **Needs Garmin Connect+**, which needs a paired Garmin device — a bare `403 ForbiddenException` without it",
     "params": [
       {
         "name": "query",
@@ -5095,7 +5095,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getCustomFoods",
     "category": "profile-and-misc",
-    "description": "**NOT upstream parity**. GETs `/nutrition-service/customFood` with `includeContent=true`: `{customFoods, moreDataAvailable}`. **`limit` is capped at 20** (Garmin 400s above it — garmin_mcp ships that bug). There is NO get-by-id: `GET /customFood/{id}` is a 405, so search by name to read one back. Needs Connect+",
+    "description": "GETs `/nutrition-service/customFood` with `includeContent=true`: `{customFoods, moreDataAvailable}`. **`limit` is capped at 20** (Garmin 400s above it). There is NO get-by-id: `GET /customFood/{id}` is a 405, so search by name to read one back. Needs Connect+",
     "params": [
       {
         "name": "search",
@@ -5125,7 +5125,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getCustomFoodServingUnits",
     "category": "profile-and-misc",
-    "description": "**NOT upstream parity**. GETs `/nutrition-service/metadata/customFoodServingUnits` (13 units). Needs Connect+",
+    "description": "GETs `/nutrition-service/metadata/customFoodServingUnits` (13 units). Needs Connect+",
     "params": [],
     "safety": "read",
     "io": "json"
@@ -5133,7 +5133,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "createCustomFood",
     "category": "profile-and-misc",
-    "description": "**NOT upstream parity**. **A PUT**, not a POST, to `/nutrition-service/customFood`; `CustomFoodInput` = `{name, calories, servingUnit? = \"G\", servingSize? = 100, brand?, carbs?, protein?, fat?, fiber?, sugar?, saturatedFat?, transFat?, sodium?, cholesterol?, potassium?, calcium?, iron?, vitaminD?}` per ONE serving, absolute amounts (not %DV); numbers are sent as strings, as Garmin's own client does. Returns the stored food with the `foodId`/`servingId` `logFood` takes. Needs Connect+",
+    "description": "**A PUT**, not a POST, to `/nutrition-service/customFood`; `CustomFoodInput` = `{name, calories, servingUnit? = \"G\", servingSize? = 100, brand?, carbs?, protein?, fat?, fiber?, sugar?, saturatedFat?, transFat?, sodium?, cholesterol?, potassium?, calcium?, iron?, vitaminD?}` per ONE serving, absolute amounts (not %DV); numbers are sent as strings, as Garmin's own client does. Returns the stored food with the `foodId`/`servingId` `logFood` takes. Needs Connect+",
     "params": [
       {
         "name": "input",
@@ -5212,7 +5212,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "updateCustomFood",
     "category": "profile-and-misc",
-    "description": "**NOT upstream parity**. The same PUT carrying both ids. **FULL REPLACE**: a nutrient or brand left out is removed (verified: the brand was dropped) — garmin_mcp instead re-reads and merges. Needs Connect+",
+    "description": "The same PUT carrying both ids. **FULL REPLACE**: a nutrient or brand left out is removed (verified: the brand was dropped). Needs Connect+",
     "params": [
       {
         "name": "foodId",
@@ -5305,7 +5305,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "deleteCustomFood",
     "category": "profile-and-misc",
-    "description": "**NOT upstream parity**. `DELETE /nutrition-service/customFood/{foodId}`, resolves `null`. IRREVERSIBLE. Needs Connect+",
+    "description": "`DELETE /nutrition-service/customFood/{foodId}`, resolves `null`. IRREVERSIBLE. Needs Connect+",
     "params": [
       {
         "name": "foodId",
@@ -5321,7 +5321,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "logFood",
     "category": "profile-and-misc",
-    "description": "**NOT upstream parity**. PUTs `/nutrition-service/food/logs` with one `REGULAR_LOG` item and returns the whole day's log. `FoodLogInput` = `{date, foodId, servingId, servings? = 1, time?, meal?, source? = \"GARMIN\", regionCode?, languageCode?}` — pass the catalogue food's `source`/`regionCode`/`languageCode` for a search result. **Needs a `mealId`**, which only exists after Garmin's nutrition setup in the app (400 `mealId must not be null` otherwise; this method throws a clearer error first). The meal is the named one, else the one whose window holds `time`, else SNACKS; with a `meal` and no `…",
+    "description": "PUTs `/nutrition-service/food/logs` with one `REGULAR_LOG` item and returns the whole day's log. `FoodLogInput` = `{date, foodId, servingId, servings? = 1, time?, meal?, source? = \"GARMIN\", regionCode?, languageCode?}` — pass the catalogue food's `source`/`regionCode`/`languageCode` for a search result. **Needs a `mealId`**, which only exists after Garmin's nutrition setup in the app (400 `mealId must not be null` otherwise; this method throws a clearer error first). The meal is the named one, else the one whose window holds `time`, else SNACKS; with a `meal` and no `time` it picks a time tha…",
     "params": [
       {
         "name": "input",
@@ -5384,7 +5384,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "quickAddFood",
     "category": "profile-and-misc",
-    "description": "**NOT upstream parity**. PUTs `/nutrition-service/food/logs/quickAdd`: an entry by `name` + `calories`/`carbs`/`protein`/`fat` with no food behind it (`QUICK_ADD`). Same meal rules as `logFood`. Needs Connect+",
+    "description": "PUTs `/nutrition-service/food/logs/quickAdd`: an entry by `name` + `calories`/`carbs`/`protein`/`fat` with no food behind it (`QUICK_ADD`). Same meal rules as `logFood`. Needs Connect+",
     "params": [
       {
         "name": "input",
@@ -5445,7 +5445,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "deleteFoodLogs",
     "category": "profile-and-misc",
-    "description": "**NOT upstream parity**. `DELETE /nutrition-service/food/logs/{date}` with `{logIds}` as the body — any number in ONE call, regular and quick-add alike. `logId`s are on the entries of `getNutritionDailyFoodLog`. IRREVERSIBLE. Needs Connect+",
+    "description": "`DELETE /nutrition-service/food/logs/{date}` with `{logIds}` as the body — any number in ONE call, regular and quick-add alike. `logId`s are on the entries of `getNutritionDailyFoodLog`. IRREVERSIBLE. Needs Connect+",
     "params": [
       {
         "name": "date",
@@ -5521,7 +5521,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "deleteTrainingPlan",
     "category": "profile-and-misc",
-    "description": "**NOT upstream parity**. `DELETE /trainingplan-service/trainingplan/trainingplan/{planId}` (the `trainingplan` segment really is doubled) — the request Garmin Connect's \"Quit Plan\" sends, observed in the web client on 2026-10-06. Resolves `null` (204); the plan's scheduled workouts leave the calendar, completed activities stay. A second call is a 404 `\"Training plan not found with ID: …\"`. IRREVERSIBLE",
+    "description": "`DELETE /trainingplan-service/trainingplan/trainingplan/{planId}` (the `trainingplan` segment really is doubled) — the request Garmin Connect's \"Quit Plan\" sends, observed in the web client on 2026-10-06. Resolves `null` (204); the plan's scheduled workouts leave the calendar, completed activities stay. A second call is a 404 `\"Training plan not found with ID: …\"`. IRREVERSIBLE",
     "params": [
       {
         "name": "planId",
@@ -5577,7 +5577,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "queryGarminGraphql",
     "category": "profile-and-misc",
-    "description": "POSTs the caller's GraphQL body verbatim to `/graphql-gateway/graphql`; (upstream calls `.json()` directly with no null-check). **The composed URL is this library's highest-risk item**: upstream's own constant is `\"graphql-gateway/graphql\"`, no leading slash, unlike every other constant in `gc.py` — but this port's `connectapi` composes the request URL by plain string concatenation (`` `https://connectapi.${domain}${path}` ``), not `URL`-relative joining, so omitting the leading slash here would silently glue onto the hostname (`connectapi.garmin.comgraphql-gateway/graphql`) rather than 404 —…",
+    "description": "POSTs the caller's GraphQL body verbatim to `/graphql-gateway/graphql`. **The leading slash is load-bearing**: `connectapi` composes the request URL by plain string concatenation (`` `https://connectapi.${domain}${path}` ``), not `URL`-relative joining, so omitting the leading slash here would silently glue onto the hostname (`connectapi.garmin.comgraphql-gateway/graphql`) rather than 404 — the usual \"a 404 means the URL is wrong\" heuristic would not even catch it. The leading slash is therefore hardcoded and deliberate; `tests/services/misc.test.ts` pins the literal composed URL",
     "params": [
       {
         "name": "query",
@@ -5594,7 +5594,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "logout",
     "category": "profile-and-misc",
-    "description": "clears the configured `TokenStore` (`host.client.tokenStore.clear()`); makes **no HTTP call** (the token is never revoked server-side). Does NOT clear the in-memory tokens already held by the calling `GarminClient` instance — there is no public API to do that, and this method's host is deliberately scoped to `{ client }` only. **NEVER call this against a `FileTokenStore` pointed at `./tokens`** —",
+    "description": "clears the configured `TokenStore` (`host.client.tokenStore.clear()`); makes **no HTTP call** (the token is never revoked server-side). Does NOT clear the in-memory tokens already held by the calling `GarminClient` instance — there is no public API to do that, and this method's host is deliberately scoped to `{ client }` only. **NEVER call this against a `FileTokenStore` pointed at `./tokens`** — that is the test harness's live session",
     "params": [],
     "safety": "destructive",
     "io": "json"

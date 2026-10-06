@@ -3,7 +3,7 @@
  * STANDING EXCEPTION to this project's write-verification policy — DO NOT REMOVE THIS COMMENT
  * ============================================================================================
  *
- * Every other service in this port live-verifies its writes with a create -> read-back ->
+ * Every other service in this library live-verifies its writes with a create -> read-back ->
  * (delete, where possible) round-trip against a dedicated, empty Garmin test account. The five
  * write methods in THIS file (`updateMenstrualDailyLog`, `updateMenstrualCalendar`,
  * `initMenstrualCycleSetup`, `confirmMenstrualPeriodStart`, `updateMenstrualSettings`) are
@@ -18,8 +18,8 @@
  * is covered by it. Anyone reusing this library must treat the default rule above as binding.
  *
  * Why: these are irreversible writes to real health-data categories (menstrual-cycle and
- * pregnancy records). None of the five has a documented delete/undo endpoint anywhere in
- * upstream python-garminconnect. `initMenstrualCycleSetup` and `updateMenstrualSettings`
+ * pregnancy records). None of the five has a known delete/undo endpoint.
+ * `initMenstrualCycleSetup` and `updateMenstrualSettings`
  * plausibly alter account-level configuration (cycle-tracking setup, tracking-preference flags)
  * rather than a single dated record that could plausibly be overwritten back to a neutral state.
  * Unlike other services where an unverified unit conversion was judged a worse risk than
@@ -57,8 +57,7 @@ import type {
 
 /**
  * `getUserProfile()` is used only as a best-effort source of `userProfilePk` for the write
- * bodies below (see `resolveUserProfilePk`) — mirrors upstream's optional `self.profile_id`.
- * `Garmin` already implements this shape via its cached `getUserProfile()`.
+ * bodies below (see `resolveUserProfilePk`). `Garmin` already implements this shape via its cached `getUserProfile()`.
  */
 export interface WomensHealthHost {
   readonly client: GarminClient;
@@ -68,12 +67,9 @@ export interface WomensHealthHost {
 const VALID_REPORT_CYCLE_COUNTS = new Set([1, 6, 12]);
 
 /**
- * Upstream includes `userProfilePk` in the write body only "if `self.profile_id` set" — a cached
- * attribute populated elsewhere in the Python client, not something this port has an equivalent
- * cache for outside `Garmin.getUserProfile()`. Implemented as best-effort: fetch the social
+ * `userProfilePk` goes into the write bodies when it is known. Best-effort: fetch the social
  * profile, use its `profileId` if present, and silently omit the field if the fetch fails, rather
- * than failing an otherwise-valid write over a profile-lookup hiccup. This is a port-specific
- * design decision, not a value taken directly from upstream source.
+ * than failing an otherwise-valid write over a profile-lookup hiccup.
  */
 async function resolveUserProfilePk(host: WomensHealthHost): Promise<number | undefined> {
   try {
@@ -87,7 +83,7 @@ async function resolveUserProfilePk(host: WomensHealthHost): Promise<number | un
 // --- reads ---
 
 /**
- * Upstream `get_menstrual_data_for_date`. `null_behaviour`: passes through unchecked.
+ * Passes Garmin's response through unchecked.
  */
 export async function getMenstrualDataForDate(
   host: WomensHealthHost,
@@ -99,9 +95,8 @@ export async function getMenstrualDataForDate(
 }
 
 /**
- * Upstream `get_menstrual_calendar_data`. `null_behaviour`: passes through unchecked. Upstream's
- * own docstring warns Garmin rejects windows of 92+ inclusive days (keep the range <= 90 days);
- * this is NOT enforced here, matching upstream, which also leaves it to the caller.
+ * Passes Garmin's response through unchecked. Garmin rejects windows of 92+ inclusive days (keep
+ * the range <= 90 days); this is NOT enforced here and is left to the caller.
  */
 export async function getMenstrualCalendarData(
   host: WomensHealthHost,
@@ -116,7 +111,7 @@ export async function getMenstrualCalendarData(
 }
 
 /**
- * Upstream `get_menstrual_last_confirmed`. `null_behaviour`: passes through unchecked.
+ * Passes Garmin's response through unchecked.
  */
 export async function getMenstrualLastConfirmed(
   host: WomensHealthHost,
@@ -128,7 +123,7 @@ export async function getMenstrualLastConfirmed(
 }
 
 /**
- * Upstream `get_menstrual_cycle_summary`. `null_behaviour`: passes through unchecked.
+ * Passes Garmin's response through unchecked.
  */
 export async function getMenstrualCycleSummary(
   host: WomensHealthHost,
@@ -140,11 +135,9 @@ export async function getMenstrualCycleSummary(
 }
 
 /**
- * Upstream `get_menstrual_reports`. `null_behaviour`: passes through unchecked.
- * `numberOfCycles` is restricted to `{1, 6, 12}` (upstream's `VALID_MENSTRUAL_REPORT_CYCLES`) —
- * any other value throws `GarminError`, mirroring upstream's `ValueError`. `todayCalendarDate`
- * defaults to today (routed through `formatDate` either way). `reportType` is trimmed, matching
- * upstream's `.strip()`.
+ * Passes Garmin's response through unchecked. `numberOfCycles` is restricted to `{1, 6, 12}` —
+ * any other value throws `GarminError`. `todayCalendarDate` defaults to today (routed through
+ * `formatDate` either way). `reportType` is trimmed.
  */
 export async function getMenstrualReports(
   host: WomensHealthHost,
@@ -159,7 +152,7 @@ export async function getMenstrualReports(
   const date = formatDate(fordate);
   if (!VALID_REPORT_CYCLE_COUNTS.has(numberOfCycles)) {
     throw new GarminError(
-      `number_of_cycles must be one of 1, 6, or 12; got ${numberOfCycles}`,
+      `numberOfCycles must be one of 1, 6, or 12; got ${numberOfCycles}`,
     );
   }
   const todayCalendarDate = formatDate(options.todayCalendarDate ?? new Date());
@@ -177,7 +170,7 @@ export async function getMenstrualReports(
 }
 
 /**
- * Upstream `get_pregnancy_summary`. `null_behaviour`: passes through unchecked.
+ * Passes Garmin's response through unchecked.
  */
 export async function getPregnancySummary(
   host: WomensHealthHost,
@@ -199,8 +192,7 @@ function isEmptyCollection(value: unknown): boolean {
 }
 
 /**
- * Mirrors upstream's `_clean_menstrual_daily_log`: drops any key whose value is `undefined`
- * (Python `None`), and drops any key whose value is an empty string/array/object — EXCEPT
+ * Drops any key whose value is `undefined` or `null`, and drops any key whose value is an empty string/array/object — EXCEPT
  * `notes`, which is exempt so `notes: ""` (explicit clear) survives while `notes: undefined`
  * (omitted, preserve existing) is dropped by the first rule.
  */
@@ -215,33 +207,24 @@ function cleanMenstrualDailyLog(body: Record<string, unknown>): Record<string, u
 }
 
 /**
- * Upstream `update_menstrual_daily_log`. UNCERTAIN (inventory): "no explicit null handling on the
- * response" — implemented as a raw pass-through (`Promise<unknown>`), same convention as every
- * other UNCERTAIN write in this port (see e.g. `createGear`). What would resolve it: observing a
- * real response body, which this service is deliberately never allowed to do (see file-level
- * comment).
+ * Returns Garmin's raw response (`Promise<unknown>`); live, it is the stored day log.
  *
- * **This is a full-day replace, not a field-level merge** — matching upstream, an omitted field
- * (`undefined`) is dropped from the body entirely (server-side: cleared), while `notes: ""`
- * (explicit empty string) is sent and clears the note; `notes: undefined` preserves the existing
- * note. This distinction is load-bearing and intentionally preserved, per the inventory notes.
+ * **This is a full-day replace, not a field-level merge**: an omitted field (`undefined`) is
+ * dropped from the body entirely (server-side: cleared), while `notes: ""` (explicit empty string)
+ * is sent and clears the note; `notes: undefined` preserves the existing note. This distinction is
+ * load-bearing.
  *
  * At least one of the optional fields must be provided, or this throws `GarminError` before
- * making a request — guards against an accidental full-day wipe, mirroring upstream's `ValueError`.
+ * making a request — guards against an accidental full-day wipe.
  *
- * `discharge` rejects combining `"NO_DISCHARGE"` with any other value, mirroring upstream.
+ * `discharge` rejects combining `"NO_DISCHARGE"` with any other value.
  *
- * **Known gap, not one of the inventory's UNCERTAIN rows but worth flagging honestly**: upstream
- * validates/normalizes `symptoms`/`moods`/`flow`/`discharge`/`sexDrive`/`sexualActivity` against
- * fixed enum sets (`VALID_MENSTRUAL_SYMPTOMS`, etc.) whose exact member values are not captured in
- * `docs/upstream-method-inventory.md`. Rather than invent a member list, this port only
- * upper-cases the caller's strings (matching upstream's normalization step) without whitelisting
- * them — an invalid value will surface as a Garmin-side rejection instead of a local one. Would be
- * resolved by reading `garminconnect/__init__.py`'s literal enum definitions upstream.
+ * `symptoms`/`moods`/`flow`/`discharge`/`sexDrive`/`sexualActivity` are upper-cased but not
+ * checked against a list of allowed values, so an invalid value surfaces as a Garmin-side
+ * rejection instead of a local one.
  *
  * `reportTimestamp` uses the UTC formatter (`formatGmtTimestamp`), NOT the local-time formatter
- * used by weight/blood-pressure/hydration writes — matches upstream's `_fmt_ts_utc()` for this
- * endpoint specifically.
+ * used by weight/blood-pressure/hydration writes.
  */
 export async function updateMenstrualDailyLog(
   host: WomensHealthHost,
@@ -317,22 +300,18 @@ function assertConsecutiveDates(dates: string[], groupIndex: number): void {
 }
 
 /**
- * Upstream `update_menstrual_calendar`. UNCERTAIN (inventory): "no explicit null handling" —
- * implemented as a raw pass-through (`Promise<unknown>`), see `updateMenstrualDailyLog`'s doc
- * comment for the general UNCERTAIN convention used across this port.
+ * Returns Garmin's raw response (`Promise<unknown>`).
  *
- * **This is also a full replace, not a merge** — matching upstream, omitted previously-confirmed
- * days within `[startdate, enddate]` are removed server-side by this call.
+ * **This is also a full replace, not a merge**: omitted previously-confirmed days within
+ * `[startdate, enddate]` are removed server-side by this call.
  *
- * `cycleDatesLists` is validated exactly as upstream: each inner group must be non-empty and
- * consist of consecutive calendar dates, and every date in every group must fall within
- * `[startdate, enddate]` (inclusive) — any violation throws `GarminError` before a request is
- * made, mirroring upstream's `ValueError`. Predicted (unconfirmed) cycles should not be posted
- * here, per upstream's docstring — not enforced in code, since there is no way to distinguish a
- * predicted date from a confirmed one at this layer; it is the caller's responsibility, same as
- * upstream.
+ * Each inner group of `cycleDatesLists` must be non-empty and consist of consecutive calendar
+ * dates, and every date in every group must fall within `[startdate, enddate]` (inclusive) — any
+ * violation throws `GarminError` before a request is made. Predicted (unconfirmed) cycles should
+ * not be posted here; that is not enforced in code, since there is no way to distinguish a
+ * predicted date from a confirmed one at this layer, so it is the caller's responsibility.
  *
- * `reportTimestamp` uses `formatGmtTimestamp` (UTC), matching upstream's `_fmt_ts_utc()`.
+ * `reportTimestamp` uses `formatGmtTimestamp` (UTC).
  */
 export async function updateMenstrualCalendar(
   host: WomensHealthHost,
@@ -378,15 +357,14 @@ export async function updateMenstrualCalendar(
 }
 
 /**
- * Upstream `init_menstrual_cycle_setup`. UNCERTAIN (inventory): "no explicit null handling" —
- * implemented as a raw pass-through (`Promise<unknown>`).
+ * Returns Garmin's raw response (`Promise<unknown>`).
  *
- * Upstream's docstring warns Garmin's own first-run wizard also PUTs user menstrual settings
- * (tracking-preference flags) in the same save; this method deliberately does NOT do that — call
- * `updateMenstrualSettings` separately if those flags need to change. Not intended for editing an
- * already-configured account.
+ * Garmin's own first-run wizard also PUTs user menstrual settings (tracking-preference flags) in
+ * the same save; this method deliberately does NOT do that — call `updateMenstrualSettings`
+ * separately if those flags need to change. Not intended for editing an already-configured
+ * account.
  *
- * `reportTimestamp` uses `formatGmtTimestamp` (UTC), matching upstream's `_fmt_ts_utc()`.
+ * `reportTimestamp` uses `formatGmtTimestamp` (UTC).
  */
 export async function initMenstrualCycleSetup(
   host: WomensHealthHost,
@@ -409,16 +387,14 @@ export async function initMenstrualCycleSetup(
 }
 
 /**
- * Upstream `confirm_menstrual_period_start`. UNCERTAIN (inventory): "no explicit null handling" —
- * implemented as a raw pass-through (`Promise<unknown>`).
+ * Returns Garmin's raw response (`Promise<unknown>`).
  *
  * Can convert a predicted cycle into a confirmed period (`options.predictedCycle: true`).
  *
  * **Path base is `/periodichealth-service/menstrualcycle` directly** — NOT the `dayview`/
- * `calendar`/`lastconfirmed`/`summary` sub-paths used by the read methods above; easy to mix up,
- * called out explicitly in the inventory notes.
+ * `calendar`/`lastconfirmed`/`summary` sub-paths used by the read methods above; easy to mix up.
  *
- * `reportTimestamp` uses `formatGmtTimestamp` (UTC), matching upstream's `_fmt_ts_utc()`.
+ * `reportTimestamp` uses `formatGmtTimestamp` (UTC).
  */
 export async function confirmMenstrualPeriodStart(
   host: WomensHealthHost,
@@ -452,24 +428,21 @@ interface UserSettingsSnapshot {
 }
 
 /**
- * Upstream `update_menstrual_settings`. UNCERTAIN (inventory): "no explicit null handling on the
- * PUT response" — implemented as a raw pass-through (`Promise<unknown>`).
+ * Returns Garmin's raw PUT response (`Promise<unknown>`).
  *
- * `settings` must be a non-empty object, or this throws `GarminError` before any request,
- * mirroring upstream's `ValueError`.
+ * `settings` must be a non-empty object, or this throws `GarminError` before any request.
  *
- * **Multi-step, matching upstream exactly**: first GETs the SAME endpoint this then PUTs
- * (`/userprofile-service/userprofile/user-settings` — this is also what `Garmin.getUserSettings()`
- * / upstream `get_user_profile()` hits) to read the current `userMenstrualCycleSettings`, used as
+ * **Multi-step**: first GETs the SAME endpoint this then PUTs
+ * (`/userprofile-service/userprofile/user-settings` — also what `Garmin.getUserSettings()`
+ * hits) to read the current `userMenstrualCycleSettings`, used as
  * an overlay base — the caller's `settings` keys win, keys the caller omitted are preserved from
  * the current state. This is a deliberate direct GET, not `Garmin`'s cached `getUserSettings()`,
  * so the merge always overlays onto freshly-read state rather than a possibly-stale cache.
  *
  * If `options.userSettingsId` is not given, this tries to pull `id` from that same GET response
- * and include it as `id` in the PUT body — only if it is a `number` (mirrors upstream's "non-bool
- * int" check; a JS `boolean` is never `typeof === "number"`, so no separate bool guard is needed).
+ * and include it as `id` in the PUT body — only if it is a `number`.
  *
- * Pregnancy-only fields are explicitly out of scope for this method, per upstream's docstring.
+ * Pregnancy-only fields are out of scope for this method.
  */
 export async function updateMenstrualSettings(
   host: WomensHealthHost,

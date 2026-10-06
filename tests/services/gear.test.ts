@@ -343,8 +343,8 @@ describe("setGearDefault (removed)", () => {
   it("is gone — it 404'd against gear that demonstrably existed", () => {
     // Removed 2026-09-24 after a fourth, decisive investigation: the same gear UUID was created,
     // linked to an activity, and defaulted via setGearActivityDefaults successfully, seconds
-    // apart, while setGearDefault answered 404 "gear not found". Upstream's endpoint is dead.
-    // Asserted here so re-porting it for parity is a test failure rather than a quiet regression.
+    // apart, while setGearDefault answered 404 "gear not found". Its endpoint is dead.
+    // Asserted here so re-adding it is a test failure rather than a quiet regression.
     const g = makeGarmin() as unknown as Record<string, unknown>;
     expect(g["setGearDefault"]).toBeUndefined();
     expect(g["setGearActivityDefaults"], "the working replacement must stay").toBeTypeOf("function");

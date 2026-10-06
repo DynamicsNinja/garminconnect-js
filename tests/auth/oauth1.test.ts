@@ -74,11 +74,9 @@ describe("buildOAuth1Header", () => {
   // the RFC). The RFC's own published signature ("74KNZJeDHnMBp0EMJ9ZHt/XKycU=")
   // was computed WITHOUT an oauth_version parameter, because the RFC's example
   // request omits oauth_version entirely. This implementation always sends
-  // oauth_version="1.0" (matching real-world OAuth1 implementations, including
-  // the `oauthlib`/`requests_oauthlib` library that Garmin's own `garth` Python
-  // client uses via `OAuth1Session`, where `Client.get_oauth_params()`
-  // unconditionally includes `('oauth_version', '1.0')` in the signed
-  // parameter set). Since oauth_version is sent, it MUST be part of what gets
+  // oauth_version="1.0" (matching real-world OAuth1 implementations such as
+  // `oauthlib`, which unconditionally include `oauth_version=1.0` in the
+  // signed parameter set). Since oauth_version is sent, it MUST be part of what gets
   // signed, or Garmin's server would recompute a different signature and
   // reject the request. So the expected signature below is recomputed with
   // oauth_version included, verified independently via a standalone Node

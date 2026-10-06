@@ -55,7 +55,7 @@ const result = await garmin.deleteHeartRateZones("sport");
 
 `unknown` — Garmin's response is passed through unparsed. Cast it to whatever you need; this library does not model it.
 
-**NOT upstream parity, and not in garmin_mcp either**: PUTs the stored profile back with `changeState: "DELETED"`, which removes it so the sport falls back to DEFAULT. Refuses DEFAULT; throws for a sport with no profile instead of doing nothing
+PUTs the stored profile back with `changeState: "DELETED"`, which removes it so the sport falls back to DEFAULT. Refuses DEFAULT; throws for a sport with no profile instead of doing nothing
 
 Verification: ✅ live-verified
 
@@ -407,6 +407,6 @@ const result = await garmin.setHeartRateZones(update);
 
 Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
 
-**NOT upstream parity** (shape from Taxuspt/garmin_mcp). READ-MODIFY-WRITE of one profile: GETs `/biometric-service/heartRateZones`, overlays `{sport? = "DEFAULT", trainingMethod?, maxHeartRate?, restingHeartRate?, lactateThresholdHeartRate?, zoneFloors?: [5 bpm]}` with `changeState: "CHANGED"`, PUTs `[profile]` (204), then returns the profile READ BACK. A sport with no profile starts from DEFAULT's. Setting `restingHeartRate` also turns off `restingHrAutoUpdateUsed`. **Garmin does NOT recompute floors** when the method or a heart rate changes — send `zoneFloors` too. Floors must be strictly ascending (Garmin 400s `"Zone Floor values must be ascending"`; checked here first)
+READ-MODIFY-WRITE of one profile: GETs `/biometric-service/heartRateZones`, overlays `{sport? = "DEFAULT", trainingMethod?, maxHeartRate?, restingHeartRate?, lactateThresholdHeartRate?, zoneFloors?: [5 bpm]}` with `changeState: "CHANGED"`, PUTs `[profile]` (204), then returns the profile READ BACK. A sport with no profile starts from DEFAULT's. Setting `restingHeartRate` also turns off `restingHrAutoUpdateUsed`. **Garmin does NOT recompute floors** when the method or a heart rate changes — send `zoneFloors` too. Floors must be strictly ascending (Garmin 400s `"Zone Floor values must be ascending"`; checked here first)
 
 Verification: ✅ live-verified

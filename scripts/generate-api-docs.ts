@@ -12,7 +12,7 @@
  *
  *  - `src/garmin.ts` — the method list, each one's parameters, and which service it delegates to,
  *    parsed from the actual class body. The service tells us the category.
- *  - `AGENTS.md`'s inventory table — the per-method notes and live-verification status, which are
+ *  - `AGENTS.md`'s method table — the per-method notes and live-verification status, which are
  *    already guarded by `tests/agents-md.test.ts`.
  *
  * `tests/api-docs.test.ts` regenerates in memory and fails if the committed files differ, so the
@@ -21,7 +21,7 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { CATEGORIES, parseAgentsTable, parseGarminClass, stripParityChatter } from "./lib/garmin-source.js";
+import { CATEGORIES, parseAgentsTable, parseGarminClass, stripInternalNotes } from "./lib/garmin-source.js";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const OUT_DIR = path.join(ROOT, "docs", "api");
@@ -289,7 +289,7 @@ export function buildPages(): Map<string, string> {
       params,
       service,
       signature: info?.signature ?? "",
-      notes: stripParityChatter(info?.notes ?? ""),
+      notes: stripInternalNotes(info?.notes ?? ""),
       verified: info?.verified ?? "",
     };
     const existing = bySlug.get(category.slug);

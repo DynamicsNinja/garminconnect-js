@@ -327,10 +327,10 @@ describe("workouts service", () => {
       yoga: 7, pilates: 8, hiit: 9, multiSport: 10, mobility: 11, rucking: 13,
     });
 
-    // WALKING (17) and HIKING (18) must never come back. Upstream sends them; Garmin accepts the
-    // POST and stores sportTypeId 0 / sportTypeKey null — a workout with no sport at all. The two
-    // helpers that sent them were removed on 2026-09-24 rather than kept for parity, so this
-    // asserts the ids stay out of the map and no value in it is outside Garmin's real enum.
+    // WALKING (17) and HIKING (18) must never come back. Garmin has no walking/hiking workout
+    // sport type: it accepts the POST and stores sportTypeId 0 / sportTypeKey null — a workout
+    // with no sport at all. So this asserts the ids stay out of the map and no value in it is
+    // outside Garmin's real enum.
     const valid = new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13]);
     expect(Object.values(WORKOUT_SPORT_TYPE_ID).filter((id) => !valid.has(id))).toEqual([]);
     expect(Object.keys(WORKOUT_SPORT_TYPE_ID)).not.toContain("WALKING");
@@ -339,8 +339,8 @@ describe("workouts service", () => {
 
   it("uploadWorkout forwards a TIME-BASED repeat, where numberOfIterations is null", async () => {
     // Garmin's HIIT designer "Repeat Until Time Is" produces endCondition: time with the seconds
-    // in endConditionValue and numberOfIterations: null. Upstream types numberOfIterations as a
-    // required number, which cannot express this; RepeatWorkoutGroup allows null. Round-tripped live.
+    // in endConditionValue and numberOfIterations: null, so RepeatWorkoutGroup allows null there.
+    // Round-tripped live.
     const g = makeGarmin();
     const payload = {
       workoutName: "AMRAP",
@@ -445,8 +445,8 @@ describe("workouts service", () => {
   });
 
   it("exposes no walking or hiking helper — they only ever produced a sport-less workout", () => {
-    // Removed 2026-09-24. Upstream has them; this port knows what they actually store and does
-    // not. Asserted on the prototype so re-adding one is a test failure, not a silent regression.
+    // Ids 17/18 store a null sport, so no helper sends them. Asserted on the prototype so
+    // re-adding one is a test failure, not a silent regression.
     const g = makeGarmin() as unknown as Record<string, unknown>;
     expect(g["uploadWalkingWorkout"]).toBeUndefined();
     expect(g["uploadHikingWorkout"]).toBeUndefined();

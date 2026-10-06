@@ -183,8 +183,7 @@ export async function login(
       mfaState: {
         flow: "mobile",
         loginParams: params,
-        // Upstream garth (sso.py) does `mfa_info.get("mfaLastMethodUsed")
-        // or "email"` — this default mirrors that behavior, not a guess.
+        // Defaults to email when Garmin reports no mfaLastMethodUsed.
         mfaMethod: body.customerMfaInfo?.mfaLastMethodUsed ?? "email",
         cookies: ctx.fetcher.jar.toJSON(),
         domain: ctx.domain,
@@ -298,9 +297,8 @@ export async function exchange(
 }
 
 /**
- * Complete an MFA login from a JSON-serializable `MfaState`. This is the
- * deliberate divergence from upstream garth: garth's resume holds a live
- * client object in memory, which doesn't survive a serverless request
+ * Complete an MFA login from a JSON-serializable `MfaState`. A resume that
+ * held a live client object in memory would not survive a serverless request
  * boundary where the MFA code arrives in a SECOND HTTP request — likely on
  * a different instance. `MfaState` is plain JSON, so it can cross that
  * boundary; the cookies captured at `login()` time travel with it.

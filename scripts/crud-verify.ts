@@ -167,10 +167,10 @@ await probe("addGearToActivity -> getActivityGear read-back -> removeGearFromAct
   // was created recently, so it cannot be attached to the older seeded activities. Create gear
   // dated well in the past instead of picking an arbitrary existing item.
   //
-  // Gear has NO delete/retire endpoint anywhere in upstream or this port, so this leaves one more
-  // permanent item on the throwaway account — an accepted cost, already true of Task 7's fixtures.
+  // This probe does not delete the gear it creates, so each run leaves one more item on the
+  // throwaway account — an accepted cost.
   const backdated = new Date(Date.now() - 400 * 86_400_000);
-  // `notes` MUST be non-empty. The library's (and upstream's) default is `""`, which Garmin
+  // `notes` MUST be non-empty. The library's default is `""`, which Garmin
   // rejects with 400 "'createGear.arg1.notes' size must be between 1 and 2000 (provided value: )".
   // Discovered here; recorded in AGENTS.md.
   const createdGear = (await g.createGear(

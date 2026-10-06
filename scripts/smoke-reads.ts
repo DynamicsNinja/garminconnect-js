@@ -174,8 +174,7 @@ const services: Record<string, Probe[]> = {
     },
     {
       name: "getGearActivities",
-      // No real gear UUID exists on the test account (gear has no delete/retire endpoint in this
-      // port, so none was created — see task-4 report); exercised with a bogus UUID to confirm the
+      // This read-only probe creates no gear, so it is exercised with a bogus UUID to confirm the
       // URL shape and the "404 -> []" null-behaviour without needing real gear.
       run: () => g.getGearActivities("00000000-0000-0000-0000-000000000000"),
     },
@@ -234,8 +233,8 @@ const services: Record<string, Probe[]> = {
     { name: "getNextScheduledWorkout", run: () => g.getNextScheduledWorkout() },
   ],
   gear: [
-    // Deliberately using upstream's exact `filterGear` (no `v2`) path here — see task-7 report for
-    // the live verdict on whether this deprecated-looking path still works.
+    // getGear uses the un-versioned `filterGear` path (not Garmin's web client's `v2/list`); this
+    // probe confirms that path still answers.
     {
       name: "getGear",
       run: async () => {
@@ -262,7 +261,7 @@ const services: Record<string, Probe[]> = {
     // devices this legitimately resolves to `[]` without issuing any per-device request.
     { name: "getDeviceAlarms", run: () => g.getDeviceAlarms() },
     // getDeviceSettings/getDeviceSolarData need a real device id from getDevices(). The test
-    // account has no paired device, and NO endpoint in upstream or this port can register one, so
+    // account has no paired device, and NO endpoint this library knows of can register one, so
     // these two report SKIP — never PASS. They are genuinely unverified against Garmin, and
     // AGENTS.md says so. Pair a device with the account and these start reporting for real.
     {
@@ -292,8 +291,8 @@ const services: Record<string, Probe[]> = {
     { name: "getInProgressBadges", run: () => g.getInProgressBadges() },
     { name: "getAdhocChallenges", run: () => g.getAdhocChallenges(0, 10) },
     // getBadgeChallenges/getAvailableBadgeChallenges/getNonCompletedBadgeChallenges: the client-side
-    // validation (mirroring upstream) allows start=0, but Garmin's SERVER rejects it on these three
-    // endpoints with a 400 "start should > 0." (discovered live in Task 9) — using start=1 here so
+    // validation allows start=0, but Garmin's SERVER rejects it on these three endpoints with a
+    // 400 "start should > 0." (discovered live) — using start=1 here so
     // the probe exercises the real success path instead of that documented server-side 400.
     { name: "getBadgeChallenges", run: () => g.getBadgeChallenges(1, 10) },
     { name: "getAvailableBadgeChallenges", run: () => g.getAvailableBadgeChallenges(1, 10) },
@@ -328,11 +327,10 @@ const services: Record<string, Probe[]> = {
     // right and that Garmin accepts the request with the Sec-Fetch-Site header present.
     //
     // It does NOT prove the header WORKS, and nothing runnable here can. The header exists to stop
-    // goal-service silently returning `[]` for newer custom goal types (upstream #431) — so on an
+    // goal-service silently returning `[]` for newer custom goal types — so on an
     // account with no goals, "header present" and "header dropped" produce byte-identical results.
     // The unit test in tests/services/goals.test.ts asserts the header on the real outgoing
-    // Request, which is the strongest check available; the header's effect rests on upstream
-    // source review alone. Also NOT exercised here: the multi-page continuation branch (unit-tested)
+    // Request, which is the strongest check available here. Also NOT exercised here: the multi-page continuation branch (unit-tested)
     // and the 2000-page abort path (not covered anywhere).
     { name: "getGoals (active)", run: () => g.getGoals("active") },
     { name: "getGoals (future)", run: () => g.getGoals("future") },
@@ -358,7 +356,7 @@ const services: Record<string, Probe[]> = {
     //     low fabricated id like `1` could name some other user's real scorecard. Read-only and
     //     harmless here, but not a habit to keep.
     //
-    // The 410 observation is preserved in AGENTS.md's gotchas and the task-13 report, which is
+    // The 410 observation is preserved in AGENTS.md's gotchas, which is
     // where an unresolved anomaly belongs — not encoded in the harness as an expected pass, which
     // would then break for the opposite reason if Garmin ever changed it.
     {
@@ -425,10 +423,10 @@ const services: Record<string, Probe[]> = {
   misc: [
     { name: "getLifestyleLoggingData", run: () => g.getLifestyleLoggingData(day) },
     // requestReload is a WRITE (asks Garmin to reload/recompute a day) — deliberately never
-    // probed here per this task's SAFETY section; see AGENTS.md and the task report.
-    // queryGarminGraphql's composed URL is this task's highest-risk item (upstream's own
-    // constant has no leading slash; this client's connectapi joins by string concatenation, not
-    // URL-relative joining — see src/services/misc.ts). A minimal introspection-shaped query is
+    // probed here; see AGENTS.md.
+    // queryGarminGraphql's composed URL is the risky part (connectapi joins by string
+    // concatenation, not URL-relative joining, so a missing leading slash would glue the path
+    // onto the hostname — see src/services/misc.ts). A minimal introspection-shaped query is
     // enough to prove the URL is reachable (a 200/400 from Garmin's gateway, not a 404 or a
     // malformed-host connection failure).
     {

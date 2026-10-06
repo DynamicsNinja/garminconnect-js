@@ -67,7 +67,7 @@ export class FileTokenStore implements TokenStore {
       const oauth1: OAuth1Token = {
         oauth_token: token1,
         oauth_token_secret: secret1,
-        // Python writes null where TS wants undefined.
+        // garth's files hold null where TS wants undefined.
         mfa_token: (parsed1["mfa_token"] as string | null) ?? undefined,
         mfa_expiration_timestamp:
           (parsed1["mfa_expiration_timestamp"] as string | null) ?? undefined,

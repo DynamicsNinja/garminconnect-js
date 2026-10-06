@@ -2,7 +2,7 @@
  * Spec/builder pairs: each spec must produce EXACTLY what the equivalent builder chain produces.
  * Together they cover every builder feature `examples/workout-gallery.ts` uses — every step type,
  * every end condition, every target, swim fields, exercises, weight, notes, both repeat kinds
- * (nested), and multi-sport legs. Shared by the parity tests and the JSON Schema tests.
+ * (nested), and multi-sport legs. Shared by the spec-vs-builder equivalence tests and the JSON Schema tests.
  */
 import { buildWorkout } from "../../src/workout-builder.js";
 import type { WorkoutInput } from "../../src/types/workouts.js";

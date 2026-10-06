@@ -262,7 +262,7 @@ describe("getDeviceSolarData empty-but-present payload", () => {
     ).resolves.toEqual([]);
   });
 
-  it("returns [] for a present-but-null deviceSolarInput (documented deviation from upstream)", async () => {
+  it("returns [] for a present-but-null deviceSolarInput", async () => {
     server.use(
       http.get(
         `${API}/web-gateway/solar/111/2026-09-19/2026-09-19`,

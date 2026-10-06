@@ -16,10 +16,9 @@ export interface DevicesHost {
 }
 
 /**
- * Mirrors upstream's implicit `int(device_id)` coercion + positivity check before the value is
- * re-stringified into the URL path. `Number(...)` (not `parseInt`) is used deliberately so a
- * partially-numeric string like `"123abc"` is rejected instead of silently truncated, matching
- * Python's `int("123abc")` raising `ValueError` rather than reading `123`.
+ * Coerces `deviceId` to an integer and checks it is positive before the value is re-stringified
+ * into the URL path. `Number(...)` (not `parseInt`) is used deliberately so a partially-numeric
+ * string like `"123abc"` is rejected instead of silently truncated to `123`.
  */
 function validateDeviceId(deviceId: number | string): string {
   const n = Number(deviceId);
@@ -30,7 +29,7 @@ function validateDeviceId(deviceId: number | string): string {
 }
 
 /**
- * Upstream `get_devices`. `null_behaviour`: passes through unchecked. Undocumented shape — see
+ * Passes Garmin's response through unchecked. Undocumented shape — see
  * `Device` in `src/types/devices.ts`.
  */
 export async function getDevices(host: DevicesHost): Promise<Device[] | null> {
@@ -40,10 +39,9 @@ export async function getDevices(host: DevicesHost): Promise<Device[] | null> {
 }
 
 /**
- * Upstream `get_device_settings`. `deviceId` is coerced to an int, validated positive, and
- * re-stringified before being placed in the path (see `validateDeviceId`), matching upstream's
- * `_validate_positive_integer(int(device_id), "device_id")` in `get_device_settings`. `null_behaviour`: passes through
- * unchecked. Call sequence: obtain `device_id` from a `getDevices()` entry's `deviceId` field
+ * `deviceId` is coerced to an int, validated positive, and re-stringified before being placed in
+ * the path (see `validateDeviceId`). Passes Garmin's response through unchecked. Call sequence:
+ * obtain `deviceId` from a `getDevices()` entry's `deviceId` field
  * first, then pass it here.
  */
 export async function getDeviceSettings(
@@ -56,7 +54,7 @@ export async function getDeviceSettings(
   );
 }
 
-/** Upstream `get_primary_training_device`. `null_behaviour`: passes through unchecked. */
+/** Passes Garmin's response through unchecked. */
 export async function getPrimaryTrainingDevice(
   host: DevicesHost,
 ): Promise<PrimaryTrainingDevice | null> {
@@ -66,19 +64,16 @@ export async function getPrimaryTrainingDevice(
 }
 
 /**
- * Upstream `get_device_solar_data`. Unlike every other method in this service, this one RAISES
- * (`GarminConnectionError`, mirroring upstream's `GarminConnectConnectionError`) when the response
- * is falsy or missing the `deviceSolarInput` key, and returns `resp["deviceSolarInput"]` — NOT the
- * whole envelope. `enddate` defaults to `startdate`, and `singleDayView` is sent `"true"` exactly
- * when `enddate` was omitted (i.e. it tracks omission, not date equality — an explicit
- * `enddate === startdate` still sends `singleDayView=false`, matching upstream). Both dates are
- * routed through `formatDate`.
+ * Unlike every other method in this service, this one RAISES (`GarminConnectionError`) when the
+ * response is falsy or missing the `deviceSolarInput` key, and returns `resp.deviceSolarInput` —
+ * NOT the whole envelope. `enddate` defaults to `startdate`, and `singleDayView` is sent `"true"`
+ * exactly when `enddate` was omitted (i.e. it tracks omission, not date equality — an explicit
+ * `enddate === startdate` still sends `singleDayView=false`). Both dates are routed through
+ * `formatDate`.
  *
- * DEVIATION (deliberate): upstream returns `resp["deviceSolarInput"]` raw, so a payload carrying
- * the key with an explicit `null` value passes the `in` check and yields `None`. This returns `[]`
- * in that case, forced by the `Promise<unknown[]>` return type and strictly friendlier to callers.
- * The `in` check (rather than a truthiness test) is upstream's and is kept: a legitimately empty
- * `deviceSolarInput: []` must return `[]`, not raise.
+ * A payload carrying the key with an explicit `null` value returns `[]`, forced by the
+ * `Promise<unknown[]>` return type. The check is `in` rather than a truthiness test, deliberately:
+ * a legitimately empty `deviceSolarInput: []` must return `[]`, not raise.
  */
 export async function getDeviceSolarData(
   host: DevicesHost,
@@ -100,7 +95,7 @@ export async function getDeviceSolarData(
   return resp.deviceSolarInput ?? [];
 }
 
-/** Upstream `get_device_last_used`. `null_behaviour`: passes through unchecked. */
+/** Passes Garmin's response through unchecked. */
 export async function getDeviceLastUsed(
   host: DevicesHost,
 ): Promise<DeviceLastUsed | null> {
@@ -110,19 +105,13 @@ export async function getDeviceLastUsed(
 }
 
 /**
- * Upstream `get_device_alarms`. No HTTP path of its own: calls `getDevices()` once, then
- * `getDeviceSettings(device.deviceId)` **once per device** (an N+1 fan-out — ported faithfully and
- * sequentially; parallelizing it would be a behavioural change from upstream). Concatenates each
- * device's `alarms` list; a device with no `alarms` (or `null`) contributes nothing, matching
- * upstream's `if device_alarms is not None: alarms += device_alarms`. A device entry missing
- * `deviceId` throws `GarminError` rather than silently skipping, mirroring upstream's implicit
- * `device["deviceId"]` dict access, which would raise `KeyError` in the same situation.
+ * No HTTP path of its own: calls `getDevices()` once, then `getDeviceSettings(device.deviceId)`
+ * **once per device** (an N+1 fan-out, run sequentially on purpose — do not parallelize it).
+ * Concatenates each device's `alarms` list; a device with no `alarms` (or `null`) contributes
+ * nothing. A device entry missing `deviceId` throws `GarminError` rather than silently skipping.
  *
- * DEVIATIONS (deliberate, both strictly more forgiving than upstream): a `null` from `getDevices()`
- * yields `[]` here, where upstream would `TypeError` iterating `None`; and a `null` from
- * `getDeviceSettings()` contributes nothing, where upstream would `AttributeError` calling
- * `.get("alarms")` on `None`. Both are reachable in this port because `connectapi` resolves to
- * `null` on a 204/empty body, a case upstream's client does not surface the same way.
+ * A `null` from `getDevices()` yields `[]`, and a `null` from `getDeviceSettings()` contributes
+ * nothing. Both are reachable because `connectapi` resolves to `null` on a 204/empty body.
  */
 export async function getDeviceAlarms(host: DevicesHost): Promise<unknown[]> {
   const devices = await getDevices(host);

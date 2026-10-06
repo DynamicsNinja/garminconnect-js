@@ -1,22 +1,17 @@
 /**
- * Minimal FIT-file encoder for a weight-scale record, ported from upstream
- * python-garminconnect's `garminconnect/fit.py` (`FitEncoder`,
- * `FitEncoderWeight`). `addBodyComposition` (see
- * `src/services/bodyComposition.ts`) is the only caller: it builds a tiny
+ * Minimal FIT-file encoder for a weight-scale record. `addBodyComposition`
+ * (see `src/services/bodyComposition.ts`) is the only caller: it builds a tiny
  * `.fit` binary in memory (file_id, file_creator, device_info, weight_scale
- * messages) and uploads it, exactly like upstream's `add_body_composition`.
+ * messages) and uploads it.
  *
- * UNCERTAIN (inventory, `add_body_composition` row): the inventory flagged
- * "check FitEncoderWeight before assuming raw kg is correct on the wire" as
- * unresolved. Having now read `fit.py` directly (not just the inventory),
- * the answer is: `write_weight_scale`'s `weight` field IS scaled — packed as
+ * The `weight_scale` message's `weight` field IS scaled — packed as
  * `uint16(round(weight_kg * 100))` — but that scaling is a property of the
  * FIT binary format's `weight_scale` message (an official Garmin FIT SDK
  * field defined in kilograms with an implicit 1/100 resolution), not an
  * application-level unit conversion like the one that corrupted `addWeighIn`.
- * There is no evidence upstream converts lbs<->kg anywhere in this path;
- * `weight` is assumed to already be in kilograms both in `gc.py` and here.
- * LIVE-VERIFIED on 2026-09-23 (this note previously said it was not): a
+ * No lbs<->kg conversion happens anywhere in this path; `weight` is expected
+ * to already be in kilograms.
+ * LIVE-VERIFIED on 2026-09-23: a
  * 69.42 kg upload built by this encoder read back from `getBodyComposition`
  * as 69.42 kg. That single round-trip proves two separate things — Garmin
  * accepted the bytes, so the header and CRC are correct, and it parsed the
@@ -89,9 +84,7 @@ function buildContentBlock(fields: Field[]): { defs: Buffer; values: Buffer } {
       f.type.write(val, 0, f.type.invalid);
     } else {
       const scaled = f.scale !== null ? f.value * f.scale : f.value;
-      // Upstream's FitBaseType.pack calls Python's int(value), which
-      // truncates toward zero — matched here with Math.trunc rather than
-      // Math.round.
+      // Values are truncated toward zero (Math.trunc), not rounded.
       f.type.write(val, 0, Math.trunc(scaled));
     }
     valParts.push(val);
@@ -99,7 +92,7 @@ function buildContentBlock(fields: Field[]): { defs: Buffer; values: Buffer } {
   return { defs: Buffer.concat(defParts), values: Buffer.concat(valParts) };
 }
 
-/** Seconds since the FIT epoch (1989-12-31T00:00:00 UTC), matching upstream's `Fit.timestamp`. */
+/** Seconds since the FIT epoch (1989-12-31T00:00:00 UTC). */
 const FIT_EPOCH_OFFSET_SECONDS = 631065600;
 
 function fitTimestamp(d: Date): number {

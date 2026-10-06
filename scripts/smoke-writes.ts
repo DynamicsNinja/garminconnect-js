@@ -80,8 +80,7 @@ console.log(`Safety gate passed: live account matches GARMIN_TEST_PROFILE_ID (${
 
 /**
  * Local wall-clock timestamp WITH milliseconds, in the exact pattern
- * `createManualActivity`'s upstream docstring specifies
- * (`"2023-12-02T10:00:00.000"`). `createManualActivity` passes its
+ * `createManualActivity` requires (`"2023-12-02T10:00:00.000"`). `createManualActivity` passes its
  * `startDatetime` argument through unmodified (not through `formatDate`,
  * which only accepts bare `YYYY-MM-DD`), so the CALLER owns getting this
  * format right — omitting the `.000` was tried live against the test
@@ -531,9 +530,8 @@ function activitiesDetailProbes(): WriteProbe[] {
           // shapes before accepting this one — "Activity ID should not be Null in the Exercises
           // Object" (needs `activityId` repeated inside each set AND each exercise), then "Set
           // Type in a Set message can not be Null" (needs `setType`), then a 500
-          // NullPointerException until `startTime` was present. None of this is documented in the
-          // upstream inventory (which only says "caller-supplied payload ... sent as-is"); this
-          // exact shape is the one that returned 2xx and read back correctly.
+          // NullPointerException until `startTime` was present. None of this is documented by
+          // Garmin; this exact shape is the one that returned 2xx and read back correctly.
           const startTime = new Date().toISOString().replace(/\.\d+Z$/, ".0");
           const expectedDuration = 30;
           const expectedReps = 10;
@@ -610,10 +608,8 @@ function activitiesDetailProbes(): WriteProbe[] {
     },
     {
       name: "gear-association 404 path (addGearToActivity/removeGearFromActivity/getGearActivities against a bogus gearUUID)",
-      // Real gear creation was deliberately skipped: this inventory (and upstream) has no
-      // delete/retire-gear endpoint, so gear created via POST /gear-service/gear/v2 would be
-      // permanent on the test account — violating "the account must end with zero gear" with no
-      // way to comply. Instead this verifies the URL shape and 404 error-mapping against a
+      // Real gear creation is deliberately skipped here, so this probe leaves no gear behind.
+      // Instead it verifies the URL shape and 404 error-mapping against a
       // syntactically valid but non-existent gearUUID, against a real (fixture) activityId.
       run: async () => {
         let activityId: number | undefined;
@@ -962,29 +958,23 @@ function workoutProbes(): WriteProbe[] {
 }
 
 /**
- * Gear has no delete/retire endpoint anywhere in upstream python-garminconnect or this port —
- * gear created here is PERMANENT on the test account. Task 7's brief explicitly overrides the
- * earlier "account ends with zero gear" rule for this reason (see task-7 report for the ruling).
- * A single gear item is created and reused across every probe below rather than one-per-probe, to
- * minimize residue.
+ * Gear created here is left on the test account (these probes do not delete it). A single gear
+ * item is created and reused across every probe below rather than one-per-probe, to minimize
+ * residue.
  *
- * Two live findings from prior investigation shape these probes (see task-7 report for the full
- * detail):
+ * Live findings that shape these probes:
  *  - `getGear`'s list entries store `uuid` WITHOUT hyphens (`createGear`'s response uses hyphens),
  *    and the distance field on read is named `maximumMeters`, not `maxUsageDistanceMeters` (that
- *    name is confirmed as the correct WRITE-side field from the POST body per the inventory, but
- *    no read endpoint discovered so far echoes a duration/distance field under that write name).
- *  - No field observed on `getGear`, `getGearStats`, or the raw `createGear` response ever
- *    surfaces a duration value at all, so `maxUsageDurationSeconds`'s conversion direction cannot
- *    be positively read-back-verified the way distance can — only the request-shape/rounding logic
- *    is verified (by the unit tests in tests/services/gear.test.ts) and by upstream source review.
- *  - `setGearDefault`'s success path (PUT `.../default/true`, DELETE the plain path) 404s for
- *    every activityType format tried live against real gear (lower-case key, upper-case key,
- *    mixed case, and the numeric `activityTypePk` shown by `getGearDefaults`, which instead
- *    returns 400 Bad Request) — including gear created with that activity type already
- *    pre-associated via `activityTypeKeys`. Only the 404-to-`GarminConnectionError` error-mapping
- *    path is verified live here, matching the same caveat already accepted for
- *    `addGearToActivity`/`removeGearFromActivity` in Task 4.
+ *    is the WRITE-side field in the POST body; no list endpoint echoes it under that name).
+ *  - No field on `getGear`, `getGearStats`, or the raw `createGear` response surfaces a duration
+ *    value, so `maxUsageDurationSeconds`'s conversion cannot be read back here the way distance
+ *    can — the request-shape/rounding logic is covered by the unit tests in
+ *    tests/services/gear.test.ts.
+ *  - Garmin's old per-activity-type default-gear path (PUT `.../default/true`) 404s for every
+ *    activityType format tried live against real gear (lower-case key, upper-case key, mixed
+ *    case, and the numeric `activityTypePk` shown by `getGearDefaults`, which instead returns
+ *    400 Bad Request) — including gear created with that activity type already pre-associated
+ *    via `activityTypeKeys`.
  */
 function gearProbes(): WriteProbe[] {
   let sharedGearUuidDashed: string | undefined;
@@ -992,8 +982,7 @@ function gearProbes(): WriteProbe[] {
 
   /**
    * Finds the shared fixture in `getGear`'s list — its `uuid` field has no hyphens. No cast is
-   * needed here: `getGear` is correctly typed as `Gear[] | null` (Task 7 fix-round-1 — it was
-   * previously mistyped as a single object, which this probe had to cast around).
+   * needed here: `getGear` is typed as `Gear[] | null`.
    */
   async function findSharedGear(): Promise<Record<string, unknown> | undefined> {
     const profile = await g.getUserProfile();

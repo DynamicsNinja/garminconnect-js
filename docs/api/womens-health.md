@@ -66,7 +66,7 @@ const result = await garmin.getMenstrualCalendarData("2026-09-24", "2026-09-24")
 
 `MenstrualCalendarData` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
 
-passes through unchecked; Garmin rejects windows of 92+ inclusive days per upstream's docstring, not enforced here (caller's responsibility, matching upstream)
+passes through unchecked; Garmin rejects windows of 92+ inclusive days; not enforced here (caller's responsibility)
 
 Verification: ✅ live-verified
 

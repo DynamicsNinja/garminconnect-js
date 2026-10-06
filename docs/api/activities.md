@@ -73,7 +73,7 @@ const result = await garmin.addGearToActivity(activityId, activityId);
 
 `GearLinkResult` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
 
-on 404 re-raises as `GarminConnectionError` ("gear not found (likely retired/removed)"); inventory places this row under "gear"
+on 404 re-raises as `GarminConnectionError` ("gear not found (likely retired/removed)")
 
 Verification: ✅ live-verified
 
@@ -109,7 +109,7 @@ const result = await garmin.createManualActivity("startDatetime", "timeZone", "t
 
 `unknown` — Garmin's response is passed through unparsed. Cast it to whatever you need; this library does not model it.
 
-**converts units**: `distanceKm * 1000` → meters, `durationMin * 60` → seconds, before building the request body; `startDatetime` is NOT routed through `formatDate` (it's a full local timestamp, not a bare calendar date) — **must include milliseconds**, e.g. `"2026-09-22T10:00:00.000"` (upstream's documented pattern); omitting them produced a live HTTP 500 `ValueInstantiationException` from Garmin during verification. Live-verified: the converted `summaryDTO.distance`/`summaryDTO.duration` were read back via `getActivity` and matched the expected meters/seconds exactly (5.5km/30min → 5500m/1800s)
+**converts units**: `distanceKm * 1000` → meters, `durationMin * 60` → seconds, before building the request body; `startDatetime` is NOT routed through `formatDate` (it's a full local timestamp, not a bare calendar date) — **must include milliseconds**, e.g. `"2026-09-22T10:00:00.000"`; omitting them produced a live HTTP 500 `ValueInstantiationException` from Garmin during verification. Live-verified: the converted `summaryDTO.distance`/`summaryDTO.duration` were read back via `getActivity` and matched the expected meters/seconds exactly (5.5km/30min → 5500m/1800s)
 
 Verification: ✅ live-verified
 
@@ -181,7 +181,7 @@ const result = await garmin.downloadHealthSnapshot("2026-09-24");
 
 A `Buffer` of file bytes.
 
-routed through `formatDate`; routed through `client.download`
+routed through `formatDate`, routed through `client.download`
 
 Verification: ✅ live-verified
 
@@ -239,7 +239,7 @@ An array of `Activity`:
 
 Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
 
-replicates upstream's internal pagination: fetches fixed pages of 20, incrementing `start` by 20, until an empty page (normal end) or 2000 pages without one (throws `GarminError`)
+paginates internally: fetches fixed pages of 20, incrementing `start` by 20, until an empty page (normal end) or 2000 pages without one (throws `GarminError`)
 
 Verification: ✅ live-verified
 
@@ -257,7 +257,7 @@ const result = await garmin.getActivitiesForDate("2026-09-24");
 
 `ActivitiesForDateResponse` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
 
-passes through unchecked; upstream's constant name is `garmin_connect_activity_fordate` but the resolved path is `/mobile-gateway/heartRate/...`, not an activities-service path
+passes through unchecked; despite the name, the path is `/mobile-gateway/heartRate/...`, not an activities-service path
 
 Verification: ✅ live-verified
 
@@ -326,7 +326,7 @@ An array of `ActivityEventType`:
 | `typeKey` | `ActivityEventTypeKey` | yes |
 | `sortOrder` | `number` | yes |
 
-**NOT upstream parity**. GETs `/activity-service/activity/eventTypes`: nine `{typeId, typeKey, sortOrder}` entries (`race`, `recreation`, `specialEvent`, `training`, `transportation`, `touring`, `geocaching`, `fitness`, `uncategorized`)
+GETs `/activity-service/activity/eventTypes`: nine `{typeId, typeKey, sortOrder}` entries (`race`, `recreation`, `specialEvent`, `training`, `transportation`, `touring`, `geocaching`, `fitness`, `uncategorized`)
 
 Verification: ✅ live-verified
 
@@ -368,7 +368,7 @@ const result = await garmin.getActivityGear(activityId);
 
 An array of `ActivityGear` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
 
-passes through unchecked; returns an ARRAY; inventory places this row under the "gear" section, not "activities" (see gotchas)
+passes through unchecked; returns an ARRAY, verified live
 
 Verification: ✅ live-verified
 
@@ -476,7 +476,7 @@ const result = await garmin.getActivityTypes();
 
 `ActivityTypesResponse` = ActivityType[]
 
-passes through unchecked; `ActivityTypesResponse` is `ActivityType[]` (154 entries observed live: `{typeId, typeKey, parentTypeId, isHidden, restricted, trimmable}`) — **the upstream inventory's `returns` column says "dict", but the live response is an array; this type reflects the observed reality, not that label**
+passes through unchecked; `ActivityTypesResponse` is `ActivityType[]` (154 entries observed live: `{typeId, typeKey, parentTypeId, isHidden, restricted, trimmable}`) — **an ARRAY, verified live**
 
 Verification: ✅ live-verified
 
@@ -512,7 +512,7 @@ const result = await garmin.getGearActivities(activityId);
 
 An array of `GearActivity` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
 
-`limit` clamped to 1000; returns `[]` on a 404 instead of throwing; inventory places this row under "gear"
+`limit` clamped to 1000; returns `[]` on a 404 instead of throwing
 
 Verification: ✅ live-verified
 
@@ -559,7 +559,7 @@ const result = await garmin.getPersonalRecord();
 
 `PersonalRecords` = PersonalRecord[]
 
-GETs `/personalrecord-service/personalrecord/prs/{displayName}`; no args; passes through unchecked. `PersonalRecords` is `PersonalRecord[]` — **the upstream inventory's `returns` column says "dict"; live-verified WRONG**, the test account returned `array[0]`. Note the plural type name: upstream's method name is singular but the payload is a list, so the result type is named for what it is
+GETs `/personalrecord-service/personalrecord/prs/{displayName}`; no args; passes through unchecked. `PersonalRecords` is `PersonalRecord[]` — **an ARRAY, verified live** (the test account returned `array[0]`). Note the plural type name: the method name is singular but the payload is a list
 
 Verification: ✅ live-verified
 
@@ -613,7 +613,7 @@ const result = await garmin.removeGearFromActivity(activityId, activityId);
 
 `GearLinkResult` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
 
-**PUT**, not DELETE; same 404-handling pattern as `addGearToActivity`; inventory places this row under "gear"
+**PUT**, not DELETE; same 404-handling pattern as `addGearToActivity`
 
 Verification: ✅ live-verified
 
@@ -649,7 +649,7 @@ const result = await garmin.setActivityEventType(activityId, eventType);
 
 `unknown` — Garmin's response is passed through unparsed. Cast it to whatever you need; this library does not model it.
 
-**NOT upstream parity** (shape from Taxuspt/garmin_mcp). Partial `PUT /activity-service/activity/{id}` with `{activityId, eventTypeDTO: {typeKey}}` — the `typeKey` alone is enough, Garmin fills in `typeId`/`sortOrder`. Throws `GarminError` before any request for a key outside the nine
+Partial `PUT /activity-service/activity/{id}` with `{activityId, eventTypeDTO: {typeKey}}` — the `typeKey` alone is enough, Garmin fills in `typeId`/`sortOrder`. Throws `GarminError` before any request for a key outside the nine
 
 Verification: ✅ live-verified
 
@@ -667,7 +667,7 @@ const result = await garmin.setActivityExerciseSets(activityId, payload);
 
 `unknown` — Garmin's response is passed through unparsed. Cast it to whatever you need; this library does not model it.
 
-**replace-all semantics**, `payload` sent verbatim; See gotchas for the payload shape Garmin actually requires (undocumented upstream)
+**replace-all semantics**, `payload` sent verbatim. See gotchas for the payload shape Garmin actually requires (undocumented by Garmin)
 
 Verification: ✅ live-verified
 
@@ -685,7 +685,7 @@ const result = await garmin.setActivityFeel(activityId, feel);
 
 `unknown` — Garmin's response is passed through unparsed. Cast it to whatever you need; this library does not model it.
 
-**NOT upstream parity**. Partial PUT of `summaryDTO.directWorkoutFeel`, one of 0/25/50/75/100 ("How did you feel?", very weak to very strong); `null` clears it. Garmin stores any number (30 read back as 30) that its apps cannot display, so the method refuses anything else
+Partial PUT of `summaryDTO.directWorkoutFeel`, one of 0/25/50/75/100 ("How did you feel?", very weak to very strong); `null` clears it. Garmin stores any number (30 read back as 30) that its apps cannot display, so the method refuses anything else
 
 Verification: ✅ live-verified
 
@@ -721,7 +721,7 @@ const result = await garmin.setActivityPerceivedEffort(activityId, 1);
 
 `unknown` — Garmin's response is passed through unparsed. Cast it to whatever you need; this library does not model it.
 
-**NOT upstream parity**. Partial PUT of `summaryDTO.directWorkoutRpe`, which Garmin stores **TIMES TEN**: pass RPE 1-10 (integer), it sends 10-100; `null` clears it. Garmin itself rejects 150 with a 400 `MEASUREMENT_NOT_VALID`. Never read-modify-write the whole `summaryDTO` instead: PUTting its stored start-coordinate pair back is a 400 (garmin_mcp's finding)
+Partial PUT of `summaryDTO.directWorkoutRpe`, which Garmin stores **TIMES TEN**: pass RPE 1-10 (integer), it sends 10-100; `null` clears it. Garmin itself rejects 150 with a 400 `MEASUREMENT_NOT_VALID`. Never read-modify-write the whole `summaryDTO` instead: PUTting its stored start-coordinate pair back is a 400
 
 Verification: ✅ live-verified
 

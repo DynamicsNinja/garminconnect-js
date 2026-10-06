@@ -22,7 +22,7 @@ export interface NutritionHost {
 }
 
 /**
- * Upstream `get_nutrition_daily_food_log`. `null_behaviour`: passes through unchecked.
+ * Passes Garmin's response through unchecked.
  */
 export async function getNutritionDailyFoodLog(
   host: NutritionHost,
@@ -34,7 +34,7 @@ export async function getNutritionDailyFoodLog(
 }
 
 /**
- * Upstream `get_nutrition_daily_meals`. `null_behaviour`: passes through unchecked.
+ * Passes Garmin's response through unchecked.
  */
 export async function getNutritionDailyMeals(
   host: NutritionHost,
@@ -46,7 +46,7 @@ export async function getNutritionDailyMeals(
 }
 
 /**
- * Upstream `get_nutrition_daily_settings`. `null_behaviour`: passes through unchecked.
+ * Passes Garmin's response through unchecked.
  */
 export async function getNutritionDailySettings(
   host: NutritionHost,
@@ -58,8 +58,7 @@ export async function getNutritionDailySettings(
 }
 
 // ---------------------------------------------------------------------------
-// Food logging — NOT upstream parity. Request shapes from Taxuspt/garmin_mcp, each re-verified
-// live on 2026-10-06 against a real account with Garmin Connect+, by write -> read back -> delete
+// Food logging. Each method verified live on 2026-10-06 against a real account with Garmin Connect+, by write -> read back -> delete
 // (scripts/smoke-nutrition-real.ts). EVERY method below except getNutritionFoodLogRange answers
 // 403 on an account without Connect+, and Connect+ needs a paired Garmin device.
 //
@@ -98,7 +97,7 @@ interface MealDay {
  * Resolves the meal an entry goes into, and the time it is logged at.
  *
  * With a `time`: the named meal, else the meal whose window contains it, else SNACKS — the rule
- * Garmin's own quick-add and garmin_mcp use. Garmin VALIDATES the pairing: a snack at a time
+ * Garmin's own quick-add uses. Garmin VALIDATES the pairing: a snack at a time
  * inside LUNCH's window is a 400 "Meal time for Snacks overlap with meal type: LUNCH" (verified).
  * With a `meal` and no `time`, a time that fits is chosen: the meal's own start, or for a meal
  * whose window holds another meal's (SNACKS), the first minute that is in no other meal's window at all.

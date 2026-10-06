@@ -8,9 +8,8 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
-Twenty-seven methods for Garmin endpoints that python-garminconnect does not wrap, taken from what
-[Taxuspt/garmin_mcp](https://github.com/Taxuspt/garmin_mcp) calls or found by probing. Each was
-verified live on 2026-10-06 by writing, reading the stored value back, and restoring.
+Twenty-seven new methods, each verified live on 2026-10-06 by writing, reading the stored value
+back, and restoring.
 
 - **Calendar events** (new category): `listCalendarEvents`, `getCalendarEvent`,
   `createCalendarEvent`, `updateCalendarEvent`, `deleteCalendarEvent` for races and other events, and `getSharedCalendarEvent` for a race in Garmin's events catalogue (no subscription needed).
@@ -36,7 +35,7 @@ verified live on 2026-10-06 by writing, reading the stored value back, and resto
 
 The MCP server gets the matching tools automatically, and a `calendar-events` tool group.
 
-## [0.8.2] � 2026-10-02
+## [0.8.2] — 2026-10-02
 
 No changes to `garminconnect-js`; it is released in lockstep with the MCP server.
 
@@ -48,7 +47,7 @@ No changes to `garminconnect-js`; it is released in lockstep with the MCP server
   "email or username". The `garmin_email` setting and `GARMIN_EMAIL` keep their names, so saved
   settings keep working.
 
-## [0.8.1] � 2026-10-01
+## [0.8.1] — 2026-10-01
 
 No changes to `garminconnect-js`; it is released in lockstep with the MCP server.
 

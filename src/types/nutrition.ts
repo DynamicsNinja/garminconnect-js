@@ -1,5 +1,5 @@
 /**
- * `GET /nutrition-service/food/logs/{cdate}` (`get_nutrition_daily_food_log`). Passes through
+ * `GET /nutrition-service/food/logs/{cdate}`. Passes through
  * unchecked; undocumented shape.
  */
 export interface NutritionDailyFoodLog {
@@ -7,7 +7,7 @@ export interface NutritionDailyFoodLog {
 }
 
 /**
- * `GET /nutrition-service/meals/{cdate}` (`get_nutrition_daily_meals`). Passes through unchecked;
+ * `GET /nutrition-service/meals/{cdate}`. Passes through unchecked;
  * undocumented shape.
  */
 export interface NutritionDailyMeals {
@@ -15,7 +15,7 @@ export interface NutritionDailyMeals {
 }
 
 /**
- * `GET /nutrition-service/settings/{cdate}` (`get_nutrition_daily_settings`). Passes through
+ * `GET /nutrition-service/settings/{cdate}`. Passes through
  * unchecked; undocumented shape.
  */
 export interface NutritionDailySettings {
@@ -23,7 +23,7 @@ export interface NutritionDailySettings {
 }
 
 // ---------------------------------------------------------------------------
-// Food logging — NOT upstream parity. Shapes read live on 2026-10-06 from a real account with
+// Food logging. Shapes read live on 2026-10-06 from a real account with
 // Garmin Connect+ (the test account cannot: every endpoint below 403s without Connect+).
 // ---------------------------------------------------------------------------
 

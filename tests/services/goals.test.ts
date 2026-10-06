@@ -32,7 +32,7 @@ const server = setupServer(
   ),
 
   // status is used only as a valid-value marker to pick a scenario (real endpoint doesn't branch
-  // on it this way — this is a test fixture, not a claim about upstream behaviour):
+  // on it this way — this is a test fixture, not a claim about Garmin's behaviour):
   // "past" -> always empty; "future" -> two pages then empty; "active" -> one item then empty.
   http.get(`${API}/goal-service/goal/goals`, ({ request }) => {
     record(request);
@@ -117,8 +117,8 @@ describe("getGoals", () => {
 
   it("uses start=1 by default because goal-service is 1-indexed (start=0 returns [] live)", async () => {
     // Regression guard for a live-confirmed silent-empty bug: on an account holding exactly one
-    // active goal, Garmin returned [] for start=0 and [goal] for start=1. Upstream defaults to 0,
-    // so its get_goals() reports "no goals" on an account that has them. If this default ever
+    // active goal, Garmin returned [] for start=0 and [goal] for start=1. A start=0 default
+    // reports "no goals" on an account that has them. If this default ever
     // drifts back to 0, every caller of getGoals() silently gets nothing.
     await makeGarmin().getGoals("active");
     expect(seen[0]!.url).toContain("start=1");
@@ -134,7 +134,7 @@ describe("getGoals", () => {
   it("throws before any request for limit = 0, which would otherwise fire 2000 live calls", async () => {
     // `start` advances by `limit` each page, so limit=0 never advances: every request would be
     // identical and the loop would run to the 2000-page cap against a real account before
-    // throwing. Upstream guards this with _validate_positive_integer; so does this port.
+    // throwing. So `limit` must be validated as a positive integer up front.
     await expect(makeGarmin().getGoals("active", 0, 0)).rejects.toThrow(GarminError);
     expect(seen).toHaveLength(0);
   });

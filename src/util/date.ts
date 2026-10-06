@@ -59,8 +59,7 @@ const HAS_TIME = /\d{2}:\d{2}/;
 const HAS_ZONE = /(?:Z|[+-]\d{2}:?\d{2})$/i;
 
 /**
- * Parse an ISO timestamp the way Python's `datetime.fromisoformat(s).astimezone()`
- * does for a NAIVE string: the wall clock is taken as LOCAL time.
+ * Parse an ISO timestamp, reading a NAIVE string's wall clock as LOCAL time.
  *
  * JavaScript's `new Date(s)` disagrees with that in two places, both handled
  * here: a date-only string (`"2026-09-20"`) is parsed as UTC midnight by spec,
@@ -72,8 +71,8 @@ export function parseIsoLocal(s: string): Date {
 }
 
 /**
- * Parse an ISO timestamp the way upstream treats a supplied `gmtTimestamp`:
- * "assume provided GMT is UTC if naive". A naive string therefore gets `Z`
+ * Parse an ISO timestamp the way a supplied `gmtTimestamp` is treated:
+ * a naive string is assumed to be UTC. It therefore gets `Z`
  * appended rather than being read as local time, which is what `new Date`
  * would otherwise do.
  */

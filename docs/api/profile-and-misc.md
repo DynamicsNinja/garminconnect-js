@@ -81,7 +81,7 @@ const result = await garmin.createCustomFood(input);
 
 Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
 
-**NOT upstream parity**. **A PUT**, not a POST, to `/nutrition-service/customFood`; `CustomFoodInput` = `{name, calories, servingUnit? = "G", servingSize? = 100, brand?, carbs?, protein?, fat?, fiber?, sugar?, saturatedFat?, transFat?, sodium?, cholesterol?, potassium?, calcium?, iron?, vitaminD?}` per ONE serving, absolute amounts (not %DV); numbers are sent as strings, as Garmin's own client does. Returns the stored food with the `foodId`/`servingId` `logFood` takes. Needs Connect+
+**A PUT**, not a POST, to `/nutrition-service/customFood`; `CustomFoodInput` = `{name, calories, servingUnit? = "G", servingSize? = 100, brand?, carbs?, protein?, fat?, fiber?, sugar?, saturatedFat?, transFat?, sodium?, cholesterol?, potassium?, calcium?, iron?, vitaminD?}` per ONE serving, absolute amounts (not %DV); numbers are sent as strings, as Garmin's own client does. Returns the stored food with the `foodId`/`servingId` `logFood` takes. Needs Connect+
 
 Verification: ✅ live-verified
 
@@ -99,7 +99,7 @@ const result = await garmin.deleteCustomFood(activityId);
 
 `unknown` — Garmin's response is passed through unparsed. Cast it to whatever you need; this library does not model it.
 
-**NOT upstream parity**. `DELETE /nutrition-service/customFood/{foodId}`, resolves `null`. IRREVERSIBLE. Needs Connect+
+`DELETE /nutrition-service/customFood/{foodId}`, resolves `null`. IRREVERSIBLE. Needs Connect+
 
 Verification: ✅ live-verified
 
@@ -117,7 +117,7 @@ const result = await garmin.deleteFoodLogs("2026-09-24", ["running"]);
 
 `unknown` — Garmin's response is passed through unparsed. Cast it to whatever you need; this library does not model it.
 
-**NOT upstream parity**. `DELETE /nutrition-service/food/logs/{date}` with `{logIds}` as the body — any number in ONE call, regular and quick-add alike. `logId`s are on the entries of `getNutritionDailyFoodLog`. IRREVERSIBLE. Needs Connect+
+`DELETE /nutrition-service/food/logs/{date}` with `{logIds}` as the body — any number in ONE call, regular and quick-add alike. `logId`s are on the entries of `getNutritionDailyFoodLog`. IRREVERSIBLE. Needs Connect+
 
 Verification: ✅ live-verified
 
@@ -135,7 +135,7 @@ const result = await garmin.deleteTrainingPlan(activityId);
 
 `unknown` — Garmin's response is passed through unparsed. Cast it to whatever you need; this library does not model it.
 
-**NOT upstream parity**. `DELETE /trainingplan-service/trainingplan/trainingplan/{planId}` (the `trainingplan` segment really is doubled) — the request Garmin Connect's "Quit Plan" sends, observed in the web client on 2026-10-06. Resolves `null` (204); the plan's scheduled workouts leave the calendar, completed activities stay. A second call is a 404 `"Training plan not found with ID: …"`. IRREVERSIBLE
+`DELETE /trainingplan-service/trainingplan/trainingplan/{planId}` (the `trainingplan` segment really is doubled) — the request Garmin Connect's "Quit Plan" sends, observed in the web client on 2026-10-06. Resolves `null` (204); the plan's scheduled workouts leave the calendar, completed activities stay. A second call is a 404 `"Training plan not found with ID: …"`. IRREVERSIBLE
 
 Verification: ✅ live-verified
 
@@ -208,7 +208,7 @@ const result = await garmin.getCustomFoods();
 | `customFoods` | `Food[]` | yes |
 | `moreDataAvailable` | `boolean` | yes |
 
-**NOT upstream parity**. GETs `/nutrition-service/customFood` with `includeContent=true`: `{customFoods, moreDataAvailable}`. **`limit` is capped at 20** (Garmin 400s above it — garmin_mcp ships that bug). There is NO get-by-id: `GET /customFood/{id}` is a 405, so search by name to read one back. Needs Connect+
+GETs `/nutrition-service/customFood` with `includeContent=true`: `{customFoods, moreDataAvailable}`. **`limit` is capped at 20** (Garmin 400s above it). There is NO get-by-id: `GET /customFood/{id}` is a 405, so search by name to read one back. Needs Connect+
 
 Verification: ✅ live-verified
 
@@ -226,7 +226,7 @@ const result = await garmin.getCustomFoodServingUnits();
 
 `{servingUnits: {name}[]}`
 
-**NOT upstream parity**. GETs `/nutrition-service/metadata/customFoodServingUnits` (13 units). Needs Connect+
+GETs `/nutrition-service/metadata/customFoodServingUnits` (13 units). Needs Connect+
 
 Verification: ✅ live-verified
 
@@ -244,7 +244,7 @@ const result = await garmin.getGoals();
 
 An array of `Goal` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
 
-defaults `status="active", **start=1**, limit=30` — `start` defaults to 1, NOT upstream's 0, because goal-service is 1-INDEXED and `start=0` silently returns `[]`; throws `GarminError` before any request for an invalid `status`. **Paginated, multi-call**: starting at `start`, fetches successive pages of `limit` entries (incrementing `start` by `limit` each call) until a page comes back empty/falsy, same fixed-page-size pattern as `getActivitiesByDate`; throws `GarminError` if `MAX_PAGINATED_REQUESTS` (2000) pages are fetched without ever seeing an empty one. **Sends the load-bearing `Sec-Fetch-Site: same-origin` header on every request** — without it `goal-service` silently returns `[]` for newer custom accumulation-goal types (upstream issue #431); no error, no 404, just wrong data
+defaults `status="active", **start=1**, limit=30` — `start` defaults to 1, NOT 0, because goal-service is 1-INDEXED and `start=0` silently returns `[]`; throws `GarminError` before any request for an invalid `status`. **Paginated, multi-call**: starting at `start`, fetches successive pages of `limit` entries (incrementing `start` by `limit` each call) until a page comes back empty/falsy, same fixed-page-size pattern as `getActivitiesByDate`; throws `GarminError` if `MAX_PAGINATED_REQUESTS` (2000) pages are fetched without ever seeing an empty one. **Sends the load-bearing `Sec-Fetch-Site: same-origin` header on every request** — without it `goal-service` silently returns `[]` for newer custom accumulation-goal types; no error, no 404, just wrong data
 
 Verification: ✅ live-verified
 
@@ -338,7 +338,7 @@ const result = await garmin.getNutritionFoodLogRange("2026-09-24", "2026-09-24")
 |---|---|---|
 | `dailyNutritionSummaries` | `NutritionDailyFoodLog[]` | yes |
 
-**NOT upstream parity**. GETs `/nutrition-service/food/logs/range?startDate&endDate`: `{dailyNutritionSummaries}`, one day-log per day that has anything logged. The ONLY food-logging call that works without Connect+ (returns no days then)
+GETs `/nutrition-service/food/logs/range?startDate&endDate`: `{dailyNutritionSummaries}`, one day-log per day that has anything logged. The ONLY food-logging call that works without Connect+ (returns no days then)
 
 Verification: ✅ live-verified
 
@@ -423,7 +423,7 @@ const result = await garmin.getUserprofileSettings();
 
 `UserprofileSettings` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
 
-GETs `/userprofile-service/userprofile/settings` (SINGULAR "settings", distinct from `getUserSettings`'s "user-settings" — the two paths are one character apart and easy to transpose); passes through unchecked. Upstream naming ruling, applies to the three rows above: upstream's `get_user_profile`, `get_full_name`, and `get_unit_system` were NOT ported as separate methods — they map onto this port's PRE-EXISTING `getUserSettings()`, `fullName()`, and `unitSystem()` respectively (see `src/services/userProfile.ts` for the full rationale: this port's own `getUserProfile()` already existed with a different, unrelated meaning — `/userprofile-service/socialProfile` — before this task, and repointing/duplicating it was rejected as unsafe)
+GETs `/userprofile-service/userprofile/settings` (SINGULAR "settings", distinct from `getUserSettings`'s "user-settings" — the two paths are one character apart and easy to transpose); passes through unchecked. Three profile endpoints, three methods: `getUserProfile()` reads `/userprofile-service/socialProfile` (and backs `displayName`/`fullName`/`userName`), `getUserSettings()` reads `/userprofile-service/userprofile/user-settings` (and backs `unitSystem`), and this one reads `.../settings`
 
 Verification: ✅ live-verified
 
@@ -465,7 +465,7 @@ const result = await garmin.logFood(input);
 
 `NutritionDailyFoodLog` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
 
-**NOT upstream parity**. PUTs `/nutrition-service/food/logs` with one `REGULAR_LOG` item and returns the whole day's log. `FoodLogInput` = `{date, foodId, servingId, servings? = 1, time?, meal?, source? = "GARMIN", regionCode?, languageCode?}` — pass the catalogue food's `source`/`regionCode`/`languageCode` for a search result. **Needs a `mealId`**, which only exists after Garmin's nutrition setup in the app (400 `mealId must not be null` otherwise; this method throws a clearer error first). The meal is the named one, else the one whose window holds `time`, else SNACKS; with a `meal` and no `time` it picks a time that fits. Garmin VALIDATES the pairing: a snack inside LUNCH's window is a 400 `"Meal time for Snacks overlap with meal type: LUNCH"`. Needs Connect+
+PUTs `/nutrition-service/food/logs` with one `REGULAR_LOG` item and returns the whole day's log. `FoodLogInput` = `{date, foodId, servingId, servings? = 1, time?, meal?, source? = "GARMIN", regionCode?, languageCode?}` — pass the catalogue food's `source`/`regionCode`/`languageCode` for a search result. **Needs a `mealId`**, which only exists after Garmin's nutrition setup in the app (400 `mealId must not be null` otherwise; this method throws a clearer error first). The meal is the named one, else the one whose window holds `time`, else SNACKS; with a `meal` and no `time` it picks a time that fits. Garmin VALIDATES the pairing: a snack inside LUNCH's window is a 400 `"Meal time for Snacks overlap with meal type: LUNCH"`. Needs Connect+
 
 Verification: ✅ live-verified
 
@@ -483,7 +483,7 @@ const result = await garmin.logout();
 
 Nothing.
 
-clears the configured `TokenStore` (`host.client.tokenStore.clear()`); makes **no HTTP call** (the token is never revoked server-side). Does NOT clear the in-memory tokens already held by the calling `GarminClient` instance — there is no public API to do that, and this method's host is deliberately scoped to `{ client }` only. **NEVER call this against a `FileTokenStore` pointed at `./tokens`** —
+clears the configured `TokenStore` (`host.client.tokenStore.clear()`); makes **no HTTP call** (the token is never revoked server-side). Does NOT clear the in-memory tokens already held by the calling `GarminClient` instance — there is no public API to do that, and this method's host is deliberately scoped to `{ client }` only. **NEVER call this against a `FileTokenStore` pointed at `./tokens`** — that is the test harness's live session
 
 Verification: — not applicable
 
@@ -501,7 +501,7 @@ const result = await garmin.queryGarminGraphql("query");
 
 `GraphqlResult` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
 
-POSTs the caller's GraphQL body verbatim to `/graphql-gateway/graphql`; (upstream calls `.json()` directly with no null-check). **The composed URL is this library's highest-risk item**: upstream's own constant is `"graphql-gateway/graphql"`, no leading slash, unlike every other constant in `gc.py` — but this port's `connectapi` composes the request URL by plain string concatenation (`` `https://connectapi.${domain}${path}` ``), not `URL`-relative joining, so omitting the leading slash here would silently glue onto the hostname (`connectapi.garmin.comgraphql-gateway/graphql`) rather than 404 — the usual "a 404 means the URL is wrong" heuristic would not even catch it. The leading slash is therefore hardcoded and deliberate; `tests/services/misc.test.ts` pins the literal composed URL
+POSTs the caller's GraphQL body verbatim to `/graphql-gateway/graphql`. **The leading slash is load-bearing**: `connectapi` composes the request URL by plain string concatenation (`` `https://connectapi.${domain}${path}` ``), not `URL`-relative joining, so omitting the leading slash here would silently glue onto the hostname (`connectapi.garmin.comgraphql-gateway/graphql`) rather than 404 — the usual "a 404 means the URL is wrong" heuristic would not even catch it. The leading slash is therefore hardcoded and deliberate; `tests/services/misc.test.ts` pins the literal composed URL
 
 Verification: ✅ live-verified
 
@@ -519,7 +519,7 @@ const result = await garmin.quickAddFood(input);
 
 `NutritionDailyFoodLog` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
 
-**NOT upstream parity**. PUTs `/nutrition-service/food/logs/quickAdd`: an entry by `name` + `calories`/`carbs`/`protein`/`fat` with no food behind it (`QUICK_ADD`). Same meal rules as `logFood`. Needs Connect+
+PUTs `/nutrition-service/food/logs/quickAdd`: an entry by `name` + `calories`/`carbs`/`protein`/`fat` with no food behind it (`QUICK_ADD`). Same meal rules as `logFood`. Needs Connect+
 
 Verification: ✅ live-verified
 
@@ -560,7 +560,7 @@ const result = await garmin.searchFoods("query");
 | `results` | `Food[]` | yes |
 | `moreDataAvailable` | `boolean` | yes |
 
-**NOT upstream parity** (from Taxuspt/garmin_mcp). GETs `/nutrition-service/food/search?searchExpression&start&limit` (defaults 0/20): `{results: Food[], moreDataAvailable}`; catalogue foods carry `source: "FATSECRET"` and several servings each. **Needs Garmin Connect+**, which needs a paired Garmin device — a bare `403 ForbiddenException` without it
+GETs `/nutrition-service/food/search?searchExpression&start&limit` (defaults 0/20): `{results: Food[], moreDataAvailable}`; catalogue foods carry `source: "FATSECRET"` and several servings each. **Needs Garmin Connect+**, which needs a paired Garmin device — a bare `403 ForbiddenException` without it
 
 Verification: ✅ live-verified
 
@@ -609,7 +609,7 @@ const result = await garmin.updateCustomFood(activityId, activityId, input);
 
 Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
 
-**NOT upstream parity**. The same PUT carrying both ids. **FULL REPLACE**: a nutrient or brand left out is removed (verified: the brand was dropped) — garmin_mcp instead re-reads and merges. Needs Connect+
+The same PUT carrying both ids. **FULL REPLACE**: a nutrient or brand left out is removed (verified: the brand was dropped). Needs Connect+
 
 Verification: ✅ live-verified
 

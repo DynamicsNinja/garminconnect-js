@@ -100,9 +100,7 @@ describe("requestReload", () => {
 
 describe("queryGarminGraphql", () => {
   /**
-   * The single highest-risk assertion in this task. Upstream's own constant for this endpoint is
-   * `"graphql-gateway/graphql"` — no leading slash, unlike every other endpoint constant in
-   * `gc.py`. This client's `GarminClient#apiRequest` composes the request URL via plain string
+   * The leading slash on this path is easy to drop. This client's `GarminClient#apiRequest` composes the request URL via plain string
    * concatenation (`` `https://connectapi.${domain}${path}` ``), NOT `URL`-relative joining, so a
    * path without a leading slash would glue onto the hostname
    * (`https://connectapi.garmin.comgraphql-gateway/graphql`) rather than start a new path segment
@@ -130,7 +128,7 @@ describe("logout", () => {
 
     await garmin.logout();
 
-    expect(seen).toEqual([]); // no HTTP call, matching upstream
+    expect(seen).toEqual([]); // no HTTP call: the token is never revoked server-side
     expect(await store.load()).toBeNull();
   });
 

@@ -81,11 +81,10 @@ export async function getHeartRates(
   return data;
 }
 
-// Upstream's get_sleep_data has no null check — it returns whatever
-// connectapi gives back, including nothing for a night the user didn't wear
-// the watch. That's an ordinary, expected result, not an error, so this
-// mirrors upstream and returns null instead of throwing. Match upstream's
-// null behaviour per-method rather than applying a blanket policy here.
+// No null check — returns whatever connectapi gives back, including nothing
+// for a night the user didn't wear the watch. That's an ordinary, expected
+// result, not an error, so this returns null instead of throwing. Null
+// behaviour is decided per-method rather than by a blanket policy.
 export async function getSleepData(
   host: WellnessHost,
   cdate: string | Date,
@@ -155,11 +154,9 @@ function daysBetween(startStr: string, endStr: string): number {
 }
 
 /**
- * Upstream splits ranges over Garmin's 28-day-per-request limit into
- * `timedelta(days=27)` windows (i.e. ≤28 calendar days per request) and
- * concatenates. Within the limit, a single request's raw (possibly `null`)
- * result is returned unchecked, matching upstream's "single-request path
- * returns whatever connectapi returns unchecked" behaviour; a chunked
+ * Splits ranges over Garmin's 28-day-per-request limit into windows of
+ * ≤28 calendar days per request and concatenates. Within the limit, a single
+ * request's raw (possibly `null`) result is returned unchecked; a chunked
  * request only appends a chunk's results when they are truthy.
  */
 export async function getDailySteps(
@@ -191,8 +188,8 @@ const DAILY_STATS_TYPES: ReadonlySet<string> = new Set<DailyStatsType>(["CALORIE
 
 /**
  * Per-day calorie or step totals for a date range, from
- * `GET /usersummary-service/stats/daily/{start}/{end}?statsType=…`. NOT upstream parity; the
- * endpoint comes from Taxuspt/garmin_mcp and was verified here on 2026-10-06.
+ * `GET /usersummary-service/stats/daily/{start}/{end}?statsType=…`, verified live on
+ * 2026-10-06.
  *
  * Garmin refuses a span of more than 28 days (`end - start > 27` is a 400), so a longer range is
  * fetched in 28-day windows and the days concatenated. Garmin's own `aggregations` block (the
@@ -273,12 +270,10 @@ export async function getWeeklyIntensityMinutes(
 }
 
 /**
- * Upstream `get_stats_and_body` calls `get_stats(cdate)` (== `getUserSummary`
- * here) then `get_body_composition(cdate)` and merges `stats` with
- * `body.get("totalAverage", {})`. Delegates to `getBodyComposition` from the
- * `bodyComposition` service (Task 10) rather than inlining its own
- * `GET /weight-service/weight/dateRange` call, as an earlier version of this
- * function did before that service existed.
+ * Calls `getUserSummary(cdate)` and `getBodyComposition(cdate)` and merges
+ * the summary with the body composition's `totalAverage` block (or `{}`).
+ * Delegates to the `bodyComposition` service rather than inlining its own
+ * `GET /weight-service/weight/dateRange` call.
  */
 export async function getStatsAndBody(
   host: WellnessHost,
@@ -299,12 +294,10 @@ export async function getStatsAndBody(
 
 /**
  * `pulse` is optional — Garmin's own UI allows a blood-pressure entry
- * without a heart rate. Ranges enforced by upstream: systolic 70-260,
+ * without a heart rate. Ranges enforced: systolic 70-260,
  * diastolic 40-150, pulse (if given) 20-250, all integers.
  *
- * UNCERTAIN (inventory): upstream has no explicit null-check on this write
- * and returns `self.client.post(...).json()` directly; this mirrors that by
- * returning whatever `connectapi` gives back unchecked (which is `null` on a
+ * Returns whatever `connectapi` gives back unchecked (which is `null` on a
  * 204/empty body, per this library's `connectapi` contract).
  */
 export async function setBloodPressure(
@@ -351,10 +344,7 @@ export async function getBloodPressure(
   );
 }
 
-/**
- * UNCERTAIN (inventory): upstream has no explicit null-check and calls
- * `.json()` on the DELETE response directly.
- */
+/** Returns Garmin's raw response to the DELETE. */
 export async function deleteBloodPressure(
   host: WellnessHost,
   version: number | string,
@@ -373,13 +363,13 @@ const MAX_HYDRATION_ML = 10_000;
 /**
  * `valueInMl` is sent RAW in milliliters (field name `valueInML`) —
  * negative values are allowed (they subtract), magnitude capped at
- * `MAX_HYDRATION_ML`. Date/timestamp reconciliation mirrors upstream: if
+ * `MAX_HYDRATION_ML`. Date/timestamp reconciliation: if
  * both `when` and `cdate` are omitted, uses now(); if only `cdate` is given,
  * uses local midnight of that date; if only `when` is given, derives
  * `cdate` from it; if both are given, their dates must agree or this
  * throws.
  *
- * UNCERTAIN (inventory): upstream has no explicit null-check on this write.
+ * Returns Garmin's raw response.
  */
 export async function addHydrationData(
   host: WellnessHost,
@@ -438,8 +428,8 @@ export async function getRespirationData(
 }
 
 /**
- * If Garmin sends `lastSevenDaysAvgSpO2` as a string, upstream coerces it to
- * a float in place before returning; replicated here.
+ * If Garmin sends `lastSevenDaysAvgSpO2` as a string, it is coerced to a
+ * number in place before returning.
  */
 export async function getSpo2Data(
   host: WellnessHost,
@@ -473,9 +463,8 @@ export async function getAllDayStress(
 }
 
 /**
- * Same URL as `getAllDayStress` — upstream keeps `get_stress_data` and
- * `get_all_day_stress` as two separate methods hitting the identical
- * endpoint, for API compatibility. Kept as two TS functions to match.
+ * Same URL as `getAllDayStress` — two separate methods hitting the identical
+ * endpoint, kept for API compatibility.
  */
 export async function getStressData(
   host: WellnessHost,
@@ -545,11 +534,9 @@ export async function getRhrDay(
 /**
  * Reshapes Garmin's `allMetrics.metricsMap` response into
  * `[{ calendarDate, value }, ...]`, dropping rows whose value is
- * null/missing — matching upstream's defensive
- * `(data or {}).get("allMetrics") or {}).get("metricsMap", {})` navigation.
- * The exact key(s) `metricsMap` uses were not in the inventory (only the
- * navigation/filtering logic was documented), so this iterates every array
- * found under `metricsMap` rather than assuming a specific key name —
+ * null/missing; a missing `allMetrics` or `metricsMap` yields `[]`. This
+ * iterates every array found under `metricsMap` rather than assuming a
+ * specific key name —
  * `metricId: 60` in the request already scopes the server-side response to
  * resting heart rate.
  */
@@ -585,14 +572,12 @@ export async function getRhrDaily(
  * both series by `calendarDate` into
  * `{ calendarDate, active, resting, total }`, where
  * `total = (active ?? 0) + (resting ?? 0)`. Rows where both are
- * null/missing are skipped, matching upstream.
+ * null/missing are skipped.
  *
- * Two details the inventory did not spell out were resolved by a live
- * probe against `/userstats-service/wellness/daily/{displayName}` rather
- * than guessed:
+ * Two details were resolved by a live probe against
+ * `/userstats-service/wellness/daily/{displayName}` rather than guessed:
  * - A *repeated* `metricId` query param (`?metricId=22&metricId=23`) is
- *   required — a comma-joined `metricId=22,23` (what a naive port of
- *   Python's `metricId=[22, 23]` might produce) 404s. `connectapi`'s
+ *   required — a comma-joined `metricId=22,23` 404s. `connectapi`'s
  *   `params` option only supports one value per key, so the repeated pair
  *   is built into the path's query string directly instead.
  * - `metricsMap`'s keys are the metric names, not ids — confirmed live as

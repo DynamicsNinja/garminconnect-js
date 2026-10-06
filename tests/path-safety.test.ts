@@ -80,8 +80,8 @@ describe("path-segment encoding (I1)", () => {
 
   it("neutralises a traversal in an interpolated display name", async () => {
     const { seen, client } = makeRecorder();
-    // A display name comes back from Garmin, but it is still interpolated into a path; upstream
-    // guards it with `quote(name, safe="")` for the same reason.
+    // A display name comes back from Garmin, but it is still interpolated into a path, so
+    // it must be fully percent-encoded like any other segment.
     const garmin = new Garmin(client);
     Object.defineProperty(garmin, "displayName", {
       value: async () => "../../../workout-service/workout/1",

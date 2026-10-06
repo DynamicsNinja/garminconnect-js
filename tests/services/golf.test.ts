@@ -141,7 +141,7 @@ describe("getGolfShotData", () => {
     expect(seen[0]!.url).toBe(`${API}/gcs-golfcommunity/api/v2/shot/scorecard/123/hole`);
   });
 
-  it("throws on a malformed hole_numbers string before making a request", async () => {
+  it("throws on a malformed holeNumbers string before making a request", async () => {
     await expect(makeGarmin().getGolfShotData(123, "abc")).rejects.toThrow(GarminError);
     expect(seen).toHaveLength(0);
   });
@@ -150,7 +150,7 @@ describe("getGolfShotData", () => {
     // The ordering of the two checks is the point. A typo like "19" or "100" is numerically >9, so
     // without an explicit 1-18 range check it would fall into the drop-the-filter branch above and
     // quietly widen the request to every hole — a wrong-scope query that looks like a success.
-    // Upstream's HOLE_NUMBERS_REGEX rejects these; so must this.
+    // Malformed hole lists must be rejected locally.
     for (const bad of ["19", "25", "100", "0", "1,19"]) {
       await expect(makeGarmin().getGolfShotData(123, bad)).rejects.toThrow(GarminError);
     }

@@ -310,7 +310,7 @@ describe("metrics: training readiness", () => {
     expect(result).toEqual({ inputContext: "AFTER_WAKEUP_RESET", score: 77 });
   });
 
-  it("getMorningTrainingReadiness returns null for an empty array (falsy in upstream Python)", async () => {
+  it("getMorningTrainingReadiness returns null for an empty array", async () => {
     const result = await makeGarmin().getMorningTrainingReadiness("2026-09-01");
     expect(result).toBeNull();
   });

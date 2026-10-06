@@ -43,4 +43,4 @@ edge case. If you add a service, route every interpolated id through `pathSegmen
 
 This library talks to undocumented Garmin Connect endpoints. It is not affiliated with, endorsed by
 or supported by Garmin. Endpoints can change or disappear without notice; treat a sudden 4xx as a
-possible upstream change rather than assuming your code is wrong.
+possible change on Garmin's side rather than assuming your code is wrong.

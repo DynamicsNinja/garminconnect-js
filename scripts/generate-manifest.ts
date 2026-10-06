@@ -18,7 +18,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import ts from "typescript";
 import type { JsonSchema, ManifestMethod, ManifestParam, Safety } from "../src/manifest.js";
-import { CATEGORIES, parseAgentsTable, parseGarminClass, stripParityChatter } from "./lib/garmin-source.js";
+import { CATEGORIES, parseAgentsTable, parseGarminClass, stripInternalNotes } from "./lib/garmin-source.js";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const GARMIN_TS = path.join(ROOT, "src", "garmin.ts");
@@ -211,12 +211,12 @@ const humanize = (name: string) => {
 };
 
 /**
- * `stripParityChatter` (garmin-source.ts) removes AGENTS.md's upstream-provenance bookkeeping,
- * which is shared with `docs/api` generation. This removes a second layer of purely INTERNAL
- * jargon that only makes sense to someone developing this library, not someone calling a tool —
- * "passes through unchecked", "UNCERTAIN upstream null handling", "(see gotchas)"/"See gotchas",
- * "no proven inverse write ... in this task". Kept manifest-only (not in `stripParityChatter`) so
- * `docs/api`'s prose, which IS for a developer of this library, is unaffected.
+ * `stripInternalNotes` (garmin-source.ts) removes AGENTS.md's process vocabulary, which is shared
+ * with `docs/api` generation. This removes a second layer of purely INTERNAL jargon that only
+ * makes sense to someone developing this library, not someone calling a tool — "passes through
+ * unchecked", "(see gotchas)"/"See gotchas", "no proven inverse write ... in this task". Kept
+ * manifest-only (not in `stripInternalNotes`) so `docs/api`'s prose, which IS for a developer of
+ * this library, is unaffected.
  */
 function stripJargon(text: string): string {
   return text
@@ -246,7 +246,7 @@ function describe(
   checker: ts.TypeChecker,
   notes: ReturnType<typeof parseAgentsTable>,
 ): string {
-  const note = stripJargon(stripParityChatter(notes.get(name)?.notes ?? ""));
+  const note = stripJargon(stripInternalNotes(notes.get(name)?.notes ?? ""));
   const symbol = checker.getSymbolAtLocation(member.name);
   const doc = symbol ? docOf(symbol, checker) : "";
   const text = (note || doc || humanize(name)).replace(/\s+/g, " ").trim();

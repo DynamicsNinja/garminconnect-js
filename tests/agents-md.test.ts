@@ -6,13 +6,12 @@ import { Garmin } from "../src/garmin.js";
 /**
  * Drift guard for AGENTS.md, the agent-facing briefing shipped in the
  * package. Its whole value is that a coding agent trusts it over its own
- * (possibly stale, possibly upstream-python-shaped) assumptions about this
+ * (possibly stale, possibly shaped by other Garmin clients) assumptions about this
  * library's surface. A doc that has drifted from the real `Garmin` class is
  * worse than no doc: it teaches an agent to write confident, wrong calls.
  *
  * This test does not hardcode the method list — it reflects on `Garmin` at
- * runtime, so it keeps working unchanged as the surface grows from ~14
- * methods toward upstream's ~155.
+ * runtime, so it keeps working unchanged as the surface grows.
  */
 
 const AGENTS_MD_PATH = fileURLToPath(new URL("../AGENTS.md", import.meta.url));
@@ -43,7 +42,7 @@ function documentedGarminMethodNames(): string[] {
   if (start === -1) {
     throw new Error(
       'AGENTS.md drift guard: could not find the "### `Garmin`" section heading. ' +
-        "The method inventory table this test checks against has apparently been " +
+        "The method table this test checks against has apparently been " +
         "renamed or removed — update AGENTS.md section 3 (or this test, if the " +
         "heading text intentionally changed) so the two stay in sync.",
     );
@@ -107,45 +106,27 @@ describe("AGENTS.md drift guard", () => {
 
     // The headline claim: the FIRST "<N> methods" in section 4. Deliberately loose — optional
     // bold markers, `\s+` for a prose-wrapped break — because this guard exists to pin the FIGURE,
-    // not to dictate how the sentence reads. It has now forced two accurate edits to be reworded
-    // (once when parity went from partial to complete, once when three dead methods were deleted),
-    // and a guard that fights correct prose is a guard that gets weakened or deleted. Each time it
-    // was the regex that moved, never the number.
-    //
-    // "154-method public surface" and "154 public methods" do not match: the first is singular and
-    // hyphenated, the second has a word in between. Only the real count is written "<N> methods".
+    // not to dictate how the sentence reads: a guard that fights correct prose is a guard that gets
+    // weakened or deleted.
     const headline = /(\d+)\*{0,2},?\s+methods\b/.exec(section);
     expect(
       headline,
-      'AGENTS.md section 4 no longer contains an "<N> methods of/covering upstream" sentence. ' +
-        "Restore it (or update this test if the wording intentionally changed again) — it is the " +
-        "figure an agent uses to judge how much of upstream is reachable without connectapi.",
+      'AGENTS.md section 4 no longer contains an "<N> methods" sentence. ' +
+        "Restore it (or update this test if the wording intentionally changed) — it is the " +
+        "figure an agent uses to judge how much is reachable without connectapi.",
     ).not.toBeNull();
     expect(
       Number(headline?.[1]),
       `AGENTS.md section 4 claims ${headline?.[1]} methods; Garmin.prototype actually has ${actual}.`,
     ).toBe(actual);
 
-    // The SECOND mention, which this guard used to miss entirely: the reconciliation paragraph
-    // repeats the count as "<N>-vs-154". It sat at a stale 157 while the headline said 159,
-    // because pinning one number does not pin the other. Any "<N>-vs-<upstream>" in this section
-    // must agree with the real count.
-    for (const [whole, claimed] of section.matchAll(/\b(\d+)-vs-\d+\b/g)) {
-      expect(
-        Number(claimed),
-        `AGENTS.md section 4 says "${whole}", but Garmin.prototype has ${actual} methods. ` +
-          "Update every place the count appears, not just the headline.",
-      ).toBe(actual);
-    }
   });
 
   /**
    * Section 4's worked example teaches the `connectapi` escape hatch, so it must demonstrate an
-   * endpoint this library genuinely does NOT wrap. It has been retargeted twice after the endpoint
-   * it named got ported underneath it (`get_devices`, then `get_goals`) — each time leaving a
-   * snippet that told agents to hand-roll a call a real method already covered. The `get_goals`
-   * version was worse than redundant: it omitted that endpoint's load-bearing `Sec-Fetch-Site`
-   * header, so copying it would have silently returned `[]`.
+   * endpoint this library genuinely does NOT wrap. It has had to be retargeted before, when a real
+   * method came to cover the endpoint it named — once leaving a snippet that omitted a load-bearing
+   * `Sec-Fetch-Site` header, so copying it would have silently returned `[]`.
    */
   it("does not demonstrate connectapi for an endpoint a real Garmin method already covers", () => {
     const section = agentsMd.slice(agentsMd.indexOf("## 4. These methods do NOT exist"));
@@ -180,7 +161,7 @@ describe("AGENTS.md drift guard", () => {
         sources.includes(prefix),
         `Section 4's connectapi example uses "${path}", but "${prefix}" is already wrapped by a ` +
           "real method in src/services. The example must demonstrate a genuinely absent endpoint " +
-          "— pick one from the 'Notably absent' list and verify it against upstream first.",
+          "— pick one from the 'genuinely absent' list and verify it live first.",
       ).toBe(false);
     }
   });

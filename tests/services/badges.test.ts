@@ -42,8 +42,8 @@ const server = setupServer(
       relatedBadges: [{ badgeId: 73, badgeKey: "run_1mile", earnedByMe: true }],
     });
   }),
-  // These four "dict-labelled" endpoints are live-verified (Task 9 smoke run against the test
-  // account) to return a JSON ARRAY, not an object — see the file-level comment in
+  // These four endpoints are live-verified (smoke run against the test account) to return a
+  // JSON ARRAY, not an object — see the file-level comment in
   // src/types/badges.ts. Mocked as arrays here so the mock cannot mask that same "dict but
   // actually an array" mistake seen previously in the gear service.
   http.get(`${API}/adhocchallenge-service/adHocChallenge/historical`, ({ request }) => {
@@ -286,16 +286,15 @@ describe("badges", () => {
       );
       const g = makeGarmin();
       const result = await g.getInProgressBadges();
-      // Map (like Python's dict) keeps a key's original insertion position when the key is
-      // re-set, so badgeId 1 stays first (with its value updated to the "available" entry) and
-      // badgeId 2 stays second — matching upstream's `combined.update(...)` dict semantics.
+      // Map keeps a key's original insertion position when the key is re-set, so badgeId 1
+      // stays first (with its value updated to the "available" entry) and badgeId 2 stays second.
       expect(result).toEqual([
         { badgeId: 1, badgeProgressValue: 8, badgeTargetValue: 10, source: "available", ...img(1) },
         { badgeId: 2, badgeProgressValue: 3, badgeTargetValue: 10, source: "earned", ...img(2) },
       ]);
     });
 
-    it("never raises when both upstream calls return null (204)", async () => {
+    it("never raises when both underlying calls return null (204)", async () => {
       server.use(
         http.get(`${API}/badge-service/badge/earned`, () => new HttpResponse(null, { status: 204 })),
         http.get(`${API}/badge-service/badge/available`, () => new HttpResponse(null, { status: 204 })),

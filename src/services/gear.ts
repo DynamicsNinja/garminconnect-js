@@ -5,8 +5,8 @@ import { validateSportKey, validateUuid, pathSegment } from "../util/validate.js
 import type { Gear, GearDefaults, GearStats } from "../types/gear.js";
 
 /**
- * This is the dedicated gear-CRUD service (`get_gear`, `create_gear`, `get_gear_stats`,
- * `get_gear_defaults`, `set_gear_default`). The activity/gear-*association* surface
+ * This is the dedicated gear-CRUD service (`getGear`, `createGear`, `getGearStats`,
+ * `getGearDefaults`, `deleteGear`, `setGearActivityDefaults`). The activity/gear-*association* surface
  * (`getActivityGear`, `getGearActivities`, `addGearToActivity`, `removeGearFromActivity`) lives in
  * `src/services/activities.ts` instead — see that file's comments for why.
  */
@@ -15,14 +15,13 @@ export interface GearHost {
 }
 
 /**
- * Upstream `get_gear`. Reuses the same base URL as `getActivityGear`
- * (`/gear-service/gear/filterGear`) with `userProfilePk` instead of `activityId` — see that
- * function's comment in `src/services/activities.ts`.
+ * Reuses the same base URL as `getActivityGear` (`/gear-service/gear/filterGear`) with
+ * `userProfilePk` instead of `activityId` — see that function's comment in
+ * `src/services/activities.ts`.
  *
- * Upstream's own docstring flags a possible deprecation: Garmin's web client calls
- * `/gear-service/gear/v2/list`, not this `filterGear` path. Live-verified in Task 7: `filterGear`
- * returns 200 with a JSON array (empty before any gear exists, non-empty once it does) — NOT
- * deprecated/broken. See the task-7 report for the full evidence.
+ * Garmin's web client calls `/gear-service/gear/v2/list`, not this `filterGear` path, which raised
+ * a possible-deprecation concern. Live-verified: `filterGear` returns 200 with a JSON array (empty
+ * before any gear exists, non-empty once it does) — NOT deprecated/broken.
  *
  * `null_behaviour`: passes through unchecked (no throw, no coalescing) — but the payload IS an
  * array of gear entries, not a single object; `Gear` (see `src/types/gear.ts`) types one entry.
@@ -57,11 +56,11 @@ function convertMaxUsageDurationMin(min: number): number {
 }
 
 /**
- * Upstream `create_gear`. **Conversions happen here and must be replicated exactly** — the
+ * **Conversions happen here and must be kept exactly** — the
  * OPPOSITE direction from `addWeighIn`'s "send the raw value" rule: `maxUsageDistanceKm` is
  * converted km -> metres (`round(km * 1000)`, must floor to >= 1), and `maxUsageDurationMin` is
  * converted min -> seconds (`round(min * 60)`, must floor to >= 1). Both floors throw
- * `GarminError` (mirroring upstream's `ValueError`) rather than silently sending 0.
+ * `GarminError` rather than silently sending 0.
  *
  * **BOTH conversions are live-verified**, by create -> read-back round-trip. Distance: 5 km sent
  * read back as `getGear`'s `maximumMeters: 5000`. Duration: 90 min sent read back as
@@ -69,23 +68,18 @@ function convertMaxUsageDurationMin(min: number): number {
  * surfaced, which is why this note used to say the duration direction was unverifiable. Neither
  * rests on source review alone any more.
  *
- * `gearType`/`usageType` are normalized upper-case via `validateSportKey`, matching upstream's
- * `_validate_sport_key`. `usageType` must be one of `NONE`/`DISTANCE`/`DURATION`/`DATE`, read
+ * `gearType`/`usageType` are normalized upper-case via `validateSportKey`. `usageType` must be one of `NONE`/`DISTANCE`/`DURATION`/`DATE`, read
  * live from `/gear-service/gear/v2/usagetypes` — these were once "unverified guesses" here and
  * are not any more. Note `"TIME"` is NOT valid (400 `Invalid value 'TIME' for usageType`); the
  * duration option is spelled `DURATION`.
  *
  * `activityTypeKeys` entries are sent lower-case (matching `getActivities`' `activitytype`
- * convention), which is the opposite case convention from upstream's `set_gear_default` —
- * a subtle asymmetry inherited from upstream. That method is not ported here (its endpoint is
- * dead); `setGearActivityDefaults` replaces it and also takes lowercase keys.
+ * convention); `setGearActivityDefaults` takes lowercase keys too.
  *
  * `firstUseDate` is routed through `formatDate` per this project's date-argument rule, even
  * though it is a body field rather than a path/query segment.
  *
- * UNCERTAIN (inventory): "no explicit null handling" on the response — implemented as a
- * straightforward pass-through of the raw response. What would resolve it: a live account where
- * `create_gear` was observed returning something other than the created gear object.
+ * Returns Garmin's raw response.
  */
 export async function createGear(
   host: GearHost,
@@ -126,9 +120,8 @@ export async function createGear(
 }
 
 /**
- * Upstream `get_gear_stats`. On a 404, returns `{}` rather than throwing (matching upstream
- * exactly); any other error is re-raised as-is. `gearUUID` is validated via `validateUuid`
- * (hex characters, hyphens optional), matching upstream's `_validate_uuid`.
+ * On a 404, returns `{}` rather than throwing; any other error is re-raised as-is. `gearUUID` is
+ * validated via `validateUuid` (hex characters, hyphens optional).
  */
 export async function getGearStats(host: GearHost, gearUUID: string): Promise<GearStats> {
   const uuid = validateUuid(gearUUID);
@@ -144,9 +137,8 @@ export async function getGearStats(host: GearHost, gearUUID: string): Promise<Ge
 }
 
 /**
- * Upstream `get_gear_defaults`. `null_behaviour`: passes through unchecked (no throw, no
- * coalescing) — the payload is an array of `{uuid, activityTypePk, defaultGear}`-shaped entries
- * (live-verified in Task 7, see `GearDefaults` in `src/types/gear.ts`), not a single object.
+ * Passes Garmin's response through unchecked (no throw, no coalescing) — the payload is an array
+ * of `{uuid, activityTypePk, defaultGear}`-shaped entries (live-verified, see `GearDefaults` in `src/types/gear.ts`), not a single object.
  */
 export async function getGearDefaults(
   host: GearHost,
@@ -161,9 +153,7 @@ export async function getGearDefaults(
  * `DELETE /gear-service/gear/v2/{gearUUID}` — permanently removes a gear item and its activity
  * history. Resolves to `null` on success (Garmin answers 204).
  *
- * **NOT a port of upstream python-garminconnect** — upstream has no delete-gear method, which is
- * why this project spent its entire build documenting gear fixtures as permanent residue. The
- * endpoint was found on 2026-09-23 by watching Garmin's own web client delete a gear item
+ * The endpoint was found on 2026-09-23 by watching Garmin's own web client delete a gear item
  * (`connect.garmin.com/app/gear` -> gear detail -> ⋮ -> Delete), and then verified through this
  * client against the test account.
  *
@@ -189,11 +179,10 @@ export async function deleteGear(host: GearHost, gearUUID: string): Promise<unkn
 }
 
 /**
- * Sets which activity types this gear is the default for — the **replacement for upstream's
- * `set_gear_default`**, whose endpoint is dead and which this port removed on 2026-09-24.
+ * Sets which activity types this gear is the default for.
  *
- * **NOT upstream parity.** Upstream's
- * `PUT /gear-service/gear/{uuid}/activityType/{TYPE}/default/true` 404s on every activityType
+ * The older dedicated endpoint,
+ * `PUT /gear-service/gear/{uuid}/activityType/{TYPE}/default/true`, is dead: it 404s on every activityType
  * spelling, against fresh gear and real gear alike — four investigations failed to make it work,
  * the last decisively: gear created WITH `activityTypeKeys`, linked to an activity, and defaulted
  * through THIS function, all succeeded against the same UUID seconds before that endpoint again
@@ -203,15 +192,14 @@ export async function deleteGear(host: GearHost, gearUUID: string): Promise<unkn
  * `createGear` already posts.
  *
  * `activityTypeKeys` are LOWERCASE (`"running"`, `"cycling"`), matching `createGear`'s convention —
- * NOT the upper-cased form upstream's `set_gear_default` sent through `validateSportKey`. That
- * asymmetry is upstream's, and it is one plausible reason the old endpoint never matched.
+ * NOT upper-cased through `validateSportKey`.
  *
  * READ-MODIFY-WRITE: this GETs the current gear record, swaps `associatedActivityTypes` wholesale,
  * and PUTs the whole record back. Two concurrent callers can clobber each other, and any field
  * Garmin adds to the record travels along untouched. Passing `[]` clears all defaults.
  *
  * Verified live 2026-09-23: setting `["running", "cycling"]` was read back from both
- * `/gear-service/gear/v2/{uuid}` and this port's own `getGearDefaults` (which reported
+ * `/gear-service/gear/v2/{uuid}` and `getGearDefaults` (which reported
  * `activityTypePk` 1 and 2).
  */
 export async function setGearActivityDefaults(

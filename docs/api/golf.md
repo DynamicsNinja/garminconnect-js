@@ -42,7 +42,7 @@ const result = await garmin.getGolfClubStats();
 
 An array of `GolfClubStats` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
 
-defaults `limit=1000`; validated positive; GETs `/gcs-golfcommunity/api/v2/club/player`; hyphenated query params `per-page` and `include-stats` (literal `"true"`). **Inventory's `returns` column says "dict"; live-verified WRONG** — the test account returned a JSON ARRAY of 17 club entries (`{id, clubTypeId, shaftLength, flexTypeId, averageDistance, adviceDistance, retired, deleted, lastModifiedTime}`), not a single object
+defaults `limit=1000`; validated positive; GETs `/gcs-golfcommunity/api/v2/club/player`; hyphenated query params `per-page` and `include-stats` (literal `"true"`). **An ARRAY, verified live** — the test account returned a JSON ARRAY of 17 club entries (`{id, clubTypeId, shaftLength, flexTypeId, averageDistance, adviceDistance, retired, deleted, lastModifiedTime}`), not a single object
 
 Verification: ✅ live-verified
 
@@ -96,7 +96,7 @@ const result = await garmin.getGolfSummary();
 
 `GolfScorecardSummary` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
 
-defaults `start=0, limit=100`; `start` validated non-negative, `limit` validated positive (throws `GarminError` otherwise); query params are literally hyphenated (`per-page`, `start`), matching Garmin's own naming. **Inventory's `returns` column says "list"; live-verified WRONG** — the test account (0 rounds recorded) returned a single pagination-envelope OBJECT `{pageNumber, rowsPerPage, totalRows}`, not an array
+defaults `start=0, limit=100`; `start` validated non-negative, `limit` validated positive (throws `GarminError` otherwise); query params are literally hyphenated (`per-page`, `start`), matching Garmin's own naming. **An OBJECT, not an array, verified live** — the test account (0 rounds recorded) returned a single pagination-envelope OBJECT `{pageNumber, rowsPerPage, totalRows}`, not an array
 
 Verification: ✅ live-verified
 

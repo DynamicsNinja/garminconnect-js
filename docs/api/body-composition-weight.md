@@ -45,7 +45,7 @@ const result = await garmin.addBodyComposition(1);
 
 `unknown` — Garmin's response is passed through unparsed. Cast it to whatever you need; this library does not model it.
 
-builds a `.fit` binary in memory (`src/util/fit.ts`, ported from upstream `fit.py`'s `FitEncoderWeight`) and uploads it via `client.upload` to `/upload-service/upload`; `weight` validated positive/finite, throws `GarminError` otherwise; (passes `client.upload`'s result through unchecked `self.client.post(...)`)
+builds a `.fit` binary in memory (`src/util/fit.ts`, a hand-rolled FIT encoder) and uploads it via `client.upload` to `/upload-service/upload`; `weight` validated positive/finite, throws `GarminError` otherwise; passes `client.upload`'s result through unchecked
 
 Verification: ✅ live-verified
 
@@ -81,7 +81,7 @@ const result = await garmin.addWeighInWithTimestamps(1);
 
 `unknown` — Garmin's response is passed through unparsed. Cast it to whatever you need; this library does not model it.
 
-same raw-value, no-conversion rule as `addWeighIn`; the two timestamps are COUPLED: the local instant resolves from `dateTimestamp` if given (naive strings read as LOCAL time) else from `when` (defaults `new Date()`), and `gmtTimestamp`, when omitted, is derived from THAT resolved instant — never independently from `when`. Both supplied strings are re-formatted rather than forwarded verbatim (a naive `gmtTimestamp` is read as UTC), matching upstream
+same raw-value, no-conversion rule as `addWeighIn`; the two timestamps are COUPLED: the local instant resolves from `dateTimestamp` if given (naive strings read as LOCAL time) else from `when` (defaults `new Date()`), and `gmtTimestamp`, when omitted, is derived from THAT resolved instant — never independently from `when`. Both supplied strings are re-formatted rather than forwarded verbatim (a naive `gmtTimestamp` is read as UTC)
 
 Verification: ✅ live-verified
 

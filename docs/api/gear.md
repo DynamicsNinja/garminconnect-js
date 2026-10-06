@@ -43,7 +43,7 @@ const result = await garmin.createGear("gearType", "brand", "model", "name", "20
 
 `unknown` — Garmin's response is passed through unparsed. Cast it to whatever you need; this library does not model it.
 
-POSTs `/gear-service/gear/v2`; defaults `usageType="DISTANCE", notes=""`; `firstUseDate` routed through `formatDate`; `gearType`/`usageType` upper-cased via `validateSportKey`; **converts** `maxUsageDistanceKm` -> `maxUsageDistanceMeters` (`round(km*1000)`, floor 1) and `maxUsageDurationMin` -> `maxUsageDurationSeconds` (`round(min*60)`, floor 1) — the opposite direction from `addWeighIn`'s "send raw" rule; (implemented as a raw pass-through)
+POSTs `/gear-service/gear/v2`; defaults `usageType="DISTANCE", notes=""`; `firstUseDate` routed through `formatDate`; `gearType`/`usageType` upper-cased via `validateSportKey`; **converts** `maxUsageDistanceKm` -> `maxUsageDistanceMeters` (`round(km*1000)`, floor 1) and `maxUsageDurationMin` -> `maxUsageDurationSeconds` (`round(min*60)`, floor 1) — the opposite direction from `addWeighIn`'s "send raw" rule; returns the response unchecked
 
 Verification: ✅ live-verified
 
@@ -61,7 +61,7 @@ const result = await garmin.deleteGear(activityId);
 
 `unknown` — Garmin's response is passed through unparsed. Cast it to whatever you need; this library does not model it.
 
-**NOT upstream parity**: upstream python-garminconnect has no delete-gear method. `DELETE /gear-service/gear/v2/{gearUUID}`, resolves `null` on success (204). **The UUID must be HYPHENATED** — `getGear` returns them WITHOUT hyphens and that form 404s, so this method re-inserts them for you when handed the bare 32-char form; only hand-rolled URLs hit the 404. IRREVERSIBLE: removes the gear AND its activity history
+`DELETE /gear-service/gear/v2/{gearUUID}`, resolves `null` on success (204). **The UUID must be HYPHENATED** — `getGear` returns them WITHOUT hyphens and that form 404s, so this method re-inserts them for you when handed the bare 32-char form; only hand-rolled URLs hit the 404. IRREVERSIBLE: removes the gear AND its activity history
 
 Verification: ✅ live-verified
 
@@ -79,7 +79,7 @@ const result = await garmin.getGear(activityId);
 
 An array of `Gear` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
 
-hits `/gear-service/gear/filterGear?userProfilePk=...`; passes through unchecked; returns an ARRAY of gear entries. This is the dedicated gear-CRUD service (`src/services/gear.ts`), distinct from `getActivityGear` (activities service, reuses the same base URL with `activityId` instead)
+hits `/gear-service/gear/filterGear?userProfilePk=...`; passes through unchecked; returns an ARRAY of gear entries, verified live. This is the dedicated gear-CRUD service (`src/services/gear.ts`), distinct from `getActivityGear` (activities service, reuses the same base URL with `activityId` instead)
 
 Verification: ✅ live-verified
 
@@ -97,7 +97,7 @@ const result = await garmin.getGearDefaults(activityId);
 
 An array of `GearDefaults` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
 
-GETs `/gear-service/gear/user/{userProfileNumber}/activityTypes`; passes through unchecked; returns an ARRAY of `{uuid, activityTypePk, defaultGear}` entries
+GETs `/gear-service/gear/user/{userProfileNumber}/activityTypes`; passes through unchecked; returns an ARRAY of `{uuid, activityTypePk, defaultGear}` entries, verified live
 
 Verification: ✅ live-verified
 
@@ -133,6 +133,6 @@ const result = await garmin.setGearActivityDefaults(activityId, ["running"]);
 
 `unknown` — Garmin's response is passed through unparsed. Cast it to whatever you need; this library does not model it.
 
-**NOT upstream parity**: a WORKING replacement for `setGearDefault`, whose upstream endpoint is dead. Read-modify-writes the v2 record: GETs `/gear-service/gear/v2/{uuid}`, replaces `associatedActivityTypes` with `[{activityTypeKey, defaultGear: true, preferredGear: false}]` per key, PUTs the whole record back. Keys are **lowercase** (`"running"`), matching `createGear` — NOT `setGearDefault`'s upper-cased form. `[]` clears all defaults. Concurrent callers can clobber each other
+The working way to set gear defaults (the old dedicated default-gear endpoint is dead; there is no `setGearDefault`). Read-modify-writes the v2 record: GETs `/gear-service/gear/v2/{uuid}`, replaces `associatedActivityTypes` with `[{activityTypeKey, defaultGear: true, preferredGear: false}]` per key, PUTs the whole record back. Keys are **lowercase** (`"running"`), matching `createGear` — NOT `setGearDefault`'s upper-cased form. `[]` clears all defaults. Concurrent callers can clobber each other
 
 Verification: ✅ live-verified

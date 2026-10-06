@@ -50,7 +50,7 @@ function validateFtpAggregation(aggregation: string): string {
   return aggregation;
 }
 
-/** Note the date is repeated twice in the path (start=end=cdate), per upstream. */
+/** Note the date is repeated twice in the path (start=end=cdate). */
 export async function getMaxMetrics(
   host: MetricsHost,
   cdate: string | Date,
@@ -61,7 +61,7 @@ export async function getMaxMetrics(
   );
 }
 
-/** Upstream's `_validate_date_range` also enforces `start <= end`. */
+/** Throws `GarminError` unless `start <= end`. */
 export async function getMaxMetricsRange(
   host: MetricsHost,
   start: string | Date,
@@ -101,7 +101,7 @@ export async function getFunctionalThresholdPowerRange(
 
 /**
  * **Two distinct call shapes per branch, both implemented — this is the
- * defining branching method in this service, per the inventory.**
+ * defining branching method in this service.**
  *
  * `latest=true` (default): fires two GETs —
  * `/biometric-service/biometric/latestLactateThreshold` (an iterable of
@@ -109,12 +109,11 @@ export async function getFunctionalThresholdPowerRange(
  * `heartRate ?? hearRate`, Garmin's own historical typo) and
  * `/biometric-service/biometric/powerToWeight/latest/{today}` with the
  * LITERAL param `sport: "Running"` (mixed case — deliberately NOT run
- * through `validateSportKey`, because upstream sends this exact literal,
- * distinct from the range branch's fully-uppercase `"RUNNING"`). Upstream
- * has no null-guard before iterating `speed_and_heart_rate`: if that
- * endpoint returns nothing, upstream's `for` raises `TypeError`, mirrored
- * here by not guarding before the `for...of` (iterating `null`/`undefined`
- * throws the JS equivalent).
+ * through `validateSportKey`: Garmin expects this exact mixed-case value,
+ * distinct from the range branch's fully-uppercase `"RUNNING"`; do not
+ * normalise it). There is no null-guard before iterating the speed/heart-rate
+ * entries: if that endpoint returns nothing, the `for...of` over
+ * `null`/`undefined` throws a `TypeError`.
  *
  * `latest=false`: requires `startDate` (throws if omitted); `endDate`
  * defaults to today. Fires
@@ -190,13 +189,11 @@ export async function getTrainingReadiness(
 
 /**
  * Delegates to `getTrainingReadiness` — no HTTP call of its own. Returns
- * `null` if the underlying result is falsy, including an EMPTY array (which
- * is falsy in Python but truthy in JS — the empty-array case is checked
- * explicitly to match). Filters for `inputContext === "AFTER_WAKEUP_RESET"`,
+ * `null` if the underlying result is falsy or an EMPTY array (truthy in JS,
+ * so it is checked explicitly). Filters for `inputContext === "AFTER_WAKEUP_RESET"`,
  * falling back to the first entry if no such entry exists (not all firmware
  * populates `inputContext`). Defensively returns a non-array result as-is,
- * matching upstream's defensive dict handling even though the real endpoint
- * returns a list.
+ * even though the real endpoint returns a list.
  */
 export async function getMorningTrainingReadiness(
   host: MetricsHost,
@@ -263,8 +260,8 @@ export async function getRunningTolerance(
  * with `fromCalendarDate`/`toCalendarDate`. Any partial combination throws.
  * `type` must be `"daily"` or `"monthly"`. The range branch also enforces
  * `(enddate - startdate) <= 366` days (a negative span, i.e. `enddate` before
- * `startdate`, is NOT rejected here — mirroring upstream's literal
- * `(enddate - startdate).days <= 366` check, which a negative delta already
+ * `startdate`, is NOT rejected here — the check is a literal
+ * `enddate - startdate <= 366 days`, which a negative delta already
  * satisfies).
  */
 export async function getRacePredictions(
@@ -351,11 +348,10 @@ export async function getHeartRateZones(host: MetricsHost): Promise<HeartRateZon
 }
 
 // ---------------------------------------------------------------------------
-// Heart-rate zone writes — NOT upstream parity. `PUT /biometric-service/heartRateZones` takes an
-// ARRAY of the profiles that changed and answers 204. Shape from Taxuspt/garmin_mcp; verified live
-// on 2026-10-06 (DEFAULT floors changed and read back, a RUNNING profile created then deleted,
-// everything restored). `changeState: "DELETED"` removing a sport profile is this library's own
-// finding, not garmin_mcp's.
+// Heart-rate zone writes. `PUT /biometric-service/heartRateZones` takes an ARRAY of the profiles
+// that changed and answers 204. Verified live on 2026-10-06 (DEFAULT floors changed and read back,
+// a RUNNING profile created then deleted, everything restored), including `changeState: "DELETED"`
+// removing a sport profile.
 // ---------------------------------------------------------------------------
 
 const HR_ZONES_PATH = "/biometric-service/heartRateZones";

@@ -43,7 +43,7 @@ const result = await garmin.getDeviceAlarms();
 
 `unknown` — Garmin's response is passed through unparsed. Cast it to whatever you need; this library does not model it.
 
-no HTTP path of its own: calls `getDevices()` once, then `getDeviceSettings(device.deviceId)` once per device (N+1 fan-out, sequential, ported faithfully — do not parallelize), concatenating each device's `alarms`; a device with no alarms contributes nothing, never throws for that case
+no HTTP path of its own: calls `getDevices()` once, then `getDeviceSettings(device.deviceId)` once per device (N+1 fan-out, sequential by design — do not parallelize), concatenating each device's `alarms`; a device with no alarms contributes nothing, never throws for that case
 
 Verification: ✅ live-verified
 

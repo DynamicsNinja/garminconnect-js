@@ -143,8 +143,7 @@ const garmin = new Garmin(client);
 
 ## 🔐 Authentication
 
-Login follows Garmin's SSO flow, the same one `garth` and python-garminconnect use:
-`GarminClient.login(email, password)` exchanges credentials for an OAuth1 token, then exchanges
+Login follows Garmin's SSO flow: `GarminClient.login(email, password)` exchanges credentials for an OAuth1 token, then exchanges
 that for a short-lived OAuth2 access token. Both are handed to your `TokenStore`.
 
 - **Rate-limited sign-in.** Garmin rate limits the mobile sign-in route, per client id and
@@ -363,7 +362,7 @@ seconds.
 | `GarminError` | Base class for everything below; also thrown directly for malformed responses. |
 | `GarminAuthError` | 401/403, failed SSO, or expired tokens. Log in again. |
 | `GarminRateLimitError` | 429. Carries `retryAfter` seconds when Garmin sends it. |
-| `GarminConnectionError` | Network failure or timeout, after retries — **and** a few semantic HTTP statuses that some services deliberately re-raise as this class, mirroring upstream: **every** HTTP error from `importActivity` (not just its 409 "Activity already exists" — a 400 or 413 is wrapped the same way), the 404 ("gear not found (likely retired/removed)") from `addGearToActivity` and `removeGearFromActivity`, and a missing `deviceSolarInput` from `getDeviceSolarData`. Those are permanent, not transient — do not blanket-retry on this class; check the message or the `cause`. |
+| `GarminConnectionError` | Network failure or timeout, after retries — **and** a few semantic HTTP statuses that some services deliberately re-raise as this class: **every** HTTP error from `importActivity` (not just its 409 "Activity already exists" — a 400 or 413 is wrapped the same way), the 404 ("gear not found (likely retired/removed)") from `addGearToActivity` and `removeGearFromActivity`, and a missing `deviceSolarInput` from `getDeviceSolarData`. Those are permanent, not transient — do not blanket-retry on this class; check the message or the `cause`. |
 | `GarminHttpError` | Any other non-2xx. Carries `status`, `url`, `body`. |
 
 ## 🏊 Building workouts
@@ -453,7 +452,7 @@ its live-verification status — confirmed against a real Garmin account, not me
 
 **Still unverified:** `getGolfScorecard` and `getGolfShotData`, because no available account has a
 recorded round. `getGolfShotData` also returns an unexplained **410** against a made-up id, and one
-real scorecard would show whether upstream's path is dead.
+real scorecard would show whether Garmin has retired that endpoint.
 
 **Worth knowing before you call:**
 
@@ -464,23 +463,6 @@ real scorecard would show whether upstream's path is dead.
 
 The per-method gotchas and the evidence behind every verification are in [`AGENTS.md`](AGENTS.md)
 section 3.
-
-### Relationship to python-garminconnect
-
-This library began as a port of Python's [`garminconnect`][python-garminconnect-url] and its auth
-dependency [`garth`][garth-url], and the endpoint surface and SSO flow still derive from them —
-see [`NOTICE`](NOTICE) for attribution. It is no longer a port: 151 of upstream's 154 methods are
-here, forty-one methods go beyond it (among them all eight course methods, six calendar-event methods and ten food-logging methods), and behaviour diverges where evidence warranted it.
-
-Three upstream methods are deliberately absent, because live testing showed each can only produce
-a broken result: `upload_walking_workout` and `upload_hiking_workout` (Garmin has no such workout
-sport type — it stores a null one) and `set_gear_default` (the endpoint 404s against gear that
-demonstrably exists). `getGoals` also defaults `start` to 1 rather than 0, because Garmin's
-goal-service is 1-indexed and 0 silently returns "no goals" on an account that has them. Each
-divergence is recorded with its reason in `tests/parity.test.ts`, which fails if one goes stale.
-
-If you are migrating, [`AGENTS.md`](AGENTS.md) carries the full per-method mapping, including the
-three upstream names that resolve to a differently-named method here.
 
 The standing rule behind all of this: a live *write* probe only runs when the value can be read
 back and the change undone, and a 2xx is never accepted as evidence on its own.
@@ -639,9 +621,6 @@ Before opening a PR:
       same script, so a green local run cannot diverge from a green pipeline by omission.
 - [ ] `npm run docs:api` has been re-run if you changed a method or its `AGENTS.md` row, and the
       regenerated `docs/api/` files are committed. A test fails if they are stale.
-- [ ] `tests/parity.test.ts` still passes — if you're adding a `connectapi`-only endpoint upstream
-      also has as a public method, port it as a real `Garmin` method instead, or that test will
-      fail (by design).
 - [ ] New endpoints follow the existing `services/*` + `Garmin` method pattern, with a typed
       response interface in `types/`.
 - [ ] Commits follow [Conventional Commits](https://www.conventionalcommits.org/).
@@ -665,15 +644,13 @@ If this library saves you time, you can support its development:
 ## 📚 Additional resources & acknowledgements
 
 - [connect.garmin.com](https://connect.garmin.com) — the service this library talks to.
-- [python-garminconnect][python-garminconnect-url] — the upstream project this one grew out of;
-  the endpoint surface follows it.
-- [garth][garth-url] — the Python auth library whose SSO/OAuth flow this library follows.
 - [`CHANGELOG.md`](CHANGELOG.md) — what changed in each release.
-- [`NOTICE`](NOTICE) — attribution details for both upstream projects.
+- The SSO/OAuth flow was originally derived from [garth][garth-url] and
+  [python-garminconnect][python-garminconnect-url]; attribution is in [`NOTICE`](NOTICE).
 
 ## License
 
-MIT. See [`NOTICE`](NOTICE) for attribution to python-garminconnect and garth.
+MIT. See [`NOTICE`](NOTICE) for third-party attribution.
 
 [python-garminconnect-url]: https://github.com/cyberjunky/python-garminconnect
 [garth-url]: https://github.com/matin/garth

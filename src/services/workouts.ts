@@ -23,10 +23,8 @@ export interface WorkoutsHost {
 // ---------------------------------------------------------------------------
 
 /**
- * `list`, "passes through unchecked" per the inventory — stays nullable, NOT
- * coalesced to `[]` (per the project rule: only methods whose inventory row
- * explicitly documents `[]`-coalescing do that; "passes through unchecked"
- * means exactly what it says).
+ * Passes Garmin's response through unchecked — stays nullable, NOT
+ * coalesced to `[]`.
  */
 export async function getWorkouts(
   host: WorkoutsHost,
@@ -38,7 +36,7 @@ export async function getWorkouts(
   });
 }
 
-/** `dict`, passes through unchecked per the inventory. */
+/** Passes Garmin's response through unchecked. */
 export async function getWorkoutById(
   host: WorkoutsHost,
   workoutId: number | string,
@@ -47,7 +45,7 @@ export async function getWorkoutById(
 }
 
 /**
- * UNCERTAIN (inventory): "no explicit null handling". Deletes the template
+ * Returns Garmin's raw response. Deletes the template
  * from the workout library — irreversible.
  */
 export async function deleteWorkout(host: WorkoutsHost, workoutId: number | string): Promise<unknown> {
@@ -55,19 +53,16 @@ export async function deleteWorkout(host: WorkoutsHost, workoutId: number | stri
 }
 
 /**
- * UNCERTAIN (inventory): "routed through `self.download(url)`", no explicit
- * null handling reviewed. Returns the workout's FIT-file bytes.
+ * Routed through `client.download`. Returns the workout's FIT-file bytes.
  */
 export async function downloadWorkout(host: WorkoutsHost, workoutId: number | string): Promise<Buffer> {
   return host.client.download(`/workout-service/workout/FIT/${pathSegment(workoutId)}`);
 }
 
 /**
- * `workout_json` may be a caller-built object/array, or a JSON string (parsed here, matching
- * upstream's `json.loads` — an invalid string throws `GarminError`, the TS analogue of upstream's
- * `ValueError`). After parsing, the result must be an object or an array, else `GarminError`
- * (upstream: `ValueError`). UNCERTAIN (inventory): no explicit null handling on the response
- * beyond this input validation.
+ * `workoutJson` may be a caller-built object/array, or a JSON string (parsed here — an invalid
+ * string throws `GarminError`). After parsing, the result must be an object or an array, else
+ * `GarminError`. Returns Garmin's raw response.
  */
 /**
  * MULTI-SPORT WORKOUTS ARE SUPPORTED by this method, though no helper wraps them.
@@ -115,7 +110,7 @@ export async function downloadWorkout(host: WorkoutsHost, workoutId: number | st
  * A REPEAT CAN BE TIME-BASED instead of count-based. Garmin's HIIT designer offers "Repeat Until
  * Time Is", which produces `endCondition: time`, the seconds in `endConditionValue`, and
  * **`numberOfIterations: null`** — which is why `RepeatWorkoutGroup.numberOfIterations` is
- * `number | null` here where upstream types it as a plain required number. Both forms
+ * `number | null` here rather than a plain required number. Both forms
  * round-tripped through `uploadWorkout`.
  *
  * WEIGHT rides on a step as `weightValue` plus `weightUnit` (`{unitId, unitKey, factor}`), and
@@ -157,12 +152,10 @@ export async function uploadWorkout(
 }
 
 /**
- * Full-replace semantics: Garmin's PUT replaces the whole workout, so `workout_json` must be the
+ * Full-replace semantics: Garmin's PUT replaces the whole workout, so `workoutJson` must be the
  * complete structure. `workoutId` is forced into the body to match the path id, overriding
- * whatever (if anything) the caller put there — matches upstream's `{**parsed, "workoutId":
- * workout_id}` merge. Unlike `uploadWorkout`, a string input must resolve to an object, not an
- * array (upstream: `ValueError` otherwise; here: `GarminError`). UNCERTAIN (inventory): no
- * explicit null handling on the response.
+ * whatever (if anything) the caller put there. Unlike `uploadWorkout`, a string input must resolve
+ * to an object, not an array (`GarminError` otherwise). Returns Garmin's raw response.
  */
 export async function updateWorkout(
   host: WorkoutsHost,
@@ -186,12 +179,12 @@ function parseWorkoutJson(
     try {
       value = JSON.parse(input) as unknown;
     } catch (cause) {
-      throw new GarminError("workout_json is not valid JSON", { cause });
+      throw new GarminError("workoutJson is not valid JSON", { cause });
     }
   }
   if (Array.isArray(value)) {
     if (!allowArray) {
-      throw new GarminError("workout_json must resolve to an object, not an array, for updateWorkout");
+      throw new GarminError("workoutJson must resolve to an object, not an array, for updateWorkout");
     }
     // `Array.isArray` narrows `unknown` to `any[]` (a lib.d.ts quirk, not a
     // real loss of safety here — `value` came from `unknown`), so an
@@ -202,33 +195,21 @@ function parseWorkoutJson(
   if (value !== null && typeof value === "object") {
     return value as Record<string, unknown>;
   }
-  throw new GarminError("workout_json must be an object or array (or a JSON string of one)");
+  throw new GarminError("workoutJson must be an object or array (or a JSON string of one)");
 }
 
 // ---------------------------------------------------------------------------
 // Per-sport upload helpers
 //
-// The inventory's `body` column for these six rows says only "`workout.to_dict()` from a
-// `<Sport>Workout` pydantic model" — it does not give the model's field-level shape, and this
-// port carries zero runtime dependencies, so there is no pydantic model to port. The shape below
-// was NOT invented to fill that gap: it was read directly from upstream's actual implementation,
-// `garminconnect/workout.py` (cyberjunky/python-garminconnect, fetched from GitHub during this
-// task), which is the primary source the inventory row itself summarizes. See task-6-report.md
-// for the full account of this deviation from "transcribe from the inventory table alone".
+// All sports share IDENTICAL structure beyond `sportType`'s default value (workoutName,
+// estimatedDurationInSecs, workoutSegments, author, description) — that commonality is real and is
+// factored into one `buildSportWorkout` helper below, not near-copies. The one thing that differs
+// per sport (the default `sportType` id/key/displayOrder) is kept as distinct constants rather than
+// flattened into a lookup, because a caller can override `sportType` per call and each default
+// triple IS the fact this library must get exactly right.
 //
-// All six sports share IDENTICAL structure beyond `sportType`'s default value (workoutName,
-// estimatedDurationInSecs, workoutSegments, author, description — upstream's `BaseWorkout`) — that
-// commonality is real and is factored into one `buildSportWorkout` helper below, not six
-// near-copies. The one thing that differs per sport (the default `sportType` id/key/displayOrder)
-// is kept as six distinct constants rather than flattened into a lookup, because a caller can
-// override `sportType` per call and each of the six default triples IS the fact this port must get
-// exactly right.
-//
-// Upstream additionally raises `TypeError` if `workout` isn't an instance of the matching pydantic
-// class, and `ImportError` if pydantic isn't installed. Neither is reproduced here: there is no
-// pydantic dependency to be missing, and there is no runtime class to check `instanceof` against a
-// plain object literal. Minimal shape validation (`workoutName`, `estimatedDurationInSecs`,
-// `workoutSegments` all present) substitutes for the `TypeError` case.
+// The input is a plain object, so only minimal shape validation is done (`workoutName`,
+// `estimatedDurationInSecs`, `workoutSegments` all present).
 // ---------------------------------------------------------------------------
 
 function buildSportWorkout(
@@ -271,7 +252,7 @@ const STRENGTH_SPORT_TYPE = {
   displayOrder: 5,
 };
 
-/** Delegates to `uploadWorkout`, matching the inventory's "POST (delegates to upload_workout)". */
+/** Delegates to `uploadWorkout`. */
 export async function uploadRunningWorkout(
   host: WorkoutsHost,
   workout: WorkoutInput,
@@ -305,14 +286,11 @@ export async function uploadStrengthWorkout(
 // ---------------------------------------------------------------------------
 
 /**
- * Multi-step, matching upstream exactly: resolves a missing `deviceId` via the devices service's
- * `getDeviceLastUsed()`'s `userDeviceId` (upstream: `get_device_last_used()["userDeviceId"]` — a
- * plain dict index that would KeyError on a missing key; translated here as a `GarminError` throw
- * rather than letting `undefined.userDeviceId` crash), and a missing `workoutId` via
- * the first result of `getWorkouts(0, 1)` (throws `GarminError` matching
- * upstream's `ValueError("No workouts found to push.")` if the account has no
- * workouts). `messageName` always comes from `getWorkoutById(workoutId)`'s
- * `workoutName`. `messageUrl` is the literal relative string upstream sends
+ * Multi-step: resolves a missing `deviceId` via the devices service's `getDeviceLastUsed()`'s
+ * `userDeviceId` (a missing one throws `GarminError` rather than letting `undefined.userDeviceId`
+ * crash), and a missing `workoutId` via the first result of `getWorkouts(0, 1)` (throws
+ * `GarminError` "No workouts found to push." if the account has no workouts). `messageName` always
+ * comes from `getWorkoutById(workoutId)`'s `workoutName`. `messageUrl` is a literal relative string
  * (no leading slash), NOT an absolute path.
  *
  * Returns the queued device messages — an ARRAY of `DeviceMessage`, live-verified 2026-09-24
@@ -377,9 +355,9 @@ async function resolveFirstWorkoutId(host: WorkoutsHost): Promise<number | strin
 // ---------------------------------------------------------------------------
 
 /**
- * `dict`, passes through unchecked. **Month is 0-indexed on the wire**: this
+ * Passes Garmin's response through unchecked. **Month is 0-indexed on the wire**: this
  * takes a normal 1-12 `month` and subtracts 1 before building the URL. Both
- * `year` (>=2000) and `month` (1-12) are validated as upstream does.
+ * `year` (>=2000) and `month` (1-12) are validated.
  */
 export async function getScheduledWorkouts(
   host: WorkoutsHost,
@@ -400,10 +378,10 @@ export async function getScheduledWorkouts(
 }
 
 /**
- * `dict`, passes through unchecked. Uses a DIFFERENT base
+ * Passes Garmin's response through unchecked. Uses a DIFFERENT base
  * (`/workout-service/schedule`) than `getScheduledWorkouts`
  * (`/calendar-service`), despite both being about scheduled workouts —
- * transcribed verbatim from the inventory, not a typo.
+ * that is the real endpoint, not a typo.
  */
 export async function getScheduledWorkoutById(
   host: WorkoutsHost,
@@ -418,7 +396,7 @@ export async function getScheduledWorkoutById(
  * treats a falsy/`null` result from either as `{}`, merges `calendarItems`
  * from both, filters to `itemType === "workout"` with `date >= today`, sorts
  * by date, and returns the first match. Returns `{}` (never throws) if
- * nothing matches — matching the inventory's documented behaviour.
+ * nothing matches.
  */
 export async function getNextScheduledWorkout(
   host: WorkoutsHost,
@@ -444,8 +422,7 @@ export async function getNextScheduledWorkout(
 }
 
 /**
- * UNCERTAIN (inventory): "no explicit null handling". `date_str` is routed
- * through `formatDate`, matching upstream's `_validate_date_format`.
+ * Returns Garmin's raw response. `dateStr` is routed through `formatDate`.
  */
 export async function scheduleWorkout(
   host: WorkoutsHost,
@@ -460,7 +437,7 @@ export async function scheduleWorkout(
 }
 
 /**
- * UNCERTAIN (inventory): "no explicit null handling". Removes the calendar
+ * Returns Garmin's raw response. Removes the calendar
  * entry without deleting the underlying workout template — irreversible.
  */
 export async function unscheduleWorkout(
@@ -474,8 +451,7 @@ export async function unscheduleWorkout(
 
 /**
  * A Garmin Coach (adaptive plan) workout by its `workoutUuid`, from
- * `GET /workout-service/fbt-adaptive/{uuid}`. NOT upstream parity; path from Taxuspt/garmin_mcp,
- * verified live on 2026-10-06 against an enrolled Garmin Run Coach plan: a full workout with
+ * `GET /workout-service/fbt-adaptive/{uuid}`, verified live on 2026-10-06 against an enrolled Garmin Run Coach plan: a full workout with
  * segments, steps and estimated training effect. Coach workouts have NO `workoutId`, and
  * `getWorkoutById` cannot fetch them — `/workout-service/workout/{uuid}` is a 404. Take the uuid
  * from `getTrainingPlanWorkouts` or `getScheduledWorkoutSummaries`.
@@ -488,8 +464,8 @@ export async function getAdaptiveWorkout(host: WorkoutsHost, workoutUuid: string
 }
 
 // ---------------------------------------------------------------------------
-// Schedule reads through Garmin's GraphQL gateway — NOT upstream parity. Both queries come from
-// Taxuspt/garmin_mcp and were verified live on 2026-10-06. They are reads, sent as POST because
+// Schedule reads through Garmin's GraphQL gateway. Both queries were verified live on 2026-10-06.
+// They are reads, sent as POST because
 // that is how GraphQL travels; the query text is fixed here and only validated dates are spliced
 // into it, so unlike `queryGarminGraphql` nothing a caller passes can turn one into a mutation.
 // ---------------------------------------------------------------------------

@@ -12,10 +12,8 @@ import type {
 /**
  * Calendar events — races and other dated events on the Garmin Connect calendar.
  *
- * **NOT upstream parity**: python-garminconnect has no event methods. Taxuspt/garmin_mcp reads
- * events (from the month calendar feed, plus `GET /calendar-service/event/{id}`); create, list,
- * update and delete were found here by probing `calendar-service` and are this library's own. All
- * of it was verified live on 2026-10-06 by a create -> read back -> list -> update -> read back ->
+ * Events can be read from the month calendar feed or `GET /calendar-service/event/{id}`; create,
+ * list, update and delete were found by probing `calendar-service`. All of it was verified live on 2026-10-06 by a create -> read back -> list -> update -> read back ->
  * delete -> 404 round-trip on the test account (`npm run smoke:gaps`).
  *
  * Events also appear in `getScheduledWorkouts`' month feed as items with `itemType: "event"`.

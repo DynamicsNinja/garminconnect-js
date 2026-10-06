@@ -118,7 +118,7 @@ describe("method manifest", () => {
   it("strips internal-jargon phrases out of descriptions", () => {
     for (const m of GARMIN_METHODS) {
       expect(m.description, m.name).not.toMatch(/passes through unchecked/i);
-      expect(m.description, m.name).not.toMatch(/UNCERTAIN upstream/i);
+      expect(m.description, m.name).not.toMatch(/\bupstream\b|\bparity\b/i);
       expect(m.description, m.name).not.toMatch(/see gotchas/i);
       expect(m.description, m.name).not.toMatch(/no proven inverse write/i);
       // Removal leftovers: a dangling separator where a phrase was cut out.
@@ -133,7 +133,6 @@ describe("method manifest", () => {
     // `.../stats` into `./stats`, which reads as a different path.
     expect(method("getActivitiesForDate").description).toContain("/mobile-gateway/heartRate/...");
     expect(method("getEnduranceScore").description).toContain(".../stats");
-    expect(method("addBodyComposition").description).toContain("post(...)");
   });
 
   it("gives every method a non-empty, bounded description", () => {
