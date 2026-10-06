@@ -22,6 +22,9 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from 
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { CATEGORIES, parseAgentsTable, parseGarminClass, stripInternalNotes } from "./lib/garmin-source.js";
+import { CONNECT_PLUS_METHODS } from "../src/connect-plus.js";
+
+const needsConnectPlus = (name: string) => (CONNECT_PLUS_METHODS as readonly string[]).includes(name);
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const OUT_DIR = path.join(ROOT, "docs", "api");
@@ -246,7 +249,8 @@ function renderPage(
   lines.push("| Method | Verified |");
   lines.push("|---|---|");
   for (const m of methods) {
-    lines.push(`| [\`${m.name}\`](#${m.name.toLowerCase()}) | ${verdictOf(m.verified)} |`);
+    const plus = needsConnectPlus(m.name) ? " · ➕ Connect+" : "";
+    lines.push(`| [\`${m.name}\`](#${m.name.toLowerCase()}) | ${verdictOf(m.verified)}${plus} |`);
   }
   lines.push("");
   lines.push("---");
@@ -254,6 +258,13 @@ function renderPage(
   for (const m of methods) {
     lines.push(`## ${m.name}`);
     lines.push("");
+    if (needsConnectPlus(m.name)) {
+      lines.push(
+        "> ➕ **Requires Garmin Connect+.** Without it this throws `GarminConnectPlusRequiredError`; " +
+          "check first with `garmin.hasConnectPlus()`.",
+      );
+      lines.push("");
+    }
     lines.push("```ts");
     lines.push(`garmin.${m.name}${m.signature || `(${m.params})`}`);
     lines.push("```");

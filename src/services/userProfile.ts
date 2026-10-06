@@ -31,3 +31,23 @@ export async function getUserprofileSettings(
 ): Promise<UserprofileSettings | null> {
   return host.client.connectapi<UserprofileSettings>("/userprofile-service/userprofile/settings");
 }
+
+/** What `hasConnectPlus` needs: the cached social profile `Garmin.getUserProfile()` returns. */
+export interface ConnectPlusHost {
+  getUserProfile(): Promise<{ [key: string]: unknown }>;
+}
+
+/**
+ * Whether the account has a Garmin Connect+ subscription, read from the user profile
+ * (`/userprofile-service/socialProfile`, which `Garmin` caches, so this usually costs no request).
+ *
+ * Two signals in that profile, compared live on 2026-10-06 between an account with Connect+ and
+ * one without: `hasPremiumSocialIcon` (true only with Connect+) and the `ROLE_SP_FEATURE_n` entries
+ * in `userRoles` (eleven of them with Connect+, none without). Either one counts.
+ */
+export async function hasConnectPlus(host: ConnectPlusHost): Promise<boolean> {
+  const profile = await host.getUserProfile();
+  if (profile["hasPremiumSocialIcon"] === true) return true;
+  const roles = profile["userRoles"];
+  return Array.isArray(roles) && roles.some((r) => typeof r === "string" && r.startsWith("ROLE_SP_FEATURE_"));
+}

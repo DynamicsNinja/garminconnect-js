@@ -1,6 +1,8 @@
 import { pathSegment, validateNonNegativeInteger, validatePositiveInteger } from "../util/validate.js";
-import { GarminError } from "../errors.js";
+import { GarminAuthError, GarminConnectPlusRequiredError, GarminError } from "../errors.js";
 import type { GarminClient } from "../client.js";
+import type { ConnectPlusMethod } from "../connect-plus.js";
+import { hasConnectPlus, type ConnectPlusHost } from "./userProfile.js";
 import { formatDate } from "../util/date.js";
 import type {
   CustomFoodInput,
@@ -16,9 +18,29 @@ import type {
   NutritionDailySettings,
 } from "../types/nutrition.js";
 
-/** Nutrition: daily food log, daily meals, daily nutrition settings. */
-export interface NutritionHost {
+/**
+ * Nutrition: daily food log, daily meals, daily nutrition settings, food logging. `getUserProfile`
+ * is only used to tell a missing Connect+ subscription apart from other 403s.
+ */
+export interface NutritionHost extends ConnectPlusHost {
   readonly client: GarminClient;
+}
+
+/**
+ * Runs a Connect+ call. A 403 from it is re-raised as `GarminConnectPlusRequiredError` when the
+ * profile confirms the subscription is missing; any other error, or a 403 on an account that DOES
+ * have Connect+, is re-raised unchanged.
+ */
+async function connectPlusCall<T>(host: NutritionHost, method: ConnectPlusMethod, call: () => Promise<T>): Promise<T> {
+  try {
+    return await call();
+  } catch (error) {
+    if (error instanceof GarminAuthError && /\(403\)$/.test(error.message)) {
+      const subscribed = await hasConnectPlus(host).catch(() => true);
+      if (!subscribed) throw new GarminConnectPlusRequiredError(method, { cause: error });
+    }
+    throw error;
+  }
 }
 
 /**
@@ -104,6 +126,7 @@ interface MealDay {
  */
 async function resolveMeal(
   host: NutritionHost,
+  method: ConnectPlusMethod,
   date: string,
   time: string | undefined,
   meal?: MealName,
@@ -114,6 +137,8 @@ async function resolveMeal(
   const day = await host.client.connectapi<MealDay>(`/nutrition-service/meals/${pathSegment(date)}`);
   const meals = day?.meals ?? [];
   if (meals.length === 0) {
+    // Without Connect+ the meals read still succeeds, just empty — say what is actually missing.
+    if (!(await hasConnectPlus(host).catch(() => true))) throw new GarminConnectPlusRequiredError(method);
     throw new GarminError(
       `No meals are set up for ${date}. Garmin creates them during the nutrition setup in the ` +
         "Garmin Connect app; until then every food log is rejected.",
@@ -163,9 +188,11 @@ export async function searchFoods(
   if (!query.trim()) throw new GarminError("searchFoods needs a non-empty query");
   validateNonNegativeInteger(start, "start");
   validatePositiveInteger(limit, "limit");
-  return host.client.connectapi<FoodSearchResult>("/nutrition-service/food/search", {
-    params: { searchExpression: query, start, limit },
-  });
+  return connectPlusCall(host, "searchFoods", () =>
+    host.client.connectapi<FoodSearchResult>("/nutrition-service/food/search", {
+      params: { searchExpression: query, start, limit },
+    }),
+  );
 }
 
 /**
@@ -199,17 +226,21 @@ export async function getCustomFoods(
   validateNonNegativeInteger(start, "start");
   validatePositiveInteger(limit, "limit");
   if (limit > 20) throw new GarminError("limit must be at most 20; Garmin rejects more");
-  return host.client.connectapi<CustomFoodList>("/nutrition-service/customFood", {
-    params: { searchExpression: search, start, limit, includeContent: "true" },
-  });
+  return connectPlusCall(host, "getCustomFoods", () =>
+    host.client.connectapi<CustomFoodList>("/nutrition-service/customFood", {
+      params: { searchExpression: search, start, limit, includeContent: "true" },
+    }),
+  );
 }
 
 /** Serving units a custom food can use (`{ servingUnits: [{ name }] }`; 13 on 2026-10-06). */
 export async function getCustomFoodServingUnits(
   host: NutritionHost,
 ): Promise<{ servingUnits: { name: string }[] } | null> {
-  return host.client.connectapi<{ servingUnits: { name: string }[] }>(
-    "/nutrition-service/metadata/customFoodServingUnits",
+  return connectPlusCall(host, "getCustomFoodServingUnits", () =>
+    host.client.connectapi<{ servingUnits: { name: string }[] }>(
+      "/nutrition-service/metadata/customFoodServingUnits",
+    ),
   );
 }
 
@@ -259,10 +290,10 @@ function customFoodBody(input: CustomFoodInput, ids?: { foodId: string; servingI
  * `logFood` takes. It is a PUT to `/nutrition-service/customFood` — Garmin has no POST for it.
  */
 export async function createCustomFood(host: NutritionHost, input: CustomFoodInput): Promise<Food | null> {
-  return host.client.connectapi<Food>("/nutrition-service/customFood", {
-    method: "PUT",
-    json: customFoodBody(input),
-  });
+  const json = customFoodBody(input);
+  return connectPlusCall(host, "createCustomFood", () =>
+    host.client.connectapi<Food>("/nutrition-service/customFood", { method: "PUT", json }),
+  );
 }
 
 /**
@@ -276,15 +307,17 @@ export async function updateCustomFood(
   input: CustomFoodInput,
 ): Promise<Food | null> {
   if (!foodId || !servingId) throw new GarminError("updateCustomFood needs both foodId and servingId");
-  return host.client.connectapi<Food>("/nutrition-service/customFood", {
-    method: "PUT",
-    json: customFoodBody(input, { foodId, servingId }),
-  });
+  const json = customFoodBody(input, { foodId, servingId });
+  return connectPlusCall(host, "updateCustomFood", () =>
+    host.client.connectapi<Food>("/nutrition-service/customFood", { method: "PUT", json }),
+  );
 }
 
 /** `DELETE /nutrition-service/customFood/{foodId}`. IRREVERSIBLE. */
 export async function deleteCustomFood(host: NutritionHost, foodId: string): Promise<unknown> {
-  return host.client.connectapi(`/nutrition-service/customFood/${pathSegment(foodId)}`, { method: "DELETE" });
+  return connectPlusCall(host, "deleteCustomFood", () =>
+    host.client.connectapi(`/nutrition-service/customFood/${pathSegment(foodId)}`, { method: "DELETE" }),
+  );
 }
 
 /**
@@ -299,8 +332,14 @@ export async function logFood(host: NutritionHost, input: FoodLogInput): Promise
     throw new GarminError(`servings must be a positive number; got ${String(servings)}`);
   }
   if (!input.foodId || !input.servingId) throw new GarminError("logFood needs both foodId and servingId");
-  const { mealId, time } = await resolveMeal(host, date, input.time === undefined ? undefined : clockTime(input.time), input.meal);
-  return host.client.connectapi<NutritionDailyFoodLog>("/nutrition-service/food/logs", {
+  const { mealId, time } = await resolveMeal(
+    host,
+    "logFood",
+    date,
+    input.time === undefined ? undefined : clockTime(input.time),
+    input.meal,
+  );
+  return connectPlusCall(host, "logFood", () => host.client.connectapi<NutritionDailyFoodLog>("/nutrition-service/food/logs", {
     method: "PUT",
     json: {
       mealDate: date,
@@ -321,7 +360,7 @@ export async function logFood(host: NutritionHost, input: FoodLogInput): Promise
         },
       ],
     },
-  });
+  }));
 }
 
 /**
@@ -337,8 +376,14 @@ export async function quickAddFood(host: NutritionHost, input: QuickAddInput): P
     protein: num(input.protein, "protein"),
     fat: num(input.fat, "fat"),
   };
-  const { mealId, time } = await resolveMeal(host, date, input.time === undefined ? undefined : clockTime(input.time), input.meal);
-  return host.client.connectapi<NutritionDailyFoodLog>("/nutrition-service/food/logs/quickAdd", {
+  const { mealId, time } = await resolveMeal(
+    host,
+    "quickAddFood",
+    date,
+    input.time === undefined ? undefined : clockTime(input.time),
+    input.meal,
+  );
+  return connectPlusCall(host, "quickAddFood", () => host.client.connectapi<NutritionDailyFoodLog>("/nutrition-service/food/logs/quickAdd", {
     method: "PUT",
     json: {
       mealDate: date,
@@ -356,7 +401,7 @@ export async function quickAddFood(host: NutritionHost, input: QuickAddInput): P
         },
       ],
     },
-  });
+  }));
 }
 
 /**
@@ -368,8 +413,8 @@ export async function deleteFoodLogs(host: NutritionHost, date: string | Date, l
   if (!Array.isArray(logIds) || logIds.length === 0 || logIds.some((id) => typeof id !== "string" || !id)) {
     throw new GarminError("deleteFoodLogs needs at least one logId");
   }
-  return host.client.connectapi(`/nutrition-service/food/logs/${pathSegment(formatDate(date))}`, {
-    method: "DELETE",
-    json: { logIds },
-  });
+  const path = `/nutrition-service/food/logs/${pathSegment(formatDate(date))}`;
+  return connectPlusCall(host, "deleteFoodLogs", () =>
+    host.client.connectapi(path, { method: "DELETE", json: { logIds } }),
+  );
 }

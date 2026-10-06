@@ -33,7 +33,14 @@ back, and restoring.
   meal's window. Verified on a Connect+ account by `scripts/smoke-nutrition-real.ts`, which
   deletes everything it creates.
 
-The MCP server gets the matching tools automatically, and a `calendar-events` tool group.
+- **Garmin Connect+ awareness**: `hasConnectPlus()` reads the subscription from the cached user
+  profile; `CONNECT_PLUS_METHODS` lists the methods that need it; and those methods throw the new
+  `GarminConnectPlusRequiredError` (carrying `method`) instead of Garmin's bare 403, which used to
+  surface as a `GarminAuthError` and read like an expired session. The manifest marks them
+  `requiresConnectPlus`, and the API docs and MCP tool descriptions say so.
+
+The MCP server gets the matching tools automatically, and a `calendar-events` tool group. A
+missing Connect+ no longer makes it reset the session and try to sign in again.
 
 ## [0.8.2] — 2026-10-02
 

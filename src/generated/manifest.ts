@@ -60,6 +60,14 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
     "io": "json"
   },
   {
+    "name": "hasConnectPlus",
+    "category": "profile-and-misc",
+    "description": "whether the account has a Garmin Connect+ subscription, read from the cached user profile (`/userprofile-service/socialProfile`, so usually no extra request): `true` when `hasPremiumSocialIcon` is `true` or `userRoles` holds any `ROLE_SP_FEATURE_n` entry. The methods in `CONNECT_PLUS_METHODS` (`searchFoods`, `getCustomFoods`, `getCustomFoodServingUnits`, `createCustomFood`, `updateCustomFood`, `deleteCustomFood`, `logFood`, `quickAddFood`, `deleteFoodLogs`) need it; without it they throw `GarminConnectPlusRequiredError` instead of the bare 403 Garmin sends",
+    "params": [],
+    "safety": "read",
+    "io": "json"
+  },
+  {
     "name": "getUserSummary",
     "category": "wellness",
     "description": "Get user summary.",
@@ -5090,7 +5098,8 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
       }
     ],
     "safety": "read",
-    "io": "json"
+    "io": "json",
+    "requiresConnectPlus": true
   },
   {
     "name": "getCustomFoods",
@@ -5120,7 +5129,8 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
       }
     ],
     "safety": "read",
-    "io": "json"
+    "io": "json",
+    "requiresConnectPlus": true
   },
   {
     "name": "getCustomFoodServingUnits",
@@ -5128,7 +5138,8 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
     "description": "GETs `/nutrition-service/metadata/customFoodServingUnits` (13 units). Needs Connect+",
     "params": [],
     "safety": "read",
-    "io": "json"
+    "io": "json",
+    "requiresConnectPlus": true
   },
   {
     "name": "createCustomFood",
@@ -5207,7 +5218,8 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
       }
     ],
     "safety": "write",
-    "io": "json"
+    "io": "json",
+    "requiresConnectPlus": true
   },
   {
     "name": "updateCustomFood",
@@ -5300,7 +5312,8 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
       }
     ],
     "safety": "write",
-    "io": "json"
+    "io": "json",
+    "requiresConnectPlus": true
   },
   {
     "name": "deleteCustomFood",
@@ -5316,7 +5329,8 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
       }
     ],
     "safety": "destructive",
-    "io": "json"
+    "io": "json",
+    "requiresConnectPlus": true
   },
   {
     "name": "logFood",
@@ -5379,7 +5393,8 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
       }
     ],
     "safety": "write",
-    "io": "json"
+    "io": "json",
+    "requiresConnectPlus": true
   },
   {
     "name": "quickAddFood",
@@ -5440,7 +5455,8 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
       }
     ],
     "safety": "write",
-    "io": "json"
+    "io": "json",
+    "requiresConnectPlus": true
   },
   {
     "name": "deleteFoodLogs",
@@ -5468,7 +5484,8 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
       }
     ],
     "safety": "destructive",
-    "io": "json"
+    "io": "json",
+    "requiresConnectPlus": true
   },
   {
     "name": "getTrainingPlans",

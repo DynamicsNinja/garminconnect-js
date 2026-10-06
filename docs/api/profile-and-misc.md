@@ -14,21 +14,21 @@ if (!(await client.loadTokens())) throw new Error("not connected to Garmin");
 const garmin = new Garmin(client);
 ```
 
-**29 methods.** The verification column says what has been
+**30 methods.** The verification column says what has been
 confirmed against a live Garmin account, not merely unit-tested —
 [`AGENTS.md`](../../AGENTS.md) carries the full evidence per method.
 
 | Method | Verified |
 |---|---|
-| [`createCustomFood`](#createcustomfood) | ✅ live-verified |
-| [`deleteCustomFood`](#deletecustomfood) | ✅ live-verified |
-| [`deleteFoodLogs`](#deletefoodlogs) | ✅ live-verified |
+| [`createCustomFood`](#createcustomfood) | ✅ live-verified · ➕ Connect+ |
+| [`deleteCustomFood`](#deletecustomfood) | ✅ live-verified · ➕ Connect+ |
+| [`deleteFoodLogs`](#deletefoodlogs) | ✅ live-verified · ➕ Connect+ |
 | [`deleteTrainingPlan`](#deletetrainingplan) | ✅ live-verified |
 | [`displayName`](#displayname) | ✅ live-verified (indirectly) |
 | [`fullName`](#fullname) | ✅ live-verified (indirectly) |
 | [`getAdaptiveTrainingPlanById`](#getadaptivetrainingplanbyid) | ✅ live-verified |
-| [`getCustomFoods`](#getcustomfoods) | ✅ live-verified |
-| [`getCustomFoodServingUnits`](#getcustomfoodservingunits) | ✅ live-verified |
+| [`getCustomFoods`](#getcustomfoods) | ✅ live-verified · ➕ Connect+ |
+| [`getCustomFoodServingUnits`](#getcustomfoodservingunits) | ✅ live-verified · ➕ Connect+ |
 | [`getGoals`](#getgoals) | ✅ live-verified |
 | [`getLifestyleLoggingData`](#getlifestyleloggingdata) | ✅ live-verified |
 | [`getNutritionDailyFoodLog`](#getnutritiondailyfoodlog) | ✅ live-verified |
@@ -40,19 +40,22 @@ confirmed against a live Garmin account, not merely unit-tested —
 | [`getUserProfile`](#getuserprofile) | ✅ live-verified |
 | [`getUserprofileSettings`](#getuserprofilesettings) | ✅ live-verified |
 | [`getUserSettings`](#getusersettings) | ✅ live-verified |
-| [`logFood`](#logfood) | ✅ live-verified |
+| [`hasConnectPlus`](#hasconnectplus) | ✅ live-verified |
+| [`logFood`](#logfood) | ✅ live-verified · ➕ Connect+ |
 | [`logout`](#logout) | — not applicable |
 | [`queryGarminGraphql`](#querygarmingraphql) | ✅ live-verified |
-| [`quickAddFood`](#quickaddfood) | ✅ live-verified |
+| [`quickAddFood`](#quickaddfood) | ✅ live-verified · ➕ Connect+ |
 | [`requestReload`](#requestreload) | ✅ live-verified |
-| [`searchFoods`](#searchfoods) | ✅ live-verified |
+| [`searchFoods`](#searchfoods) | ✅ live-verified · ➕ Connect+ |
 | [`unitSystem`](#unitsystem) | ✅ live-verified |
-| [`updateCustomFood`](#updatecustomfood) | ✅ live-verified |
+| [`updateCustomFood`](#updatecustomfood) | ✅ live-verified · ➕ Connect+ |
 | [`userName`](#username) | ✅ live-verified (indirectly) |
 
 ---
 
 ## createCustomFood
+
+> ➕ **Requires Garmin Connect+.** Without it this throws `GarminConnectPlusRequiredError`; check first with `garmin.hasConnectPlus()`.
 
 ```ts
 garmin.createCustomFood(input: CustomFoodInput): Promise<Food | null>
@@ -87,6 +90,8 @@ Verification: ✅ live-verified
 
 ## deleteCustomFood
 
+> ➕ **Requires Garmin Connect+.** Without it this throws `GarminConnectPlusRequiredError`; check first with `garmin.hasConnectPlus()`.
+
 ```ts
 garmin.deleteCustomFood(foodId: string): Promise<unknown>
 ```
@@ -104,6 +109,8 @@ const result = await garmin.deleteCustomFood(activityId);
 Verification: ✅ live-verified
 
 ## deleteFoodLogs
+
+> ➕ **Requires Garmin Connect+.** Without it this throws `GarminConnectPlusRequiredError`; check first with `garmin.hasConnectPlus()`.
 
 ```ts
 garmin.deleteFoodLogs(date: string | Date, logIds: string[]): Promise<unknown>
@@ -191,6 +198,8 @@ Verification: ✅ live-verified
 
 ## getCustomFoods
 
+> ➕ **Requires Garmin Connect+.** Without it this throws `GarminConnectPlusRequiredError`; check first with `garmin.hasConnectPlus()`.
+
 ```ts
 garmin.getCustomFoods(search?: string, start?: number, limit?: number): Promise<CustomFoodList | null>
 ```
@@ -213,6 +222,8 @@ GETs `/nutrition-service/customFood` with `includeContent=true`: `{customFoods, 
 Verification: ✅ live-verified
 
 ## getCustomFoodServingUnits
+
+> ➕ **Requires Garmin Connect+.** Without it this throws `GarminConnectPlusRequiredError`; check first with `garmin.hasConnectPlus()`.
 
 ```ts
 garmin.getCustomFoodServingUnits(): Promise<{servingUnits: {name}[]} | null>
@@ -451,7 +462,27 @@ Plus every other field Garmin sends: this type carries an index signature becaus
 
 Verification: ✅ live-verified
 
+## hasConnectPlus
+
+```ts
+garmin.hasConnectPlus(): Promise<boolean>
+```
+
+```ts
+const result = await garmin.hasConnectPlus();
+```
+
+**Returns**
+
+`boolean`
+
+whether the account has a Garmin Connect+ subscription, read from the cached user profile (`/userprofile-service/socialProfile`, so usually no extra request): `true` when `hasPremiumSocialIcon` is `true` or `userRoles` holds any `ROLE_SP_FEATURE_n` entry. The methods in `CONNECT_PLUS_METHODS` (`searchFoods`, `getCustomFoods`, `getCustomFoodServingUnits`, `createCustomFood`, `updateCustomFood`, `deleteCustomFood`, `logFood`, `quickAddFood`, `deleteFoodLogs`) need it; without it they throw `GarminConnectPlusRequiredError` instead of the bare 403 Garmin sends
+
+Verification: ✅ live-verified
+
 ## logFood
+
+> ➕ **Requires Garmin Connect+.** Without it this throws `GarminConnectPlusRequiredError`; check first with `garmin.hasConnectPlus()`.
 
 ```ts
 garmin.logFood(input: FoodLogInput): Promise<NutritionDailyFoodLog | null>
@@ -507,6 +538,8 @@ Verification: ✅ live-verified
 
 ## quickAddFood
 
+> ➕ **Requires Garmin Connect+.** Without it this throws `GarminConnectPlusRequiredError`; check first with `garmin.hasConnectPlus()`.
+
 ```ts
 garmin.quickAddFood(input: QuickAddInput): Promise<NutritionDailyFoodLog | null>
 ```
@@ -542,6 +575,8 @@ POSTs `/wellness-service/wellness/epoch/request/{cdate}` with no JSON body; asks
 Verification: ✅ live-verified
 
 ## searchFoods
+
+> ➕ **Requires Garmin Connect+.** Without it this throws `GarminConnectPlusRequiredError`; check first with `garmin.hasConnectPlus()`.
 
 ```ts
 garmin.searchFoods(query: string, start?: number, limit?: number): Promise<FoodSearchResult | null>
@@ -581,6 +616,8 @@ const result = await garmin.unitSystem();
 Verification: ✅ live-verified
 
 ## updateCustomFood
+
+> ➕ **Requires Garmin Connect+.** Without it this throws `GarminConnectPlusRequiredError`; check first with `garmin.hasConnectPlus()`.
 
 ```ts
 garmin.updateCustomFood(foodId: string, servingId: string, input: CustomFoodInput): Promise<Food | null>

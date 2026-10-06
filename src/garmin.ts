@@ -122,6 +122,13 @@ export class Garmin {
   getUserprofileSettings() {
     return userProfile.getUserprofileSettings(this);
   }
+  /**
+   * Whether the account has a Garmin Connect+ subscription, from the cached user profile. The
+   * methods in `CONNECT_PLUS_METHODS` need it and throw `GarminConnectPlusRequiredError` without.
+   */
+  hasConnectPlus() {
+    return userProfile.hasConnectPlus(this);
+  }
 
   // --- wellness ---
   getUserSummary(cdate: string | Date) {

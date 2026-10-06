@@ -28,6 +28,25 @@ export class GarminAuthError extends GarminError {}
  */
 export class GarminConnectionError extends GarminError {}
 
+/**
+ * The account has no Garmin Connect+ subscription, which the called method needs (Garmin answers
+ * those endpoints with a bare 403). Signing in again will not help — unlike `GarminAuthError`,
+ * this is not about the session. `Garmin.hasConnectPlus()` checks up front; the methods that need
+ * it are listed in `CONNECT_PLUS_METHODS`. `cause` carries the original 403 when there was one.
+ */
+export class GarminConnectPlusRequiredError extends GarminError {
+  constructor(
+    readonly method: string,
+    options?: { cause?: unknown },
+  ) {
+    super(
+      `${method} needs a Garmin Connect+ subscription, and this account does not have one. ` +
+        "Connect+ is bought in the Garmin Connect app and needs a paired Garmin device.",
+      options,
+    );
+  }
+}
+
 /** 429. `retryAfter` is seconds, taken from the Retry-After header when present. */
 export class GarminRateLimitError extends GarminError {
   constructor(

@@ -21,7 +21,7 @@ A zero-dependency TypeScript client for Garmin Connect, for **Node and Next.js s
 It talks to the same undocumented endpoints the mobile app uses, with a fully typed,
 promise-based API.
 
-It handles Garmin's undocumented SSO/OAuth flow, refreshes tokens for you, and gives you 192
+It handles Garmin's undocumented SSO/OAuth flow, refreshes tokens for you, and gives you 193
 typed methods over the endpoints the mobile app uses — plus two things that exist because Garmin's
 API is quietly hostile in specific places:
 
@@ -364,6 +364,7 @@ seconds.
 | `GarminRateLimitError` | 429. Carries `retryAfter` seconds when Garmin sends it. |
 | `GarminConnectionError` | Network failure or timeout, after retries — **and** a few semantic HTTP statuses that some services deliberately re-raise as this class: **every** HTTP error from `importActivity` (not just its 409 "Activity already exists" — a 400 or 413 is wrapped the same way), the 404 ("gear not found (likely retired/removed)") from `addGearToActivity` and `removeGearFromActivity`, and a missing `deviceSolarInput` from `getDeviceSolarData`. Those are permanent, not transient — do not blanket-retry on this class; check the message or the `cause`. |
 | `GarminHttpError` | Any other non-2xx. Carries `status`, `url`, `body`. |
+| `GarminConnectPlusRequiredError` | The account has no Garmin Connect+, which this method needs (food logging). Carries `method`. Signing in again won't help; check up front with `garmin.hasConnectPlus()`. |
 
 ## 🏊 Building workouts
 
@@ -427,7 +428,7 @@ training data. It ships from this repo, in lockstep with the library.
 
 ## 📊 API coverage
 
-**192 typed methods across 13 categories.** Each category links to a generated
+**193 typed methods across 13 categories.** Each category links to a generated
 [`docs/api/`](docs/api/README.md) page with every method's signature, a call you can paste, and
 its live-verification status — confirmed against a real Garmin account, not merely unit-tested.
 
@@ -445,10 +446,10 @@ its live-verification status — confirmed against a real Garmin account, not me
 | [Body composition & weight](docs/api/body-composition-weight.md) | 8 | all | weigh-ins, body composition (FIT upload) |
 | [Women's health](docs/api/womens-health.md) | 11 | all | menstrual cycle, pregnancy |
 | [Golf](docs/api/golf.md) | 5 | 3 of 5 | summary, scorecards, shots, clubs, stats |
-| [Profile, goals, nutrition, plans & misc](docs/api/profile-and-misc.md) | 29 | all¹ | profile, settings, goals, nutrition and food logging², training plans, GraphQL, logout |
+| [Profile, goals, nutrition, plans & misc](docs/api/profile-and-misc.md) | 30 | all¹ | profile, settings, goals, nutrition and food logging², training plans, GraphQL, logout |
 
 ¹ `logout()` makes no HTTP call, so there is nothing to verify against Garmin.
-² Food logging (search, custom foods, logging, deleting) needs Garmin Connect+, which needs a paired Garmin device; verified on such an account.
+² Food logging (search, custom foods, logging, deleting) needs Garmin Connect+, which needs a paired Garmin device; verified on such an account. `garmin.hasConnectPlus()` tells you up front, `CONNECT_PLUS_METHODS` lists the methods, and without it they throw `GarminConnectPlusRequiredError`.
 
 **Still unverified:** `getGolfScorecard` and `getGolfShotData`, because no available account has a
 recorded round. `getGolfShotData` also returns an unexplained **410** against a made-up id, and one
@@ -598,7 +599,7 @@ Goodbye.
 npm test
 ```
 
-797 tests across 57 files, all against mocked HTTP (via `msw`) — no network access and no
+810 tests across 58 files, all against mocked HTTP (via `msw`) — no network access and no
 credentials required. Covers auth/SSO/MFA, token storage and refresh, the HTTP fetcher's retry
 and error handling, every service method, and the public build output.
 

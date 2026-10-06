@@ -32,6 +32,11 @@ export interface ManifestMethod {
   safety: Safety;
   /** `binary-in` takes a file (a `file` param); `binary-out` resolves to a `Buffer`. */
   io: "json" | "binary-in" | "binary-out";
+  /**
+   * Present and `true` only for methods that need a Garmin Connect+ subscription (see
+   * `CONNECT_PLUS_METHODS`); without it they throw `GarminConnectPlusRequiredError`.
+   */
+  requiresConnectPlus?: true;
 }
 
 export { GARMIN_METHODS } from "./generated/manifest.js";

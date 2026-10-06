@@ -43,8 +43,11 @@ function inputSchemaOf(m: ManifestMethod): Tool["inputSchema"] {
 }
 
 function descriptionOf(m: ManifestMethod): string {
-  if (m.safety === "destructive") return `${m.description} IRREVERSIBLE: confirm with the user before calling.`;
-  return m.description;
+  const base = m.requiresConnectPlus
+    ? `Requires a Garmin Connect+ subscription (check with has_connect_plus). ${m.description}`
+    : m.description;
+  if (m.safety === "destructive") return `${base} IRREVERSIBLE: confirm with the user before calling.`;
+  return base;
 }
 
 async function argsFor(m: ManifestMethod, input: Record<string, unknown>): Promise<unknown[]> {

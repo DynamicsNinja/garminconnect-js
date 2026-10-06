@@ -18,6 +18,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import ts from "typescript";
 import type { JsonSchema, ManifestMethod, ManifestParam, Safety } from "../src/manifest.js";
+import { CONNECT_PLUS_METHODS } from "../src/connect-plus.js";
 import { CATEGORIES, parseAgentsTable, parseGarminClass, stripInternalNotes } from "./lib/garmin-source.js";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
@@ -50,6 +51,8 @@ export const SAFETY_OVERRIDES: Readonly<Record<string, Safety>> = {
   queryGarminGraphql: "destructive",
   // Food logging: a catalogue search, and two writes that add an entry to the day's log.
   searchFoods: "read",
+  // A subscription check against the cached profile.
+  hasConnectPlus: "read",
   logFood: "write",
   quickAddFood: "write",
 };
@@ -296,6 +299,7 @@ export function buildManifest(): ManifestMethod[] {
       params,
       safety: classify(name),
       io: params.some((p) => p.role === "file") ? "binary-in" : returnsBuffer(member, checker) ? "binary-out" : "json",
+      ...((CONNECT_PLUS_METHODS as readonly string[]).includes(name) && { requiresConnectPlus: true as const }),
     });
   }
   return methods;
