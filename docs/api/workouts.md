@@ -14,7 +14,7 @@ if (!(await client.loadTokens())) throw new Error("not connected to Garmin");
 const garmin = new Garmin(client);
 ```
 
-**18 methods.** The verification column says what has been
+**19 methods.** The verification column says what has been
 confirmed against a live Garmin account, not merely unit-tested —
 [`AGENTS.md`](../../AGENTS.md) carries the full evidence per method.
 
@@ -22,6 +22,7 @@ confirmed against a live Garmin account, not merely unit-tested —
 |---|---|
 | [`deleteWorkout`](#deleteworkout) | ✅ live-verified |
 | [`downloadWorkout`](#downloadworkout) | ✅ live-verified |
+| [`getAdaptiveWorkout`](#getadaptiveworkout) | ✅ live-verified |
 | [`getNextScheduledWorkout`](#getnextscheduledworkout) | ✅ live-verified |
 | [`getScheduledWorkoutById`](#getscheduledworkoutbyid) | ✅ live-verified |
 | [`getScheduledWorkouts`](#getscheduledworkouts) | ✅ live-verified |
@@ -74,6 +75,31 @@ const result = await garmin.downloadWorkout(activityId);
 A `Buffer` of file bytes.
 
 FIT-file bytes
+
+Verification: ✅ live-verified
+
+## getAdaptiveWorkout
+
+```ts
+garmin.getAdaptiveWorkout(workoutUuid: string): Promise<WorkoutRecord | null>
+```
+
+```ts
+const result = await garmin.getAdaptiveWorkout(activityId);
+```
+
+**Returns**
+
+`WorkoutRecord`:
+
+| Field | Type | Always present |
+|---|---|---|
+| `workoutId` | `number` | no |
+| `workoutName` | `string` | no |
+
+Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
+
+**NOT upstream parity** (path from Taxuspt/garmin_mcp). GETs `/workout-service/fbt-adaptive/{uuid}`: a Garmin Coach workout with segments, steps and `estimatedTrainingEffect`. Coach workouts have no `workoutId`, and `getWorkoutById` cannot fetch them — `/workout-service/workout/{uuid}` is a 404. Take the uuid from `getTrainingPlanWorkouts` or `getScheduledWorkoutSummaries`
 
 Verification: ✅ live-verified
 
@@ -160,7 +186,7 @@ An array of `ScheduledWorkoutSummary`:
 
 | Field | Type | Always present |
 |---|---|---|
-| `scheduledWorkoutId` | `number` | yes |
+| `scheduledWorkoutId` | `number | null` | yes |
 | `workoutId` | `number | null` | yes |
 | `workoutUuid` | `string | null` | yes |
 | `workoutName` | `string | null` | yes |
@@ -168,6 +194,9 @@ An array of `ScheduledWorkoutSummary`:
 | `scheduleDate` | `string` | yes |
 | `trainingPlanId` | `number | null` | no |
 | `tpType` | `string | null` | no |
+| `workoutPhrase` | `string | null` | no |
+| `estimatedDurationInSecs` | `number | null` | no |
+| `estimatedDistanceInMeters` | `number | null` | no |
 | `tpPlanName` | `string | null` | no |
 | `itpPlanId` | `number | null` | no |
 | `atpPlanId` | `number | null` | no |
@@ -179,7 +208,7 @@ An array of `ScheduledWorkoutSummary`:
 
 Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
 
-**NOT upstream parity** (query from Taxuspt/garmin_mcp). POSTs the fixed GraphQL query `workoutScheduleSummariesScalar(startDate, endDate)`: every scheduled workout in the range, plan or self-scheduled (`tpType: null`), as compact rows whose `scheduledWorkoutId` is what `unscheduleWorkout` takes. Dates are validated before they are spliced into the query. A GraphQL error arrives as HTTP 200 with `errors`, turned into a `GarminError`. **It LAGS writes**: a just-scheduled workout is in the month feed at once but absent here for a few seconds
+**NOT upstream parity** (query from Taxuspt/garmin_mcp). POSTs the fixed GraphQL query `workoutScheduleSummariesScalar(startDate, endDate)`: every scheduled workout in the range, plan or self-scheduled (`tpType: null`), as compact rows whose `scheduledWorkoutId` is what `unscheduleWorkout` takes — `null` for a Garmin Coach workout, which also has `tpType: null` like a self-scheduled one (tell them apart by `fbtAdaptivePlanId`). Dates are validated before they are spliced into the query. A GraphQL error arrives as HTTP 200 with `errors`, turned into a `GarminError`. **It LAGS writes**: a just-scheduled workout is in the month feed at once but absent here for a few seconds
 
 Verification: ✅ live-verified
 

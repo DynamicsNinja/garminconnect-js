@@ -588,7 +588,7 @@ console.log("\ndaily stats and schedule summaries");
         ? `found after ~${String(waited)}s, scheduledWorkoutId ${String(ours.scheduledWorkoutId)}, tpType ${String(ours.tpType)}, workoutType ${String(ours.workoutType)}`
         : `not among ${String(summaries.length)} summaries after 60s`,
     );
-    if (ours) {
+    if (ours?.scheduledWorkoutId != null) {
       await g.unscheduleWorkout(ours.scheduledWorkoutId);
       let gone = false;
       for (let i = 0; i <= 12 && !gone; i++) {

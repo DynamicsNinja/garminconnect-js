@@ -472,6 +472,21 @@ export async function unscheduleWorkout(
   });
 }
 
+/**
+ * A Garmin Coach (adaptive plan) workout by its `workoutUuid`, from
+ * `GET /workout-service/fbt-adaptive/{uuid}`. NOT upstream parity; path from Taxuspt/garmin_mcp,
+ * verified live on 2026-10-06 against an enrolled Garmin Run Coach plan: a full workout with
+ * segments, steps and estimated training effect. Coach workouts have NO `workoutId`, and
+ * `getWorkoutById` cannot fetch them — `/workout-service/workout/{uuid}` is a 404. Take the uuid
+ * from `getTrainingPlanWorkouts` or `getScheduledWorkoutSummaries`.
+ */
+export async function getAdaptiveWorkout(host: WorkoutsHost, workoutUuid: string): Promise<WorkoutRecord | null> {
+  if (!/^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$/i.test(workoutUuid)) {
+    throw new GarminError(`Invalid workout UUID: "${workoutUuid}"`);
+  }
+  return host.client.connectapi<WorkoutRecord>(`/workout-service/fbt-adaptive/${pathSegment(workoutUuid)}`);
+}
+
 // ---------------------------------------------------------------------------
 // Schedule reads through Garmin's GraphQL gateway — NOT upstream parity. Both queries come from
 // Taxuspt/garmin_mcp and were verified live on 2026-10-06. They are reads, sent as POST because

@@ -205,3 +205,22 @@ describe("updateCalendarEvent", () => {
     expect(seen).toHaveLength(0);
   });
 });
+
+describe("getSharedCalendarEvent", () => {
+  it("GETs the catalogue event through /shareable", async () => {
+    server.use(
+      http.get(`${API}/calendar-service/event/:uuid/shareable`, ({ request }) => {
+        seen.push({ url: request.url, method: request.method });
+        return HttpResponse.json({ ...STORED, shareableEventUuid: "6f0796bb-6836-435a-8109-22e2dc4bae93", subscribed: false });
+      }),
+    );
+    const event = await makeGarmin().getSharedCalendarEvent("6f0796bb-6836-435a-8109-22e2dc4bae93");
+    expect(seen[0]!.url).toBe(`${API}/calendar-service/event/6f0796bb-6836-435a-8109-22e2dc4bae93/shareable`);
+    expect(event?.shareableEventUuid).toBe("6f0796bb-6836-435a-8109-22e2dc4bae93");
+  });
+
+  it.each(["30355817", "../x", "6f0796bb68364358810922e2dc4bae93"])("refuses %s, which is not a hyphenated uuid", async (bad) => {
+    await expect(makeGarmin().getSharedCalendarEvent(bad)).rejects.toThrow(GarminError);
+    expect(seen).toHaveLength(0);
+  });
+});

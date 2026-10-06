@@ -201,6 +201,8 @@ describe("upstream parity", () => {
       createCalendarEvent: "upstream has no calendar events — POST /calendar-service/event",
       updateCalendarEvent: "upstream has no calendar events — full-record PUT /calendar-service/event/{id}",
       deleteCalendarEvent: "upstream has no calendar events — DELETE /calendar-service/event/{id}",
+      getSharedCalendarEvent: "upstream has no calendar events — GET /calendar-service/event/{uuid}/shareable",
+      getAdaptiveWorkout: "upstream cannot read Garmin Coach workouts — GET /workout-service/fbt-adaptive/{uuid}",
       // Food logging (Connect+ only): request shapes from Taxuspt/garmin_mcp, verified live on a
       // Connect+ account by scripts/smoke-nutrition-real.ts on 2026-10-06.
       getNutritionFoodLogRange: "upstream has no food-log range — GET /nutrition-service/food/logs/range",

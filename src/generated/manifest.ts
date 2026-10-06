@@ -4190,9 +4190,25 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
     "io": "json"
   },
   {
+    "name": "getAdaptiveWorkout",
+    "category": "workouts",
+    "description": "**NOT upstream parity** (path from Taxuspt/garmin_mcp). GETs `/workout-service/fbt-adaptive/{uuid}`: a Garmin Coach workout with segments, steps and `estimatedTrainingEffect`. Coach workouts have no `workoutId`, and `getWorkoutById` cannot fetch them — `/workout-service/workout/{uuid}` is a 404. Take the uuid from `getTrainingPlanWorkouts` or `getScheduledWorkoutSummaries`",
+    "params": [
+      {
+        "name": "workoutUuid",
+        "optional": false,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "safety": "read",
+    "io": "json"
+  },
+  {
     "name": "getScheduledWorkoutSummaries",
     "category": "workouts",
-    "description": "**NOT upstream parity** (query from Taxuspt/garmin_mcp). POSTs the fixed GraphQL query `workoutScheduleSummariesScalar(startDate, endDate)`: every scheduled workout in the range, plan or self-scheduled (`tpType: null`), as compact rows whose `scheduledWorkoutId` is what `unscheduleWorkout` takes. Dates are validated before they are spliced into the query. A GraphQL error arrives as HTTP 200 with `errors`, turned into a `GarminError`. **It LAGS writes**: a just-scheduled workout is in the month feed at once but absent here for a few seconds",
+    "description": "**NOT upstream parity** (query from Taxuspt/garmin_mcp). POSTs the fixed GraphQL query `workoutScheduleSummariesScalar(startDate, endDate)`: every scheduled workout in the range, plan or self-scheduled (`tpType: null`), as compact rows whose `scheduledWorkoutId` is what `unscheduleWorkout` takes — `null` for a Garmin Coach workout, which also has `tpType: null` like a self-scheduled one (tell them apart by `fbtAdaptivePlanId`). Dates are validated before they are spliced into the query. A GraphQL error arrives as HTTP 200 with `errors`, turned into a `GarminError`. **It LAGS writes**: a just-…",
     "params": [
       {
         "name": "startdate",
@@ -4295,6 +4311,22 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
             "string"
           ],
           "description": "Numeric id"
+        }
+      }
+    ],
+    "safety": "read",
+    "io": "json"
+  },
+  {
+    "name": "getSharedCalendarEvent",
+    "category": "calendar-events",
+    "description": "**NOT upstream parity**. GETs `/calendar-service/event/{uuid}/shareable`: an event from Garmin's public events catalogue (Races & Events -> Find an Event), with `locationStartPoint`, `subscribersCount`, `provider` and `subscribed`. Works WITHOUT subscribing (`subscribed: false`). The plain `/event/{uuid}` is a 404. Events you create never get a shareable uuid (Garmin forces them private)",
+    "params": [
+      {
+        "name": "shareableEventUuid",
+        "optional": false,
+        "schema": {
+          "type": "string"
         }
       }
     ],

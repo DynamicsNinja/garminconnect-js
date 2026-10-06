@@ -66,6 +66,25 @@ export async function getCalendarEvent(
 }
 
 /**
+ * An event from Garmin's public events catalogue (Races & Events -> Find an Event), by its
+ * `shareableEventUuid`: `GET /calendar-service/event/{uuid}/shareable`. Works WITHOUT subscribing
+ * to the event (`subscribed: false` then) — verified live on 2026-10-06 against a catalogue 10K.
+ * The plain `/calendar-service/event/{uuid}` is a 404; numeric ids go through `getCalendarEvent`.
+ * Events you create yourself never get a shareable uuid.
+ */
+export async function getSharedCalendarEvent(
+  host: CalendarHost,
+  shareableEventUuid: string,
+): Promise<CalendarEvent | null> {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(shareableEventUuid)) {
+    throw new GarminError(`Invalid shareable event UUID: "${shareableEventUuid}"`);
+  }
+  return host.client.connectapi<CalendarEvent>(
+    `/calendar-service/event/${pathSegment(shareableEventUuid)}/shareable`,
+  );
+}
+
+/**
  * `POST /calendar-service/event`. Returns the stored event with its `id`.
  *
  * Garmin keeps every user-created event PRIVATE: a `PUBLIC` or shareable privacy in the body is

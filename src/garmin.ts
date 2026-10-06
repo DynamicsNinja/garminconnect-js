@@ -681,6 +681,10 @@ export class Garmin {
   unscheduleWorkout(scheduledWorkoutId: number | string) {
     return workouts.unscheduleWorkout(this, scheduledWorkoutId);
   }
+  /** NOT upstream parity. A Garmin Coach workout by its workoutUuid (getWorkoutById cannot). */
+  getAdaptiveWorkout(workoutUuid: string) {
+    return workouts.getAdaptiveWorkout(this, workoutUuid);
+  }
   /** NOT upstream parity. Every scheduled workout between two dates, as compact summaries. */
   getScheduledWorkoutSummaries(startdate: string | Date, enddate: string | Date) {
     return workouts.getScheduledWorkoutSummaries(this, startdate, enddate);
@@ -700,6 +704,10 @@ export class Garmin {
   }
   getCalendarEvent(eventId: number | string) {
     return calendar.getCalendarEvent(this, eventId);
+  }
+  /** A race from Garmin's events catalogue by its shareableEventUuid; no subscription needed. */
+  getSharedCalendarEvent(shareableEventUuid: string) {
+    return calendar.getSharedCalendarEvent(this, shareableEventUuid);
   }
   /** Adds a race or other event to the calendar. Always stored PRIVATE. */
   createCalendarEvent(input: CalendarEventInput) {

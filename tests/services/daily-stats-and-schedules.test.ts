@@ -174,3 +174,22 @@ describe("getTrainingPlanWorkouts", () => {
     expect(seen).toHaveLength(0);
   });
 });
+
+describe("getAdaptiveWorkout", () => {
+  it("GETs the Garmin Coach workout from fbt-adaptive by uuid", async () => {
+    server.use(
+      http.get(`${API}/workout-service/fbt-adaptive/:uuid`, ({ request }) => {
+        seen.push({ url: request.url, method: request.method });
+        return HttpResponse.json({ workoutId: null, workoutUuid: "a1b2c3d4-0000-4000-8000-000000000001", workoutSegments: [] });
+      }),
+    );
+    const w = await makeGarmin().getAdaptiveWorkout("a1b2c3d4-0000-4000-8000-000000000001");
+    expect(seen[0]!.url).toBe(`${API}/workout-service/fbt-adaptive/a1b2c3d4-0000-4000-8000-000000000001`);
+    expect(w).toMatchObject({ workoutId: null });
+  });
+
+  it.each(["1708305054", "../../weight-service/x", ""])("refuses %j, which is not a uuid", async (bad) => {
+    await expect(makeGarmin().getAdaptiveWorkout(bad)).rejects.toThrow(GarminError);
+    expect(seen).toHaveLength(0);
+  });
+});

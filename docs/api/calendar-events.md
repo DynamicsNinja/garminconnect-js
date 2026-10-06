@@ -14,7 +14,7 @@ if (!(await client.loadTokens())) throw new Error("not connected to Garmin");
 const garmin = new Garmin(client);
 ```
 
-**5 methods.** The verification column says what has been
+**6 methods.** The verification column says what has been
 confirmed against a live Garmin account, not merely unit-tested —
 [`AGENTS.md`](../../AGENTS.md) carries the full evidence per method.
 
@@ -23,6 +23,7 @@ confirmed against a live Garmin account, not merely unit-tested —
 | [`createCalendarEvent`](#createcalendarevent) | ✅ live-verified |
 | [`deleteCalendarEvent`](#deletecalendarevent) | ✅ live-verified |
 | [`getCalendarEvent`](#getcalendarevent) | ✅ live-verified |
+| [`getSharedCalendarEvent`](#getsharedcalendarevent) | ✅ live-verified |
 | [`listCalendarEvents`](#listcalendarevents) | ✅ live-verified |
 | [`updateCalendarEvent`](#updatecalendarevent) | ✅ live-verified |
 
@@ -133,6 +134,51 @@ const result = await garmin.getCalendarEvent(activityId);
 Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
 
 GETs `/calendar-service/event/{id}`; a missing id is a 404 `GarminHttpError`
+
+Verification: ✅ live-verified
+
+## getSharedCalendarEvent
+
+```ts
+garmin.getSharedCalendarEvent(shareableEventUuid: string): Promise<CalendarEvent | null>
+```
+
+```ts
+const result = await garmin.getSharedCalendarEvent(activityId);
+```
+
+**Returns**
+
+`CalendarEvent`:
+
+| Field | Type | Always present |
+|---|---|---|
+| `id` | `number` | yes |
+| `eventName` | `string` | yes |
+| `date` | `string` | yes |
+| `url` | `string | null` | no |
+| `registrationUrl` | `string | null` | no |
+| `courseId` | `number | null` | no |
+| `completionTarget` | `CalendarEventTarget | null` | no |
+| `eventTimeLocal` | `{ startTimeHhMm: string; timeZoneId: string } | null` | no |
+| `note` | `string | null` | no |
+| `workoutId` | `number | null` | no |
+| `location` | `string | null` | no |
+| `eventType` | `string | null` | no |
+| `eventPrivacy` | `{ label: string; isShareable: boolean; isDiscoverable: boolean }` | no |
+| `shareableEventUuid` | `string | null` | no |
+| `eventCustomization` | `{` | no |
+| `customGoal` | `CalendarEventTarget | null` | no |
+| `isPrimaryEvent` | `boolean` | no |
+| `isTrainingEvent` | `boolean` | no |
+| `associatedWithActivityId` | `number | null` | no |
+| `isGoalMet` | `boolean | null` | no |
+| `trainingPlanId` | `number | null` | no |
+| `race` | `boolean` | no |
+
+Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
+
+**NOT upstream parity**. GETs `/calendar-service/event/{uuid}/shareable`: an event from Garmin's public events catalogue (Races & Events -> Find an Event), with `locationStartPoint`, `subscribersCount`, `provider` and `subscribed`. Works WITHOUT subscribing (`subscribed: false`). The plain `/event/{uuid}` is a 404. Events you create never get a shareable uuid (Garmin forces them private)
 
 Verification: ✅ live-verified
 

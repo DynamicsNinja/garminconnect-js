@@ -394,11 +394,14 @@ export interface DeviceMessage {
  * it (Garmin's GraphQL `workoutScheduleSummariesScalar`). Read live on 2026-10-06.
  *
  * Plan workouts carry the plan's id in the field for its kind — `itpPlanId`, `atpPlanId`,
- * `fbtAdaptivePlanId` or `selfGuidedPlanId` — plus `trainingPlanId` and `tpType`. A Garmin Coach
- * adaptive workout is identified by `workoutUuid`; every other kind by `workoutId`.
+ * `fbtAdaptivePlanId` or `selfGuidedPlanId` — plus `trainingPlanId`. A Garmin Coach (adaptive)
+ * workout is identified by `workoutUuid` (fetch it with `getAdaptiveWorkout`) and has NO
+ * `workoutId` and NO `scheduledWorkoutId`; every other kind has both. Verified live against both
+ * an ITP and a Garmin Run Coach plan.
  */
 export interface ScheduledWorkoutSummary {
-  scheduledWorkoutId: number;
+  /** `null` for a Garmin Coach workout, which cannot be unscheduled on its own. */
+  scheduledWorkoutId: number | null;
   workoutId: number | null;
   workoutUuid: string | null;
   workoutName: string | null;
@@ -407,8 +410,15 @@ export interface ScheduledWorkoutSummary {
   /** `YYYY-MM-DD`. */
   scheduleDate: string;
   trainingPlanId?: number | null;
-  /** The plan kind, e.g. `"ITP"` (the only one observed live); `null` for a workout you scheduled. */
+  /**
+   * `"ITP"` for an ITP plan's workout; `null` both for a workout you scheduled yourself AND for a
+   * Garmin Coach one — tell those apart by `fbtAdaptivePlanId`.
+   */
   tpType?: string | null;
+  /** Garmin Coach's one-line description of the session. */
+  workoutPhrase?: string | null;
+  estimatedDurationInSecs?: number | null;
+  estimatedDistanceInMeters?: number | null;
   tpPlanName?: string | null;
   itpPlanId?: number | null;
   atpPlanId?: number | null;
