@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.9.0] — 2026-10-06
+
 ### Added
 
 Twenty-seven new methods, each verified live on 2026-10-06 by writing, reading the stored value
@@ -280,7 +282,8 @@ a broken result. Each is recorded with its reason in `tests/parity.test.ts`.
 - `@types/node` is an optional peer dependency — needed only for type-checking against the
   `Buffer` return types, and not installed into consumers' projects automatically.
 
-[Unreleased]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.8.2...HEAD
+[Unreleased]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.8.2...v0.9.0
 [0.8.2]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.8.1...v0.8.2
 [0.8.1]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.7.1...v0.8.0
