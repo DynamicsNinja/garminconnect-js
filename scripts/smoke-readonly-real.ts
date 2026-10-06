@@ -136,6 +136,12 @@ await probe("getPersonalRecord", () => g.getPersonalRecord());
 await probe("getUserSettings", () => g.getUserSettings());
 await probe("getUserprofileSettings", () => g.getUserprofileSettings());
 
+// --- daily stats: the test account has no wellness data, so the row shape needs a real one -------
+console.log("\ndaily stats");
+const monthStart = new Date(Date.now() - 40 * 86_400_000).toISOString().slice(0, 10);
+await probe("getDailyStats (CALORIES, 41 days, chunked)", () => g.getDailyStats(monthStart, today, "CALORIES"));
+await probe("getDailyStats (STEPS, 41 days, chunked)", () => g.getDailyStats(monthStart, today, "STEPS"));
+
 // --- health snapshot: never once observed succeeding, anywhere ---------------------------------
 console.log("\nhealth snapshot");
 let snapshotFound = false;

@@ -258,6 +258,44 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
     "io": "json"
   },
   {
+    "name": "getDailyStats",
+    "category": "wellness",
+    "description": "**NOT upstream parity** (endpoint from Taxuspt/garmin_mcp). GETs `/usersummary-service/stats/daily/{start}/{end}?statsType=CALORIES|STEPS`; `statsType` is exactly `\"CALORIES\"` or `\"STEPS\"` (any other value, lower-case included, is a Garmin 404). Garmin 400s when `end - start > 27`, so longer ranges are fetched in 28-day windows and the rows concatenated; Garmin's per-request `aggregations` (averages) are DROPPED rather than returned wrong for a chunked range. A range with no data returns `[]` (Garmin answers `null`). Overlaps `getDailySteps`/`getCaloriesDaily`; this one returns total/active/r…",
+    "params": [
+      {
+        "name": "start",
+        "optional": false,
+        "schema": {
+          "type": "string",
+          "format": "date",
+          "description": "Calendar date, YYYY-MM-DD (UTC)"
+        }
+      },
+      {
+        "name": "end",
+        "optional": false,
+        "schema": {
+          "type": "string",
+          "format": "date",
+          "description": "Calendar date, YYYY-MM-DD (UTC)"
+        }
+      },
+      {
+        "name": "statsType",
+        "optional": false,
+        "schema": {
+          "type": "string",
+          "enum": [
+            "CALORIES",
+            "STEPS"
+          ]
+        }
+      }
+    ],
+    "safety": "read",
+    "io": "json"
+  },
+  {
     "name": "getWeeklySteps",
     "category": "wellness",
     "description": "`weeks` defaults to 52, must be a positive integer",
@@ -976,6 +1014,137 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
         "optional": false,
         "schema": {
           "type": "string"
+        }
+      }
+    ],
+    "safety": "write",
+    "io": "json"
+  },
+  {
+    "name": "getActivityEventTypes",
+    "category": "activities",
+    "description": "**NOT upstream parity**. GETs `/activity-service/activity/eventTypes`: nine `{typeId, typeKey, sortOrder}` entries (`race`, `recreation`, `specialEvent`, `training`, `transportation`, `touring`, `geocaching`, `fitness`, `uncategorized`)",
+    "params": [],
+    "safety": "read",
+    "io": "json"
+  },
+  {
+    "name": "setActivityEventType",
+    "category": "activities",
+    "description": "**NOT upstream parity** (shape from Taxuspt/garmin_mcp). Partial `PUT /activity-service/activity/{id}` with `{activityId, eventTypeDTO: {typeKey}}` — the `typeKey` alone is enough, Garmin fills in `typeId`/`sortOrder`. Throws `GarminError` before any request for a key outside the nine",
+    "params": [
+      {
+        "name": "activityId",
+        "optional": false,
+        "schema": {
+          "type": [
+            "integer",
+            "string"
+          ],
+          "description": "Numeric id"
+        }
+      },
+      {
+        "name": "eventType",
+        "optional": false,
+        "schema": {
+          "type": "string",
+          "enum": [
+            "race",
+            "recreation",
+            "specialEvent",
+            "training",
+            "transportation",
+            "touring",
+            "geocaching",
+            "fitness",
+            "uncategorized"
+          ]
+        }
+      }
+    ],
+    "safety": "write",
+    "io": "json"
+  },
+  {
+    "name": "setActivityPerceivedEffort",
+    "category": "activities",
+    "description": "**NOT upstream parity**. Partial PUT of `summaryDTO.directWorkoutRpe`, which Garmin stores **TIMES TEN**: pass RPE 1-10 (integer), it sends 10-100; `null` clears it. Garmin itself rejects 150 with a 400 `MEASUREMENT_NOT_VALID`. Never read-modify-write the whole `summaryDTO` instead: PUTting its stored start-coordinate pair back is a 400 (garmin_mcp's finding)",
+    "params": [
+      {
+        "name": "activityId",
+        "optional": false,
+        "schema": {
+          "type": [
+            "integer",
+            "string"
+          ],
+          "description": "Numeric id"
+        }
+      },
+      {
+        "name": "rpe",
+        "optional": false,
+        "schema": {
+          "type": "number"
+        }
+      }
+    ],
+    "safety": "write",
+    "io": "json"
+  },
+  {
+    "name": "setActivityFeel",
+    "category": "activities",
+    "description": "**NOT upstream parity**. Partial PUT of `summaryDTO.directWorkoutFeel`, one of 0/25/50/75/100 (\"How did you feel?\", very weak to very strong); `null` clears it. Garmin stores any number (30 read back as 30) that its apps cannot display, so the method refuses anything else",
+    "params": [
+      {
+        "name": "activityId",
+        "optional": false,
+        "schema": {
+          "type": [
+            "integer",
+            "string"
+          ],
+          "description": "Numeric id"
+        }
+      },
+      {
+        "name": "feel",
+        "optional": false,
+        "schema": {
+          "anyOf": [
+            {
+              "type": "number",
+              "enum": [
+                0
+              ]
+            },
+            {
+              "type": "number",
+              "enum": [
+                25
+              ]
+            },
+            {
+              "type": "number",
+              "enum": [
+                50
+              ]
+            },
+            {
+              "type": "number",
+              "enum": [
+                75
+              ]
+            },
+            {
+              "type": "number",
+              "enum": [
+                100
+              ]
+            }
+          ]
         }
       }
     ],
@@ -2832,6 +3001,86 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
     "io": "json"
   },
   {
+    "name": "setHeartRateZones",
+    "category": "metrics",
+    "description": "**NOT upstream parity** (shape from Taxuspt/garmin_mcp). READ-MODIFY-WRITE of one profile: GETs `/biometric-service/heartRateZones`, overlays `{sport? = \"DEFAULT\", trainingMethod?, maxHeartRate?, restingHeartRate?, lactateThresholdHeartRate?, zoneFloors?: [5 bpm]}` with `changeState: \"CHANGED\"`, PUTs `[profile]` (204), then returns the profile READ BACK. A sport with no profile starts from DEFAULT's. Setting `restingHeartRate` also turns off `restingHrAutoUpdateUsed`. **Garmin does NOT recompute floors** when the method or a heart rate changes — send `zoneFloors` too. Floors must be strictly …",
+    "params": [
+      {
+        "name": "update",
+        "optional": false,
+        "schema": {
+          "type": "object",
+          "properties": {
+            "sport": {
+              "type": "string",
+              "description": "`\"DEFAULT\"` (the default) or a sport key. A sport with no profile yet starts from DEFAULT's."
+            },
+            "trainingMethod": {
+              "type": "string",
+              "enum": [
+                "HR_MAX",
+                "HR_RESERVE",
+                "LACTATE_THRESHOLD"
+              ]
+            },
+            "maxHeartRate": {
+              "type": "number"
+            },
+            "restingHeartRate": {
+              "type": "number",
+              "description": "Also turns off Garmin's automatic resting-HR updates for this profile."
+            },
+            "lactateThresholdHeartRate": {
+              "type": "number"
+            },
+            "zoneFloors": {
+              "type": "array",
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "minItems": 5,
+              "maxItems": 5,
+              "description": "Floors of zones 1-5, in bpm, strictly ascending."
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    ],
+    "safety": "write",
+    "io": "json"
+  },
+  {
+    "name": "deleteHeartRateZones",
+    "category": "metrics",
+    "description": "**NOT upstream parity, and not in garmin_mcp either**: PUTs the stored profile back with `changeState: \"DELETED\"`, which removes it so the sport falls back to DEFAULT. Refuses DEFAULT; throws for a sport with no profile instead of doing nothing",
+    "params": [
+      {
+        "name": "sport",
+        "optional": false,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "safety": "destructive",
+    "io": "json"
+  },
+  {
     "name": "getPowerZones",
     "category": "metrics",
     "description": "Get power zones.",
@@ -3927,6 +4176,277 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
     "params": [
       {
         "name": "scheduledWorkoutId",
+        "optional": false,
+        "schema": {
+          "type": [
+            "integer",
+            "string"
+          ],
+          "description": "Numeric id"
+        }
+      }
+    ],
+    "safety": "destructive",
+    "io": "json"
+  },
+  {
+    "name": "getScheduledWorkoutSummaries",
+    "category": "workouts",
+    "description": "**NOT upstream parity** (query from Taxuspt/garmin_mcp). POSTs the fixed GraphQL query `workoutScheduleSummariesScalar(startDate, endDate)`: every scheduled workout in the range, plan or self-scheduled (`tpType: null`), as compact rows whose `scheduledWorkoutId` is what `unscheduleWorkout` takes. Dates are validated before they are spliced into the query. A GraphQL error arrives as HTTP 200 with `errors`, turned into a `GarminError`. **It LAGS writes**: a just-scheduled workout is in the month feed at once but absent here for a few seconds",
+    "params": [
+      {
+        "name": "startdate",
+        "optional": false,
+        "schema": {
+          "type": "string",
+          "format": "date",
+          "description": "Calendar date, YYYY-MM-DD (UTC)"
+        }
+      },
+      {
+        "name": "enddate",
+        "optional": false,
+        "schema": {
+          "type": "string",
+          "format": "date",
+          "description": "Calendar date, YYYY-MM-DD (UTC)"
+        }
+      }
+    ],
+    "safety": "read",
+    "io": "json"
+  },
+  {
+    "name": "getTrainingPlanWorkouts",
+    "category": "workouts",
+    "description": "**NOT upstream parity** (query from Taxuspt/garmin_mcp). POSTs GraphQL `trainingPlanScalar(calendarDate, lang, firstDayOfWeek)` — all three arguments are REQUIRED by Garmin — and unwraps `trainingPlanWorkoutScheduleDTOS`: one entry per enrolled plan, `{trainingPlanId, planName, trainingPlanClassification, trainingPlanDetailsDTO, workoutScheduleSummaries}`. Garmin picks the window (18 workouts across several weeks for an ITP plan); `[]` with no plan",
+    "params": [
+      {
+        "name": "calendarDate",
+        "optional": false,
+        "schema": {
+          "type": "string",
+          "format": "date",
+          "description": "Calendar date, YYYY-MM-DD (UTC)"
+        }
+      },
+      {
+        "name": "options",
+        "optional": true,
+        "schema": {
+          "type": "object",
+          "properties": {
+            "firstDayOfWeek": {
+              "type": "string",
+              "enum": [
+                "monday",
+                "sunday"
+              ]
+            },
+            "lang": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    ],
+    "safety": "read",
+    "io": "json"
+  },
+  {
+    "name": "listCalendarEvents",
+    "category": "calendar-events",
+    "description": "**NOT upstream parity** (upstream has no calendar events; garmin_mcp reads them from the month feed instead). GETs `/calendar-service/events`, with `startDate`/`endDate` when both dates are given (inclusive) or no params for every event on the account; one date alone throws",
+    "params": [
+      {
+        "name": "startdate",
+        "optional": true,
+        "schema": {
+          "type": "string",
+          "format": "date",
+          "description": "Calendar date, YYYY-MM-DD (UTC)"
+        }
+      },
+      {
+        "name": "enddate",
+        "optional": true,
+        "schema": {
+          "type": "string",
+          "format": "date",
+          "description": "Calendar date, YYYY-MM-DD (UTC)"
+        }
+      }
+    ],
+    "safety": "read",
+    "io": "json"
+  },
+  {
+    "name": "getCalendarEvent",
+    "category": "calendar-events",
+    "description": "GETs `/calendar-service/event/{id}`; a missing id is a 404 `GarminHttpError`",
+    "params": [
+      {
+        "name": "eventId",
+        "optional": false,
+        "schema": {
+          "type": [
+            "integer",
+            "string"
+          ],
+          "description": "Numeric id"
+        }
+      }
+    ],
+    "safety": "read",
+    "io": "json"
+  },
+  {
+    "name": "createCalendarEvent",
+    "category": "calendar-events",
+    "description": "POSTs `/calendar-service/event`. `CalendarEventInput` = `{name, date, startTime?: \"HH:MM\", timeZoneId?, eventType?, race?, primary?, distance?: {value, unit: meter|kilometer|yard|mile}, goalTimeSeconds?, location?, url?, note?}`; only `name`/`date` are required by Garmin (`'addEvent.arg3.eventName' must not be blank` otherwise). Garmin forces every user-created event **PRIVATE and unshareable** whatever is sent, sets `isTrainingEvent` whenever `isPrimaryEvent` is, and answers an unknown `eventType` with a 500. It also rewrote `Europe/Zagreb` to `Europe/Paris` (same offset) while keeping `Amer…",
+    "params": [
+      {
+        "name": "input",
+        "optional": false,
+        "schema": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "date": {
+              "type": "string",
+              "format": "date",
+              "description": "`YYYY-MM-DD` or a `Date` (formatted as a UTC calendar date)."
+            },
+            "startTime": {
+              "type": "string",
+              "description": "Start time as `\"HH:MM\"`. Needs `timeZoneId`."
+            },
+            "timeZoneId": {
+              "type": "string",
+              "description": "IANA zone, e.g. `\"Europe/London\"`."
+            },
+            "eventType": {
+              "type": "string",
+              "description": "Sport key such as `\"running\"` or `\"cycling\"`."
+            },
+            "race": {
+              "type": "boolean",
+              "description": "Marks it as a race."
+            },
+            "primary": {
+              "type": "boolean",
+              "description": "Your primary event; Garmin then also marks it a training event."
+            },
+            "distance": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "type": "number"
+                },
+                "unit": {
+                  "type": "string",
+                  "enum": [
+                    "meter",
+                    "kilometer",
+                    "yard",
+                    "mile"
+                  ]
+                }
+              },
+              "required": [
+                "value",
+                "unit"
+              ],
+              "additionalProperties": false
+            },
+            "goalTimeSeconds": {
+              "type": "number",
+              "description": "Your goal time for the event, in seconds."
+            },
+            "location": {
+              "type": "string"
+            },
+            "url": {
+              "type": "string"
+            },
+            "note": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "name",
+            "date"
+          ],
+          "additionalProperties": false
+        }
+      }
+    ],
+    "safety": "write",
+    "io": "json"
+  },
+  {
+    "name": "updateCalendarEvent",
+    "category": "calendar-events",
+    "description": "READ-MODIFY-WRITE: GETs the event, overlays `{name?, date?, location?, url?, note?, race?, goalTimeSeconds?}` (`null` clears an optional one), PUTs the whole record back to `/calendar-service/event/{id}`; Garmin answers with no body, so it resolves to `null`. Concurrent callers can clobber each other",
+    "params": [
+      {
+        "name": "eventId",
+        "optional": false,
+        "schema": {
+          "type": [
+            "integer",
+            "string"
+          ],
+          "description": "Numeric id"
+        }
+      },
+      {
+        "name": "changes",
+        "optional": false,
+        "schema": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "date": {
+              "type": "string",
+              "format": "date",
+              "description": "Calendar date, YYYY-MM-DD (UTC)"
+            },
+            "location": {
+              "type": "string"
+            },
+            "url": {
+              "type": "string"
+            },
+            "note": {
+              "type": "string"
+            },
+            "race": {
+              "type": "boolean"
+            },
+            "goalTimeSeconds": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    ],
+    "safety": "write",
+    "io": "json"
+  },
+  {
+    "name": "deleteCalendarEvent",
+    "category": "calendar-events",
+    "description": "`DELETE /calendar-service/event/{id}`, resolves `null` (204). IRREVERSIBLE",
+    "params": [
+      {
+        "name": "eventId",
         "optional": false,
         "schema": {
           "type": [

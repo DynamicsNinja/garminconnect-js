@@ -14,7 +14,7 @@ if (!(await client.loadTokens())) throw new Error("not connected to Garmin");
 const garmin = new Garmin(client);
 ```
 
-**32 methods.** The verification column says what has been
+**36 methods.** The verification column says what has been
 confirmed against a live Garmin account, not merely unit-tested —
 [`AGENTS.md`](../../AGENTS.md) carries the full evidence per method.
 
@@ -32,6 +32,7 @@ confirmed against a live Garmin account, not merely unit-tested —
 | [`getActivitiesForDate`](#getactivitiesfordate) | ✅ live-verified |
 | [`getActivity`](#getactivity) | ✅ live-verified |
 | [`getActivityDetails`](#getactivitydetails) | ✅ live-verified |
+| [`getActivityEventTypes`](#getactivityeventtypes) | ✅ live-verified |
 | [`getActivityExerciseSets`](#getactivityexercisesets) | ✅ live-verified |
 | [`getActivityGear`](#getactivitygear) | ✅ live-verified |
 | [`getActivityHrInTimezones`](#getactivityhrintimezones) | ✅ live-verified |
@@ -48,8 +49,11 @@ confirmed against a live Garmin account, not merely unit-tested —
 | [`importActivity`](#importactivity) | ✅ live-verified |
 | [`removeGearFromActivity`](#removegearfromactivity) | ✅ live-verified |
 | [`setActivityDescription`](#setactivitydescription) | ✅ live-verified |
+| [`setActivityEventType`](#setactivityeventtype) | ✅ live-verified |
 | [`setActivityExerciseSets`](#setactivityexercisesets) | ✅ live-verified |
+| [`setActivityFeel`](#setactivityfeel) | ✅ live-verified |
 | [`setActivityName`](#setactivityname) | ✅ live-verified |
+| [`setActivityPerceivedEffort`](#setactivityperceivedeffort) | ✅ live-verified |
 | [`setActivityType`](#setactivitytype) | ✅ live-verified |
 | [`uploadActivity`](#uploadactivity) | ✅ live-verified |
 
@@ -299,6 +303,30 @@ const result = await garmin.getActivityDetails(activityId);
 `ActivityDetails` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
 
 defaults `maxchart=2000, maxpoly=4000`, sent as `maxChartSize`/`maxPolylineSize`; passes through unchecked
+
+Verification: ✅ live-verified
+
+## getActivityEventTypes
+
+```ts
+garmin.getActivityEventTypes(): Promise<ActivityEventType[] | null>
+```
+
+```ts
+const result = await garmin.getActivityEventTypes();
+```
+
+**Returns**
+
+An array of `ActivityEventType`:
+
+| Field | Type | Always present |
+|---|---|---|
+| `typeId` | `number` | yes |
+| `typeKey` | `ActivityEventTypeKey` | yes |
+| `sortOrder` | `number` | yes |
+
+**NOT upstream parity**. GETs `/activity-service/activity/eventTypes`: nine `{typeId, typeKey, sortOrder}` entries (`race`, `recreation`, `specialEvent`, `training`, `transportation`, `touring`, `geocaching`, `fitness`, `uncategorized`)
 
 Verification: ✅ live-verified
 
@@ -607,6 +635,24 @@ resolves to `null` on success. Live-verified: `description` read back via `getAc
 
 Verification: ✅ live-verified
 
+## setActivityEventType
+
+```ts
+garmin.setActivityEventType(activityId: number | string, eventType: ActivityEventTypeKey): Promise<unknown>
+```
+
+```ts
+const result = await garmin.setActivityEventType(activityId, eventType);
+```
+
+**Returns**
+
+`unknown` — Garmin's response is passed through unparsed. Cast it to whatever you need; this library does not model it.
+
+**NOT upstream parity** (shape from Taxuspt/garmin_mcp). Partial `PUT /activity-service/activity/{id}` with `{activityId, eventTypeDTO: {typeKey}}` — the `typeKey` alone is enough, Garmin fills in `typeId`/`sortOrder`. Throws `GarminError` before any request for a key outside the nine
+
+Verification: ✅ live-verified
+
 ## setActivityExerciseSets
 
 ```ts
@@ -625,6 +671,24 @@ const result = await garmin.setActivityExerciseSets(activityId, payload);
 
 Verification: ✅ live-verified
 
+## setActivityFeel
+
+```ts
+garmin.setActivityFeel(activityId: number | string, feel: ActivityFeel | null): Promise<unknown>
+```
+
+```ts
+const result = await garmin.setActivityFeel(activityId, feel);
+```
+
+**Returns**
+
+`unknown` — Garmin's response is passed through unparsed. Cast it to whatever you need; this library does not model it.
+
+**NOT upstream parity**. Partial PUT of `summaryDTO.directWorkoutFeel`, one of 0/25/50/75/100 ("How did you feel?", very weak to very strong); `null` clears it. Garmin stores any number (30 read back as 30) that its apps cannot display, so the method refuses anything else
+
+Verification: ✅ live-verified
+
 ## setActivityName
 
 ```ts
@@ -640,6 +704,24 @@ const result = await garmin.setActivityName(activityId, "activityName");
 `unknown` — Garmin's response is passed through unparsed. Cast it to whatever you need; this library does not model it.
 
 resolves to `null` on success. Live-verified: value read back via `getActivity` after the call, not just that the request was accepted
+
+Verification: ✅ live-verified
+
+## setActivityPerceivedEffort
+
+```ts
+garmin.setActivityPerceivedEffort(activityId: number | string, rpe: number | null): Promise<unknown>
+```
+
+```ts
+const result = await garmin.setActivityPerceivedEffort(activityId, 1);
+```
+
+**Returns**
+
+`unknown` — Garmin's response is passed through unparsed. Cast it to whatever you need; this library does not model it.
+
+**NOT upstream parity**. Partial PUT of `summaryDTO.directWorkoutRpe`, which Garmin stores **TIMES TEN**: pass RPE 1-10 (integer), it sends 10-100; `null` clears it. Garmin itself rejects 150 with a 400 `MEASUREMENT_NOT_VALID`. Never read-modify-write the whole `summaryDTO` instead: PUTting its stored start-coordinate pair back is a 400 (garmin_mcp's finding)
 
 Verification: ✅ live-verified
 

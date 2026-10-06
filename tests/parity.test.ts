@@ -185,6 +185,22 @@ describe("upstream parity", () => {
       deleteCourse: "courses are not in upstream, and the fork has no delete either",
       downloadCourseGpx: "courses are not in upstream — GET /course-service/course/gpx/{id}",
       getBadgeDetail: "upstream has no per-badge call; endpoint found in Garmin's own web client",
+      // Endpoints Taxuspt/garmin_mcp calls that upstream does not wrap, each re-verified live by
+      // smoke:gaps on 2026-10-06. The calendar create/list/update/delete were found here.
+      getActivityEventTypes: "upstream has no event types — GET /activity-service/activity/eventTypes",
+      setActivityEventType: "upstream cannot set the event type — partial PUT of eventTypeDTO",
+      setActivityPerceivedEffort: "upstream cannot set RPE — partial PUT of summaryDTO.directWorkoutRpe",
+      setActivityFeel: "upstream cannot set feel — partial PUT of summaryDTO.directWorkoutFeel",
+      setHeartRateZones: "upstream only reads zones — PUT /biometric-service/heartRateZones",
+      deleteHeartRateZones: "upstream only reads zones — the same PUT with changeState DELETED",
+      getDailyStats: "upstream has no stats/daily — GET /usersummary-service/stats/daily/{start}/{end}",
+      getScheduledWorkoutSummaries: "upstream has no schedule summaries — GraphQL workoutScheduleSummariesScalar",
+      getTrainingPlanWorkouts: "upstream has no plan workouts — GraphQL trainingPlanScalar",
+      listCalendarEvents: "upstream has no calendar events — GET /calendar-service/events",
+      getCalendarEvent: "upstream has no calendar events — GET /calendar-service/event/{id}",
+      createCalendarEvent: "upstream has no calendar events — POST /calendar-service/event",
+      updateCalendarEvent: "upstream has no calendar events — full-record PUT /calendar-service/event/{id}",
+      deleteCalendarEvent: "upstream has no calendar events — DELETE /calendar-service/event/{id}",
     };
 
     const rows = parseInventoryRows();

@@ -145,3 +145,31 @@ export interface GearLinkResult {
 export interface ProgressSummary {
   [key: string]: unknown;
 }
+
+/**
+ * `GET /activity-service/activity/eventTypes` entry: the purpose an activity is filed under
+ * ("race", "training", …). NOT upstream parity. Read live on 2026-10-06; nine entries.
+ */
+export interface ActivityEventType {
+  typeId: number;
+  typeKey: ActivityEventTypeKey;
+  sortOrder: number;
+}
+
+/** The nine `typeKey`s `GET /activity-service/activity/eventTypes` returned on 2026-10-06. */
+export type ActivityEventTypeKey =
+  | "race"
+  | "recreation"
+  | "specialEvent"
+  | "training"
+  | "transportation"
+  | "touring"
+  | "geocaching"
+  | "fitness"
+  | "uncategorized";
+
+/**
+ * Garmin Connect's "How did you feel?" rating, stored as `summaryDTO.directWorkoutFeel`:
+ * 0 very weak, 25 weak, 50 normal, 75 strong, 100 very strong.
+ */
+export type ActivityFeel = 0 | 25 | 50 | 75 | 100;

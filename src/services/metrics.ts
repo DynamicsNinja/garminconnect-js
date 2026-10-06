@@ -8,6 +8,8 @@ import type {
   FitnessAgeResult,
   FtpRangeResult,
   HeartRateZoneEntry,
+  HeartRateZoneMethod,
+  HeartRateZoneUpdate,
   HillScoreResult,
   LactateThresholdLatest,
   LactateThresholdRange,
@@ -346,6 +348,123 @@ export async function getCyclingFtp(host: MetricsHost): Promise<CyclingFtpResult
 /** Configured HR zones for all sport profiles. */
 export async function getHeartRateZones(host: MetricsHost): Promise<HeartRateZoneEntry[] | null> {
   return host.client.connectapi<HeartRateZoneEntry[]>("/biometric-service/heartRateZones");
+}
+
+// ---------------------------------------------------------------------------
+// Heart-rate zone writes — NOT upstream parity. `PUT /biometric-service/heartRateZones` takes an
+// ARRAY of the profiles that changed and answers 204. Shape from Taxuspt/garmin_mcp; verified live
+// on 2026-10-06 (DEFAULT floors changed and read back, a RUNNING profile created then deleted,
+// everything restored). `changeState: "DELETED"` removing a sport profile is this library's own
+// finding, not garmin_mcp's.
+// ---------------------------------------------------------------------------
+
+const HR_ZONES_PATH = "/biometric-service/heartRateZones";
+const HR_ZONE_METHODS: ReadonlySet<string> = new Set<HeartRateZoneMethod>([
+  "HR_MAX",
+  "HR_RESERVE",
+  "LACTATE_THRESHOLD",
+]);
+
+function assertBpm(value: number, name: string): void {
+  if (!Number.isInteger(value) || value < 1 || value > 300) {
+    throw new GarminError(`${name} must be a whole number of bpm from 1 to 300; got ${String(value)}`);
+  }
+}
+
+/**
+ * Changes one heart-rate zone profile — DEFAULT, or a sport's own — and returns it as stored.
+ *
+ * READ-MODIFY-WRITE: GETs every profile, overlays `update` onto the matching one, PUTs it back,
+ * then reads it back again (the PUT itself returns nothing). A sport with no profile of its own
+ * yet starts as a copy of DEFAULT, which is what Garmin Connect's settings page does.
+ *
+ * Garmin does not recalculate the floors when the method or a heart rate changes; see
+ * `HeartRateZoneUpdate`. It does reject floors that are not ascending, and so does this method,
+ * before sending anything.
+ */
+export async function setHeartRateZones(
+  host: MetricsHost,
+  update: HeartRateZoneUpdate,
+): Promise<HeartRateZoneEntry | null> {
+  const sport = validateSportKey(update.sport ?? "DEFAULT");
+  const { trainingMethod, maxHeartRate, restingHeartRate, lactateThresholdHeartRate, zoneFloors } =
+    update;
+  if (
+    [trainingMethod, maxHeartRate, restingHeartRate, lactateThresholdHeartRate, zoneFloors].every(
+      (v) => v === undefined,
+    )
+  ) {
+    throw new GarminError("setHeartRateZones needs at least one field to change besides sport");
+  }
+  if (trainingMethod !== undefined && !HR_ZONE_METHODS.has(trainingMethod)) {
+    throw new GarminError(
+      `Unknown trainingMethod "${String(trainingMethod)}" — expected HR_MAX, HR_RESERVE or LACTATE_THRESHOLD`,
+    );
+  }
+  if (maxHeartRate !== undefined) assertBpm(maxHeartRate, "maxHeartRate");
+  if (restingHeartRate !== undefined) assertBpm(restingHeartRate, "restingHeartRate");
+  if (lactateThresholdHeartRate !== undefined) {
+    assertBpm(lactateThresholdHeartRate, "lactateThresholdHeartRate");
+  }
+  if (zoneFloors !== undefined) {
+    if (!Array.isArray(zoneFloors) || zoneFloors.length !== 5) {
+      throw new GarminError("zoneFloors must hold exactly five values, the floors of zones 1-5");
+    }
+    zoneFloors.forEach((f, i) => assertBpm(f, `zoneFloors[${String(i)}]`));
+    for (let i = 1; i < 5; i++) {
+      if (zoneFloors[i]! <= zoneFloors[i - 1]!) {
+        throw new GarminError("zoneFloors must be strictly ascending");
+      }
+    }
+  }
+
+  const profiles = (await host.client.connectapi<HeartRateZoneEntry[]>(HR_ZONES_PATH)) ?? [];
+  const existing = profiles.find((p) => p.sport === sport);
+  const base = existing ?? profiles.find((p) => p.sport === "DEFAULT");
+  if (!base) {
+    throw new GarminError(`No ${sport} heart-rate zone profile, and no DEFAULT one to start it from`);
+  }
+  const next: HeartRateZoneEntry = { ...base, sport, changeState: "CHANGED" };
+  if (trainingMethod !== undefined) next.trainingMethod = trainingMethod;
+  if (maxHeartRate !== undefined) next.maxHeartRateUsed = maxHeartRate;
+  if (restingHeartRate !== undefined) {
+    next.restingHeartRateUsed = restingHeartRate;
+    next.restingHrAutoUpdateUsed = false;
+  }
+  if (lactateThresholdHeartRate !== undefined) {
+    next.lactateThresholdHeartRateUsed = lactateThresholdHeartRate;
+  }
+  if (zoneFloors !== undefined) {
+    zoneFloors.forEach((floor, i) => {
+      next[`zone${String(i + 1)}Floor`] = floor;
+    });
+  }
+
+  await host.client.connectapi(HR_ZONES_PATH, { method: "PUT", json: [next] });
+  const after = await host.client.connectapi<HeartRateZoneEntry[]>(HR_ZONES_PATH);
+  return after?.find((p) => p.sport === sport) ?? null;
+}
+
+/**
+ * Removes a sport's own heart-rate zone profile, so that sport falls back to DEFAULT. Sends the
+ * stored profile back with `changeState: "DELETED"`, which Garmin honours (verified live: the
+ * profile was gone on read-back). DEFAULT itself cannot be deleted, and a sport with no profile
+ * throws rather than silently doing nothing.
+ */
+export async function deleteHeartRateZones(host: MetricsHost, sport: string): Promise<unknown> {
+  const key = validateSportKey(sport);
+  if (key === "DEFAULT") {
+    throw new GarminError("The DEFAULT heart-rate zone profile cannot be deleted");
+  }
+  const profiles = (await host.client.connectapi<HeartRateZoneEntry[]>(HR_ZONES_PATH)) ?? [];
+  const existing = profiles.find((p) => p.sport === key);
+  if (!existing) {
+    throw new GarminError(`There is no ${key} heart-rate zone profile to delete`);
+  }
+  return host.client.connectapi(HR_ZONES_PATH, {
+    method: "PUT",
+    json: [{ ...existing, changeState: "DELETED" }],
+  });
 }
 
 export async function getPowerZones(host: MetricsHost): Promise<PowerZoneEntry[] | null> {

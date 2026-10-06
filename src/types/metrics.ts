@@ -72,7 +72,45 @@ export type CyclingFtpResult = Record<string, unknown> | Record<string, unknown>
 
 /** `GET /biometric-service/heartRateZones` entry. */
 export interface HeartRateZoneEntry {
+  /** `"DEFAULT"`, or an upper-case sport key (`"RUNNING"`, `"CYCLING"`) for a sport's own profile. */
+  sport?: string;
+  trainingMethod?: HeartRateZoneMethod;
+  /** Lower bound, in bpm, of zones 1-5. Garmin rejects floors that are not ascending. */
+  zone1Floor?: number;
+  zone2Floor?: number;
+  zone3Floor?: number;
+  zone4Floor?: number;
+  zone5Floor?: number;
+  maxHeartRateUsed?: number | null;
+  restingHeartRateUsed?: number | null;
+  lactateThresholdHeartRateUsed?: number | null;
+  restingHrAutoUpdateUsed?: boolean;
+  /** Always `"UNCHANGED"` on read. Garmin applies a PUT whatever this says. */
+  changeState?: string;
   [key: string]: unknown;
+}
+
+/** How a heart-rate zone profile's floors are expressed: % of max HR, % of HR reserve, % of LTHR. */
+export type HeartRateZoneMethod = "HR_MAX" | "HR_RESERVE" | "LACTATE_THRESHOLD";
+
+/**
+ * Input to `setHeartRateZones`. Every field except `sport` is optional; what is omitted keeps its
+ * stored value. All heart rates are whole bpm.
+ *
+ * Garmin does NOT recompute the floors when `trainingMethod` or a heart rate changes — verified
+ * live: switching a profile to `HR_RESERVE` kept the old floors. The floors are whatever was last
+ * written, so send `zoneFloors` alongside a method change if they should move.
+ */
+export interface HeartRateZoneUpdate {
+  /** `"DEFAULT"` (the default) or a sport key. A sport with no profile yet starts from DEFAULT's. */
+  sport?: string;
+  trainingMethod?: HeartRateZoneMethod;
+  maxHeartRate?: number;
+  /** Also turns off Garmin's automatic resting-HR updates for this profile. */
+  restingHeartRate?: number;
+  lactateThresholdHeartRate?: number;
+  /** Floors of zones 1-5, in bpm, strictly ascending. */
+  zoneFloors?: [number, number, number, number, number];
 }
 
 /** `GET /biometric-service/powerZones/sports/all` entry. */

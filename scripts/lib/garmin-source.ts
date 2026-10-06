@@ -53,6 +53,13 @@ export const CATEGORIES: Record<string, { slug: string; title: string; blurb: st
       "privacy, export as GPX, delete. Not in python-garminconnect. Creating is two steps — " +
       "`importCourseGpx` parses, `createCourse` saves — and `createCourseFromGpx` does both.",
   },
+  calendar: {
+    slug: "calendar-events",
+    title: "Calendar events",
+    blurb:
+      "Races and other dated events on the Garmin Connect calendar: list, read, create, update, " +
+      "delete. Not in python-garminconnect. Events you create are always private.",
+  },
   devices: {
     slug: "devices",
     title: "Devices",

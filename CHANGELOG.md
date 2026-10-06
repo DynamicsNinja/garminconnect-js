@@ -6,7 +6,27 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
-## [0.8.2] — 2026-10-02
+### Added
+
+Fourteen methods for Garmin endpoints that python-garminconnect does not wrap, taken from what
+[Taxuspt/garmin_mcp](https://github.com/Taxuspt/garmin_mcp) calls or found by probing. Each was
+verified live on 2026-10-06 by writing, reading the stored value back, and restoring.
+
+- **Calendar events** (new category): `listCalendarEvents`, `getCalendarEvent`,
+  `createCalendarEvent`, `updateCalendarEvent`, `deleteCalendarEvent` for races and other events.
+  Garmin keeps every event you create private.
+- **Activity fields**: `getActivityEventTypes`, `setActivityEventType`,
+  `setActivityPerceivedEffort` (RPE 1-10; Garmin stores it times ten), `setActivityFeel`.
+- **Heart-rate zones**: `setHeartRateZones` (read-modify-write of one profile, returned as
+  stored) and `deleteHeartRateZones` (removes a sport's own profile). Garmin does not recompute
+  the floors when the method changes.
+- **`getDailyStats`**: per-day calories or steps for any range, fetched in 28-day windows.
+- **`getScheduledWorkoutSummaries`** and **`getTrainingPlanWorkouts`**: compact schedule reads
+  over Garmin's GraphQL gateway. The summaries lag a fresh schedule by a few seconds.
+
+The MCP server gets the matching tools automatically, and a `calendar-events` tool group.
+
+## [0.8.2] ï¿½ 2026-10-02
 
 No changes to `garminconnect-js`; it is released in lockstep with the MCP server.
 
@@ -18,7 +38,7 @@ No changes to `garminconnect-js`; it is released in lockstep with the MCP server
   "email or username". The `garmin_email` setting and `GARMIN_EMAIL` keep their names, so saved
   settings keep working.
 
-## [0.8.1] — 2026-10-01
+## [0.8.1] ï¿½ 2026-10-01
 
 No changes to `garminconnect-js`; it is released in lockstep with the MCP server.
 

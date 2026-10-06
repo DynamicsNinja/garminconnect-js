@@ -14,7 +14,7 @@ if (!(await client.loadTokens())) throw new Error("not connected to Garmin");
 const garmin = new Garmin(client);
 ```
 
-**16 methods.** The verification column says what has been
+**18 methods.** The verification column says what has been
 confirmed against a live Garmin account, not merely unit-tested —
 [`AGENTS.md`](../../AGENTS.md) carries the full evidence per method.
 
@@ -25,6 +25,8 @@ confirmed against a live Garmin account, not merely unit-tested —
 | [`getNextScheduledWorkout`](#getnextscheduledworkout) | ✅ live-verified |
 | [`getScheduledWorkoutById`](#getscheduledworkoutbyid) | ✅ live-verified |
 | [`getScheduledWorkouts`](#getscheduledworkouts) | ✅ live-verified |
+| [`getScheduledWorkoutSummaries`](#getscheduledworkoutsummaries) | ✅ live-verified |
+| [`getTrainingPlanWorkouts`](#gettrainingplanworkouts) | ✅ live-verified |
 | [`getWorkoutById`](#getworkoutbyid) | ✅ live-verified |
 | [`getWorkouts`](#getworkouts) | ✅ live-verified |
 | [`pushWorkoutToDevice`](#pushworkouttodevice) | ✅ live-verified |
@@ -139,6 +141,78 @@ const result = await garmin.getScheduledWorkouts(activityId, activityId);
 Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
 
 `month` is 1-12 on the way in, converted to 0-indexed on the wire; validates `year>=2000`, `month` 1-12; passes through unchecked
+
+Verification: ✅ live-verified
+
+## getScheduledWorkoutSummaries
+
+```ts
+garmin.getScheduledWorkoutSummaries(startdate: string | Date, enddate: string | Date): Promise<ScheduledWorkoutSummary[]>
+```
+
+```ts
+const result = await garmin.getScheduledWorkoutSummaries("2026-09-24", "2026-09-24");
+```
+
+**Returns**
+
+An array of `ScheduledWorkoutSummary`:
+
+| Field | Type | Always present |
+|---|---|---|
+| `scheduledWorkoutId` | `number` | yes |
+| `workoutId` | `number | null` | yes |
+| `workoutUuid` | `string | null` | yes |
+| `workoutName` | `string | null` | yes |
+| `workoutType` | `string | null` | yes |
+| `scheduleDate` | `string` | yes |
+| `trainingPlanId` | `number | null` | no |
+| `tpType` | `string | null` | no |
+| `tpPlanName` | `string | null` | no |
+| `itpPlanId` | `number | null` | no |
+| `atpPlanId` | `number | null` | no |
+| `fbtAdaptivePlanId` | `number | null` | no |
+| `selfGuidedPlanId` | `number | null` | no |
+| `associatedActivityId` | `number | null` | no |
+| `isRestDay` | `boolean | null` | no |
+| `race` | `boolean` | no |
+
+Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
+
+**NOT upstream parity** (query from Taxuspt/garmin_mcp). POSTs the fixed GraphQL query `workoutScheduleSummariesScalar(startDate, endDate)`: every scheduled workout in the range, plan or self-scheduled (`tpType: null`), as compact rows whose `scheduledWorkoutId` is what `unscheduleWorkout` takes. Dates are validated before they are spliced into the query. A GraphQL error arrives as HTTP 200 with `errors`, turned into a `GarminError`. **It LAGS writes**: a just-scheduled workout is in the month feed at once but absent here for a few seconds
+
+Verification: ✅ live-verified
+
+## getTrainingPlanWorkouts
+
+```ts
+garmin.getTrainingPlanWorkouts(calendarDate: string | Date, options?: {firstDayOfWeek?: "monday" | "sunday", lang?: string}): Promise<TrainingPlanWorkoutSchedule[]>
+```
+
+```ts
+const result = await garmin.getTrainingPlanWorkouts("2026-09-24");
+```
+
+**Returns**
+
+An array of `TrainingPlanWorkoutSchedule`:
+
+| Field | Type | Always present |
+|---|---|---|
+| `trainingPlanId` | `number` | yes |
+| `planName` | `string` | yes |
+| `trainingPlanClassification` | `string` | yes |
+| `trainingPlanDetailsDTO` | `{` | yes |
+| `athletePlanId` | `number` | no |
+| `athleteRace` | `{ raceDay?: string | null; raceName?: string | null; raceUrl?: string | null } | null` | no |
+| `workoutsPerWeek` | `number` | no |
+| `registrationDate` | `string` | no |
+| `trainingType` | `string` | no |
+| `workoutScheduleSummaries` | `ScheduledWorkoutSummary[]` | yes |
+
+Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
+
+**NOT upstream parity** (query from Taxuspt/garmin_mcp). POSTs GraphQL `trainingPlanScalar(calendarDate, lang, firstDayOfWeek)` — all three arguments are REQUIRED by Garmin — and unwraps `trainingPlanWorkoutScheduleDTOS`: one entry per enrolled plan, `{trainingPlanId, planName, trainingPlanClassification, trainingPlanDetailsDTO, workoutScheduleSummaries}`. Garmin picks the window (18 workouts across several weeks for an ITP plan); `[]` with no plan
 
 Verification: ✅ live-verified
 

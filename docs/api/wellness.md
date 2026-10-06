@@ -14,7 +14,7 @@ if (!(await client.loadTokens())) throw new Error("not connected to Garmin");
 const garmin = new Garmin(client);
 ```
 
-**30 methods.** The verification column says what has been
+**31 methods.** The verification column says what has been
 confirmed against a live Garmin account, not merely unit-tested —
 [`AGENTS.md`](../../AGENTS.md) carries the full evidence per method.
 
@@ -28,6 +28,7 @@ confirmed against a live Garmin account, not merely unit-tested —
 | [`getBodyBattery`](#getbodybattery) | ✅ live-verified |
 | [`getBodyBatteryEvents`](#getbodybatteryevents) | ✅ live-verified |
 | [`getCaloriesDaily`](#getcaloriesdaily) | ✅ live-verified |
+| [`getDailyStats`](#getdailystats) | ✅ live-verified |
 | [`getDailySteps`](#getdailysteps) | ✅ live-verified |
 | [`getFloors`](#getfloors) | ✅ live-verified |
 | [`getHeartRates`](#getheartrates) | ✅ live-verified |
@@ -214,6 +215,37 @@ An array of `CaloriesDailyEntry`:
 | `total` | `number` | no |
 
 merges active (metricId 22) and resting/BMR (metricId 23) series into `[{calendarDate, active, resting, total}]`
+
+Verification: ✅ live-verified
+
+## getDailyStats
+
+```ts
+garmin.getDailyStats(start: string | Date, end: string | Date, statsType: DailyStatsType): Promise<DailyStatsEntry[]>
+```
+
+```ts
+const result = await garmin.getDailyStats("2026-09-24", "2026-09-24", statsType);
+```
+
+**Returns**
+
+An array of `DailyStatsEntry`:
+
+| Field | Type | Always present |
+|---|---|---|
+| `calendarDate` | `string` | yes |
+| `values` | `{` | yes |
+| `totalCalories` | `number | null` | no |
+| `activeCalories` | `number | null` | no |
+| `restingCalories` | `number | null` | no |
+| `totalSteps` | `number | null` | no |
+| `totalDistance` | `number | null` | no |
+| `stepGoal` | `number | null` | no |
+
+Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
+
+**NOT upstream parity** (endpoint from Taxuspt/garmin_mcp). GETs `/usersummary-service/stats/daily/{start}/{end}?statsType=CALORIES|STEPS`; `statsType` is exactly `"CALORIES"` or `"STEPS"` (any other value, lower-case included, is a Garmin 404). Garmin 400s when `end - start > 27`, so longer ranges are fetched in 28-day windows and the rows concatenated; Garmin's per-request `aggregations` (averages) are DROPPED rather than returned wrong for a chunked range. A range with no data returns `[]` (Garmin answers `null`). Overlaps `getDailySteps`/`getCaloriesDaily`; this one returns total/active/resting calories together, and steps with `totalDistance` and `stepGoal`
 
 Verification: ✅ live-verified
 

@@ -123,7 +123,7 @@ destructive, and Claude is told to confirm with you before using them.
   running, cycling, swimming, strength, HIIT, yoga, pilates, mobility, cardio, rucking and
   multi-sport; plus listing, scheduling, sending to your watch and deleting.
 - **Everything else in garminconnect-js**: sleep, HRV, stress, Body Battery, training readiness and
-  status, race predictions, activities (list, details, download, upload files), gear, courses,
+  status, race predictions, activities (list, details, download, upload files, RPE and feel), gear, courses, race calendar,
   devices, badges, weigh-ins, and more. One tool per library method.
 
 **Not exposed:** `logout` (it would delete your saved session), the raw-JSON workout uploads (the
@@ -135,7 +135,7 @@ checked `create_workout` replaces them), and the raw GraphQL passthrough unless 
 |---|---|---|
 | `GARMIN_MCP_TOKEN_DIR` | `~/.garminconnect-mcp/tokens` | Where the session is saved |
 | `GARMIN_MCP_DOWNLOAD_DIR` | `~/Downloads/garmin` | Where downloaded files (FIT, GPX, …) go |
-| `GARMIN_MCP_GROUPS` | all | Comma-separated tool groups: `wellness`, `activities`, `metrics`, `workouts`, `gear`, `courses`, `devices`, `badges-challenges`, `body-composition-weight`, `womens-health`, `golf`, `profile-and-misc`. Matched case-insensitively; an unknown name is ignored (and if none you list are valid, everything loads). The workout-builder tools are always on. Fewer groups means less of Claude's context used. |
+| `GARMIN_MCP_GROUPS` | all | Comma-separated tool groups: `wellness`, `activities`, `metrics`, `workouts`, `gear`, `courses`, `calendar-events`, `devices`, `badges-challenges`, `body-composition-weight`, `womens-health`, `golf`, `profile-and-misc`. Matched case-insensitively; an unknown name is ignored (and if none you list are valid, everything loads). The workout-builder tools are always on. Fewer groups means less of Claude's context used. |
 | `GARMIN_MCP_ENABLE_GRAPHQL` | off | Set to `1` to expose `query_garmin_graphql` |
 
 Set them under `"env"` in the config entry, for example:

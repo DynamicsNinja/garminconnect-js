@@ -10,6 +10,8 @@ import type {
   BodyBatteryEvent,
   CaloriesDailyEntry,
   DailyEventsData,
+  DailyStatsEntry,
+  DailyStatsType,
   DailyStepsEntry,
   DailyStressData,
   FloorsData,
@@ -180,6 +182,49 @@ export async function getDailySteps(
     const chunkEnd = daysBetween(chunkStart, endDate) > 27 ? addDays(chunkStart, 27) : endDate;
     const chunkResults = await host.client.connectapi<DailyStepsEntry[]>(url(chunkStart, chunkEnd));
     if (chunkResults) results.push(...chunkResults);
+    chunkStart = addDays(chunkEnd, 1);
+  }
+  return results;
+}
+
+const DAILY_STATS_TYPES: ReadonlySet<string> = new Set<DailyStatsType>(["CALORIES", "STEPS"]);
+
+/**
+ * Per-day calorie or step totals for a date range, from
+ * `GET /usersummary-service/stats/daily/{start}/{end}?statsType=…`. NOT upstream parity; the
+ * endpoint comes from Taxuspt/garmin_mcp and was verified here on 2026-10-06.
+ *
+ * Garmin refuses a span of more than 28 days (`end - start > 27` is a 400), so a longer range is
+ * fetched in 28-day windows and the days concatenated. Garmin's own `aggregations` block (the
+ * averages) is per request, so it is dropped rather than returned wrong for a chunked range.
+ * A range with no data at all comes back as `[]`.
+ *
+ * It overlaps `getDailySteps` and `getCaloriesDaily`; this one returns each day's calories as
+ * total, active and resting together, and steps alongside distance and the step goal.
+ */
+export async function getDailyStats(
+  host: WellnessHost,
+  start: string | Date,
+  end: string | Date,
+  statsType: DailyStatsType,
+): Promise<DailyStatsEntry[]> {
+  if (!DAILY_STATS_TYPES.has(statsType)) {
+    throw new GarminError(`statsType must be "CALORIES" or "STEPS"; got "${String(statsType)}"`);
+  }
+  const startDate = formatDate(start);
+  const endDate = formatDate(end);
+  if (startDate > endDate) {
+    throw new GarminError("getDailyStats: start date must not be after end date");
+  }
+  const results: DailyStatsEntry[] = [];
+  let chunkStart = startDate;
+  while (chunkStart <= endDate) {
+    const chunkEnd = daysBetween(chunkStart, endDate) > 27 ? addDays(chunkStart, 27) : endDate;
+    const page = await host.client.connectapi<{ values?: DailyStatsEntry[] }>(
+      `/usersummary-service/stats/daily/${pathSegment(chunkStart)}/${pathSegment(chunkEnd)}`,
+      { params: { statsType } },
+    );
+    if (page?.values) results.push(...page.values);
     chunkStart = addDays(chunkEnd, 1);
   }
   return results;

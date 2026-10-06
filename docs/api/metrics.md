@@ -14,12 +14,13 @@ if (!(await client.loadTokens())) throw new Error("not connected to Garmin");
 const garmin = new Garmin(client);
 ```
 
-**16 methods.** The verification column says what has been
+**18 methods.** The verification column says what has been
 confirmed against a live Garmin account, not merely unit-tested —
 [`AGENTS.md`](../../AGENTS.md) carries the full evidence per method.
 
 | Method | Verified |
 |---|---|
+| [`deleteHeartRateZones`](#deleteheartratezones) | ✅ live-verified |
 | [`getCyclingFtp`](#getcyclingftp) | ✅ live-verified |
 | [`getEnduranceScore`](#getendurancescore) | ✅ live-verified |
 | [`getFitnessAgeData`](#getfitnessagedata) | ✅ live-verified |
@@ -36,8 +37,27 @@ confirmed against a live Garmin account, not merely unit-tested —
 | [`getRunningTolerance`](#getrunningtolerance) | ✅ live-verified |
 | [`getTrainingReadiness`](#gettrainingreadiness) | ✅ live-verified |
 | [`getTrainingStatus`](#gettrainingstatus) | ✅ live-verified |
+| [`setHeartRateZones`](#setheartratezones) | ✅ live-verified |
 
 ---
+
+## deleteHeartRateZones
+
+```ts
+garmin.deleteHeartRateZones(sport: string): Promise<unknown>
+```
+
+```ts
+const result = await garmin.deleteHeartRateZones("sport");
+```
+
+**Returns**
+
+`unknown` — Garmin's response is passed through unparsed. Cast it to whatever you need; this library does not model it.
+
+**NOT upstream parity, and not in garmin_mcp either**: PUTs the stored profile back with `changeState: "DELETED"`, which removes it so the sport falls back to DEFAULT. Refuses DEFAULT; throws for a sport with no profile instead of doing nothing
+
+Verification: ✅ live-verified
 
 ## getCyclingFtp
 
@@ -123,7 +143,24 @@ const result = await garmin.getHeartRateZones();
 
 **Returns**
 
-An array of `HeartRateZoneEntry` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
+An array of `HeartRateZoneEntry`:
+
+| Field | Type | Always present |
+|---|---|---|
+| `sport` | `string` | no |
+| `trainingMethod` | `HeartRateZoneMethod` | no |
+| `zone1Floor` | `number` | no |
+| `zone2Floor` | `number` | no |
+| `zone3Floor` | `number` | no |
+| `zone4Floor` | `number` | no |
+| `zone5Floor` | `number` | no |
+| `maxHeartRateUsed` | `number | null` | no |
+| `restingHeartRateUsed` | `number | null` | no |
+| `lactateThresholdHeartRateUsed` | `number | null` | no |
+| `restingHrAutoUpdateUsed` | `boolean` | no |
+| `changeState` | `string` | no |
+
+Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
 
 passes through unchecked
 
@@ -336,5 +373,40 @@ const result = await garmin.getTrainingStatus("2026-09-24");
 `TrainingStatusResult` — an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
 
 passes through unchecked
+
+Verification: ✅ live-verified
+
+## setHeartRateZones
+
+```ts
+garmin.setHeartRateZones(update: HeartRateZoneUpdate): Promise<HeartRateZoneEntry | null>
+```
+
+```ts
+const result = await garmin.setHeartRateZones(update);
+```
+
+**Returns**
+
+`HeartRateZoneEntry`:
+
+| Field | Type | Always present |
+|---|---|---|
+| `sport` | `string` | no |
+| `trainingMethod` | `HeartRateZoneMethod` | no |
+| `zone1Floor` | `number` | no |
+| `zone2Floor` | `number` | no |
+| `zone3Floor` | `number` | no |
+| `zone4Floor` | `number` | no |
+| `zone5Floor` | `number` | no |
+| `maxHeartRateUsed` | `number | null` | no |
+| `restingHeartRateUsed` | `number | null` | no |
+| `lactateThresholdHeartRateUsed` | `number | null` | no |
+| `restingHrAutoUpdateUsed` | `boolean` | no |
+| `changeState` | `string` | no |
+
+Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
+
+**NOT upstream parity** (shape from Taxuspt/garmin_mcp). READ-MODIFY-WRITE of one profile: GETs `/biometric-service/heartRateZones`, overlays `{sport? = "DEFAULT", trainingMethod?, maxHeartRate?, restingHeartRate?, lactateThresholdHeartRate?, zoneFloors?: [5 bpm]}` with `changeState: "CHANGED"`, PUTs `[profile]` (204), then returns the profile READ BACK. A sport with no profile starts from DEFAULT's. Setting `restingHeartRate` also turns off `restingHrAutoUpdateUsed`. **Garmin does NOT recompute floors** when the method or a heart rate changes — send `zoneFloors` too. Floors must be strictly ascending (Garmin 400s `"Zone Floor values must be ascending"`; checked here first)
 
 Verification: ✅ live-verified

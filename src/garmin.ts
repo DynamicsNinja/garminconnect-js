@@ -3,6 +3,7 @@ import { GarminError } from "./errors.js";
 import * as activities from "./services/activities.js";
 import * as badges from "./services/badges.js";
 import * as bodyComposition from "./services/bodyComposition.js";
+import * as calendar from "./services/calendar.js";
 import * as courses from "./services/courses.js";
 import * as devices from "./services/devices.js";
 import * as gear from "./services/gear.js";
@@ -17,11 +18,22 @@ import * as wellness from "./services/wellness.js";
 import * as userProfile from "./services/userProfile.js";
 import * as workouts from "./services/workouts.js";
 import * as womensHealth from "./services/womensHealth.js";
-import type { ActivityDownloadFormat, ActivityExerciseSets } from "./types/activities.js";
+import type {
+  ActivityDownloadFormat,
+  ActivityEventTypeKey,
+  ActivityExerciseSets,
+  ActivityFeel,
+} from "./types/activities.js";
+import type { CalendarEventInput, CalendarEventUpdate } from "./types/calendar.js";
 import type { CourseInput, CourseUpdate } from "./types/courses.js";
 import type { GearUsageType } from "./types/gear.js";
 import type { GoalStatus } from "./types/goals.js";
-import type { FtpAggregation, RunningToleranceAggregation } from "./types/metrics.js";
+import type {
+  FtpAggregation,
+  HeartRateZoneUpdate,
+  RunningToleranceAggregation,
+} from "./types/metrics.js";
+import type { DailyStatsType } from "./types/wellness.js";
 import type { WorkoutInput } from "./types/workouts.js";
 import type { WeightScaleFields } from "./util/fit.js";
 
@@ -145,6 +157,10 @@ export class Garmin {
   getDailySteps(start: string | Date, end: string | Date) {
     return wellness.getDailySteps(this, start, end);
   }
+  /** NOT upstream parity. Per-day calorie or step totals; ranges over 28 days are chunked. */
+  getDailyStats(start: string | Date, end: string | Date, statsType: DailyStatsType) {
+    return wellness.getDailyStats(this, start, end, statsType);
+  }
   getWeeklySteps(end: string | Date, weeks?: number) {
     return wellness.getWeeklySteps(this, end, weeks);
   }
@@ -250,6 +266,22 @@ export class Garmin {
   }
   setActivityDescription(activityId: number | string, description: string) {
     return activities.setActivityDescription(this, activityId, description);
+  }
+  /** NOT upstream parity. The event types `setActivityEventType` accepts. */
+  getActivityEventTypes() {
+    return activities.getActivityEventTypes(this);
+  }
+  /** NOT upstream parity. Files an activity under an event type, e.g. "race" or "training". */
+  setActivityEventType(activityId: number | string, eventType: ActivityEventTypeKey) {
+    return activities.setActivityEventType(this, activityId, eventType);
+  }
+  /** NOT upstream parity. Perceived effort (RPE) 1-10, or `null` to clear it. */
+  setActivityPerceivedEffort(activityId: number | string, rpe: number | null) {
+    return activities.setActivityPerceivedEffort(this, activityId, rpe);
+  }
+  /** NOT upstream parity. "How did you feel?": 0, 25, 50, 75 or 100, or `null` to clear it. */
+  setActivityFeel(activityId: number | string, feel: ActivityFeel | null) {
+    return activities.setActivityFeel(this, activityId, feel);
   }
   createManualActivityFromJson(payload: Record<string, unknown>) {
     return activities.createManualActivityFromJson(this, payload);
@@ -584,6 +616,14 @@ export class Garmin {
   getHeartRateZones() {
     return metrics.getHeartRateZones(this);
   }
+  /** NOT upstream parity. Changes one heart-rate zone profile and returns it as stored. */
+  setHeartRateZones(update: HeartRateZoneUpdate) {
+    return metrics.setHeartRateZones(this, update);
+  }
+  /** NOT upstream parity. Removes a sport's own zone profile; it falls back to DEFAULT. */
+  deleteHeartRateZones(sport: string) {
+    return metrics.deleteHeartRateZones(this, sport);
+  }
   getPowerZones() {
     return metrics.getPowerZones(this);
   }
@@ -639,6 +679,38 @@ export class Garmin {
   }
   unscheduleWorkout(scheduledWorkoutId: number | string) {
     return workouts.unscheduleWorkout(this, scheduledWorkoutId);
+  }
+  /** NOT upstream parity. Every scheduled workout between two dates, as compact summaries. */
+  getScheduledWorkoutSummaries(startdate: string | Date, enddate: string | Date) {
+    return workouts.getScheduledWorkoutSummaries(this, startdate, enddate);
+  }
+  /** NOT upstream parity. Enrolled training plans' workouts around a date, grouped by plan. */
+  getTrainingPlanWorkouts(
+    calendarDate: string | Date,
+    options?: { firstDayOfWeek?: "monday" | "sunday"; lang?: string },
+  ) {
+    return workouts.getTrainingPlanWorkouts(this, calendarDate, options);
+  }
+
+  // --- calendar events (NOT upstream parity — python-garminconnect has no event methods) ---
+  /** Every event between two dates, inclusive, or every event on the account with no dates. */
+  listCalendarEvents(startdate?: string | Date, enddate?: string | Date) {
+    return calendar.listCalendarEvents(this, startdate, enddate);
+  }
+  getCalendarEvent(eventId: number | string) {
+    return calendar.getCalendarEvent(this, eventId);
+  }
+  /** Adds a race or other event to the calendar. Always stored PRIVATE. */
+  createCalendarEvent(input: CalendarEventInput) {
+    return calendar.createCalendarEvent(this, input);
+  }
+  /** Read-modify-write of the stored event; resolves to `null`. */
+  updateCalendarEvent(eventId: number | string, changes: CalendarEventUpdate) {
+    return calendar.updateCalendarEvent(this, eventId, changes);
+  }
+  /** IRREVERSIBLE. */
+  deleteCalendarEvent(eventId: number | string) {
+    return calendar.deleteCalendarEvent(this, eventId);
   }
 
   // --- womensHealth ---

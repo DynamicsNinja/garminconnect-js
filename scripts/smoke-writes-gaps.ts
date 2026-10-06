@@ -314,4 +314,298 @@ try {
   }
 }
 
+// =============================================================================================
+// 6. Activity event type, perceived effort and feel — set, READ BACK via getActivity, restore.
+// =============================================================================================
+console.log("\nactivity event type / RPE / feel");
+{
+  const eventTypes = await g.getActivityEventTypes();
+  report(
+    (eventTypes ?? []).length === 9 && (eventTypes ?? []).some((t) => t.typeKey === "race"),
+    "getActivityEventTypes",
+    `${String((eventTypes ?? []).length)} types: ${(eventTypes ?? []).map((t) => t.typeKey).join(", ")}`,
+  );
+  const last = await g.getLastActivity();
+  if (last?.activityId === undefined) {
+    report(false, "activity fields", "no activity on the test account");
+  } else {
+    const id = last.activityId;
+    type Stored = { eventTypeDTO?: { typeKey?: string }; summaryDTO?: Record<string, unknown> };
+    const before = (await g.getActivity(id)) as Stored;
+    const originalEvent = before.eventTypeDTO?.typeKey ?? "uncategorized";
+    const originalRpe = before.summaryDTO?.["directWorkoutRpe"];
+    const originalFeel = before.summaryDTO?.["directWorkoutFeel"];
+    try {
+      await g.setActivityEventType(id, "race");
+      await g.setActivityPerceivedEffort(id, 7);
+      await g.setActivityFeel(id, 75);
+      const after = (await g.getActivity(id)) as Stored;
+      report(after.eventTypeDTO?.typeKey === "race", "setActivityEventType -> getActivity", `typeKey ${String(after.eventTypeDTO?.typeKey)}`);
+      report(
+        after.summaryDTO?.["directWorkoutRpe"] === 70,
+        "setActivityPerceivedEffort(7) -> getActivity",
+        `directWorkoutRpe ${String(after.summaryDTO?.["directWorkoutRpe"])} (stored x10)`,
+      );
+      report(
+        after.summaryDTO?.["directWorkoutFeel"] === 75,
+        "setActivityFeel(75) -> getActivity",
+        `directWorkoutFeel ${String(after.summaryDTO?.["directWorkoutFeel"])}`,
+      );
+      await g.setActivityPerceivedEffort(id, null);
+      await g.setActivityFeel(id, null);
+      const cleared = (await g.getActivity(id)) as Stored;
+      report(
+        cleared.summaryDTO?.["directWorkoutRpe"] == null && cleared.summaryDTO?.["directWorkoutFeel"] == null,
+        "RPE and feel cleared with null",
+        `rpe ${String(cleared.summaryDTO?.["directWorkoutRpe"])}, feel ${String(cleared.summaryDTO?.["directWorkoutFeel"])}`,
+      );
+    } catch (e) {
+      report(false, "activity fields", describeError(e));
+    } finally {
+      await g.setActivityEventType(id, originalEvent as "uncategorized");
+      await client.connectapi(`/activity-service/activity/${String(id)}`, {
+        method: "PUT",
+        json: { activityId: id, summaryDTO: { directWorkoutRpe: originalRpe ?? null, directWorkoutFeel: originalFeel ?? null } },
+      });
+      console.log(`  clean  restored activity ${String(id)} to event "${originalEvent}"`);
+    }
+  }
+}
+
+// =============================================================================================
+// 7. Heart-rate zones — change DEFAULT, create + delete a sport profile, restore DEFAULT.
+// =============================================================================================
+console.log("\nheart-rate zones");
+{
+  const original = ((await g.getHeartRateZones()) ?? []).find((z) => z.sport === "DEFAULT");
+  if (!original) {
+    report(false, "heart-rate zones", "no DEFAULT profile to start from");
+  } else {
+    try {
+      const floors = [
+        Number(original.zone1Floor) + 1,
+        Number(original.zone2Floor) + 1,
+        Number(original.zone3Floor) + 1,
+        Number(original.zone4Floor) + 1,
+        Number(original.zone5Floor) + 1,
+      ] as [number, number, number, number, number];
+      const stored = await g.setHeartRateZones({ zoneFloors: floors });
+      report(
+        stored?.zone1Floor === floors[0] && stored.zone5Floor === floors[4],
+        "setHeartRateZones(DEFAULT floors)",
+        `floors now ${[stored?.zone1Floor, stored?.zone2Floor, stored?.zone3Floor, stored?.zone4Floor, stored?.zone5Floor].join("/")}`,
+      );
+      const running = await g.setHeartRateZones({ sport: "running", trainingMethod: "HR_RESERVE", restingHeartRate: 55 });
+      report(
+        running?.sport === "RUNNING" && running.trainingMethod === "HR_RESERVE" && running.restingHeartRateUsed === 55,
+        "setHeartRateZones(new RUNNING profile)",
+        `sport ${String(running?.sport)}, method ${String(running?.trainingMethod)}, resting ${String(running?.restingHeartRateUsed)}`,
+      );
+      await g.deleteHeartRateZones("RUNNING");
+      const left = (await g.getHeartRateZones()) ?? [];
+      report(!left.some((z) => z.sport === "RUNNING"), "deleteHeartRateZones(RUNNING)", `profiles left: ${left.map((z) => String(z.sport)).join(", ")}`);
+    } catch (e) {
+      report(false, "heart-rate zones", describeError(e));
+    } finally {
+      const profiles = (await g.getHeartRateZones()) ?? [];
+      await client.connectapi("/biometric-service/heartRateZones", {
+        method: "PUT",
+        json: [
+          { ...original, changeState: "CHANGED" },
+          ...profiles.filter((z) => z.sport === "RUNNING").map((z) => ({ ...z, changeState: "DELETED" })),
+        ],
+      });
+      const restored = ((await g.getHeartRateZones()) ?? []).find((z) => z.sport === "DEFAULT");
+      console.log(
+        `  clean  DEFAULT zones restored: ${restored?.zone1Floor === original.zone1Floor && restored?.zone5Floor === original.zone5Floor ? "yes" : "NO — check by hand"}`,
+      );
+    }
+  }
+}
+
+// =============================================================================================
+// 8. Calendar events — create -> read back -> list -> month feed -> update -> read back -> delete.
+// =============================================================================================
+console.log("\ncalendar events");
+{
+  let eventId: number | undefined;
+  let eventDeleted = false;
+  const eventDate = new Date(Date.now() + 45 * 864e5).toISOString().slice(0, 10);
+  try {
+    const created = await g.createCalendarEvent({
+      name: "gcjs probe 10k",
+      date: eventDate,
+      startTime: "09:30",
+      timeZoneId: "America/New_York",
+      eventType: "running",
+      race: true,
+      primary: true,
+      distance: { value: 10, unit: "kilometer" },
+      goalTimeSeconds: 2700,
+      location: "Probe Park",
+      note: "created by smoke:gaps, safe to delete",
+    });
+    eventId = created?.id;
+    if (eventId === undefined) throw new Error("createCalendarEvent returned no id");
+    const stored = await g.getCalendarEvent(eventId);
+    report(
+      stored?.eventName === "gcjs probe 10k" &&
+        stored.date === eventDate &&
+        stored.race === true &&
+        stored.completionTarget?.value === 10 &&
+        stored.completionTarget.unit === "kilometer" &&
+        stored.eventCustomization?.customGoal?.value === 2700 &&
+        stored.eventCustomization.isPrimaryEvent === true &&
+        stored.eventTimeLocal?.startTimeHhMm === "09:30",
+      "createCalendarEvent -> getCalendarEvent",
+      `"${String(stored?.eventName)}" ${String(stored?.date)}, ${String(stored?.completionTarget?.value)} ${String(stored?.completionTarget?.unit)}, goal ${String(stored?.eventCustomization?.customGoal?.value)}s, privacy ${String(stored?.eventPrivacy?.label)}`,
+    );
+
+    const ranged = await g.listCalendarEvents(eventDate, eventDate);
+    const all = await g.listCalendarEvents();
+    report(
+      (ranged ?? []).some((e) => e.id === eventId) && (all ?? []).some((e) => e.id === eventId),
+      "listCalendarEvents (range and all)",
+      `range ${String((ranged ?? []).length)}, all ${String((all ?? []).length)}`,
+    );
+
+    const [y, m] = eventDate.split("-").map(Number) as [number, number];
+    const month = await g.getScheduledWorkouts(y, m);
+    report(
+      (month?.calendarItems ?? []).some((i) => i.itemType === "event" && i["id"] === eventId),
+      "event in the month calendar feed",
+      `itemType "event" present: ${String((month?.calendarItems ?? []).some((i) => i["id"] === eventId))}`,
+    );
+
+    await g.updateCalendarEvent(eventId, { name: "gcjs probe 10k renamed", note: null, race: false, goalTimeSeconds: 2600 });
+    const updated = await g.getCalendarEvent(eventId);
+    report(
+      updated?.eventName === "gcjs probe 10k renamed" &&
+        updated.note == null &&
+        updated.race === false &&
+        updated.eventCustomization?.customGoal?.value === 2600 &&
+        updated.completionTarget?.value === 10,
+      "updateCalendarEvent -> getCalendarEvent",
+      `"${String(updated?.eventName)}", note ${String(updated?.note)}, race ${String(updated?.race)}, goal ${String(updated?.eventCustomization?.customGoal?.value)}s, distance kept ${String(updated?.completionTarget?.value)}`,
+    );
+
+    await g.deleteCalendarEvent(eventId);
+    try {
+      await g.getCalendarEvent(eventId);
+      report(false, "deleteCalendarEvent", "event still readable after delete");
+    } catch (e) {
+      eventDeleted = e instanceof GarminHttpError && e.status === 404;
+      report(eventDeleted, "deleteCalendarEvent -> getCalendarEvent 404", describeError(e));
+    }
+  } catch (e) {
+    report(false, "calendar event round-trip", describeError(e));
+  } finally {
+    if (eventId !== undefined && !eventDeleted) {
+      await g.deleteCalendarEvent(eventId).catch(() => undefined);
+      console.log(`  clean  deleted probe event ${String(eventId)}`);
+    }
+  }
+}
+
+// =============================================================================================
+// 9. Daily stats and the GraphQL schedule reads.
+// =============================================================================================
+console.log("\ndaily stats and schedule summaries");
+{
+  // The test account has no wellness data, so values come back empty; what this proves is that a
+  // 70-day range is chunked into requests Garmin accepts (a single one would 400). The row shape
+  // is verified read-only on a real account by `npm run smoke:real`.
+  const end = new Date().toISOString().slice(0, 10);
+  const start = new Date(Date.now() - 69 * 864e5).toISOString().slice(0, 10);
+  for (const type of ["CALORIES", "STEPS"] as const) {
+    try {
+      const rows = await g.getDailyStats(start, end, type);
+      report(Array.isArray(rows), `getDailyStats(${type}, 70 days)`, `${String(rows.length)} day(s), no 400`);
+    } catch (e) {
+      report(false, `getDailyStats(${type})`, describeError(e));
+    }
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+  try {
+    const plans = await g.getTrainingPlanWorkouts(today);
+    const sunday = await g.getTrainingPlanWorkouts(today, { firstDayOfWeek: "sunday" });
+    const first = plans[0];
+    const enrolled = (await g.getTrainingPlans())?.trainingPlanList ?? [];
+    if (enrolled.length === 0) {
+      console.log(`  SKIP  ${"getTrainingPlanWorkouts".padEnd(38)} no plan enrolled (returned ${String(plans.length)}, as it should)`);
+    } else report(
+      plans.length > 0 && (first?.workoutScheduleSummaries.length ?? 0) > 0 && sunday.length > 0,
+      "getTrainingPlanWorkouts",
+      `${String(plans.length)} plan(s); "${String(first?.planName)}" ${String(first?.trainingPlanClassification)}, ${String(first?.workoutScheduleSummaries.length)} workout(s)`,
+    );
+  } catch (e) {
+    report(false, "getTrainingPlanWorkouts", describeError(e));
+  }
+
+  // Schedule one of our own workouts, find it among the summaries, unschedule it through the
+  // summary's scheduledWorkoutId, and delete the workout.
+  let workoutId: number | undefined;
+  const scheduleDate = new Date(Date.now() + 40 * 864e5).toISOString().slice(0, 10);
+  try {
+    const uploaded = await g.uploadRunningWorkout({
+      workoutName: "gcjs probe schedule",
+      estimatedDurationInSecs: 600,
+      workoutSegments: [
+        {
+          segmentOrder: 1,
+          sportType: { sportTypeId: 1, sportTypeKey: "running", displayOrder: 1 },
+          workoutSteps: [
+            {
+              type: "ExecutableStepDTO",
+              stepOrder: 1,
+              stepType: { stepTypeId: 3, stepTypeKey: "interval", displayOrder: 3 },
+              endCondition: { conditionTypeId: 2, conditionTypeKey: "time", displayOrder: 2, displayable: true },
+              endConditionValue: 600,
+              targetType: { workoutTargetTypeId: 1, workoutTargetTypeKey: "no.target", displayOrder: 1 },
+            },
+          ],
+        },
+      ],
+    });
+    workoutId = typeof uploaded?.["workoutId"] === "number" ? uploaded["workoutId"] : undefined;
+    if (workoutId === undefined) throw new Error("uploadRunningWorkout returned no workoutId");
+    await g.scheduleWorkout(workoutId, scheduleDate);
+    // The GraphQL summaries lag the write by a few seconds (0 at once, 1 after 10s, on
+    // 2026-10-06), while the month feed has it immediately. Poll rather than read once.
+    let summaries: Awaited<ReturnType<typeof g.getScheduledWorkoutSummaries>> = [];
+    let waited = 0;
+    for (; waited <= 60; waited += 5) {
+      summaries = await g.getScheduledWorkoutSummaries(scheduleDate, scheduleDate);
+      if (summaries.some((s) => s.workoutId === workoutId)) break;
+      await new Promise((r) => setTimeout(r, 5000));
+    }
+    const ours = summaries.find((s) => s.workoutId === workoutId);
+    report(
+      ours !== undefined && ours.scheduleDate === scheduleDate && ours.workoutName === "gcjs probe schedule",
+      "getScheduledWorkoutSummaries",
+      ours
+        ? `found after ~${String(waited)}s, scheduledWorkoutId ${String(ours.scheduledWorkoutId)}, tpType ${String(ours.tpType)}, workoutType ${String(ours.workoutType)}`
+        : `not among ${String(summaries.length)} summaries after 60s`,
+    );
+    if (ours) {
+      await g.unscheduleWorkout(ours.scheduledWorkoutId);
+      let gone = false;
+      for (let i = 0; i <= 12 && !gone; i++) {
+        const after = await g.getScheduledWorkoutSummaries(scheduleDate, scheduleDate);
+        gone = !after.some((s) => s.workoutId === workoutId);
+        if (!gone) await new Promise((r) => setTimeout(r, 5000));
+      }
+      report(gone, "unscheduleWorkout(summary id)", gone ? "gone from the summaries" : "still listed after 60s");
+    }
+  } catch (e) {
+    report(false, "schedule summaries round-trip", describeError(e));
+  } finally {
+    if (workoutId !== undefined) {
+      await g.deleteWorkout(workoutId).catch(() => undefined);
+      console.log(`  clean  deleted probe workout ${String(workoutId)}`);
+    }
+  }
+}
+
 console.log(`\n${String(pass)} passed, ${String(fail)} failed.`);

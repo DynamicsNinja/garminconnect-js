@@ -7,7 +7,10 @@ import type {
   ActivitiesForDateResponse,
   ActivityDetails,
   ActivityDownloadFormat,
+  ActivityEventType,
+  ActivityEventTypeKey,
   ActivityExerciseSets,
+  ActivityFeel,
   ActivityGear,
   ActivityHrInTimezones,
   ActivityPowerInTimezones,
@@ -175,6 +178,93 @@ export async function setActivityDescription(
   return host.client.connectapi(`/activity-service/activity/${pathSegment(activityId)}`, {
     method: "PUT",
     json: { activityId, description },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Event type, perceived effort and feel — NOT upstream parity. python-garminconnect has none of
+// these; the request shapes come from Taxuspt/garmin_mcp and were re-verified live on 2026-10-06
+// (set, read back through getActivity, restore). All three are PARTIAL updates through the same
+// `PUT /activity-service/activity/{id}` setActivityName uses: Garmin merges the fields it is sent.
+// Never read-modify-write the whole summaryDTO instead — garmin_mcp found that PUTting the stored
+// startLatitude/startLongitude pair back is rejected with a 400.
+// ---------------------------------------------------------------------------
+
+const ACTIVITY_EVENT_TYPE_KEYS: ReadonlySet<string> = new Set<ActivityEventTypeKey>([
+  "race",
+  "recreation",
+  "specialEvent",
+  "training",
+  "transportation",
+  "touring",
+  "geocaching",
+  "fitness",
+  "uncategorized",
+]);
+
+const ACTIVITY_FEELS: ReadonlySet<number> = new Set<ActivityFeel>([0, 25, 50, 75, 100]);
+
+/** `GET /activity-service/activity/eventTypes` — the event types `setActivityEventType` accepts. */
+export async function getActivityEventTypes(host: ActivitiesHost): Promise<ActivityEventType[] | null> {
+  return host.client.connectapi<ActivityEventType[]>("/activity-service/activity/eventTypes");
+}
+
+/**
+ * Files an activity under an event type ("race", "training", …). Sends `eventTypeDTO` with the
+ * `typeKey` only: Garmin fills in `typeId` and `sortOrder` itself, verified by read-back.
+ */
+export async function setActivityEventType(
+  host: ActivitiesHost,
+  activityId: number | string,
+  eventType: ActivityEventTypeKey,
+): Promise<unknown> {
+  if (!ACTIVITY_EVENT_TYPE_KEYS.has(eventType)) {
+    throw new GarminError(
+      `Unknown activity event type "${String(eventType)}" — expected one of ` +
+        `${[...ACTIVITY_EVENT_TYPE_KEYS].join(", ")}`,
+    );
+  }
+  return host.client.connectapi(`/activity-service/activity/${pathSegment(activityId)}`, {
+    method: "PUT",
+    json: { activityId, eventTypeDTO: { typeKey: eventType } },
+  });
+}
+
+/**
+ * Sets an activity's perceived effort (RPE) on Garmin Connect's 1-10 scale, or clears it with
+ * `null`. Garmin stores it TIMES TEN as `summaryDTO.directWorkoutRpe` (RPE 7 reads back as 70);
+ * this method does the conversion, so pass the 1-10 value, not the stored one.
+ */
+export async function setActivityPerceivedEffort(
+  host: ActivitiesHost,
+  activityId: number | string,
+  rpe: number | null,
+): Promise<unknown> {
+  if (rpe !== null && (!Number.isInteger(rpe) || rpe < 1 || rpe > 10)) {
+    throw new GarminError(`rpe must be an integer from 1 to 10, or null to clear it; got ${String(rpe)}`);
+  }
+  return host.client.connectapi(`/activity-service/activity/${pathSegment(activityId)}`, {
+    method: "PUT",
+    json: { activityId, summaryDTO: { directWorkoutRpe: rpe === null ? null : rpe * 10 } },
+  });
+}
+
+/**
+ * Sets an activity's "How did you feel?" rating (`summaryDTO.directWorkoutFeel`), or clears it
+ * with `null`. Only Garmin Connect's five steps are accepted. Garmin itself stores any number it
+ * is sent (30 read back as 30), which its own apps then cannot display.
+ */
+export async function setActivityFeel(
+  host: ActivitiesHost,
+  activityId: number | string,
+  feel: ActivityFeel | null,
+): Promise<unknown> {
+  if (feel !== null && !ACTIVITY_FEELS.has(feel)) {
+    throw new GarminError(`feel must be one of 0, 25, 50, 75, 100, or null to clear it; got ${String(feel)}`);
+  }
+  return host.client.connectapi(`/activity-service/activity/${pathSegment(activityId)}`, {
+    method: "PUT",
+    json: { activityId, summaryDTO: { directWorkoutFeel: feel } },
   });
 }
 

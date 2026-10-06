@@ -21,6 +21,7 @@ export type * from "./types/bodyComposition.js";
 export type * from "./types/devices.js";
 export type * from "./types/gear.js";
 export type * from "./types/courses.js";
+export type * from "./types/calendar.js";
 export type * from "./types/metrics.js";
 export type * from "./types/workouts.js";
 /**

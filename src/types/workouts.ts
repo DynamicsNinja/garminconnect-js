@@ -388,3 +388,53 @@ export interface DeviceMessage {
   groupName: string | null;
   appDetails: unknown;
 }
+
+/**
+ * One scheduled workout, as `getScheduledWorkoutSummaries` and `getTrainingPlanWorkouts` return
+ * it (Garmin's GraphQL `workoutScheduleSummariesScalar`). Read live on 2026-10-06.
+ *
+ * Plan workouts carry the plan's id in the field for its kind — `itpPlanId`, `atpPlanId`,
+ * `fbtAdaptivePlanId` or `selfGuidedPlanId` — plus `trainingPlanId` and `tpType`. A Garmin Coach
+ * adaptive workout is identified by `workoutUuid`; every other kind by `workoutId`.
+ */
+export interface ScheduledWorkoutSummary {
+  scheduledWorkoutId: number;
+  workoutId: number | null;
+  workoutUuid: string | null;
+  workoutName: string | null;
+  /** Sport key, e.g. `"cycling"`. */
+  workoutType: string | null;
+  /** `YYYY-MM-DD`. */
+  scheduleDate: string;
+  trainingPlanId?: number | null;
+  /** The plan kind, e.g. `"ITP"` (the only one observed live); `null` for a workout you scheduled. */
+  tpType?: string | null;
+  tpPlanName?: string | null;
+  itpPlanId?: number | null;
+  atpPlanId?: number | null;
+  fbtAdaptivePlanId?: number | null;
+  selfGuidedPlanId?: number | null;
+  /** The activity that completed it, once one has. */
+  associatedActivityId?: number | null;
+  isRestDay?: boolean | null;
+  race?: boolean;
+  [key: string]: unknown;
+}
+
+/** One enrolled plan's slice of the calendar, from Garmin's GraphQL `trainingPlanScalar`. */
+export interface TrainingPlanWorkoutSchedule {
+  trainingPlanId: number;
+  planName: string;
+  /** The plan kind, e.g. `"ITP"` — the same values as a plan's `trainingPlanCategory`. */
+  trainingPlanClassification: string;
+  trainingPlanDetailsDTO: {
+    athletePlanId?: number;
+    athleteRace?: { raceDay?: string | null; raceName?: string | null; raceUrl?: string | null } | null;
+    workoutsPerWeek?: number;
+    registrationDate?: string;
+    /** Upper-case sport, e.g. `"CYCLING"`. */
+    trainingType?: string;
+    [key: string]: unknown;
+  } | null;
+  workoutScheduleSummaries: ScheduledWorkoutSummary[];
+}

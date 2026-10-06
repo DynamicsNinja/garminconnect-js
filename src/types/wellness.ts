@@ -135,6 +135,27 @@ export interface CaloriesDailyEntry {
   total?: number;
 }
 
+/** What `getDailyStats` can fetch. Garmin answers any other `statsType` (lower-case too) with 404. */
+export type DailyStatsType = "CALORIES" | "STEPS";
+
+/**
+ * One day of `GET /usersummary-service/stats/daily/{start}/{end}?statsType=…`. Read live on
+ * 2026-10-06 from a real account: CALORIES days carry `totalCalories`, `activeCalories`,
+ * `restingCalories`; STEPS days carry `totalSteps`, `totalDistance` (metres) and `stepGoal`.
+ */
+export interface DailyStatsEntry {
+  calendarDate: string;
+  values: {
+    totalCalories?: number | null;
+    activeCalories?: number | null;
+    restingCalories?: number | null;
+    totalSteps?: number | null;
+    totalDistance?: number | null;
+    stepGoal?: number | null;
+    [key: string]: unknown;
+  };
+}
+
 export interface HrvDataRange {
   [key: string]: unknown;
 }

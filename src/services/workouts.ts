@@ -7,6 +7,8 @@ import {
   WORKOUT_SPORT_TYPE_ID,
   type CalendarItem,
   type CalendarMonth,
+  type ScheduledWorkoutSummary,
+  type TrainingPlanWorkoutSchedule,
   type WorkoutInput,
   type WorkoutRecord,
   type DeviceMessage,
@@ -468,4 +470,83 @@ export async function unscheduleWorkout(
   return host.client.connectapi(`/workout-service/schedule/${pathSegment(scheduledWorkoutId)}`, {
     method: "DELETE",
   });
+}
+
+// ---------------------------------------------------------------------------
+// Schedule reads through Garmin's GraphQL gateway — NOT upstream parity. Both queries come from
+// Taxuspt/garmin_mcp and were verified live on 2026-10-06. They are reads, sent as POST because
+// that is how GraphQL travels; the query text is fixed here and only validated dates are spliced
+// into it, so unlike `queryGarminGraphql` nothing a caller passes can turn one into a mutation.
+// ---------------------------------------------------------------------------
+
+/**
+ * POSTs a fixed GraphQL query and returns `data[field]`. Garmin answers a malformed query with
+ * HTTP 200 and an `errors` array, not an HTTP error, so that case is turned into a throw here.
+ */
+async function graphqlScalar<T>(host: WorkoutsHost, field: string, args: string): Promise<T | null> {
+  const result = await host.client.connectapi<{ data?: Record<string, unknown> | null; errors?: { message?: string }[] }>(
+    "/graphql-gateway/graphql",
+    { method: "POST", json: { query: `query{${field}(${args})}` } },
+  );
+  if (result?.errors?.length) {
+    throw new GarminError(`Garmin GraphQL ${field} failed: ${result.errors.map((e) => e.message).join("; ")}`);
+  }
+  return (result?.data?.[field] as T | undefined) ?? null;
+}
+
+/**
+ * Every workout on the calendar between two dates, inclusive — plan workouts and ones you
+ * scheduled yourself — as compact summaries. Garmin's GraphQL `workoutScheduleSummariesScalar`.
+ *
+ * Lighter than `getScheduledWorkouts`' month feed, and not bound to a month. A summary's
+ * `scheduledWorkoutId` is what `unscheduleWorkout` takes.
+ *
+ * It LAGS writes by a few seconds: a workout scheduled a moment ago is already in the month feed
+ * but not yet here (verified live — absent at once, present 10s later). Do not use it to check
+ * "is this already scheduled?" straight after scheduling; read the month feed for that.
+ */
+export async function getScheduledWorkoutSummaries(
+  host: WorkoutsHost,
+  startdate: string | Date,
+  enddate: string | Date,
+): Promise<ScheduledWorkoutSummary[]> {
+  const start = formatDate(startdate);
+  const end = formatDate(enddate);
+  if (start > end) throw new GarminError("getScheduledWorkoutSummaries: start date must not be after end date");
+  const rows = await graphqlScalar<ScheduledWorkoutSummary[]>(
+    host,
+    "workoutScheduleSummariesScalar",
+    `startDate:"${start}", endDate:"${end}"`,
+  );
+  return rows ?? [];
+}
+
+/**
+ * The enrolled training plans' workouts around a date — Garmin Coach and other plans — grouped by
+ * plan. Garmin's GraphQL `trainingPlanScalar`. Returns `[]` when no plan has workouts then.
+ *
+ * Garmin decides the window, not the caller: for a 23-week ITP plan on 2026-10-06 it returned 18
+ * workouts spanning several weeks. Adaptive Garmin Coach plans only expose the window Garmin has
+ * generated so far, so a date far ahead can come back empty while a plan is active.
+ */
+export async function getTrainingPlanWorkouts(
+  host: WorkoutsHost,
+  calendarDate: string | Date,
+  options: { firstDayOfWeek?: "monday" | "sunday"; lang?: string } = {},
+): Promise<TrainingPlanWorkoutSchedule[]> {
+  const date = formatDate(calendarDate);
+  const firstDayOfWeek = options.firstDayOfWeek ?? "monday";
+  if (firstDayOfWeek !== "monday" && firstDayOfWeek !== "sunday") {
+    throw new GarminError(`firstDayOfWeek must be "monday" or "sunday"; got "${String(firstDayOfWeek)}"`);
+  }
+  const lang = options.lang ?? "en-US";
+  if (!/^[a-z]{2}-[A-Z]{2}$/.test(lang)) {
+    throw new GarminError(`lang must look like "en-US"; got "${lang}"`);
+  }
+  const plan = await graphqlScalar<{ trainingPlanWorkoutScheduleDTOS?: TrainingPlanWorkoutSchedule[] }>(
+    host,
+    "trainingPlanScalar",
+    `calendarDate:"${date}", lang:"${lang}", firstDayOfWeek:"${firstDayOfWeek}"`,
+  );
+  return plan?.trainingPlanWorkoutScheduleDTOS ?? [];
 }
