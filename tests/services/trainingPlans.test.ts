@@ -89,3 +89,32 @@ describe("getAdaptiveTrainingPlanById", () => {
     expect(result).toEqual({ planId: 456, adaptive: true });
   });
 });
+
+describe("deleteTrainingPlan", () => {
+  it("DELETEs trainingplan/trainingplan/{planId} (the segment really is doubled) and resolves to null", async () => {
+    server.use(
+      http.delete(`${API}/trainingplan-service/trainingplan/trainingplan/:planId`, ({ request }) => {
+        record(request);
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    await expect(makeGarmin().deleteTrainingPlan(48021325)).resolves.toBeNull();
+    expect(seen[0]).toMatchObject({
+      url: `${API}/trainingplan-service/trainingplan/trainingplan/48021325`,
+      method: "DELETE",
+    });
+  });
+
+  it("encodes the plan id, so a traversal string cannot redirect the DELETE", async () => {
+    server.use(
+      http.delete(`${API}/trainingplan-service/trainingplan/trainingplan/:planId`, ({ request }) => {
+        record(request);
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    await makeGarmin().deleteTrainingPlan("../../workout-service/x");
+    expect(seen[0]!.url).toBe(
+      `${API}/trainingplan-service/trainingplan/trainingplan/..%2F..%2Fworkout-service%2Fx`,
+    );
+  });
+});

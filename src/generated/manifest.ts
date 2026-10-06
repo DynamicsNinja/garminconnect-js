@@ -5519,6 +5519,26 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
     "io": "json"
   },
   {
+    "name": "deleteTrainingPlan",
+    "category": "profile-and-misc",
+    "description": "**NOT upstream parity**. `DELETE /trainingplan-service/trainingplan/trainingplan/{planId}` (the `trainingplan` segment really is doubled) — the request Garmin Connect's \"Quit Plan\" sends, observed in the web client on 2026-10-06. Resolves `null` (204); the plan's scheduled workouts leave the calendar, completed activities stay. A second call is a 404 `\"Training plan not found with ID: …\"`. IRREVERSIBLE",
+    "params": [
+      {
+        "name": "planId",
+        "optional": false,
+        "schema": {
+          "type": [
+            "integer",
+            "string"
+          ],
+          "description": "Numeric id"
+        }
+      }
+    ],
+    "safety": "destructive",
+    "io": "json"
+  },
+  {
     "name": "getLifestyleLoggingData",
     "category": "profile-and-misc",
     "description": "GETs `/lifestylelogging-service/dailyLog/{cdate}` Grouped under `misc` per the plan's explicit instruction, even though it superficially resembles a wellness-daily endpoint",

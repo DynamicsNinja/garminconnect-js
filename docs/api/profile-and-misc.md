@@ -14,7 +14,7 @@ if (!(await client.loadTokens())) throw new Error("not connected to Garmin");
 const garmin = new Garmin(client);
 ```
 
-**28 methods.** The verification column says what has been
+**29 methods.** The verification column says what has been
 confirmed against a live Garmin account, not merely unit-tested —
 [`AGENTS.md`](../../AGENTS.md) carries the full evidence per method.
 
@@ -23,6 +23,7 @@ confirmed against a live Garmin account, not merely unit-tested —
 | [`createCustomFood`](#createcustomfood) | ✅ live-verified |
 | [`deleteCustomFood`](#deletecustomfood) | ✅ live-verified |
 | [`deleteFoodLogs`](#deletefoodlogs) | ✅ live-verified |
+| [`deleteTrainingPlan`](#deletetrainingplan) | ✅ live-verified |
 | [`displayName`](#displayname) | ✅ live-verified (indirectly) |
 | [`fullName`](#fullname) | ✅ live-verified (indirectly) |
 | [`getAdaptiveTrainingPlanById`](#getadaptivetrainingplanbyid) | ✅ live-verified |
@@ -117,6 +118,24 @@ const result = await garmin.deleteFoodLogs("2026-09-24", ["running"]);
 `unknown` — Garmin's response is passed through unparsed. Cast it to whatever you need; this library does not model it.
 
 **NOT upstream parity**. `DELETE /nutrition-service/food/logs/{date}` with `{logIds}` as the body — any number in ONE call, regular and quick-add alike. `logId`s are on the entries of `getNutritionDailyFoodLog`. IRREVERSIBLE. Needs Connect+
+
+Verification: ✅ live-verified
+
+## deleteTrainingPlan
+
+```ts
+garmin.deleteTrainingPlan(planId: number | string): Promise<unknown>
+```
+
+```ts
+const result = await garmin.deleteTrainingPlan(activityId);
+```
+
+**Returns**
+
+`unknown` — Garmin's response is passed through unparsed. Cast it to whatever you need; this library does not model it.
+
+**NOT upstream parity**. `DELETE /trainingplan-service/trainingplan/trainingplan/{planId}` (the `trainingplan` segment really is doubled) — the request Garmin Connect's "Quit Plan" sends, observed in the web client on 2026-10-06. Resolves `null` (204); the plan's scheduled workouts leave the calendar, completed activities stay. A second call is a 404 `"Training plan not found with ID: …"`. IRREVERSIBLE
 
 Verification: ✅ live-verified
 

@@ -909,6 +909,10 @@ export class Garmin {
   getAdaptiveTrainingPlanById(planId: number | string) {
     return trainingPlans.getAdaptiveTrainingPlanById(this, planId);
   }
+  /** NOT upstream parity. Quits an enrolled plan ("Quit Plan"); its workouts leave the calendar. IRREVERSIBLE. */
+  deleteTrainingPlan(planId: number | string) {
+    return trainingPlans.deleteTrainingPlan(this, planId);
+  }
 
   // --- misc ---
   getLifestyleLoggingData(cdate: string | Date) {

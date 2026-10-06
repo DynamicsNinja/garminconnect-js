@@ -21,7 +21,7 @@ A zero-dependency TypeScript client for Garmin Connect, for **Node and Next.js s
 It talks to the same undocumented endpoints the mobile app uses, with a fully typed,
 promise-based API.
 
-It handles Garmin's undocumented SSO/OAuth flow, refreshes tokens for you, and gives you 191
+It handles Garmin's undocumented SSO/OAuth flow, refreshes tokens for you, and gives you 192
 typed methods over the endpoints the mobile app uses — plus two things that exist because Garmin's
 API is quietly hostile in specific places:
 
@@ -428,7 +428,7 @@ training data. It ships from this repo, in lockstep with the library.
 
 ## 📊 API coverage
 
-**191 typed methods across 13 categories.** Each category links to a generated
+**192 typed methods across 13 categories.** Each category links to a generated
 [`docs/api/`](docs/api/README.md) page with every method's signature, a call you can paste, and
 its live-verification status — confirmed against a real Garmin account, not merely unit-tested.
 
@@ -446,7 +446,7 @@ its live-verification status — confirmed against a real Garmin account, not me
 | [Body composition & weight](docs/api/body-composition-weight.md) | 8 | all | weigh-ins, body composition (FIT upload) |
 | [Women's health](docs/api/womens-health.md) | 11 | all | menstrual cycle, pregnancy |
 | [Golf](docs/api/golf.md) | 5 | 3 of 5 | summary, scorecards, shots, clubs, stats |
-| [Profile, goals, nutrition, plans & misc](docs/api/profile-and-misc.md) | 28 | all¹ | profile, settings, goals, nutrition and food logging², training plans, GraphQL, logout |
+| [Profile, goals, nutrition, plans & misc](docs/api/profile-and-misc.md) | 29 | all¹ | profile, settings, goals, nutrition and food logging², training plans, GraphQL, logout |
 
 ¹ `logout()` makes no HTTP call, so there is nothing to verify against Garmin.
 ² Food logging (search, custom foods, logging, deleting) needs Garmin Connect+, which needs a paired Garmin device; verified on such an account.
@@ -470,7 +470,7 @@ section 3.
 This library began as a port of Python's [`garminconnect`][python-garminconnect-url] and its auth
 dependency [`garth`][garth-url], and the endpoint surface and SSO flow still derive from them —
 see [`NOTICE`](NOTICE) for attribution. It is no longer a port: 151 of upstream's 154 methods are
-here, forty methods go beyond it (among them all eight course methods, six calendar-event methods and ten food-logging methods), and behaviour diverges where evidence warranted it.
+here, forty-one methods go beyond it (among them all eight course methods, six calendar-event methods and ten food-logging methods), and behaviour diverges where evidence warranted it.
 
 Three upstream methods are deliberately absent, because live testing showed each can only produce
 a broken result: `upload_walking_workout` and `upload_hiking_workout` (Garmin has no such workout

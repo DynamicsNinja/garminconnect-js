@@ -8,7 +8,7 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
-Twenty-six methods for Garmin endpoints that python-garminconnect does not wrap, taken from what
+Twenty-seven methods for Garmin endpoints that python-garminconnect does not wrap, taken from what
 [Taxuspt/garmin_mcp](https://github.com/Taxuspt/garmin_mcp) calls or found by probing. Each was
 verified live on 2026-10-06 by writing, reading the stored value back, and restoring.
 
@@ -22,6 +22,7 @@ verified live on 2026-10-06 by writing, reading the stored value back, and resto
   the floors when the method changes.
 - **`getDailyStats`**: per-day calories or steps for any range, fetched in 28-day windows.
 - **`getAdaptiveWorkout`**: a Garmin Coach workout by its uuid, which `getWorkoutById` cannot fetch.
+- **`deleteTrainingPlan`**: quits an enrolled training plan, as Garmin Connect's "Quit Plan" does.
 - **`getScheduledWorkoutSummaries`** and **`getTrainingPlanWorkouts`**: compact schedule reads
   over Garmin's GraphQL gateway. The summaries lag a fresh schedule by a few seconds.
 

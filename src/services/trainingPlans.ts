@@ -46,3 +46,16 @@ export async function getAdaptiveTrainingPlanById(
     `/trainingplan-service/trainingplan/fbt-adaptive/${pathSegment(planId)}`,
   );
 }
+
+/**
+ * Quits (removes) an enrolled training plan: `DELETE /trainingplan-service/trainingplan/trainingplan/{planId}`
+ * — `trainingplan` twice, the request Garmin Connect's "Quit Plan" sends. Resolves to `null` (204).
+ * NOT upstream parity. Its scheduled workouts leave the calendar; activities already done during
+ * the plan are kept (Garmin's own confirmation says so). IRREVERSIBLE. `planId` is a plan's
+ * `trainingPlanId` from `getTrainingPlans`.
+ */
+export async function deleteTrainingPlan(host: TrainingPlansHost, planId: number | string): Promise<unknown> {
+  return host.client.connectapi(`/trainingplan-service/trainingplan/trainingplan/${pathSegment(planId)}`, {
+    method: "DELETE",
+  });
+}
