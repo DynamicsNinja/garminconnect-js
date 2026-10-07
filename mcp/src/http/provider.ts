@@ -15,6 +15,20 @@ import { checkGeneration, type GrantStore } from "./grants.js";
 import { credentialsPage, errorPage, isTrustedRedirect, mfaPage, pageHeaders, redirectTarget } from "./pages.js";
 import type { Sealer } from "./seal.js";
 
+/** Milliseconds spent in Garmin calls, summed across the calls of one sign-in POST. */
+interface Timer {
+  ms: number;
+}
+
+async function timed<T>(timer: Timer, call: () => Promise<T>): Promise<T> {
+  const start = performance.now();
+  try {
+    return await call();
+  } finally {
+    timer.ms += Math.round(performance.now() - start);
+  }
+}
+
 export const ACCESS_TTL_S = 3600;
 export const CODE_TTL_S = 60;
 export const FORM_TTL_S = 600;
@@ -138,11 +152,16 @@ export class HostedOAuthProvider implements OAuthServerProvider {
       const mfa = this.#sealer.unseal<MfaPayload>("mfa", sealedMfa);
       if (!mfa) return this.#page(undefined, errorPage(EXPIRED), 400);
       const { request, mfaState, disconnectOthers } = mfa.data;
+      const timer = { ms: 0 };
       try {
-        const tokens = await this.#auth.resume(mfaState, (form["code"] ?? "").trim());
-        return await this.#finish(request, tokens, disconnectOthers);
+        const tokens = await timed(timer, () => this.#auth.resume(mfaState, (form["code"] ?? "").trim()));
+        const outcome = await this.#finish(request, tokens, disconnectOthers, timer);
+        this.#log({ msg: "sign-in", ms: timer.ms, mfa: true, ok: true });
+        return outcome;
       } catch (error) {
-        return this.#page(request, mfaPage({ action, mfa: sealedMfa!, error: this.#signInError(error) }), 400);
+        const message = this.#signInError(error);
+        this.#log({ msg: "sign-in", ms: timer.ms, mfa: true, ok: false });
+        return this.#page(request, mfaPage({ action, mfa: sealedMfa!, error: message }), 400);
       }
     }
 
@@ -160,15 +179,22 @@ export class HostedOAuthProvider implements OAuthServerProvider {
     if (!isTrustedRedirect(request.redirectUri) && form["confirmRedirect"] !== "1") {
       return retry(`Tick the box to confirm you trust ${redirectTarget(request.redirectUri)} before signing in.`);
     }
+    const timer = { ms: 0 };
     try {
-      const result = await this.#auth.login(email, password);
+      const result = await timed(timer, () => this.#auth.login(email, password));
       if (result.state === "mfa_required") {
         const mfa = this.#sealer.seal("mfa", { request, mfaState: result.mfaState, disconnectOthers } satisfies MfaPayload, FORM_TTL_S);
-        return this.#page(request, mfaPage({ action, mfa }));
+        const page = this.#page(request, mfaPage({ action, mfa }));
+        this.#log({ msg: "sign-in", ms: timer.ms, mfa: false, ok: true });
+        return page;
       }
-      return await this.#finish(request, result.tokens, disconnectOthers);
+      const outcome = await this.#finish(request, result.tokens, disconnectOthers, timer);
+      this.#log({ msg: "sign-in", ms: timer.ms, mfa: false, ok: true });
+      return outcome;
     } catch (error) {
-      return retry(this.#signInError(error));
+      const message = this.#signInError(error);
+      this.#log({ msg: "sign-in", ms: timer.ms, mfa: false, ok: false });
+      return retry(message);
     }
   }
 
@@ -177,8 +203,8 @@ export class HostedOAuthProvider implements OAuthServerProvider {
     return signInError(error);
   }
 
-  async #finish(request: AuthRequest, tokens: Tokens, disconnectOthers: boolean): Promise<SignInOutcome> {
-    const userHash = this.#sealer.pseudonym(await this.#auth.profileId(tokens));
+  async #finish(request: AuthRequest, tokens: Tokens, disconnectOthers: boolean, timer: Timer): Promise<SignInOutcome> {
+    const userHash = this.#sealer.pseudonym(await timed(timer, () => this.#auth.profileId(tokens)));
     const grant = this.#grants.create(userHash, request.clientName, this.#now());
     if (disconnectOthers) this.#grants.revokeUser(userHash, grant.grantId);
     const code: CodePayload = { grantId: grant.grantId, clientId: request.clientId, redirectUri: request.redirectUri, codeChallenge: request.codeChallenge, tokens };

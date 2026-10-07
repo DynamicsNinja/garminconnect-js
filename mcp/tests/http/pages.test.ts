@@ -1,6 +1,7 @@
+import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 // eslint-disable-next-line no-restricted-imports
-import { credentialsPage, errorPage, formActionSource, isTrustedRedirect, mfaPage, pageHeaders, redirectTarget, TRUSTED_REDIRECTS } from "../../src/http/pages.js";
+import { credentialsPage, errorPage, formActionSource, isTrustedRedirect, mfaPage, pageHeaders, redirectTarget, SUBMIT_SCRIPT, SUBMIT_SCRIPT_HASH, TRUSTED_REDIRECTS } from "../../src/http/pages.js";
 
 describe("pages", () => {
   it("lets the form redirect to the client's origin or custom scheme", () => {
@@ -8,10 +9,25 @@ describe("pages", () => {
     expect(formActionSource("https://x.example/cb?a=1")).toBe("https://x.example");
     expect(formActionSource("cursor://anysphere.cursor-retrieval/oauth/callback")).toBe("cursor:");
     expect(pageHeaders("https://claude.ai/cb")["content-security-policy"]).toBe(
-      "default-src 'none'; style-src 'unsafe-inline'; form-action 'self' https://claude.ai",
+      `default-src 'none'; script-src ${SUBMIT_SCRIPT_HASH}; style-src 'unsafe-inline'; form-action 'self' https://claude.ai`,
     );
     expect(pageHeaders()["content-security-policy"]).toContain("form-action 'self'");
     expect(pageHeaders()).toMatchObject({ "cache-control": "no-store", "x-frame-options": "DENY", "referrer-policy": "no-referrer" });
+  });
+
+  it("allows exactly the submit script by hash, and both forms carry it", () => {
+    const hash = `'sha256-${createHash("sha256").update(SUBMIT_SCRIPT).digest("base64")}'`;
+    expect(SUBMIT_SCRIPT_HASH).toBe(hash);
+    expect(pageHeaders()["content-security-policy"]).toContain(`script-src ${hash};`);
+    const pages = [
+      [credentialsPage({ action: "/a", request: "R", clientName: "<script>x</script>", redirectUri: "https://claude.ai/cb" }), "This usually takes 5–15 seconds. Keep this window open."],
+      [mfaPage({ action: "/a", mfa: "M" }), "Checking your code with Garmin…"],
+    ] as const;
+    for (const [page, status] of pages) {
+      expect(page).toContain(`<script>${SUBMIT_SCRIPT}</script>`);
+      expect(page).toContain(status);
+      expect(page.match(/<script/g)).toHaveLength(1);
+    }
   });
 
   it("renders the credentials form with escaped values", () => {
@@ -22,7 +38,7 @@ describe("pages", () => {
     expect(page).toContain("&lt;script&gt;");
     expect(page).toContain('value="a&quot;b"');
     expect(page).toContain("Bad &lt;pw&gt;");
-    expect(page).not.toContain("<script>");
+    expect(page).not.toContain("<script>alert");
     expect(credentialsPage({ action: "/a", request: "R", clientName: null, redirectUri: "https://claude.ai/cb" })).toContain("your MCP client");
   });
 

@@ -158,8 +158,31 @@ describe("sign-in", () => {
     };
     const { request } = await formFor();
     await provider.handleSignIn({ step: "credentials", request, email: "secret@b.c", password: PASSWORD });
-    expect(logged).toEqual([{ msg: "garmin rate limited" }]);
+    expect(logged).toEqual([{ msg: "garmin rate limited" }, { msg: "sign-in", ms: expect.any(Number), mfa: false, ok: false }]);
     expect(JSON.stringify(logged)).not.toContain("secret@b.c");
+  });
+
+  it("logs the timing of a sign-in, without the email", async () => {
+    const { request } = await formFor();
+    await provider.handleSignIn({ step: "credentials", request, email: "secret@b.c", password: PASSWORD });
+    expect(logged).toEqual([{ msg: "sign-in", ms: expect.any(Number), mfa: false, ok: true }]);
+    expect(JSON.stringify(logged)).not.toContain("secret@b.c");
+    logged.length = 0;
+    await provider.handleSignIn({ step: "credentials", request, email: "a@b.c", password: "nope" });
+    expect(logged).toEqual([{ msg: "sign-in", ms: expect.any(Number), mfa: false, ok: false }]);
+  });
+
+  it("logs the MFA step as mfa: true", async () => {
+    const { request } = await formFor();
+    const first = await provider.handleSignIn({ step: "credentials", request, email: "mfa@b.c", password: PASSWORD });
+    logged.length = 0;
+    const mfa = hidden((first as { body: string }).body, "mfa")!;
+    await provider.handleSignIn({ step: "mfa", mfa, code: "000000" });
+    await provider.handleSignIn({ step: "mfa", mfa, code: MFA_CODE });
+    expect(logged).toEqual([
+      { msg: "sign-in", ms: expect.any(Number), mfa: true, ok: false },
+      { msg: "sign-in", ms: expect.any(Number), mfa: true, ok: true },
+    ]);
   });
 
   it("shows a wrong password on the form, with no grant", async () => {
