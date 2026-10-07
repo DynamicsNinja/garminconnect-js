@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { credentialsPage, errorPage, formActionSource, mfaPage, pageHeaders } from "../src/http/pages.js";
+// eslint-disable-next-line no-restricted-imports
+import { credentialsPage, errorPage, formActionSource, mfaPage, pageHeaders } from "../../src/http/pages.js";
 
 describe("pages", () => {
   it("lets the form redirect to the client's origin or custom scheme", () => {
