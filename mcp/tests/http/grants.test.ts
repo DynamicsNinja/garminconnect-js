@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 // eslint-disable-next-line no-restricted-imports
-import { checkGeneration, IDLE_LIMIT_S, loadSqlite, MemoryGrantStore, PENDING_LIMIT_S, REUSE_GRACE_S, SqliteGrantStore, type GrantStore } from "../../src/http/grants.js";
+import { checkGeneration, IDLE_LIMIT_S, loadSqlite, MemoryGrantStore, PENDING_LIMIT_S, purgeSafely, REUSE_GRACE_S, SqliteGrantStore, type GrantStore } from "../../src/http/grants.js";
 
 const sqliteAvailable = loadSqlite() !== null;
 const tmpDb = () => path.join(mkdtempSync(path.join(os.tmpdir(), "grants-")), "grants.db");
@@ -79,6 +79,19 @@ describe.skipIf(!sqliteAvailable)("sqlite", () => {
     const g = s.create("u", "Claude", 5);
     s.close();
     expect((await SqliteGrantStore.open(file)).get(g.grantId)?.clientName).toBe("Claude");
+  });
+});
+
+describe("purgeSafely", () => {
+  it("returns the count, or logs a failure instead of throwing", () => {
+    const store = new MemoryGrantStore();
+    const lines: Record<string, unknown>[] = [];
+    expect(purgeSafely(store, 100, (l) => lines.push(l))).toBe(0);
+    store.purge = () => {
+      throw new Error("database is locked");
+    };
+    expect(purgeSafely(store, 100, (l) => lines.push(l))).toBeNull();
+    expect(lines).toEqual([{ msg: "purge failed", error: "database is locked" }]);
   });
 });
 

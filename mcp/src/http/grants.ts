@@ -66,6 +66,16 @@ export interface GrantStore {
   close(): void;
 }
 
+/** A purge that fails (a locked database, a full disk) is logged, not fatal: the next one retries. */
+export function purgeSafely(store: GrantStore, now: number, log: (line: Record<string, unknown>) => void): number | null {
+  try {
+    return store.purge(now);
+  } catch (error) {
+    log({ msg: "purge failed", error: error instanceof Error ? error.message : String(error) });
+    return null;
+  }
+}
+
 /** Shared by both stores: given the verdict, what `rotate` returns and whether to bump. */
 function rotation(store: GrantStore, grantId: string, generation: number, now: number, bump: () => void): RotateResult {
   const grant = store.get(grantId);
@@ -195,6 +205,8 @@ export class SqliteGrantStore implements GrantStore {
     if (!sqlite) throw new Error("SQLite needs Node 22.13 or newer (node:sqlite)");
     const db = new sqlite.DatabaseSync(file);
     db.exec("PRAGMA journal_mode = WAL;");
+    // Wait for a lock (e.g. the revoke CLI writing from another process) instead of failing at once.
+    db.exec("PRAGMA busy_timeout = 5000;");
     db.exec(SCHEMA);
     return new SqliteGrantStore(db);
   }

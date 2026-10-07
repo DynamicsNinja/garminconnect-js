@@ -8,7 +8,7 @@ import { describeError } from "../errors.js";
 import { loadHostedConfig } from "./config.js";
 import { createHttpApp } from "./app.js";
 import { garminAuth } from "./garmin-auth.js";
-import { SqliteGrantStore } from "./grants.js";
+import { purgeSafely, SqliteGrantStore } from "./grants.js";
 import { Sealer } from "./seal.js";
 
 const version = __MCP_VERSION__;
@@ -31,8 +31,11 @@ try {
     process.exit(0);
   }
 
-  const purged = grants.purge(now());
-  setInterval(() => log({ msg: "purge", purged: grants.purge(now()) }), 86_400_000).unref();
+  const purged = purgeSafely(grants, now(), log);
+  setInterval(() => {
+    const n = purgeSafely(grants, now(), log);
+    if (n !== null) log({ msg: "purge", purged: n });
+  }, 86_400_000).unref();
   const app = createHttpApp({ publicUrl: config.publicUrl, sealer: new Sealer(config.keys), grants, auth: garminAuth(), mcp: config.mcp, version, trustProxy: config.trustProxy, log });
   const server = app.listen(config.port, "0.0.0.0", () => log({ msg: "listening", port: config.port, version, purged, ...grants.count() }));
   const stop = () => server.close(() => {
