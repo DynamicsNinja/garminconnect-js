@@ -4,7 +4,10 @@
  * replayed refresh token can be detected (rotation generation), and a connection can be revoked.
  */
 import { randomBytes } from "node:crypto";
+import { createRequire } from "node:module";
 import type { DatabaseSync } from "node:sqlite"; // type only: the module is loaded lazily (Node 18/20 lack it)
+
+type Sqlite = typeof import("node:sqlite");
 
 export type GrantState = "pending" | "active" | "revoked";
 
@@ -35,6 +38,15 @@ export function checkGeneration(grant: Grant | undefined, generation: number, no
   if (generation === grant.generation) return "current";
   if (generation === grant.generation - 1 && grant.rotatedAt !== null && now - grant.rotatedAt <= REUSE_GRACE_S) return "grace";
   return "reused";
+}
+
+/** node:sqlite through Node's own require: vite-node cannot import it, and Node < 22.13 has no unflagged module. `null` when unavailable. */
+export function loadSqlite(): Sqlite | null {
+  try {
+    return createRequire(import.meta.url)("node:sqlite") as Sqlite;
+  } catch {
+    return null;
+  }
 }
 
 export interface GrantStore {
@@ -179,8 +191,9 @@ export class SqliteGrantStore implements GrantStore {
 
   /** Needs Node >= 22.13 (`node:sqlite` without a flag); the Docker image has it. */
   static async open(file: string): Promise<SqliteGrantStore> {
-    const { DatabaseSync } = await import("node:sqlite");
-    const db = new DatabaseSync(file);
+    const sqlite = loadSqlite();
+    if (!sqlite) throw new Error("SQLite needs Node 22.13 or newer (node:sqlite)");
+    const db = new sqlite.DatabaseSync(file);
     db.exec("PRAGMA journal_mode = WAL;");
     db.exec(SCHEMA);
     return new SqliteGrantStore(db);

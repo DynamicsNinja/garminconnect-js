@@ -3,9 +3,9 @@ import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 // eslint-disable-next-line no-restricted-imports
-import { checkGeneration, IDLE_LIMIT_S, MemoryGrantStore, PENDING_LIMIT_S, REUSE_GRACE_S, SqliteGrantStore, type GrantStore } from "../../src/http/grants.js";
+import { checkGeneration, IDLE_LIMIT_S, loadSqlite, MemoryGrantStore, PENDING_LIMIT_S, REUSE_GRACE_S, SqliteGrantStore, type GrantStore } from "../../src/http/grants.js";
 
-const sqliteAvailable = await import("node:sqlite").then(() => true, () => false);
+const sqliteAvailable = loadSqlite() !== null;
 const tmpDb = () => path.join(mkdtempSync(path.join(os.tmpdir(), "grants-")), "grants.db");
 
 function contract(name: string, open: () => Promise<GrantStore>) {
