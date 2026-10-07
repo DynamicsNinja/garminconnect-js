@@ -40,4 +40,22 @@ export default defineConfig([
       options.legalComments = "eof";
     },
   },
+  {
+    // The hosted server (mcp/Dockerfile): everything inlined like the extension bundle, so the
+    // runtime image needs no node_modules. Node 22 for node:sqlite (esbuild leaves node: imports external).
+    entry: { http: "src/http/main.ts" },
+    outDir: "dist-http",
+    format: ["esm"],
+    target: "node22",
+    platform: "node",
+    clean: true,
+    sourcemap: false,
+    define: { __MCP_VERSION__: JSON.stringify(version) },
+    noExternal: [/.*/],
+    outExtension: () => ({ js: ".mjs" }),
+    banner: { js: "import { createRequire as __gcCreateRequire } from 'node:module'; const require = __gcCreateRequire(import.meta.url);" },
+    esbuildOptions(options) {
+      options.legalComments = "eof";
+    },
+  },
 ]);

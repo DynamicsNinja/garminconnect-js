@@ -1,0 +1,14 @@
+.git
+**/node_modules
+dist
+mcp/dist
+mcp/dist-bundle
+mcp/dist-mcpb
+mcp/dist-http
+tokens
+tokens-real
+export
+.env
+.env.*
+.superpowers
+*.log

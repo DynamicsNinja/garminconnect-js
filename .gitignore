@@ -14,4 +14,5 @@ tests/fixtures/*
 mcp/LICENSE
 mcp/NOTICE
 mcp/dist-bundle/
+mcp/dist-http/
 mcp/dist-mcpb/

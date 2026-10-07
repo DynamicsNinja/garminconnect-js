@@ -24,3 +24,16 @@ jobs:
       - run: npm run check
 
 # CI never runs `test:live` — it has no credentials and must not hit Garmin.
+
+  docker:
+    # The hosted MCP server's image: it must build from a clean checkout and come up healthy.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - run: docker build -f mcp/Dockerfile -t garminconnect-mcp-http .
+      - name: Starts and answers its health check
+        run: |
+          docker run -d --name mcp -p 3000:3000 -e PUBLIC_URL=http://127.0.0.1:3000 \
+            -e SEAL_KEYS="$(openssl rand -base64 32)" -e DB_PATH=/data/grants.db garminconnect-mcp-http
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:3000/mcp/healthz && exit 0; sleep 1; done
+          docker logs mcp; exit 1
