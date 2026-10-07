@@ -7,6 +7,7 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import { GarminAuthError } from "garminconnect-js";
 import { errorResult } from "./errors.js";
+import type { FilesStrategy } from "./files.js";
 import { SERVER_ICON } from "./icon.js";
 import type { McpConfig, Session } from "./session.js";
 
@@ -19,6 +20,8 @@ export interface ServerDeps {
   config: McpConfig;
   session: Session;
   version?: string;
+  /** Where upload/download tools get and put files; the stdio default is the local disk. */
+  files?: FilesStrategy;
 }
 
 export type ToolFactory = (deps: ServerDeps) => ToolDef[];

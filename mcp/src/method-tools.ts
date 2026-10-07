@@ -1,6 +1,6 @@
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { GARMIN_METHODS, type ManifestMethod } from "garminconnect-js/manifest";
-import { readUpload, saveDownload } from "./files.js";
+import { localFiles, type FilesStrategy } from "./files.js";
 import { jsonResult } from "./results.js";
 import type { ServerDeps, ToolDef, ToolFactory } from "./server.js";
 import { argumentValidator } from "./validate.js";
@@ -23,17 +23,15 @@ export const OPT_IN: Readonly<Record<string, "enableGraphql">> = {
 
 export const toolName = (method: string): string => method.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
 
-function inputSchemaOf(m: ManifestMethod): Tool["inputSchema"] {
+function inputSchemaOf(m: ManifestMethod, files: FilesStrategy): Tool["inputSchema"] {
   const properties: Record<string, object> = {};
   const required: string[] = [];
   for (const p of m.params) {
     if (p.role === "filename") continue; // derived from filePath
     if (p.role === "file") {
-      properties["filePath"] = {
-        type: "string",
-        description: "Absolute path to a local .fit, .gpx or .tcx file (~ is expanded)",
-      };
-      required.push("filePath");
+      const upload = files.uploadSchema();
+      Object.assign(properties, upload.properties);
+      required.push(...upload.required);
       continue;
     }
     properties[p.name] = p.schema;
@@ -50,12 +48,12 @@ function descriptionOf(m: ManifestMethod): string {
   return base;
 }
 
-async function argsFor(m: ManifestMethod, input: Record<string, unknown>): Promise<unknown[]> {
+async function argsFor(m: ManifestMethod, input: Record<string, unknown>, files: FilesStrategy): Promise<unknown[]> {
   const args: unknown[] = [];
   let filename: string | undefined;
   for (const p of m.params) {
     if (p.role === "file") {
-      const upload = await readUpload(input["filePath"]);
+      const upload = await files.readUpload(input);
       filename = upload.filename;
       args.push(upload.blob);
     } else if (p.role === "filename") {
@@ -86,8 +84,9 @@ function downloadName(m: ManifestMethod, input: Record<string, unknown>): string
 }
 
 function toolFor(m: ManifestMethod, deps: ServerDeps): ToolDef {
+  const files = deps.files ?? localFiles(deps.config.downloadDir);
   const name = toolName(m.name);
-  const inputSchema = inputSchemaOf(m);
+  const inputSchema = inputSchemaOf(m, files);
   const checkArguments = argumentValidator(name, inputSchema);
   return {
     tool: {
@@ -104,14 +103,12 @@ function toolFor(m: ManifestMethod, deps: ServerDeps): ToolDef {
     },
     async run(input) {
       checkArguments(input);
-      const args = await argsFor(m, input); // argument and file errors surface BEFORE any Garmin call
+      const args = await argsFor(m, input, files); // argument and file errors surface BEFORE any Garmin call
       const garmin = await deps.session.get();
       const fn = (garmin as unknown as Record<string, unknown>)[m.name];
       if (typeof fn !== "function") throw new Error(`garminconnect-js has no method ${m.name}`);
       const result: unknown = await (fn as (...a: unknown[]) => Promise<unknown>).apply(garmin, args);
-      if (m.io === "binary-out") {
-        return jsonResult(await saveDownload(deps.config.downloadDir, downloadName(m, input), result as Uint8Array));
-      }
+      if (m.io === "binary-out") return files.deliverDownload(downloadName(m, input), result as Uint8Array);
       return jsonResult(result);
     },
   };

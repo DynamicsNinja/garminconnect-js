@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { expandHome, readUpload, saveDownload, sniffExtension } from "../src/files.js";
+import { expandHome, localFiles, readUpload, saveDownload, sniffExtension } from "../src/files.js";
 
 const bytes = (s: string) => new TextEncoder().encode(s);
 
@@ -73,5 +73,14 @@ describe("saveDownload", () => {
     expect(third.path).toBe(path.join(dir, "download_workout-42-3.json"));
     expect(readFileSync(first.path, "utf8")).toBe('{"v":1}');
     expect(readFileSync(second.path, "utf8")).toBe('{"v":2}');
+  });
+});
+
+describe("localFiles", () => {
+  it("asks for an absolute filePath, exactly as before", () => {
+    expect(localFiles("/tmp").uploadSchema()).toEqual({
+      properties: { filePath: { type: "string", description: "Absolute path to a local .fit, .gpx or .tcx file (~ is expanded)" } },
+      required: ["filePath"],
+    });
   });
 });

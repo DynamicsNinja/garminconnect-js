@@ -16,6 +16,20 @@ const deps = (fetchImpl: typeof fetch, config: Partial<McpConfig> = {}) => ({
 const names = (config: Partial<McpConfig> = {}) => methodTools(deps(fakeFetch({}).fetchImpl, config)).map((t) => t.tool.name);
 
 describe("methodTools", () => {
+  it("takes upload inputs and download delivery from the injected files strategy", async () => {
+    const files = {
+      uploadSchema: () => ({ properties: { content: { type: "string" } }, required: ["content"] }),
+      readUpload: async () => ({ blob: new Blob(["x"]), filename: "x.gpx" }),
+      deliverDownload: async (name: string) => ({ content: [{ type: "text" as const, text: `delivered ${name}` }] }),
+    };
+    const { fetchImpl } = fakeFetch({ "GET /download-service/files/activity/": () => new Response(new Uint8Array([1, 2])) });
+    const tools = methodTools({ ...deps(fetchImpl), files });
+    const upload = tools.find((t) => t.tool.name === "import_activity")!;
+    expect(upload.tool.inputSchema.properties).toHaveProperty("content");
+    expect(upload.tool.inputSchema.properties).not.toHaveProperty("filePath");
+    const download = tools.find((t) => t.tool.name === "download_activity")!;
+    expect(textOf(await download.run({ activityId: 7 }))).toBe("delivered download_activity-7");
+  });
   it("exposes every manifest method except the exclusions and opt-ins", () => {
     const expected = GARMIN_METHODS.filter((m) => !(m.name in EXCLUDED) && !(m.name in OPT_IN)).map((m) => toolName(m.name));
     expect(names().sort()).toEqual(expected.sort());

@@ -1,6 +1,8 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
+import { jsonResult } from "./results.js";
 
 export const UPLOAD_EXTENSIONS = [".fit", ".gpx", ".tcx"] as const;
 
@@ -63,4 +65,29 @@ export async function saveDownload(dir: string, baseName: string, bytes: Uint8Ar
       if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
     }
   }
+}
+
+/**
+ * How upload tools get their file and download tools hand theirs back. The stdio server reads and
+ * writes the user's disk (`localFiles`); the hosted server cannot, and moves the bytes inside the
+ * MCP messages instead (`http/inline-files.ts`).
+ */
+export interface FilesStrategy {
+  /** Input-schema properties that stand in for a method's `file`/`filename` parameters. */
+  uploadSchema(): { properties: Record<string, object>; required: string[] };
+  readUpload(input: Record<string, unknown>): Promise<{ blob: Blob; filename: string }>;
+  deliverDownload(baseName: string, bytes: Uint8Array): Promise<CallToolResult>;
+}
+
+export function localFiles(downloadDir: string): FilesStrategy {
+  return {
+    uploadSchema: () => ({
+      properties: {
+        filePath: { type: "string", description: "Absolute path to a local .fit, .gpx or .tcx file (~ is expanded)" },
+      },
+      required: ["filePath"],
+    }),
+    readUpload: (input) => readUpload(input["filePath"]),
+    deliverDownload: async (baseName, bytes) => jsonResult(await saveDownload(downloadDir, baseName, bytes)),
+  };
 }
