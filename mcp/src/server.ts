@@ -26,14 +26,19 @@ export interface ServerDeps {
 
 export type ToolFactory = (deps: ServerDeps) => ToolDef[];
 
-export function createServer(deps: ServerDeps, factories: readonly ToolFactory[]): Server {
+export function buildTools(deps: ServerDeps, factories: readonly ToolFactory[]): ToolDef[] {
   const tools = factories.flatMap((factory) => factory(deps));
-  const byName = new Map<string, ToolDef>();
+  const names = new Set<string>();
   for (const def of tools) {
-    if (byName.has(def.tool.name)) throw new Error(`Duplicate tool name ${def.tool.name}`);
-    byName.set(def.tool.name, def);
+    if (names.has(def.tool.name)) throw new Error(`Duplicate tool name ${def.tool.name}`);
+    names.add(def.tool.name);
   }
+  return tools;
+}
 
+/** One MCP `Server` over prebuilt tools; the hosted server makes one per HTTP request. */
+export function serverForTools(tools: readonly ToolDef[], deps: ServerDeps): Server {
+  const byName = new Map(tools.map((def) => [def.tool.name, def]));
   const server = new Server(
     {
       name: "garminconnect-mcp",
@@ -53,9 +58,13 @@ export function createServer(deps: ServerDeps, factories: readonly ToolFactory[]
     } catch (error) {
       // After `login` in a terminal, the next call must use the NEW tokens, not the cached client;
       // and with configured credentials, a rejected session signs in again.
-      if (error instanceof GarminAuthError) deps.session.reset({ rejected: true });
-      return errorResult(error);
+      if (error instanceof GarminAuthError) deps.session.reset({ rejected: true, error });
+      return errorResult(error, deps.session.loginHint);
     }
   });
   return server;
+}
+
+export function createServer(deps: ServerDeps, factories: readonly ToolFactory[]): Server {
+  return serverForTools(buildTools(deps, factories), deps);
 }

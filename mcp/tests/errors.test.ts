@@ -25,3 +25,7 @@ describe("describeError", () => {
     expect(describeError(new GarminHttpError("boom", 502, "https://x", ""))).toBe("Garmin returned HTTP 502: boom");
   });
 });
+
+it("uses a caller-supplied hint for auth errors", () => {
+  expect(describeError(new GarminAuthError("x"), "reconnect it")).toBe("Garmin session expired or was rejected (x): reconnect it.");
+});

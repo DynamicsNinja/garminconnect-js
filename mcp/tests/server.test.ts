@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { GarminAuthError, GarminHttpError } from "garminconnect-js";
-import { createServer, type ToolFactory } from "../src/server.js";
+import { buildTools, createServer, serverForTools, type ToolFactory } from "../src/server.js";
+import { HOSTED_TOOL_FACTORIES, TOOL_FACTORIES } from "../src/tools.js";
 import { textResult } from "../src/results.js";
 import { connect, fakeFetch, sessionFor, testConfig, textOf } from "./helpers.js";
 
@@ -23,6 +24,31 @@ describe("createServer", () => {
     expect(icon?.src).toMatch(/^data:image\/svg\+xml;base64,/);
     const svg = Buffer.from(icon!.src.split(",")[1]!, "base64").toString("utf8");
     expect(svg).toMatch(/^<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg"/);
+  });
+
+  it("tells the user the session's own login hint and passes the error to reset", async () => {
+    const seen: unknown[] = [];
+    const session = { loginHint: "reconnect the connector", get: async () => { throw new Error("unused"); }, reset: (o?: { error?: unknown }) => { seen.push(o?.error); } };
+    const boom = new GarminAuthError("Not authorized for x (401)");
+    const client = await connect({ config: testConfig(), session }, [tool("boom", () => { throw boom; })]);
+    const result = await client.callTool({ name: "boom", arguments: {} });
+    expect(textOf(result)).toContain("reconnect the connector");
+    expect(textOf(result)).not.toContain("sign_in_to_garmin");
+    expect(seen).toEqual([boom]);
+  });
+
+  it("builds tools once and can serve them from many servers", () => {
+    const tools = buildTools(deps(), [tool("hello", () => textResult("hi"))]);
+    expect(serverForTools(tools, deps())).not.toBe(serverForTools(tools, deps()));
+    expect(() => buildTools(deps(), [tool("a", () => textResult("")), tool("a", () => textResult(""))])).toThrow(/Duplicate/);
+  });
+
+  it("offers no sign-in tool on the hosted server", () => {
+    const hosted = buildTools(deps(), HOSTED_TOOL_FACTORIES).map((t) => t.tool.name);
+    const local = buildTools(deps(), TOOL_FACTORIES).map((t) => t.tool.name);
+    expect(local).toContain("sign_in_to_garmin");
+    expect(hosted).not.toContain("sign_in_to_garmin");
+    expect(hosted).toEqual(local.filter((n) => n !== "sign_in_to_garmin"));
   });
 
   it("lists and runs tools", async () => {

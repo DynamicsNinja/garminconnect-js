@@ -75,12 +75,15 @@ export class NotLoggedInError extends GarminAuthError {
  * version would supply one per user; tool code only ever sees this interface.
  */
 export interface Session {
+  /** What to tell the user when Garmin rejects the session. Defaults to the sign-in tool hint. */
+  readonly loginHint?: string;
   get(): Promise<Garmin>;
   /**
    * Drop the cached client so the next `get()` reloads tokens from disk. `rejected` means Garmin
    * refused the session, so the saved tokens are no good and configured credentials should be used.
+   * `error` is what Garmin threw, for sessions that need to tell a dead session from a transient refusal.
    */
-  reset(options?: { rejected?: boolean }): void;
+  reset(options?: { rejected?: boolean; error?: unknown }): void;
 }
 
 export interface FileSessionOptions {
