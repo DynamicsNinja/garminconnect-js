@@ -18,6 +18,7 @@
  * `tests/api-docs.test.ts` regenerates in memory and fails if the committed files differ, so the
  * pages cannot drift from the code without a test going red.
  */
+import { stripEmDashes } from "./no-em-dash.js";
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
@@ -199,7 +200,7 @@ const VERDICT: Record<string, string> = {
   partially: "⚠️ partially verified",
   attempted: "⚠️ attempted, unconfirmed",
   no: "❌ not live-verified",
-  "n/a": "— not applicable",
+  "n/a": "not applicable",
   // "via getUserProfile": a cached accessor, verified through the call it reads from.
   via: "✅ live-verified (indirectly)",
 };
@@ -209,7 +210,7 @@ function verdictOf(verified: string): string {
   for (const [key, label] of Object.entries(VERDICT)) {
     if (first.startsWith(key)) return label;
   }
-  return "—";
+  return "unknown";
 }
 
 /** Renders one category page. */
@@ -319,6 +320,7 @@ export function buildPages(): Map<string, string> {
     pages.set(`${slug}.md`, renderPage(slug, title, blurb, list, decls));
   }
   pages.set("README.md", renderIndex(pages, bySlug));
+  for (const [file, content] of pages) pages.set(file, stripEmDashes(content));
   return pages;
 }
 

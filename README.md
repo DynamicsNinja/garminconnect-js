@@ -2,7 +2,7 @@
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/title-dark.svg">
-  <img src="docs/assets/title-light.svg" alt="garminconnect-js — TypeScript client for Garmin Connect" width="705">
+  <img src="docs/assets/title-light.svg" alt="garminconnect-js, TypeScript client for Garmin Connect" width="705">
 </picture>
 
 [![npm][npm-shield]][npm-url]
@@ -22,13 +22,13 @@ It talks to the same undocumented endpoints the mobile app uses, with a fully ty
 promise-based API.
 
 It handles Garmin's undocumented SSO/OAuth flow, refreshes tokens for you, and gives you 193
-typed methods over the endpoints the mobile app uses — plus two things that exist because Garmin's
+typed methods over the endpoints the mobile app uses, plus two things that exist because Garmin's
 API is quietly hostile in specific places:
 
 - **A fluent workout builder.** Garmin's workout JSON has four traps that produce a silently wrong
   workout rather than an error: global `stepOrder` numbering that runs through repeat children,
   id/key triples that must agree, rests measured in a different field from times, and pace targets
-  expressed as descending metres per second. `buildWorkout` makes all four unreachable — see
+  expressed as descending metres per second. `buildWorkout` makes all four unreachable, see
   [`WORKOUTS.md`](WORKOUTS.md).
 - **The exercise catalogue, type-checked.** Garmin stores an unrecognised exercise name as an empty
   string and returns success, so a typo costs you the exercise and tells you nothing.
@@ -36,7 +36,7 @@ API is quietly hostile in specific places:
   against a live account.
 
 Behind both: a verification habit. Every method carries a live-verification status in
-[`AGENTS.md`](AGENTS.md), and a write is only "verified" once the stored value has been read back —
+[`AGENTS.md`](AGENTS.md), and a write is only "verified" once the stored value has been read back,
 a 2xx on its own has twice hidden a real defect here.
 
 **Want a running app first?** [**garminconnect-nextjs-starter**](https://github.com/DynamicsNinja/garminconnect-nextjs-starter)
@@ -44,7 +44,7 @@ is a Next.js template that signs in (MFA included) and charts your sleep and HRV
 **Use this template**, and you're a `npm run dev` away from your own data. Or try the
 [live demo](https://garmin.ficdev.xyz) first.
 
-If you're an AI coding agent (or configuring one), read [`AGENTS.md`](AGENTS.md) first — it's a
+If you're an AI coding agent (or configuring one), read [`AGENTS.md`](AGENTS.md) first, it's a
 terser, higher-signal briefing than this README and calls out what does *not* exist here.
 
 ## ℹ️ About
@@ -54,17 +54,17 @@ terser, higher-signal briefing than this README and calls out what does *not* ex
 server code, without scraping HTML or reverse-engineering the mobile app yourself.
 
 It covers wellness, activities, training metrics, workouts, gear, courses, devices, badges, body
-composition, women's health, golf, nutrition and training plans — see [API coverage](#-api-coverage)
+composition, women's health, golf, nutrition and training plans, see [API coverage](#-api-coverage)
 for the breakdown. For anything it doesn't wrap, `client.connectapi()` calls any Garmin Connect
 endpoint with the same auth.
 
-**Compatibility:** requires **Node.js 18+**. This library is server-only — see
+**Compatibility:** requires **Node.js 18+**. This library is server-only, see
 [Node runtime only](#node-runtime-only) below for why. It has no runtime dependencies and does
 not run in a browser or on an Edge runtime.
 
 **Status:** `0.x`, so the public API may still change between minor versions; breaking changes are
 listed in [`CHANGELOG.md`](CHANGELOG.md). The endpoints underneath are undocumented and belong to
-Garmin, who can change them at any time — which is why every method carries a verification date
+Garmin, who can change them at any time, which is why every method carries a verification date
 rather than an assurance.
 
 Garmin Connect has no public, documented API. Everything here talks to the same endpoints
@@ -76,7 +76,7 @@ expect to update when login stops working.
 
 Garmin returns `412 PreconditionFailedException: "The user is from EU location, but upload
 consent is not yet granted or revoked"` for **every write** (`addWeighIn`, `importActivity`,
-`createManualActivity`, workout uploads, gear writes — all of them) on an EU-region account that
+`createManualActivity`, workout uploads, gear writes, all of them) on an EU-region account that
 has not clicked through Garmin Connect's upload-consent flow. This was hit live during this
 project's own development. It is an account-state precondition, not a library bug: the request
 shape and URL are correct, and Garmin's server is refusing the write until the account owner
@@ -107,7 +107,7 @@ const client = new GarminClient({ tokenStore: new FileTokenStore("./tokens") });
 const result = await client.login(process.env.GARMIN_EMAIL!, process.env.GARMIN_PASSWORD!);
 
 if (result.state === "mfa_required") {
-  // login() does not throw or block on MFA — finish it with the code Garmin sent.
+  // login() does not throw or block on MFA, finish it with the code Garmin sent.
   await client.resumeLogin(result.mfaState, await promptForCode());
 }
 
@@ -115,13 +115,13 @@ const garmin = new Garmin(client);
 console.log(await garmin.getUserProfile());
 ```
 
-(`promptForCode` is yours to supply — stdin in a script, a second HTTP request in a web app; see
+(`promptForCode` is yours to supply, stdin in a script, a second HTTP request in a web app; see
 [MFA across two HTTP requests](#mfa-across-two-http-requests).) Tokens are now in `./tokens`, so a
 later process skips the password entirely:
 
 ```ts
 const client = new GarminClient({ tokenStore: new FileTokenStore("./tokens") });
-if (!(await client.loadTokens())) throw new Error("Not connected to Garmin — log in first");
+if (!(await client.loadTokens())) throw new Error("Not connected to Garmin, log in first");
 const garmin = new Garmin(client);
 ```
 
@@ -138,7 +138,7 @@ const garmin = new Garmin(client);
 | `timeoutMs` | `10000` | Per-request timeout for ordinary JSON calls. `download()`/`upload()` default to 60s; every call can override it with `{ timeoutMs }`. |
 | `retries` | `3` | Retries after the first attempt, on a network error or a 408/500/502/503/504. **POST is never retried**, so a write cannot be duplicated. |
 | `backoffMs` | `500` | Base delay between retries, doubling each attempt (500, 1000, 2000 ms). |
-| `fetchImpl` | `globalThis.fetch` | Swap in your own `fetch` — for tests (see [Testing](#-testing)), a proxy, or instrumentation. |
+| `fetchImpl` | `globalThis.fetch` | Swap in your own `fetch`, for tests (see [Testing](#-testing)), a proxy, or instrumentation. |
 | `loginDelayMs` | random 3000–8000 | Pause before the SSO widget's credential POST, used only when the mobile login is rate limited (see [Authentication](#-authentication)). Set `0` in tests. |
 
 ## 🔐 Authentication
@@ -157,30 +157,30 @@ that for a short-lived OAuth2 access token. Both are handed to your `TokenStore`
   signing in again.
 - **Where tokens are stored:** wherever your `TokenStore` puts them. `FileTokenStore` writes
   `oauth1_token.json` and `oauth2_token.json` to a directory you choose (`./tokens` in the
-  examples above), using garth's on-disk format — tokens produced by Python `garth` load here
+  examples above), using garth's on-disk format, tokens produced by Python `garth` load here
   unchanged. For serverless, implement the same three-method interface against your own
   database or cache; see [`TokenStore` example](#bring-your-own-token-storage) below.
 - **Auto-refresh:** the OAuth2 access token refreshes automatically, using the OAuth1 token (not
-  an OAuth2 refresh token — Garmin's flow doesn't have one), before it expires. You never call
+  an OAuth2 refresh token, Garmin's flow doesn't have one), before it expires. You never call
   refresh yourself; `connectapi()` calls do it transparently and persist the refreshed token back
   to your store.
 - **Observed lifetimes:** OAuth2 access tokens have lasted roughly 27 hours, and the OAuth1 token
-  about 30 days. In practice a session keeps rolling forward as long as you use it — call any
-  method — at least once every 30 days. Beyond that window, `GarminAuthError` is thrown and you
+  about 30 days. In practice a session keeps rolling forward as long as you use it, call any
+  method, at least once every 30 days. Beyond that window, `GarminAuthError` is thrown and you
   need to log in again.
 - **Cached tokens:** once tokens exist in your store, `client.loadTokens()` reads them back and
   no further password prompt is needed until the refresh window above lapses.
 - **A third-party request at login.** The OAuth consumer key and secret are not bundled; like
   `garth`, the library fetches them from `https://thegarth.s3.amazonaws.com/oauth_consumer.json`,
   a bucket run by garth's author. That happens once per process, on the first login or token
-  refresh, and the result is cached. If that URL is unreachable — an outage, or a server whose
-  egress is firewalled — login and refresh fail with a `GarminConnectionError`. Allow-list it if
+  refresh, and the result is cached. If that URL is unreachable, an outage, or a server whose
+  egress is firewalled, login and refresh fail with a `GarminConnectionError`. Allow-list it if
   you restrict outbound traffic.
 
 ### MFA across two HTTP requests
 
 `login()` returns `{ state: "mfa_required", mfaState }` instead of throwing. `mfaState` is plain
-JSON with **no password in it**, so it survives a round trip through a session store — which is
+JSON with **no password in it**, so it survives a round trip through a session store, which is
 what makes MFA work on serverless, where the code arrives in a different request than the one
 that started the login:
 
@@ -234,7 +234,7 @@ route handler:
 export const runtime = "nodejs";
 ```
 
-Never import it into a Client Component — credentials and tokens must stay on the server.
+Never import it into a Client Component, credentials and tokens must stay on the server.
 
 ### Reading data
 
@@ -258,7 +258,7 @@ export async function GET(req: Request) {
 }
 ```
 
-`Garmin` caches the resolved user profile (and user settings) for the lifetime of the instance —
+`Garmin` caches the resolved user profile (and user settings) for the lifetime of the instance,
 `getGarmin()` above builds a fresh `Garmin` per request, which is fine for a single call, but any
 date-scoped method (`getSleepData`, `getStepsData`, ...) resolves `displayName` first, so a new
 `Garmin` per request costs an extra `socialProfile` fetch on every call. If a request handler
@@ -271,7 +271,7 @@ negative UTC-offset timezone (e.g. US Pacific) who calls `new Date()` late in th
 get tomorrow's date, because it's already tomorrow in UTC. Pass an explicit `"YYYY-MM-DD"` string
 when you need the calendar date in the user's own timezone.
 
-`getSleepData` returns `SleepData | null` — and so does `getHrvData` — rather than throwing, when
+`getSleepData` returns `SleepData | null`, and so does `getHrvData`, rather than throwing, when
 Garmin has no data for the requested date. Check for `null` before using the result.
 
 ### Bring your own token storage
@@ -281,7 +281,7 @@ three-method interface against whatever you already run:
 
 ```ts
 import type { TokenStore, Tokens } from "garminconnect-js";
-// `Redis` here is illustrative — bring your own client's type
+// `Redis` here is illustrative, bring your own client's type
 // (e.g. `import type { Redis } from "ioredis";`).
 type Redis = { get(key: string): Promise<string | null>; set(key: string, value: string): Promise<unknown>; del(key: string): Promise<unknown> };
 
@@ -301,7 +301,7 @@ export class RedisTokenStore implements TokenStore {
 }
 ```
 
-**Persist the whole `Tokens` object — in particular `expires_at` and `refresh_token_expires_at`,
+**Persist the whole `Tokens` object, in particular `expires_at` and `refresh_token_expires_at`,
 as numbers.** Every refresh decision reads them. Storing the whole JSON blob, as above, keeps
 them; a database schema or a field allowlist that drops them does not, and the client then treats
 the token as expired (it fails closed) and refreshes on every call. Round-trip your store once in
@@ -314,7 +314,7 @@ import { readFile } from "node:fs/promises";
 
 const file = new Blob([await readFile("ride.fit")]);
 
-// As an import — the extension picks the endpoint, and must be .fit, .gpx or .tcx:
+// As an import, the extension picks the endpoint, and must be .fit, .gpx or .tcx:
 const imported = await garmin.importActivity(file, "ride.fit");
 
 // Or as an ordinary device-sync-shaped upload:
@@ -324,7 +324,7 @@ await garmin.uploadActivity(file, "ride.fit");
 Both are live-verified: a synthetic GPX was uploaded, found by polling `getActivities` once Garmin
 finished processing it asynchronously (a few seconds to ~20s), then deleted. A duplicate file
 makes `importActivity` throw a `GarminConnectionError` ("Activity already exists"). The two hit
-different endpoints with different headers — see [`AGENTS.md`](AGENTS.md) section 6 before
+different endpoints with different headers, see [`AGENTS.md`](AGENTS.md) section 6 before
 swapping one for the other.
 
 Both are built on `client.upload(file, filename, path?, options?)`, which you can call directly
@@ -338,7 +338,7 @@ await client.upload(file, "ride.fit", "/upload-service/upload", { timeoutMs: 120
 ### Courses
 
 A course is a saved route you can send to a device and follow. Creating one from a GPX file is two
-steps inside Garmin — parse, then save — and `createCourseFromGpx` does both:
+steps inside Garmin, parse, then save, and `createCourseFromGpx` does both:
 
 ```ts
 const course = await garmin.createCourseFromGpx(new Blob([gpxText]), "loop.gpx", {
@@ -352,7 +352,7 @@ const gpx = await garmin.downloadCourseGpx(course!.courseId!);
 ```
 
 Right after creation Garmin is still processing the course, and an update or delete can fail with
-a 429 "not yet ready" — a `GarminRateLimitError`, though it is not rate limiting. Retry after a few
+a 429 "not yet ready", a `GarminRateLimitError`, though it is not rate limiting. Retry after a few
 seconds.
 
 ### Errors
@@ -362,13 +362,13 @@ seconds.
 | `GarminError` | Base class for everything below; also thrown directly for malformed responses. |
 | `GarminAuthError` | 401/403, failed SSO, or expired tokens. Log in again. |
 | `GarminRateLimitError` | 429. Carries `retryAfter` seconds when Garmin sends it. |
-| `GarminConnectionError` | Network failure or timeout, after retries — **and** a few semantic HTTP statuses that some services deliberately re-raise as this class: **every** HTTP error from `importActivity` (not just its 409 "Activity already exists" — a 400 or 413 is wrapped the same way), the 404 ("gear not found (likely retired/removed)") from `addGearToActivity` and `removeGearFromActivity`, and a missing `deviceSolarInput` from `getDeviceSolarData`. Those are permanent, not transient — do not blanket-retry on this class; check the message or the `cause`. |
+| `GarminConnectionError` | Network failure or timeout, after retries, **and** a few semantic HTTP statuses that some services deliberately re-raise as this class: **every** HTTP error from `importActivity` (not just its 409 "Activity already exists", a 400 or 413 is wrapped the same way), the 404 ("gear not found (likely retired/removed)") from `addGearToActivity` and `removeGearFromActivity`, and a missing `deviceSolarInput` from `getDeviceSolarData`. Those are permanent, not transient, do not blanket-retry on this class; check the message or the `cause`. |
 | `GarminHttpError` | Any other non-2xx. Carries `status`, `url`, `body`. |
 | `GarminConnectPlusRequiredError` | The account has no Garmin Connect+, which this method needs (food logging). Carries `method`. Signing in again won't help; check up front with `garmin.hasConnectPlus()`. |
 
 ## 🏊 Building workouts
 
-Creating a Garmin workout by hand means writing deeply nested JSON with several non-obvious rules —
+Creating a Garmin workout by hand means writing deeply nested JSON with several non-obvious rules,
 step numbering that runs across repeat blocks, enum references that must agree in three places, and
 pace targets expressed as descending metres-per-second. `buildWorkout` handles all of that:
 
@@ -397,7 +397,7 @@ nested and time-boxed repeats, swim strokes/drills/equipment, strength exercises
 multi-sport bricks. `uploadWorkout` still accepts raw JSON, so the builder is optional.
 
 For strength work, Garmin accepts an unknown exercise `name` and silently stores it as an empty
-string — no error, just a step with no exercise. So the builder type-checks it: once you pick a
+string, no error, just a step with no exercise. So the builder type-checks it: once you pick a
 `category`, `name` autocompletes to that category's names, and anything else is a compile error.
 All 1830 names were verified one by one against a live account:
 
@@ -432,7 +432,7 @@ Or use it without installing anything: add `https://garmin.ficdev.xyz/mcp` as a 
 
 **193 typed methods across 13 categories.** Each category links to a generated
 [`docs/api/`](docs/api/README.md) page with every method's signature, a call you can paste, and
-its live-verification status — confirmed against a real Garmin account, not merely unit-tested.
+its live-verification status, confirmed against a real Garmin account, not merely unit-tested.
 
 | Category | Methods | Verified live | Covers |
 |---|---|---|---|
@@ -459,7 +459,7 @@ real scorecard would show whether Garmin has retired that endpoint.
 
 **Worth knowing before you call:**
 
-- `addHydrationData` is permanent — Garmin has no delete for it.
+- `addHydrationData` is permanent: Garmin has no delete for it.
 - The badge-challenge endpoints reject `start=0` server-side; pass `start >= 1`.
 - Women's-health writes need cycle-tracking settings that only Garmin's own first-run wizard
   creates. Run it once in the web UI first.
@@ -480,27 +480,27 @@ npm install
 
 | Command | What it does |
 |---|---|
-| `npm run check` | Typecheck, lint, build and test, in that order — what CI and `prepublishOnly` run. Building first means the tests also cover the built package. |
+| `npm run check` | Typecheck, lint, build and test, in that order, what CI and `prepublishOnly` run. Building first means the tests also cover the built package. |
 | `npm run build` | Bundles `src` to `dist` with tsup (ESM + CJS + types). |
 | `npm run typecheck` | `tsc --noEmit` over `src`, `tests`, `scripts`, `examples`. |
 | `npm run lint` | ESLint over `src`, `tests`, `scripts` and `examples`. |
 | `npm run format` | Prettier, writing in place. |
 | `npm test` | Runs the unit/integration suite against mocked HTTP (see [Testing](#-testing)). |
 | `npm run test:watch` | Same, in watch mode. |
-| `npm run test:live` | Runs the live suite against the real Garmin API — requires `./tokens` from `npm run login`. |
+| `npm run test:live` | Runs the live suite against the real Garmin API, requires `./tokens` from `npm run login`. |
 | `npm run docs:api` | Regenerates [`docs/api/`](docs/api/README.md) from the code and `AGENTS.md`. A test fails if it is stale. |
 | `npm run login` | One-time interactive login; writes tokens to `./tokens`. |
 | `npm run demo` | Runs [`examples/demo.ts`](examples/demo.ts) against the tokens in `./tokens`. |
 | `npm run record` | Refreshes the scrubbed fixtures under `tests/fixtures/` from a live account (requires tokens). |
 | `npm run smoke` | Live read probes against the test account, by category (`npm run smoke -- misc`). |
-| `npm run smoke:write` / `smoke:gaps` | Live write probes — create, read back, delete. |
+| `npm run smoke:write` / `smoke:gaps` | Live write probes, create, read back, delete. |
 | `npm run smoke:builder` | Builds, uploads, reads back and deletes a workout for each of the twelve sports. |
 | `npm run smoke:matrix` | The builder's full option cross-product for swim, bike and run, compared field by field on read-back. |
 | `npm run verify:exercises -- <in.json> <out.json>` | Verifies candidate exercise names by upload and read-back, keeping only those Garmin echoes back. |
 | `npm run login:real` / `smoke:real` | Login to, and **read-only** probe of, a real personal account, on a transport that refuses any non-GET. Uses its own `./tokens-real`. See `AGENTS.md` section 8. |
 
 The four write commands (`smoke:write`, `smoke:gaps`, `smoke:builder`, `smoke:matrix`) and
-`verify:exercises` refuse to run unless the logged-in profile matches `GARMIN_TEST_PROFILE_ID` —
+`verify:exercises` refuse to run unless the logged-in profile matches `GARMIN_TEST_PROFILE_ID`,
 they are for a disposable test account, never a real one. `smoke:real` has the inverse gate: it
 refuses if the profile DOES match.
 
@@ -524,7 +524,7 @@ Concretely:
 - `npm run demo` and `npm run record` then use those tokens to fetch **your own** steps, heart
   rate, sleep, HRV, activities, and body-composition history.
 - `npm run demo`'s "Export all to JSON" option writes a file under `./export/` (gitignored) that
-  has been passed through the same `scrub()` helper the test fixtures use — but scrubbing
+  has been passed through the same `scrub()` helper the test fixtures use, but scrubbing
   redacts by field name, not by content, so free-text fields (activity titles, notes) are not
   scanned. Treat any export as containing real personal data.
 - None of your data leaves your machine except in requests to Garmin's own servers. The only
@@ -535,9 +535,9 @@ Concretely:
 
 Two files show it working end to end:
 
-- [`scripts/login.ts`](scripts/login.ts) — one-time interactive login. Prompts for an MFA code on
+- [`scripts/login.ts`](scripts/login.ts), one-time interactive login. Prompts for an MFA code on
   stdin if Garmin asks for one, then writes tokens to `./tokens`.
-- [`examples/demo.ts`](examples/demo.ts) — an interactive, numbered-menu demo (`npm run demo`)
+- [`examples/demo.ts`](examples/demo.ts), an interactive, numbered-menu demo (`npm run demo`)
   that loads those tokens and walks through the categories this library implements: profile,
   daily health, activities, body composition, and a JSON export.
 
@@ -593,7 +593,7 @@ garminconnect-js demo
 Goodbye.
 ```
 
-(Numbers above are synthetic — a demo fixture, not a real account.)
+(Numbers above are synthetic, a demo fixture, not a real account.)
 
 ## ✅ Testing
 
@@ -601,7 +601,7 @@ Goodbye.
 npm test
 ```
 
-810 tests across 58 files, all against mocked HTTP (via `msw`) — no network access and no
+810 tests across 59 files, all against mocked HTTP (via `msw`), no network access and no
 credentials required. Covers auth/SSO/MFA, token storage and refresh, the HTTP fetcher's retry
 and error handling, every service method, and the public build output.
 
@@ -620,7 +620,7 @@ real request construction, auth headers, retries and response parsing all still 
 
 Before opening a PR:
 
-- [ ] `npm run check` passes — typecheck, lint, build and tests, in CI's exact order. CI runs this
+- [ ] `npm run check` passes: typecheck, lint, build and tests, in CI's exact order. CI runs this
       same script, so a green local run cannot diverge from a green pipeline by omission.
 - [ ] `npm run docs:api` has been re-run if you changed a method or its `AGENTS.md` row, and the
       regenerated `docs/api/` files are committed. A test fails if they are stale.
@@ -628,13 +628,13 @@ Before opening a PR:
       response interface in `types/`.
 - [ ] Commits follow [Conventional Commits](https://www.conventionalcommits.org/).
 - [ ] No real credentials, tokens, personal names, emails, or GPS coordinates in anything
-      committed — recorded fixtures must go through `scrub()` and be manually inspected before
+      committed, recorded fixtures must go through `scrub()` and be manually inspected before
       staging, per the reminder `npm run record` prints.
 - [ ] If you're changing what's implemented, update the [API coverage](#-api-coverage) table
       above rather than leaving it stale.
 - [ ] Note anything user-visible in [`CHANGELOG.md`](CHANGELOG.md).
 
-Security issues go through [`SECURITY.md`](SECURITY.md), privately, not a public issue — this
+Security issues go through [`SECURITY.md`](SECURITY.md), privately, not a public issue, this
 library holds live Garmin credentials on people's behalf.
 
 ## ☕ Support
@@ -646,8 +646,8 @@ If this library saves you time, you can support its development:
 
 ## 📚 Additional resources & acknowledgements
 
-- [connect.garmin.com](https://connect.garmin.com) — the service this library talks to.
-- [`CHANGELOG.md`](CHANGELOG.md) — what changed in each release.
+- [connect.garmin.com](https://connect.garmin.com), the service this library talks to.
+- [`CHANGELOG.md`](CHANGELOG.md), what changed in each release.
 - The SSO/OAuth flow was originally derived from [garth][garth-url] and
   [python-garminconnect][python-garminconnect-url]; attribution is in [`NOTICE`](NOTICE).
 

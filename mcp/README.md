@@ -137,7 +137,7 @@ destructive, and Claude is told to confirm with you before using them.
 
 ## What it can do
 
-- **`sign_in_to_garmin`**: signs you in through a page that opens in your browser, MFA included —
+- **`sign_in_to_garmin`**: signs you in through a page that opens in your browser, MFA included,
   no terminal needed. See [Easiest: the Claude Desktop Extension](#easiest-the-claude-desktop-extension) above.
 - **Workouts**: `preview_workout`, `create_workout`, `update_workout`, `search_exercises`, for
   running, cycling, swimming, strength, HIIT, yoga, pilates, mobility, cardio, rucking and
@@ -183,7 +183,7 @@ session.
   `sign_in_to_garmin`), or run `garminconnect-mcp login` again. The running server picks up the new
   session on the next request; no restart needed.
 - **Sign-in page didn't open**: Claude's reply includes the link; open it in any browser on this
-  computer. It expires after 15 minutes — ask Claude to sign in again.
+  computer. It expires after 15 minutes, ask Claude to sign in again.
 - **`ERR_MODULE_NOT_FOUND`** after trying `npx`: delete the `_npx` folder in your npm cache
   (`npm config get cache` shows where) and use the global install above.
 - **"Garmin is rate limiting requests"**: Garmin throttles bursts of calls. Wait a minute and ask

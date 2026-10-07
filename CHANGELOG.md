@@ -6,7 +6,7 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
-## [0.9.0] — 2026-10-06
+## [0.9.0] - 2026-10-06
 
 ### Added
 
@@ -44,7 +44,7 @@ back, and restoring.
 The MCP server gets the matching tools automatically, and a `calendar-events` tool group. A
 missing Connect+ no longer makes it reset the session and try to sign in again.
 
-## [0.8.2] — 2026-10-02
+## [0.8.2] - 2026-10-02
 
 No changes to `garminconnect-js`; it is released in lockstep with the MCP server.
 
@@ -56,7 +56,7 @@ No changes to `garminconnect-js`; it is released in lockstep with the MCP server
   "email or username". The `garmin_email` setting and `GARMIN_EMAIL` keep their names, so saved
   settings keep working.
 
-## [0.8.1] — 2026-10-01
+## [0.8.1] - 2026-10-01
 
 No changes to `garminconnect-js`; it is released in lockstep with the MCP server.
 
@@ -69,7 +69,7 @@ No changes to `garminconnect-js`; it is released in lockstep with the MCP server
   start, so a wrong password cannot get the account locked. Accounts with two-step verification
   still use `sign_in_to_garmin`. `GARMIN_EMAIL` / `GARMIN_PASSWORD` do the same for npm installs.
 
-## [0.8.0] — 2026-09-29
+## [0.8.0] - 2026-09-29
 
 No changes to `garminconnect-js`; it is released in lockstep with the MCP server.
 
@@ -92,7 +92,7 @@ No changes to `garminconnect-js`; it is released in lockstep with the MCP server
   name is ignored (logged to stderr) instead of stopping the whole server; if none of the requested
   names are valid, every tool group loads instead of none.
 
-## [0.7.1] — 2026-09-29
+## [0.7.1] - 2026-09-29
 
 No changes to `garminconnect-js`; it is released in lockstep with the MCP server.
 
@@ -106,7 +106,7 @@ No changes to `garminconnect-js`; it is released in lockstep with the MCP server
 - The server now tells MCP clients its title ("Garmin Connect (unofficial)"), website and an icon.
   Claude Desktop does not show icons for servers added in its config file; other clients may.
 
-## [0.7.0] — 2026-09-29
+## [0.7.0] - 2026-09-29
 
 ### Added
 
@@ -129,13 +129,13 @@ No changes to `garminconnect-js`; it is released in lockstep with the MCP server
 - **A reversed pace range is no longer stored backwards.** `target: { pace: { minPerKm: [5, 4.5] } }`
   put the slower speed first; both orders now store the faster speed in `targetValueOne`.
 
-## [0.6.0] — 2026-09-25
+## [0.6.0] - 2026-09-25
 
 ### Changed
 
 - **Exercise names autocomplete and are checked in the workout builder.** A step's `exercise`
   option is now typed `WorkoutExercise` (exported): once `category` is set, `name` offers only that
-  category's verified names, and a typo or a name from another category is a compile error —
+  category's verified names, and a typo or a name from another category is a compile error,
   previously it compiled, and Garmin silently stored `""`. Type-only: the root bundle's JavaScript
   still carries none of the catalogue. **Breaking for TypeScript callers** passing a name held in a
   plain `string`; check it with `isExerciseName` and cast.
@@ -156,7 +156,7 @@ No changes to `garminconnect-js`; it is released in lockstep with the MCP server
   exercise, so Garmin stored its warm-up step with no exercise. The probe only asserted the squat
   step and never noticed; the new type caught it. It now sends `JUMPING_JACKS`.
 
-## [0.5.0] — 2026-09-24
+## [0.5.0] - 2026-09-24
 
 ### Added
 
@@ -172,18 +172,18 @@ No changes to `garminconnect-js`; it is released in lockstep with the MCP server
 - Those four methods now return copies of Garmin's badge objects with that one field added,
   rather than the parsed response untouched. No existing field changes.
 
-## [0.4.0] — 2026-09-24
+## [0.4.0] - 2026-09-24
 
 ### Added
 
-- **`getBadgeDetail(badgeId)`** — one badge in full, from `/badge-service/badge/detail/v3/{id}`
+- **`getBadgeDetail(badgeId)`**: one badge in full, from `/badge-service/badge/detail/v3/{id}`
   (the request Garmin Connect's web app makes when a badge is opened; upstream has no equivalent).
   Adds the rest of the badge's series (`relatedBadges`, each with `earnedByMe`) and the activity
   that earned it (`badgeAssocDataId`/`badgeAssocDataName`). Works for badges you haven't earned.
   New exported types `BadgeDetail` and `RelatedBadge`; the `BadgeDetail` docs note where Garmin's
   web app gets badge descriptions and artwork, which this endpoint does not return.
 
-## [0.3.1] — 2026-09-24
+## [0.3.1] - 2026-09-24
 
 ### Fixed
 
@@ -192,7 +192,7 @@ No changes to `garminconnect-js`; it is released in lockstep with the MCP server
   or an HTML challenge page still throws `GarminAuthError`, but keeps the stored tokens, so the
   next call simply retries the refresh.
 
-## [0.3.0] — 2026-09-24
+## [0.3.0] - 2026-09-24
 
 ### Added
 
@@ -211,7 +211,7 @@ No changes to `garminconnect-js`; it is released in lockstep with the MCP server
   `mfaState.loginParams` must check `flow` first. New exported types `MobileMfaState` and
   `WidgetMfaState`.
 
-## [0.2.0] — 2026-09-24
+## [0.2.0] - 2026-09-24
 
 ### Added
 
@@ -221,7 +221,7 @@ No changes to `garminconnect-js`; it is released in lockstep with the MCP server
   delete. A course created moments ago can answer HTTP 429 "not yet ready" to an update or delete;
   a course in open water never becomes ready for updates.
 
-## [0.1.0] — 2026-09-24
+## [0.1.0] - 2026-09-24
 
 First release. A TypeScript client for Garmin Connect, for Node and Next.js server runtimes.
 
@@ -232,7 +232,7 @@ First release. A TypeScript client for Garmin Connect, for Node and Next.js serv
   [`AGENTS.md`](AGENTS.md); most were confirmed against a real Garmin account by writing a value
   and reading it back, not by accepting a 2xx.
 - **`buildWorkout`**, a fluent workout builder with no upstream equivalent. Garmin's workout JSON
-  has four traps that produce a silently wrong workout rather than an error — global `stepOrder`
+  has four traps that produce a silently wrong workout rather than an error, global `stepOrder`
   numbering, id/key triples that must agree, rests measured in the wrong field, and pace targets
   expressed as descending metres per second. See [`WORKOUTS.md`](WORKOUTS.md).
 - **`garminconnect-js/exercises`**, a separate entry point holding all 1830 verified exercise
@@ -249,7 +249,7 @@ First release. A TypeScript client for Garmin Connect, for Node and Next.js serv
 ### Notes
 
 - `trainingPlanCategory` has at least three values: `STATIC` (Garmin Coach), `ITP` (a plan enrolled
-  from Training & Planning) and `PHASED`. `getTrainingPlanById` serves ITP and rejects STATIC —
+  from Training & Planning) and `PHASED`. `getTrainingPlanById` serves ITP and rejects STATIC,
   its 400 `"Not a phased plan."` names the endpoint path, not a required category.
 
 ### Changed from upstream, deliberately
@@ -264,22 +264,22 @@ First release. A TypeScript client for Garmin Connect, for Node and Next.js serv
 Three upstream methods are deliberately absent, because live evidence showed each can only produce
 a broken result. Each is recorded with its reason in `tests/parity.test.ts`.
 
-- `upload_walking_workout`, `upload_hiking_workout` — Garmin has no walking or hiking workout sport
+- `upload_walking_workout`, `upload_hiking_workout`, Garmin has no walking or hiking workout sport
   type. Upstream sends activity-type ids 17/18; Garmin accepts the POST and stores
   `sportTypeId: 0, sportTypeKey: null`. Use `uploadWorkout` with `OTHER` (3) or
   `CARDIO_TRAINING` (6).
-- `set_gear_default` — the endpoint 404s against gear that demonstrably exists. Use
+- `set_gear_default`: the endpoint 404s against gear that demonstrably exists. Use
   `setGearActivityDefaults`.
 
 ### Known limitations
 
-- `getGolfScorecard` and `getGolfShotData` response shapes are unverified — no available account
+- `getGolfScorecard` and `getGolfShotData` response shapes are unverified, no available account
   has a recorded round. `getGolfShotData` returns an unexplained 410 against a fabricated id.
 - EU accounts return `412` on every write until upload consent is granted in Garmin Connect's own
   settings. This is account state, not a library error.
 - Login and the first token refresh in each process fetch the OAuth consumer key from
   `thegarth.s3.amazonaws.com`, as `garth` does. If that host is unreachable, login fails.
-- `@types/node` is an optional peer dependency — needed only for type-checking against the
+- `@types/node` is an optional peer dependency: needed only for type-checking against the
   `Buffer` return types, and not installed into consumers' projects automatically.
 
 [Unreleased]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.9.0...HEAD
