@@ -97,13 +97,15 @@ export function createHttpApp(deps: HttpAppDeps): Express {
       serviceDocumentationUrl: new URL(DOCS),
     }),
   );
-  app.use("/mcp/oauth/authorize", authorizationHandler({ provider, rateLimit: { windowMs: 60_000, limit: 60 } }));
-  app.use("/mcp/oauth/token", tokenHandler({ provider, rateLimit: { windowMs: 60_000, limit: 30 } }));
+  const small = [express.urlencoded({ extended: false, limit: "16kb" }), express.json({ limit: "16kb" })];
+  app.use("/mcp/oauth/authorize", small, authorizationHandler({ provider, rateLimit: { windowMs: 60_000, limit: 60 } }));
+  app.use("/mcp/oauth/token", small, tokenHandler({ provider, rateLimit: { windowMs: 60_000, limit: 30 } }));
   app.use(
     "/mcp/oauth/register",
+    small,
     clientRegistrationHandler({ clientsStore: provider.clientsStore, clientIdGeneration: false, rateLimit: { windowMs: 3_600_000, limit: 10 } }),
   );
-  app.use("/mcp/oauth/revoke", revocationHandler({ provider }));
+  app.use("/mcp/oauth/revoke", small, revocationHandler({ provider }));
 
   // Five tries per IP per 15 min also protects the server IP's standing with Garmin's login rate limits.
   const signInLimit = rateLimit({

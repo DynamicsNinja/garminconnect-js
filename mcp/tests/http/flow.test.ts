@@ -112,6 +112,14 @@ describe("hosted MCP over HTTP", () => {
     expect(res.status).toBe(401);
   });
 
+  it("caps OAuth endpoint bodies at 16 KB", async () => {
+    const { base } = await start();
+    const token = await tokenRequest(base, { grant_type: "refresh_token", refresh_token: "x".repeat(20_000) });
+    expect(token.status).toBe(413);
+    const reg = await fetch(`${base}/mcp/oauth/register`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ client_name: "x".repeat(20_000) }) });
+    expect(reg.status).toBe(413);
+  });
+
   it("rate-limits sign-in per real client IP behind a proxy", async () => {
     const { base } = await start({ trustProxy: true });
     const attempt = (ip: string) => postSignIn(base, { step: "credentials", request: "x", email: "a", password: "b" }, { "x-forwarded-for": ip });
