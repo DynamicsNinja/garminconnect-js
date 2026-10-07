@@ -37,7 +37,7 @@ export const CATEGORIES: Record<string, { slug: string; title: string; blurb: st
     title: "Workouts",
     blurb:
       "Workout CRUD, per-sport upload helpers, scheduling, and pushing to a device. For building " +
-      "the workout JSON itself, see [WORKOUTS.md](../../WORKOUTS.md) — `buildWorkout` is far " +
+      "the workout JSON itself, see [WORKOUTS.md](../../WORKOUTS.md): `buildWorkout` is far " +
       "easier than hand-writing it.",
   },
   gear: {
@@ -50,8 +50,8 @@ export const CATEGORIES: Record<string, { slug: string; title: string; blurb: st
     title: "Courses",
     blurb:
       "Saved routes you can send to a device and follow: import a GPX, create, rename, change " +
-      "privacy, export as GPX, delete. Creating is two steps — " +
-      "`importCourseGpx` parses, `createCourse` saves — and `createCourseFromGpx` does both.",
+      "privacy, export as GPX, delete. Creating is two steps (" +
+      "`importCourseGpx` parses, `createCourse` saves), and `createCourseFromGpx` does both.",
   },
   calendar: {
     slug: "calendar-events",
@@ -77,7 +77,7 @@ export const CATEGORIES: Record<string, { slug: string; title: string; blurb: st
     title: "Women's health",
     blurb:
       "Menstrual-cycle tracking and pregnancy. **The write methods here are irreversible health-" +
-      "data writes with no delete endpoint** — read the warning at the top of " +
+      "data writes with no delete endpoint**. Read the warning at the top of " +
       "`src/services/womensHealth.ts` before calling one.",
   },
   golf: { slug: "golf", title: "Golf", blurb: "Scorecards, shot data, club and player stats." },

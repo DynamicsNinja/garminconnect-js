@@ -76,10 +76,13 @@ describe("README test-count claim", () => {
     const claimedFiles = Number(claim?.[2]);
 
     expect(claimedFiles, "README's test-FILE count is wrong").toBe(files.length);
+    // The proxy only ever UNDERcounts: `it.each` rows and `it(` inside a loop are each one match
+    // but several tests (853 ran against 790 matches when this bound was set), so the ceiling
+    // needs that much headroom over the proxy to accept a README that states the real number.
     expect(
       claimedTests,
       `README claims ${String(claimedTests)} tests but only ~${String(its)} exist — do not overstate the suite.`,
-    ).toBeLessThanOrEqual(Math.round(its * 1.05));
+    ).toBeLessThanOrEqual(Math.round(its * 1.1));
     expect(
       claimedTests,
       `README claims ${String(claimedTests)} tests and the suite has ~${String(its)} — stale.`,

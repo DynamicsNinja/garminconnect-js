@@ -135,7 +135,7 @@ No changes to `garminconnect-js`; it is released in lockstep with the MCP server
 
 - **Exercise names autocomplete and are checked in the workout builder.** A step's `exercise`
   option is now typed `WorkoutExercise` (exported): once `category` is set, `name` offers only that
-  category's verified names, and a typo or a name from another category is a compile error,
+  category's verified names, and a typo or a name from another category is a compile error;
   previously it compiled, and Garmin silently stored `""`. Type-only: the root bundle's JavaScript
   still carries none of the catalogue. **Breaking for TypeScript callers** passing a name held in a
   plain `string`; check it with `isExerciseName` and cast.
@@ -232,7 +232,7 @@ First release. A TypeScript client for Garmin Connect, for Node and Next.js serv
   [`AGENTS.md`](AGENTS.md); most were confirmed against a real Garmin account by writing a value
   and reading it back, not by accepting a 2xx.
 - **`buildWorkout`**, a fluent workout builder with no upstream equivalent. Garmin's workout JSON
-  has four traps that produce a silently wrong workout rather than an error, global `stepOrder`
+  has four traps that produce a silently wrong workout rather than an error: global `stepOrder`
   numbering, id/key triples that must agree, rests measured in the wrong field, and pace targets
   expressed as descending metres per second. See [`WORKOUTS.md`](WORKOUTS.md).
 - **`garminconnect-js/exercises`**, a separate entry point holding all 1830 verified exercise
@@ -249,7 +249,7 @@ First release. A TypeScript client for Garmin Connect, for Node and Next.js serv
 ### Notes
 
 - `trainingPlanCategory` has at least three values: `STATIC` (Garmin Coach), `ITP` (a plan enrolled
-  from Training & Planning) and `PHASED`. `getTrainingPlanById` serves ITP and rejects STATIC,
+  from Training & Planning) and `PHASED`. `getTrainingPlanById` serves ITP and rejects STATIC;
   its 400 `"Not a phased plan."` names the endpoint path, not a required category.
 
 ### Changed from upstream, deliberately

@@ -4,7 +4,7 @@
 optional: `uploadWorkout` still accepts raw JSON, and `build()` returns exactly the JSON you would
 otherwise write by hand.
 
-Every shape in this guide is **live-verified**, built, uploaded to a real Garmin account, read back
+Every shape in this guide is **live-verified**: built, uploaded to a real Garmin account, read back
 and compared against what Garmin stored. The examples are lifted from `scripts/smoke-builder.ts`,
 which runs all twelve sports on every check.
 
@@ -29,13 +29,13 @@ await garmin.uploadWorkout(workout);
 
 ## Why it exists
 
-Garmin's workout JSON has four traps. Each one is silent, the request succeeds and the workout
+Garmin's workout JSON has four traps. Each one is silent: the request succeeds and the workout
 looks fine until you read it back or load it on a watch.
 
 | Trap | Hand-written JSON | With the builder |
 |---|---|---|
 | `stepOrder` is **global** and keeps counting *through* a repeat's children | Numbering each block from 1 gets `400 "The workout steps need to have unique step orders"` | One counter for the whole tree; you never write a `stepOrder` |
-| Every enum needs a matching **id + key + displayOrder** | Nothing stops you pairing `stepTypeId: 3` with `stepTypeKey: "warmup"` | Paired from the live enums, a typo is a compile error |
+| Every enum needs a matching **id + key + displayOrder** | Nothing stops you pairing `stepTypeId: 3` with `stepTypeKey: "warmup"` | Paired from the live enums; a typo is a compile error |
 | A rest in seconds is `fixed.rest`, **not** `time` | Easy to reach for `time` and get subtly wrong behaviour on the watch | `.rest(15)` picks `fixed.rest` |
 | Pace targets are **descending speeds in m/s** | "5:00–5:30 per km" is `[3.33, 3.03]`, faster first | `target: { pace: { minPerKm: [5, 5.5] } }` |
 
@@ -45,10 +45,10 @@ looks fine until you read it back or load it on a watch.
 
 ```ts
 buildWorkout(name, {
-  sport,                       // required, see the sports table below
+  sport,                       // required; see the sports table below
   poolLength,                  // swim only, e.g. 25
   poolLengthUnit,              // "meter" (default) | "yard"
-  sessionTransitionsEnabled,   // multi-sport only, the designer's "Transitions" toggle
+  sessionTransitionsEnabled,   // multi-sport only: the designer's "Transitions" toggle
   estimatedDurationInSecs,     // optional; Garmin recalculates it anyway
 })
 ```
@@ -58,9 +58,9 @@ buildWorkout(name, {
 `running` · `cycling` · `swimming` · `strength_training` · `cardio_training` · `hiit` · `yoga` ·
 `pilates` · `mobility` · `rucking` · `other` · `multi_sport`
 
-> **Walking and hiking are deliberately absent.** Garmin has no workout sport type for either,
+> **Walking and hiking are deliberately absent.** Garmin has no workout sport type for either:
 > its own enum stops at 13 and contains neither. Sending ids 17 or 18 is accepted by the POST, but
-> the stored workout comes back with `sportTypeKey: null`, no sport at all. For a walk or hike
+> the stored workout comes back with `sportTypeKey: null`, meaning no sport at all. For a walk or hike
 > template, use `other` or `cardio_training`.
 
 ---
@@ -117,11 +117,11 @@ Pass `target`, and optionally `secondaryTarget` for a second simultaneous one.
 | `resistance` | `{ resistance: [4, 7] }` | Trainer resistance |
 | `swimCssOffsetSeconds` | `{ swimCssOffsetSeconds: 5 }` | Seconds from critical swim speed |
 
-Power and heart rate each have **two forms under the same target key**, a configured zone, or an
+Power and heart rate each have **two forms under the same target key**: a configured zone, or an
 explicit range. Both are verified; pick whichever you mean.
 
 > **`gradePercent` works as a primary target only.** As a `secondaryTarget`, Garmin stores its first
-> value multiplied by ten and leaves the second alone, `[2, 5]` reads back as `[20, 5]`. Verified
+> value multiplied by ten and leaves the second alone: `[2, 5]` reads back as `[20, 5]`. Verified
 > over six pairs. The builder throws rather than send a value it knows will be mangled; dividing by
 > ten to compensate would break the day Garmin fixes it. Use grade as the primary `target`.
 
@@ -173,14 +173,14 @@ Pool length goes on the **workout**; stroke, drill and equipment go on the **ste
 ```
 
 `category` alone is accepted; `name` is optional. Both are Garmin's SCREAMING_SNAKE_CASE keys, not
-the display names the web UI shows, "Barbell Overhead Press" is stored as
+the display names the web UI shows: "Barbell Overhead Press" is stored as
 `category: "SHOULDER_PRESS", exerciseName: "OVERHEAD_BARBELL_PRESS"`. Garmin's picker has 548
 exercises; the reliable way to find a `name` is to build one step in the web designer and read the
 workout back.
 
 **`category` is type-constrained**, because an invalid one fails the **whole upload** with
 `400 "Invalid category"`, not just the offending step. The accepted set is the **FIT SDK
-`exercise_category` enum** plus **19 Garmin Connect additions**, 53 in total, exported as
+`exercise_category` enum** plus **19 Garmin Connect additions**: 53 in total, exported as
 `WORKOUT_EXERCISE_CATEGORIES`. Each was confirmed against a live account.
 
 ```
@@ -197,7 +197,7 @@ Garmin Connect additions (19)
 ```
 
 `BIKE`, `STRETCH` and `UNKNOWN` are accepted by the API but are not offered in the web picker.
-`POSE` (yoga poses), `MOVE` (pilates and mobility moves) and `INDOOR_ROW` are in no picker either,
+`POSE` (yoga poses), `MOVE` (pilates and mobility moves) and `INDOOR_ROW` are in no picker either;
 they came from Garmin's translations bundle and were then confirmed against the API. `POSE` and
 `MOVE` are worth knowing about: they are how a yoga or pilates step names an actual pose or move
 rather than describing it in `notes`.
@@ -207,7 +207,7 @@ reach for:
 
 | Rejected | Why it surprises |
 |---|---|
-| `COOL_DOWN` | `WARM_UP` is valid, the pair is asymmetric |
+| `COOL_DOWN` | `WARM_UP` is valid; the pair is asymmetric |
 | `YOGA` `PILATES` `MOBILITY` | These are *sports*, not exercise categories |
 | `BURPEE` `KETTLEBELL` `MOUNTAIN_CLIMBER` `JUMP_ROPE` | Common movements, but not categories |
 | `CHEST` `LEGS` `ABS` `BICEPS` | Muscle groups are not categories |
@@ -219,7 +219,7 @@ If Garmin adds one before this library catches up, cast it: `category: "NEW_ONE"
 ### Exercise `name` fails SILENTLY: this is the one to watch
 
 > A `name` Garmin does not recognise is **not** rejected. It is stored as an **empty string**, and
-> the upload succeeds. The same happens if the name is real but belongs to a different `category`,
+> the upload succeeds. The same happens if the name is real but belongs to a different `category`:
 > `{ category: "SQUAT", name: "BARBELL_BENCH_PRESS" }` stores as `""`. You get a workout whose step
 > has a category but no exercise, with no error anywhere.
 
@@ -254,7 +254,7 @@ plain object literal is checked too, and `name` autocompletes once `category` is
 ```
 
 Write the wrong name, or the right name under the wrong category, and it no longer sails through to
-Garmin to be blanked, it stops at `tsc`:
+Garmin to be blanked. It stops at `tsc`:
 
 ```ts
 exercise("SQUAT", "BARBELL_BENCH_PRESS");
@@ -268,21 +268,21 @@ costs nothing.
 
 | Export | What it is |
 |---|---|
-| `EXERCISES` | `{ SQUAT: readonly ["BARBELL_BACK_SQUAT", ...], ... }`, the whole catalogue, for building a picker of your own |
+| `EXERCISES` | `{ SQUAT: readonly ["BARBELL_BACK_SQUAT", ...], ... }`: the whole catalogue, for building a picker of your own |
 | `exercise(category, name)` | the compile-checked pair above |
-| `isExerciseName(category, name)` | `boolean`, the runtime check, for names that arrive as plain strings from a database, a form or a user |
+| `isExerciseName(category, name)` | `boolean`: the runtime check, for names that arrive as plain strings from a database, a form or a user |
 | `ExerciseName<C>` | the name union for one category |
 | `ExerciseCategoryWithNames` | the key union of `EXERCISES` |
 
 Two valid categories, `STRETCH` and `UNKNOWN`, have no exercise names at all in Garmin's catalogue,
 so they are not keys of `EXERCISES`. Pass them as a bare `{ category: "STRETCH" }` with no name.
 
-**Where the list comes from.** Garmin's own translations bundle, a public, unauthenticated file at
-`connect.garmin.com/web-translations/exercise_types/exercise_types.properties`, lists candidates.
+**Where the list comes from.** Garmin's own translations bundle (a public, unauthenticated file at
+`connect.garmin.com/web-translations/exercise_types/exercise_types.properties`) lists candidates.
 Every one was then uploaded to a live account and read back, and only the names Garmin echoed
 unchanged were kept; 44 candidates were dropped that way, mostly the file's per-category generic
 label (`SQUAT_SQUAT` and friends), which is not an exercise. Nine real keys begin with an
-underscore, like `_3_WAY_CALF_RAISE`, that is the genuine key, and the form without it is
+underscore, like `_3_WAY_CALF_RAISE`. That is the genuine key, and the form without it is
 rejected.
 
 If you would rather not take the dependency, a key is also readable from the workout designer: open
@@ -405,7 +405,7 @@ buildWorkout("Circuit", { sport: "cardio_training" })
 
 ### Yoga flow
 
-No `exercise` field, `YOGA` is not a valid category. The sport is yoga; each step is a timed
+No `exercise` field: `YOGA` is not a valid category. The sport is yoga; each step is a timed
 segment with the pose in `notes`.
 
 ```ts
@@ -505,9 +505,9 @@ buildWorkout("Open session", { sport: "other" })
 
 ## Raw JSON
 
-The builder is a convenience, not a gate. If you need a field it does not expose, Garmin's
+The builder is a convenience, not a gate. If you need a field it does not expose (Garmin's
 condition and target enums have 24 and 27 entries respectively, and the builder covers the useful
-subset, write the JSON yourself and pass it straight to `uploadWorkout`, or build the skeleton and
+subset), write the JSON yourself and pass it straight to `uploadWorkout`, or build the skeleton and
 patch the result:
 
 ```ts
