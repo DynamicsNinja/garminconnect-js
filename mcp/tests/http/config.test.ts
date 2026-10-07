@@ -21,6 +21,13 @@ describe("loadHostedConfig", () => {
     expect(c.mcp.enableGraphql).toBe(true);
   });
 
+  it("parses CLIENT_IP_HEADER, lower-cased, and defaults it to null", () => {
+    expect(loadHostedConfig(env()).clientIpHeader).toBeNull();
+    expect(loadHostedConfig(env({ CLIENT_IP_HEADER: "  " })).clientIpHeader).toBeNull();
+    expect(loadHostedConfig(env({ CLIENT_IP_HEADER: " CF-Connecting-IP " })).clientIpHeader).toBe("cf-connecting-ip");
+    expect(() => loadHostedConfig(env({ CLIENT_IP_HEADER: "cf connecting ip" }))).toThrow(/CLIENT_IP_HEADER/);
+  });
+
   it("allows plain http only for localhost", () => {
     expect(loadHostedConfig(env({ PUBLIC_URL: "http://127.0.0.1:3000" })).publicUrl.port).toBe("3000");
     expect(() => loadHostedConfig(env({ PUBLIC_URL: "http://garmin.ficdev.xyz" }))).toThrow(/https/);

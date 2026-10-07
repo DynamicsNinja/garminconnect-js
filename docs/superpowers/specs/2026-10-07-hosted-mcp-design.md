@@ -232,6 +232,7 @@ Security headers on the sign-in page: `Content-Security-Policy: default-src 'non
 | `DB_PATH` | yes | `/data/grants.db` |
 | `PORT` | no | default 3000 |
 | `TRUST_PROXY` | no | `1` behind Traefik |
+| `CLIENT_IP_HEADER` | no | header holding the real client IP, e.g. `cf-connecting-ip` behind Cloudflare; overrides `req.ip` when it holds a valid IP. Only safe if the container is reachable solely through that proxy |
 | `GARMIN_MCP_GROUPS`, `GARMIN_MCP_ENABLE_GRAPHQL` | no | as in stdio |
 
 ## 7. Deployment
@@ -302,3 +303,4 @@ These replace the matching statements above.
 13. **Confidential clients' secrets never expire** (`clientSecretExpirySeconds: 0`): the client id is never re-issued, so a 30-day expiry would strand the client.
 14. **Key rotation keeps the old keys.** Client ids are sealed without expiry, so dropping a key from `SEAL_KEYS` invalidates every client registered under it; drop one only if it is compromised.
 15. **Hardening from the final review:** the per-IP sign-in limit counts only failures (an MFA page or a redirect is a success), a second limiter caps sign-ins at 100 per 15 minutes overall, a replayed authorization code revokes the grant it activated (RFC 6749 §4.1.2), SQLite waits up to 5 s for a lock (`busy_timeout`), a failed purge is logged rather than fatal, and Garmin's SSO error codes are shown in plain words.
+16. **`CLIENT_IP_HEADER` for Cloudflare Tunnel.** Behind Cloudflare edge, cloudflared and Traefik, `X-Forwarded-For` is rewritten by Traefik and `req.ip` is the same for everyone, which would make every IP-keyed limiter (ours and the SDK handlers') global. Cloudflare's `CF-Connecting-IP` passes through untouched, so a first middleware overrides `req.ip` from the configured header when it is a valid IP; no per-limiter change is needed. It trusts the header, so the container must not be reachable except through the proxy.

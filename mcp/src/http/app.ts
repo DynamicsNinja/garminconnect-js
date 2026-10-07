@@ -3,6 +3,7 @@
  * documents. The OAuth endpoints are the SDK's own handlers, mounted under /mcp/oauth (the SDK's
  * all-in-one router would put them at the domain root, which belongs to another app).
  */
+import { isIP } from "node:net";
 import express, { type Express, type Request, type RequestHandler } from "express";
 import { rateLimit } from "express-rate-limit";
 import { authorizationHandler } from "@modelcontextprotocol/sdk/server/auth/handlers/authorize.js";
@@ -33,6 +34,8 @@ export interface HttpAppDeps {
   mcp: McpConfig;
   version: string;
   trustProxy?: boolean;
+  /** Header holding the real client IP (e.g. cf-connecting-ip); see the middleware in createHttpApp. */
+  clientIpHeader?: string | null;
   garminClient?: Omit<GarminClientOptions, "tokenStore">;
   log?: (line: Record<string, unknown>) => void;
   now?: () => number;
@@ -84,6 +87,18 @@ export function createHttpApp(deps: HttpAppDeps): Express {
   const app = express();
   app.disable("x-powered-by");
   if (deps.trustProxy) app.set("trust proxy", 1);
+  if (deps.clientIpHeader) {
+    const header = deps.clientIpHeader;
+    // Only safe when the container is reachable solely through the proxy that sets this header
+    // (e.g. a Cloudflare Tunnel); otherwise a client can forge it. Installed before every limiter,
+    // so ours and the SDK handlers' per-IP limits all key on the real client.
+    app.use((req, _res, next) => {
+      const value = req.headers[header];
+      const ip = typeof value === "string" ? value.trim() : "";
+      if (isIP(ip) !== 0) Object.defineProperty(req, "ip", { value: ip, configurable: true, enumerable: true });
+      next();
+    });
+  }
 
   app.get("/mcp/healthz", (_req, res) => {
     res.type("text/plain").send("ok");

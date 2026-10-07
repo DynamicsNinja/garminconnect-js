@@ -26,7 +26,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-async function start(o: { grants?: GrantStore; routes?: Parameters<typeof fakeFetch>[0]; trustProxy?: boolean } = {}) {
+async function start(o: { grants?: GrantStore; routes?: Parameters<typeof fakeFetch>[0]; trustProxy?: boolean; clientIpHeader?: string } = {}) {
   const server = http.createServer();
   servers.push(server);
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
@@ -35,7 +35,7 @@ async function start(o: { grants?: GrantStore; routes?: Parameters<typeof fakeFe
   const { fetchImpl } = fakeFetch(o.routes ?? PROFILE_ROUTE);
   server.on("request", createHttpApp({
     publicUrl: new URL(base), sealer: new Sealer([randomBytes(32)]), grants, auth: fakeAuth(), mcp: testConfig(),
-    version: "test", trustProxy: o.trustProxy, garminClient: { fetchImpl, retries: 0 }, log: () => {},
+    version: "test", trustProxy: o.trustProxy, clientIpHeader: o.clientIpHeader, garminClient: { fetchImpl, retries: 0 }, log: () => {},
   }));
   return { base, grants };
 }
@@ -133,6 +133,21 @@ describe.skipIf(NODE_MAJOR < 20)("hosted MCP over HTTP", () => {
     for (let i = 0; i < 5; i++) expect((await attempt("203.0.113.1")).status).toBe(400);
     expect((await attempt("203.0.113.1")).status).toBe(429);
     expect((await attempt("203.0.113.2")).status).toBe(400);
+  });
+
+  it("rate-limits sign-in per CLIENT_IP_HEADER address without trusting a proxy", async () => {
+    const { base } = await start({ clientIpHeader: "cf-connecting-ip" });
+    const attempt = (ip: string) => postSignIn(base, { step: "credentials", request: "x", email: "a", password: "b" }, { "cf-connecting-ip": ip });
+    for (let i = 0; i < 5; i++) expect((await attempt("198.51.100.1")).status).toBe(400);
+    expect((await attempt("198.51.100.1")).status).toBe(429);
+    expect((await attempt("198.51.100.2")).status).toBe(400);
+  });
+
+  it("ignores the client IP header unless configured", async () => {
+    const { base } = await start();
+    const attempt = (ip: string) => postSignIn(base, { step: "credentials", request: "x", email: "a", password: "b" }, { "cf-connecting-ip": ip });
+    for (let i = 0; i < 5; i++) expect((await attempt(`198.51.100.${i + 1}`)).status).toBe(400);
+    expect((await attempt("198.51.100.99")).status).toBe(429);
   });
 
   it("does not count successful sign-ins against the per-IP limit", async () => {

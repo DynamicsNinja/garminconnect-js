@@ -22,11 +22,18 @@ server on your own machine, use the same Node version.
 1. Create a new Application. Source is this GitHub repo, branch `main`, build type Dockerfile,
    Dockerfile path `mcp/Dockerfile`, build context `.`.
 2. Set the environment: `PUBLIC_URL=https://garmin.ficdev.xyz`, `SEAL_KEYS=<openssl rand -base64 32>`,
-   `DB_PATH=/data/grants.db`, `PORT=3000`, `TRUST_PROXY=1`. Optionally set `GARMIN_MCP_GROUPS` and
-   `GARMIN_MCP_ENABLE_GRAPHQL`. `TRUST_PROXY=1` trusts exactly one proxy hop, Traefik. If
-   Cloudflare proxying (the orange cloud) is turned on for the domain, every request's IP becomes
-   a Cloudflare edge IP and the per-IP limits stop meaning anything: keep the DNS record "DNS
-   only", or change the `trust proxy` setting to match.
+   `DB_PATH=/data/grants.db`, `PORT=3000`, `TRUST_PROXY=1`. Optionally set `GARMIN_MCP_GROUPS`,
+   `GARMIN_MCP_ENABLE_GRAPHQL` and `CLIENT_IP_HEADER` (see below). `TRUST_PROXY=1` trusts exactly
+   one proxy hop, Traefik.
+
+   **Behind Cloudflare (including Cloudflare Tunnel):** every request then reaches the container
+   from the tunnel or Traefik, so `req.ip` is the same for all users and every per-IP limit (the
+   sign-in limiter and the SDK OAuth handlers' limiters) becomes global. Set
+   `CLIENT_IP_HEADER=cf-connecting-ip`: when that header holds a valid IP it replaces `req.ip`
+   for the request. This is safe only if the container is reachable solely through the tunnel or
+   Cloudflare (no public port on Traefik answering for this host); otherwise a client can forge
+   the header and dodge the limits. At acceptance, sign in once and confirm the logs and limits
+   see your real IP.
 3. Add a mount: a **named volume** at `/data`. Not a bind mount; see the comment in the Dockerfile.
 4. Add three domains. All use host `garmin.ficdev.xyz`, HTTPS on, container port 3000, and
    **Strip Path off**:
