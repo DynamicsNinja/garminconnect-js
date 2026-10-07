@@ -101,6 +101,7 @@
     "smoke": "tsx scripts/smoke-reads.ts",
     "smoke:write": "tsx scripts/smoke-writes.ts",
     "smoke:mcp": "tsx --tsconfig mcp/tsconfig.json mcp/scripts/smoke.ts",
+    "smoke:http": "tsx --tsconfig mcp/tsconfig.json mcp/scripts/smoke-http.ts",
     "smoke:builder": "tsx scripts/smoke-builder.ts",
     "smoke:matrix": "tsx scripts/smoke-builder-matrix.ts",
     "verify:exercises": "tsx scripts/verify-exercises.ts",
