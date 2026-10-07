@@ -43,8 +43,11 @@ in-memory grant store and needs `GARMIN_EMAIL`, `GARMIN_PASSWORD` and `GARMIN_TE
 
 ## Operations
 
-- **Revoke one connection:** `node http.mjs revoke <grant_id>`. In Dokploy, open the app and use
-  Terminal. The grant id prefix is in the logs.
+- **Revoke one connection:** `node http.mjs revoke <grant_id>`, run in the container (Dokploy: open
+  the app, then Terminal). It needs the full 22-character id, but the logs carry only the first 8
+  characters. Look the full id up from the log prefix:
+  `node -e "const {DatabaseSync}=require('node:sqlite');console.log(new DatabaseSync('/data/grants.db').prepare('SELECT grant_id, client_name, state FROM grants WHERE grant_id LIKE ?').all(process.argv[1]+'%'))" <prefix>`
+  Then run `node http.mjs revoke <full grant_id>`.
 - **Revoke everyone:** `node http.mjs revoke --all`.
 - **Rotate the key:** prepend a new key to `SEAL_KEYS`, redeploy, and drop the old key after 35
   days. The first key seals; every key unseals.
