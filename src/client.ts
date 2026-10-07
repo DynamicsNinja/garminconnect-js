@@ -127,12 +127,23 @@ export class GarminClient {
     await this.tokenStore.save(tokens);
   }
 
-  async #ensureFresh(): Promise<Tokens> {
+  /**
+   * Refreshes the OAuth2 access token now if it has expired or expires within `withinMs`
+   * (never less than the 60 s every call already uses), and returns the current tokens.
+   * Ordinary calls refresh on their own; this is for servers that carry tokens outside a
+   * TokenStore and must capture the refreshed pair themselves. Shares an in-flight refresh.
+   */
+  async refreshTokens(options: { withinMs?: number } = {}): Promise<Tokens> {
+    const withinSeconds = Math.max(60, Math.ceil((options.withinMs ?? 0) / 1000));
+    return this.#ensureFresh(withinSeconds);
+  }
+
+  async #ensureFresh(marginSeconds = 60): Promise<Tokens> {
     const tokens = this.#tokens;
     if (!tokens) {
       throw new GarminAuthError("Not authenticated: call login() or loadTokens() first");
     }
-    if (!isExpired(tokens.oauth2)) return tokens;
+    if (!isExpired(tokens.oauth2, marginSeconds)) return tokens;
 
     if (refreshExpired(tokens.oauth2)) {
       await this.tokenStore.clear();

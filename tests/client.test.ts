@@ -147,6 +147,44 @@ describe("GarminClient", () => {
     expect(exchangeCount).toBe(0);
   });
 
+  describe("refreshTokens", () => {
+    it("returns the tokens unchanged when they are not near expiry", async () => {
+      const client = new GarminClient();
+      client.setTokens(tokensWith(future));
+      const tokens = await client.refreshTokens();
+      expect(tokens.oauth2.access_token).toBe("old-access");
+      expect(exchangeCount).toBe(0);
+    });
+
+    it("refreshes a token that expires inside the window, and persists it", async () => {
+      const store = new MemoryTokenStore();
+      const client = new GarminClient({ tokenStore: store });
+      client.setTokens(tokensWith(Math.floor(Date.now() / 1000) + 1800)); // 30 min left
+      const tokens = await client.refreshTokens({ withinMs: 2 * 3600_000 });
+      expect(tokens.oauth2.access_token).toBe("fresh-access");
+      expect(exchangeCount).toBe(1);
+      expect((await store.load())?.oauth2.access_token).toBe("fresh-access");
+    });
+
+    it("leaves a token with 30 minutes left alone at the default window", async () => {
+      const client = new GarminClient();
+      client.setTokens(tokensWith(Math.floor(Date.now() / 1000) + 1800));
+      await client.refreshTokens();
+      expect(exchangeCount).toBe(0);
+    });
+
+    it("shares one exchange with a concurrent API call", async () => {
+      const client = new GarminClient();
+      client.setTokens(tokensWith(past));
+      await Promise.all([client.refreshTokens(), client.connectapi("/thing")]);
+      expect(exchangeCount).toBe(1);
+    });
+
+    it("throws GarminAuthError when no tokens are loaded", async () => {
+      await expect(new GarminClient().refreshTokens()).rejects.toThrow(GarminAuthError);
+    });
+  });
+
   it("deduplicates concurrent refreshes into one exchange", async () => {
     // Gate the exchange response so it stays pending while all three
     // connectapi() calls are in flight. This proves genuine dedup rather
