@@ -15,6 +15,10 @@ import { fakeFetch, json, PROFILE_ROUTE, testConfig, textOf } from "../helpers.j
 import { fakeAuth, MFA_CODE, PASSWORD, SECRET_TOKENS } from "./fakes.js";
 import { authorizePage, mcpClient, pkce, postSignIn, register, REDIRECT, signIn, tokenRequest } from "./oauth-dance.js";
 
+// The hosted server runs on Node 22 (its Docker image). The MCP SDK's streamable-HTTP transport
+// uses the global WebCrypto object, which Node 18 lacks, so this end-to-end suite needs Node 20+.
+const NODE_MAJOR = Number(process.versions.node.split(".")[0]);
+
 const sqliteAvailable = loadSqlite() !== null;
 const servers: http.Server[] = [];
 afterEach(() => servers.splice(0).forEach((s) => s.close()));
@@ -33,7 +37,7 @@ async function start(o: { grants?: GrantStore; routes?: Parameters<typeof fakeFe
   return { base, grants };
 }
 
-describe("hosted MCP over HTTP", () => {
+describe.skipIf(NODE_MAJOR < 20)("hosted MCP over HTTP", () => {
   it("answers health checks, and 405 for GET/DELETE /mcp", async () => {
     const { base } = await start();
     expect(await (await fetch(`${base}/mcp/healthz`)).text()).toBe("ok");
