@@ -9,10 +9,10 @@ import type { OAuthRegisteredClientsStore } from "@modelcontextprotocol/sdk/serv
 import type { AuthorizationParams, OAuthServerProvider } from "@modelcontextprotocol/sdk/server/auth/provider.js";
 import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
 import type { OAuthClientInformationFull, OAuthTokenRevocationRequest, OAuthTokens } from "@modelcontextprotocol/sdk/shared/auth.js";
-import { GarminRateLimitError, type MfaState, type Tokens } from "garminconnect-js";
+import { GarminError, GarminRateLimitError, type MfaState, type Tokens } from "garminconnect-js";
 import { isDeadSession, type GarminAuth } from "./garmin-auth.js";
 import { checkGeneration, type GrantStore } from "./grants.js";
-import { credentialsPage, errorPage, mfaPage, pageHeaders } from "./pages.js";
+import { credentialsPage, errorPage, isTrustedRedirect, mfaPage, pageHeaders, redirectTarget } from "./pages.js";
 import type { Sealer } from "./seal.js";
 
 export const ACCESS_TTL_S = 3600;
@@ -60,6 +60,8 @@ export interface ProviderOptions {
   /** Where the sign-in form posts. */
   signInPath: string;
   now?: () => number;
+  /** Operational log lines; never given emails, passwords or tokens. */
+  log?: (line: Record<string, unknown>) => void;
 }
 
 export type SignInOutcome =
@@ -68,9 +70,19 @@ export type SignInOutcome =
 
 const EXPIRED = "This sign-in page has expired. Start again from your MCP client (remove and re-add the connector if needed).";
 
+/** Garmin's SSO error codes, in plain words. */
+const SSO_ERRORS: [code: string, message: string][] = [
+  ["INVALID_CREDENTIALS", "Garmin didn't accept that email/username and password."],
+  ["ACCOUNT_RESTRICTED", "Garmin has restricted this account. Sign in at connect.garmin.com to see why."],
+  ["INVALID_MFA_CODE", "That verification code wasn't accepted. Try again."],
+];
+
 function signInError(error: unknown): string {
   if (error instanceof GarminRateLimitError) return "Garmin is limiting sign-ins right now. Wait a few minutes and try again.";
-  return `Sign-in failed: ${error instanceof Error ? error.message : String(error)}`;
+  if (error instanceof GarminError) {
+    return SSO_ERRORS.find(([code]) => error.message.includes(code))?.[1] ?? `Sign-in failed: ${error.message}`;
+  }
+  return "Something went wrong signing you in. Try again in a minute.";
 }
 
 export class HostedOAuthProvider implements OAuthServerProvider {
@@ -80,6 +92,7 @@ export class HostedOAuthProvider implements OAuthServerProvider {
   readonly #auth: GarminAuth;
   readonly #signInPath: string;
   readonly #now: () => number;
+  readonly #log: (line: Record<string, unknown>) => void;
 
   constructor(options: ProviderOptions) {
     this.#sealer = options.sealer;
@@ -87,6 +100,7 @@ export class HostedOAuthProvider implements OAuthServerProvider {
     this.#auth = options.auth;
     this.#signInPath = options.signInPath;
     this.#now = options.now ?? (() => Math.floor(Date.now() / 1000));
+    this.#log = options.log ?? (() => {});
     this.clientsStore = {
       getClient: (clientId) => {
         const sealed = this.#sealer.unseal<Omit<OAuthClientInformationFull, "client_id">>("client", clientId);
@@ -111,7 +125,9 @@ export class HostedOAuthProvider implements OAuthServerProvider {
     res
       .status(200)
       .set(pageHeaders(params.redirectUri))
-      .send(credentialsPage({ action: this.#signInPath, request: this.#sealer.seal("authreq", request, FORM_TTL_S), clientName: request.clientName }));
+      .send(
+        credentialsPage({ action: this.#signInPath, request: this.#sealer.seal("authreq", request, FORM_TTL_S), clientName: request.clientName, redirectUri: request.redirectUri }),
+      );
   }
 
   /** The sign-in form's POST: credentials, then (if Garmin asks) the MFA code. */
@@ -126,7 +142,7 @@ export class HostedOAuthProvider implements OAuthServerProvider {
         const tokens = await this.#auth.resume(mfaState, (form["code"] ?? "").trim());
         return await this.#finish(request, tokens, disconnectOthers);
       } catch (error) {
-        return this.#page(request, mfaPage({ action, mfa: sealedMfa!, error: signInError(error) }), 400);
+        return this.#page(request, mfaPage({ action, mfa: sealedMfa!, error: this.#signInError(error) }), 400);
       }
     }
 
@@ -138,8 +154,12 @@ export class HostedOAuthProvider implements OAuthServerProvider {
     const password = form["password"] ?? "";
     const disconnectOthers = form["disconnectOthers"] === "1";
     const retry = (error: string) =>
-      this.#page(request, credentialsPage({ action, request: sealedRequest!, clientName: request.clientName, email, error }), 400);
+      this.#page(request, credentialsPage({ action, request: sealedRequest!, clientName: request.clientName, redirectUri: request.redirectUri, email, error }), 400);
     if (!email || !password) return retry("Enter your Garmin email (or username) and password.");
+    // Enforced here, before Garmin is called; the MFA step only exists past this point.
+    if (!isTrustedRedirect(request.redirectUri) && form["confirmRedirect"] !== "1") {
+      return retry(`Tick the box to confirm you trust ${redirectTarget(request.redirectUri)} before signing in.`);
+    }
     try {
       const result = await this.#auth.login(email, password);
       if (result.state === "mfa_required") {
@@ -148,8 +168,13 @@ export class HostedOAuthProvider implements OAuthServerProvider {
       }
       return await this.#finish(request, result.tokens, disconnectOthers);
     } catch (error) {
-      return retry(signInError(error));
+      return retry(this.#signInError(error));
     }
+  }
+
+  #signInError(error: unknown): string {
+    if (error instanceof GarminRateLimitError) this.#log({ msg: "garmin rate limited" });
+    return signInError(error);
   }
 
   async #finish(request: AuthRequest, tokens: Tokens, disconnectOthers: boolean): Promise<SignInOutcome> {
@@ -180,7 +205,11 @@ export class HostedOAuthProvider implements OAuthServerProvider {
   async exchangeAuthorizationCode(client: OAuthClientInformationFull, code: string, _verifier?: string, redirectUri?: string): Promise<OAuthTokens> {
     const payload = this.#code(client, code);
     if (redirectUri !== undefined && redirectUri !== payload.redirectUri) throw new InvalidGrantError("redirect_uri does not match the authorization request");
-    if (!this.#grants.activate(payload.grantId, this.#now())) throw new InvalidGrantError("The authorization code has already been used");
+    if (!this.#grants.activate(payload.grantId, this.#now())) {
+      // A replayed code: revoke what the first exchange issued (RFC 6749 §4.1.2).
+      if (this.#grants.get(payload.grantId)?.state === "active") this.#grants.revoke(payload.grantId);
+      throw new InvalidGrantError("The authorization code has already been used");
+    }
     return this.#issue(payload.grantId, client.client_id, 0, payload.tokens);
   }
 

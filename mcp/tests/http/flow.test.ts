@@ -4,7 +4,7 @@ import http from "node:http";
 import type { AddressInfo } from "node:net";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 // eslint-disable-next-line no-restricted-imports
 import { createHttpApp } from "../../src/http/app.js";
 // eslint-disable-next-line no-restricted-imports
@@ -21,7 +21,10 @@ const NODE_MAJOR = Number(process.versions.node.split(".")[0]);
 
 const sqliteAvailable = loadSqlite() !== null;
 const servers: http.Server[] = [];
-afterEach(() => servers.splice(0).forEach((s) => s.close()));
+afterEach(() => {
+  servers.splice(0).forEach((s) => s.close());
+  vi.restoreAllMocks();
+});
 
 async function start(o: { grants?: GrantStore; routes?: Parameters<typeof fakeFetch>[0]; trustProxy?: boolean } = {}) {
   const server = http.createServer();
@@ -130,6 +133,36 @@ describe.skipIf(NODE_MAJOR < 20)("hosted MCP over HTTP", () => {
     for (let i = 0; i < 5; i++) expect((await attempt("203.0.113.1")).status).toBe(400);
     expect((await attempt("203.0.113.1")).status).toBe(429);
     expect((await attempt("203.0.113.2")).status).toBe(400);
+  });
+
+  it("does not count successful sign-ins against the per-IP limit", async () => {
+    const { base } = await start();
+    for (let i = 0; i < 7; i++) await expect(signIn(base, { email: "a@b.c", password: PASSWORD })).resolves.toBeDefined();
+  });
+
+  it("caps sign-in attempts across all IPs at 100 per 15 minutes", async () => {
+    const { base } = await start({ trustProxy: true });
+    const attempt = (i: number) => postSignIn(base, { step: "credentials", request: "x", email: "a", password: "b" }, { "x-forwarded-for": `198.51.100.${i}` });
+    for (let i = 0; i < 100; i++) expect((await attempt(i)).status).toBe(400);
+    const capped = await attempt(200);
+    expect(capped.status).toBe(429);
+    expect(await capped.text()).toContain("<html");
+  });
+
+  it("keeps a confidential client's secret valid past 30 days", async () => {
+    const { base } = await start();
+    const res = await fetch(`${base}/mcp/oauth/register`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ client_name: "confidential", redirect_uris: [REDIRECT], token_endpoint_auth_method: "client_secret_post", grant_types: ["authorization_code", "refresh_token"], response_types: ["code"] }),
+    });
+    const { client_id, client_secret } = (await res.json()) as { client_id: string; client_secret: string };
+    const realNow = Date.now();
+    vi.spyOn(Date, "now").mockReturnValue(realNow + 31 * 86_400_000);
+    const refresh = (secret: string) => tokenRequest(base, { grant_type: "refresh_token", refresh_token: "not-a-token", client_id, client_secret: secret });
+    // Client authentication passes (invalid_grant is about the token), where an expired secret would be invalid_client.
+    expect(await (await refresh(client_secret)).json()).toMatchObject({ error: "invalid_grant" });
+    expect(await (await refresh("wrong")).json()).toMatchObject({ error: "invalid_client" });
   });
 
   it.skipIf(!sqliteAvailable)("never writes Garmin tokens, emails or passwords to the database", async () => {

@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import { beforeEach, describe, expect, it } from "vitest";
 import { InvalidGrantError, InvalidTokenError, ServerError } from "@modelcontextprotocol/sdk/server/auth/errors.js";
 import type { OAuthClientInformationFull } from "@modelcontextprotocol/sdk/shared/auth.js";
-import { GarminAuthError } from "garminconnect-js";
+import { GarminAuthError, GarminError, GarminRateLimitError } from "garminconnect-js";
 // eslint-disable-next-line no-restricted-imports
 import { MemoryGrantStore } from "../../src/http/grants.js";
 // eslint-disable-next-line no-restricted-imports
@@ -12,6 +12,7 @@ import { Sealer } from "../../src/http/seal.js";
 import { fakeAuth, fakeRes, hidden, MFA_CODE, PASSWORD, SECRET_TOKENS, type FakeAuth } from "./fakes.js";
 
 const REDIRECT = "https://claude.ai/api/mcp/auth_callback";
+const escapeHtml = (text: string) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 const key = randomBytes(32);
 
 let clock: number;
@@ -19,12 +20,14 @@ let grants: MemoryGrantStore;
 let auth: FakeAuth;
 let provider: HostedOAuthProvider;
 let client: OAuthClientInformationFull;
+let logged: Record<string, unknown>[];
 
 const make = (keys = [key]) =>
-  new HostedOAuthProvider({ sealer: new Sealer(keys, () => clock), grants, auth, signInPath: "/mcp/oauth/signin", now: () => clock });
+  new HostedOAuthProvider({ sealer: new Sealer(keys, () => clock), grants, auth, signInPath: "/mcp/oauth/signin", now: () => clock, log: (line) => logged.push(line) });
 
 beforeEach(async () => {
   clock = 1_000_000;
+  logged = [];
   grants = new MemoryGrantStore();
   auth = fakeAuth();
   provider = make();
@@ -77,7 +80,7 @@ describe("sign-in", () => {
   it("keeps query strings and custom schemes in the redirect", async () => {
     for (const redirectUri of ["https://x.example/cb?a=1", "cursor://anysphere.cursor-retrieval/oauth/callback"]) {
       const { request } = await formFor(redirectUri);
-      const outcome = await provider.handleSignIn({ step: "credentials", request, email: "a@b.c", password: PASSWORD });
+      const outcome = await provider.handleSignIn({ step: "credentials", request, email: "a@b.c", password: PASSWORD, confirmRedirect: "1" });
       const url = new URL((outcome as { location: string }).location);
       expect(url.href.startsWith(redirectUri)).toBe(true);
       expect(url.searchParams.get("code")).toBeTruthy();
@@ -85,11 +88,85 @@ describe("sign-in", () => {
     }
   });
 
+  it("shows the redirect target on the form", async () => {
+    const { res } = await formFor("https://evil.example/cb");
+    expect(res.body).toContain("<strong>evil.example</strong>");
+    expect(res.body).toContain('name="confirmRedirect"');
+  });
+
+  it("needs no confirmation for trusted redirect targets", async () => {
+    for (const redirectUri of [REDIRECT, "http://127.0.0.1:33418/callback", "cursor://anysphere.cursor-retrieval/oauth/callback"]) {
+      const { request } = await formFor(redirectUri);
+      expect(await provider.handleSignIn({ step: "credentials", request, email: "a@b.c", password: PASSWORD }), redirectUri).toMatchObject({ kind: "redirect" });
+    }
+  });
+
+  it("refuses an untrusted redirect target without the confirmation, never calling Garmin", async () => {
+    let logins = 0;
+    const login = auth.login.bind(auth);
+    auth.login = async (email, password) => (logins++, login(email, password));
+    const { request } = await formFor("https://evil.example/cb");
+    const refused = await provider.handleSignIn({ step: "credentials", request, email: "a@b.c", password: PASSWORD });
+    expect(refused).toMatchObject({ kind: "page", status: 400 });
+    expect((refused as { body: string }).body).toContain("evil.example");
+    expect(hidden((refused as { body: string }).body, "request")).toBe(request);
+    expect(logins).toBe(0);
+    expect(grants.count().total).toBe(0);
+    const confirmed = await provider.handleSignIn({ step: "credentials", request, email: "a@b.c", password: PASSWORD, confirmRedirect: "1" });
+    expect(confirmed).toMatchObject({ kind: "redirect" });
+    expect(new URL((confirmed as { location: string }).location).host).toBe("evil.example");
+    expect(logins).toBe(1);
+  });
+
+  it("carries the confirmation through MFA", async () => {
+    const { request } = await formFor("https://evil.example/cb");
+    const first = await provider.handleSignIn({ step: "credentials", request, email: "mfa@b.c", password: PASSWORD, confirmRedirect: "1" });
+    const mfa = hidden((first as { body: string }).body, "mfa")!;
+    expect(await provider.handleSignIn({ step: "mfa", mfa, code: MFA_CODE })).toMatchObject({ kind: "redirect" });
+  });
+
+  it("explains sign-in errors in plain words", async () => {
+    const cases: [Error, string][] = [
+      [new GarminAuthError("SSO error: INVALID_CREDENTIALS"), "Garmin didn't accept that email/username and password."],
+      [new GarminAuthError("SSO error: ACCOUNT_RESTRICTED"), "Garmin has restricted this account. Sign in at connect.garmin.com to see why."],
+      [new GarminRateLimitError("Too many requests"), "Garmin is limiting sign-ins right now. Wait a few minutes and try again."],
+      [new GarminError("Unexpected SSO response"), "Sign-in failed: Unexpected SSO response"],
+      [new TypeError("x is undefined"), "Something went wrong signing you in. Try again in a minute."],
+    ];
+    for (const [error, message] of cases) {
+      auth.login = async () => {
+        throw error;
+      };
+      const { request } = await formFor();
+      const outcome = await provider.handleSignIn({ step: "credentials", request, email: "a@b.c", password: PASSWORD });
+      expect((outcome as { body: string }).body, error.message).toContain(escapeHtml(message));
+      expect((outcome as { body: string }).body).not.toContain("x is undefined");
+    }
+  });
+
+  it("explains a wrong MFA code in plain words", async () => {
+    const { request } = await formFor();
+    const first = await provider.handleSignIn({ step: "credentials", request, email: "mfa@b.c", password: PASSWORD });
+    const mfa = hidden((first as { body: string }).body, "mfa")!;
+    const wrong = await provider.handleSignIn({ step: "mfa", mfa, code: "000000" });
+    expect((wrong as { body: string }).body).toContain(escapeHtml("That verification code wasn't accepted. Try again."));
+  });
+
+  it("logs a Garmin rate limit, without the email", async () => {
+    auth.login = async () => {
+      throw new GarminRateLimitError("Too many requests");
+    };
+    const { request } = await formFor();
+    await provider.handleSignIn({ step: "credentials", request, email: "secret@b.c", password: PASSWORD });
+    expect(logged).toEqual([{ msg: "garmin rate limited" }]);
+    expect(JSON.stringify(logged)).not.toContain("secret@b.c");
+  });
+
   it("shows a wrong password on the form, with no grant", async () => {
     const { request } = await formFor();
     const outcome = await provider.handleSignIn({ step: "credentials", request, email: "a@b.c", password: "nope" });
     expect(outcome).toMatchObject({ kind: "page", status: 400 });
-    expect((outcome as { body: string }).body).toContain("INVALID_CREDENTIALS");
+    expect((outcome as { body: string }).body).toContain(escapeHtml("Garmin didn't accept that email/username and password."));
     expect((outcome as { body: string }).body).toContain('value="a@b.c"');
     expect(grants.count().total).toBe(0);
   });
@@ -146,6 +223,15 @@ describe("codes", () => {
     const t = await provider.exchangeAuthorizationCode(client, code, undefined, REDIRECT);
     expect(t).toMatchObject({ token_type: "bearer", expires_in: ACCESS_TTL_S });
     await expect(provider.exchangeAuthorizationCode(client, code)).rejects.toThrow(/already been used/);
+  });
+
+  it("disconnects the tokens issued from a code that is replayed", async () => {
+    const code = await signIn();
+    const t = await provider.exchangeAuthorizationCode(client, code);
+    await expect(provider.verifyAccessToken(t.access_token)).resolves.toBeDefined();
+    await expect(provider.exchangeAuthorizationCode(client, code)).rejects.toThrow(/already been used/);
+    await expect(provider.verifyAccessToken(t.access_token)).rejects.toThrow(/disconnected/);
+    await expect(provider.exchangeRefreshToken(client, t.refresh_token!)).rejects.toThrow(InvalidGrantError);
   });
 
   it("refuses another client, another redirect, and an expired code", async () => {

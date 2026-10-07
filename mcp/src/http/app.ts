@@ -62,7 +62,7 @@ export function createHttpApp(deps: HttpAppDeps): Express {
   const base = new URL(deps.publicUrl.origin);
   const at = (p: string) => new URL(p, base).href;
   const log = deps.log ?? ((line) => console.log(JSON.stringify({ t: new Date().toISOString(), ...line })));
-  const provider = new HostedOAuthProvider({ sealer: deps.sealer, grants: deps.grants, auth: deps.auth, signInPath: SIGN_IN_PATH, now: deps.now });
+  const provider = new HostedOAuthProvider({ sealer: deps.sealer, grants: deps.grants, auth: deps.auth, signInPath: SIGN_IN_PATH, now: deps.now, log });
   const metadata: OAuthMetadata = {
     issuer: base.href,
     service_documentation: DOCS,
@@ -99,25 +99,44 @@ export function createHttpApp(deps: HttpAppDeps): Express {
   );
   const small = [express.urlencoded({ extended: false, limit: "16kb" }), express.json({ limit: "16kb" })];
   app.use("/mcp/oauth/authorize", small, authorizationHandler({ provider, rateLimit: { windowMs: 60_000, limit: 60 } }));
-  app.use("/mcp/oauth/token", small, tokenHandler({ provider, rateLimit: { windowMs: 60_000, limit: 30 } }));
+  // claude.ai registers clients and exchanges tokens from Anthropic's servers, so these per-IP
+  // limits are shared by every claude.ai user: they only stop a runaway client.
+  app.use("/mcp/oauth/token", small, tokenHandler({ provider, rateLimit: { windowMs: 60_000, limit: 300 } }));
   app.use(
     "/mcp/oauth/register",
     small,
-    clientRegistrationHandler({ clientsStore: provider.clientsStore, clientIdGeneration: false, rateLimit: { windowMs: 3_600_000, limit: 10 } }),
+    // A client_id is never re-issued, so a confidential client's secret must not expire (0 = never).
+    clientRegistrationHandler({
+      clientsStore: provider.clientsStore,
+      clientIdGeneration: false,
+      clientSecretExpirySeconds: 0,
+      rateLimit: { windowMs: 3_600_000, limit: 1000 },
+    }),
   );
   app.use("/mcp/oauth/revoke", small, revocationHandler({ provider }));
 
-  // Five tries per IP per 15 min also protects the server IP's standing with Garmin's login rate limits.
+  // Five failed tries per IP per 15 min (an MFA page or a redirect does not count), and 100 tries
+  // across all IPs, also protect the server IP's standing with Garmin's login rate limits.
+  const tooMany = (message: string): RequestHandler => (_req, res) => {
+    res.status(429).set(pageHeaders()).send(errorPage(message));
+  };
   const signInLimit = rateLimit({
     windowMs: 15 * 60_000,
     limit: 5,
+    skipSuccessfulRequests: true,
     standardHeaders: "draft-7",
     legacyHeaders: false,
-    handler: (_req, res) => {
-      res.status(429).set(pageHeaders()).send(errorPage("Too many sign-in attempts from your network. Wait 15 minutes and try again."));
-    },
+    handler: tooMany("Too many sign-in attempts from your network. Wait 15 minutes and try again."),
   });
-  app.post(SIGN_IN_PATH, signInLimit, express.urlencoded({ extended: false, limit: "16kb" }), async (req, res) => {
+  const globalSignInLimit = rateLimit({
+    windowMs: 15 * 60_000,
+    limit: 100,
+    keyGenerator: () => "global",
+    standardHeaders: "draft-7",
+    legacyHeaders: false,
+    handler: tooMany("Too many people are signing in right now. Wait 15 minutes and try again."),
+  });
+  app.post(SIGN_IN_PATH, signInLimit, globalSignInLimit, express.urlencoded({ extended: false, limit: "16kb" }), async (req, res) => {
     const outcome = await provider.handleSignIn((req.body ?? {}) as Record<string, string | undefined>);
     if (outcome.kind === "redirect") res.redirect(302, outcome.location);
     else res.status(outcome.status).set(outcome.headers).send(outcome.body);
