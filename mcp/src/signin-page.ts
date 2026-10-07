@@ -39,9 +39,9 @@ const HEADERS = {
 const MAX_BODY = 16 * 1024;
 
 const ENTITIES: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
-const escape = (s: string) => s.replace(/[&<>"']/g, (c) => ENTITIES[c] ?? c);
+export const escape = (s: string) => s.replace(/[&<>"']/g, (c) => ENTITIES[c] ?? c);
 
-function html(title: string, body: string): string {
+export function html(title: string, body: string): string {
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escape(title)}</title><style>
 body{font-family:system-ui,sans-serif;background:#f8fafc;color:#0f172a;display:grid;place-items:center;min-height:100vh;margin:0}
 main{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:28px;width:min(360px,90vw)}
