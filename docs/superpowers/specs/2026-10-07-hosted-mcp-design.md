@@ -90,7 +90,8 @@ entry. Nothing in the stdio path imports `http/`.
 
 All tokens are `seal(...)` output. `SEAL_KEYS` is a comma-separated list of base64 32-byte keys.
 Rotating: prepend a new key, redeploy, drop the old one after the longest-lived token (refresh,
-~30 days) has had time to roll.
+~30 days) has had time to roll. (Superseded, see §11: client ids never expire and are never
+re-issued, so old keys stay in `SEAL_KEYS` unless compromised; dropping one disconnects everyone.)
 
 | Token | Sealed payload | TTL | Accepted when |
 |---|---|---|---|
@@ -204,9 +205,9 @@ in AGENTS.md §3's `GarminClient` table and the README.
 
 | Limit | Value |
 |---|---|
-| Sign-in POSTs | 5 per IP per 15 min |
-| `/mcp/oauth/token` | 30 per IP per min |
-| `/mcp/oauth/register` | 10 per IP per hour |
+| Sign-in POSTs | 5 failed per IP per 15 min; 100 in total per 15 min |
+| `/mcp/oauth/token` | 300 per IP per min (claude.ai calls it from Anthropic's shared egress IPs) |
+| `/mcp/oauth/register` | 1000 per IP per hour (same reason) |
 | `/mcp` | 120 per grant per min |
 | Request body | 15 MB on `/mcp` (base64 uploads), 16 KB elsewhere |
 
@@ -296,3 +297,8 @@ These replace the matching statements above.
 8. **`node:sqlite` is loaded through `createRequire`** (`loadSqlite()` in `grants.ts`) because vite-node cannot import it. SQLite tests skip on Node < 22.13 and run on current Node 22 in CI.
 9. **A refresh calls Garmin before rotating the generation**, so a transient Garmin failure leaves the refresh token usable. Section 3.2 said "bump, then refresh".
 10. **Request bodies on the SDK OAuth endpoints are capped at 16 KB** by parsers mounted ahead of the SDK handlers.
+11. **Registration and token limits are per IP but generous** (1000 registrations per hour, 300 token calls per minute). claude.ai does discovery, registration and token exchange from Anthropic's servers, so the original 10/hour and 30/min would have been global limits for every claude.ai user.
+12. **The sign-in page says where the code goes.** Anyone can register a client named "Claude" with any redirect URI, so the page shows the redirect host (or app scheme), calls the client "an app that calls itself NAME", and, for a target outside `TRUSTED_REDIRECTS` (`claude.ai`, `claude.com` over https; loopback; `cursor:`, `vscode:`, `vscode-insiders:`), shows a warning and requires a `confirmRedirect` checkbox, enforced server-side before Garmin is called.
+13. **Confidential clients' secrets never expire** (`clientSecretExpirySeconds: 0`): the client id is never re-issued, so a 30-day expiry would strand the client.
+14. **Key rotation keeps the old keys.** Client ids are sealed without expiry, so dropping a key from `SEAL_KEYS` invalidates every client registered under it; drop one only if it is compromised.
+15. **Hardening from the final review:** the per-IP sign-in limit counts only failures (an MFA page or a redirect is a success), a second limiter caps sign-ins at 100 per 15 minutes overall, a replayed authorization code revokes the grant it activated (RFC 6749 §4.1.2), SQLite waits up to 5 s for a lock (`busy_timeout`), a failed purge is logged rather than fatal, and Garmin's SSO error codes are shown in plain words.
