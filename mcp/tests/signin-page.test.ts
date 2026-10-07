@@ -66,7 +66,7 @@ describe("sign-in page", () => {
     const ok = await request(page.url);
     expect(ok.status).toBe(200);
     expect(ok.body).toContain('name="password"');
-    expect(ok.headers["content-security-policy"]).toBe("default-src 'none'; style-src 'unsafe-inline'; form-action 'self'");
+    expect(ok.headers["content-security-policy"]).toMatch(/^default-src 'none'; script-src 'sha256-[A-Za-z0-9+/=]+'; style-src 'unsafe-inline'; form-action 'self'$/);
     expect(ok.headers["cache-control"]).toBe("no-store");
     expect(ok.headers["x-frame-options"]).toBe("DENY");
 

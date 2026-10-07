@@ -10,6 +10,7 @@ import { randomBytes, timingSafeEqual } from "node:crypto";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
 import type { LoginResult, MfaState } from "garminconnect-js";
+import { credentialsForm as loginCredentialsForm, loginHeaders, messagePage, mfaForm as loginMfaForm } from "./login-page.js";
 
 export interface SignInClient {
   login(email: string, password: string): Promise<LoginResult>;
@@ -29,54 +30,15 @@ export interface SignInPage {
   close(): Promise<void>;
 }
 
-const HEADERS = {
-  "content-type": "text/html; charset=utf-8",
-  "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'",
-  "cache-control": "no-store",
-  "x-frame-options": "DENY",
-  "referrer-policy": "no-referrer",
-};
+const HEADERS = loginHeaders({ formAction: [] });
 const MAX_BODY = 16 * 1024;
 
-const ENTITIES: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
-export const escape = (s: string) => s.replace(/[&<>"']/g, (c) => ENTITIES[c] ?? c);
+const credentialsForm = (key: string, error?: string, email = ""): string =>
+  loginCredentialsForm({ hiddenFields: { key }, error, email, intro: "<p>For the Garmin tools in Claude. Your password goes only to Garmin.</p>" });
 
-export function html(title: string, body: string): string {
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escape(title)}</title><style>
-body{font-family:system-ui,sans-serif;background:#f8fafc;color:#0f172a;display:grid;place-items:center;min-height:100vh;margin:0}
-main{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:28px;width:min(360px,90vw)}
-h1{font-size:1.25rem;margin:0 0 4px}p{color:#475569;margin:0 0 16px}
-label{display:block;font-size:.9rem;margin:12px 0 4px}input{width:100%;box-sizing:border-box;padding:10px;border:1px solid #cbd5e1;border-radius:8px;font-size:1rem}
-button{margin-top:18px;width:100%;padding:10px;border:0;border-radius:8px;background:#0f766e;color:#fff;font-size:1rem;cursor:pointer}
-.error{background:#fef2f2;color:#991b1b;border-radius:8px;padding:10px;margin-bottom:8px}
-</style></head><body><main>${body}</main></body></html>`;
-}
+const mfaForm = (key: string, error?: string): string => loginMfaForm({ hiddenFields: { key }, error });
 
-function credentialsForm(key: string, error?: string, email = ""): string {
-  return html(
-    "Sign in to Garmin",
-    `<h1>Sign in to Garmin Connect</h1><p>For the Garmin tools in Claude. Your password goes only to Garmin.</p>
-${error ? `<div class="error">${escape(error)}</div>` : ""}
-<form method="post"><input type="hidden" name="key" value="${escape(key)}"><input type="hidden" name="step" value="credentials">
-<label for="email">Email or username</label><input id="email" name="email" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required value="${escape(email)}">
-<label for="password">Password</label><input id="password" name="password" type="password" autocomplete="current-password" required>
-<button type="submit">Sign in</button></form>`,
-  );
-}
-
-function mfaForm(key: string, error?: string): string {
-  return html(
-    "Garmin verification code",
-    `<h1>Enter your verification code</h1><p>Garmin sent a code to your email or phone.</p>
-${error ? `<div class="error">${escape(error)}</div>` : ""}
-<form method="post"><input type="hidden" name="key" value="${escape(key)}"><input type="hidden" name="step" value="mfa">
-<label for="code">Code</label><input id="code" name="code" inputmode="numeric" autocomplete="one-time-code" required>
-<button type="submit">Verify</button></form>`,
-  );
-}
-
-const donePage = (name: string) =>
-  html("Signed in", `<h1>Signed in as ${escape(name)}</h1><p>You can close this tab and go back to Claude.</p>`);
+const donePage = (name: string) => messagePage(`Signed in as ${name}`, "You can close this tab and go back to Claude.");
 
 function readBody(req: http.IncomingMessage): Promise<URLSearchParams> {
   return new Promise((resolve, reject) => {
@@ -129,7 +91,7 @@ export async function startSignInPage(options: SignInPageOptions): Promise<SignI
   const server = http.createServer((req, res) => {
     void handle(req, res).catch(() => {
       if (!res.headersSent) res.writeHead(500, HEADERS);
-      res.end(html("Error", "<h1>Something went wrong</h1><p>Close this tab and ask Claude to sign in again.</p>"));
+      res.end(messagePage("Something went wrong", "Close this tab and ask Claude to sign in again."));
     });
   });
 
