@@ -1171,3 +1171,16 @@ It holds NO Garmin knowledge of its own:
   case-insensitively and trimmed. An unknown name is dropped and reported on stderr rather than
   thrown — this is a free-text extension setting, and a typo used to stop the whole server before
   any tool was registered. If nothing requested resolves, every group loads.
+- **The hosted server** is `mcp/src/http/`, bundled to `mcp/dist-http/http.mjs`. It is not
+  published to npm: `mcp/Dockerfile` builds the image Dokploy deploys, and `mcp/HOSTING.md` is the
+  runbook. It needs Node >= 22.13 (`node:sqlite`, loaded through `createRequire`; its SQLite tests
+  skip on older Node). OAuth endpoints are the SDK's handlers mounted under `/mcp/oauth/*`, with
+  request bodies capped at 16 KB.
+- **`FilesStrategy`** (`mcp/src/files.ts`) is how tools touch files: `localFiles` (stdio, reads and
+  writes your disk) or `inlineFiles` (hosted: uploads take `filename` + `content` + `encoding`,
+  10 MB cap; downloads return an embedded resource, 5 MB cap). **`HOSTED_TOOL_FACTORIES`**
+  (`mcp/src/tools.ts`) is the tool set the hosted server registers. It has no `sign_in_to_garmin`.
+- **Garmin tokens never touch disk on the hosted server:** they live sealed inside the OAuth tokens
+  the MCP client holds. The grant table holds none.
+- `npm run smoke:http` drives the hosted server with an in-memory grant store against the TEST
+  account. It needs `GARMIN_EMAIL`, `GARMIN_PASSWORD` and `GARMIN_TEST_PROFILE_ID`.

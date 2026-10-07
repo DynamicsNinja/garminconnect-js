@@ -12,6 +12,26 @@ it, and pushes it to your device.
 
 Unofficial: not made by, or affiliated with, Garmin.
 
+## Use it without installing
+
+A hosted copy runs at `https://garmin.ficdev.xyz/mcp`. You sign in to Garmin once in a browser
+window and get the same tools, with nothing to install.
+
+- **claude.ai:** Settings, Connectors, Add custom connector. Paste the URL and sign in to Garmin in
+  the window that opens. It then shows up in Claude Desktop and mobile on the same account.
+- **Claude Code:** `claude mcp add --transport http garmin https://garmin.ficdev.xyz/mcp`
+- **Other MCP clients:** add a streamable-HTTP server with that URL.
+
+How it differs from the local server:
+
+- There is no `sign_in_to_garmin` tool. You sign in when you add the connector.
+- Upload tools take `filename` and `content`, plus `encoding: "base64"` for `.fit` files. The cap is
+  10 MB.
+- Downloads come back in the chat instead of being saved to a folder. The cap is 5 MB.
+
+To disconnect, remove the connector. You can also tick "Disconnect my other Garmin connections" on
+your next sign-in. Privacy details are in [PRIVACY.md](PRIVACY.md).
+
 ## What you need
 
 - [Node.js](https://nodejs.org) 18 or newer (`node --version` to check).

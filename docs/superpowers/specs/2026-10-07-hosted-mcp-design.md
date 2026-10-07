@@ -1,6 +1,6 @@
 # Hosted garminconnect-mcp at `garmin.ficdev.xyz/mcp` — design
 
-Date: 2026-10-07. Status: approved in conversation, awaiting written-spec review.
+Date: 2026-10-07. Status: approved; implementation plan docs/superpowers/plans/2026-10-07-hosted-mcp.md
 
 ## 1. Intent
 
@@ -281,3 +281,18 @@ Mock Garmin at `fetchImpl`, never internals (AGENTS.md §8).
 Multiple egress IPs; an account/dashboard page; `garmin.cn` accounts; MCP resources and prompts;
 any change to the Next.js demo (a "Use with Claude" link there is a follow-up in that repo);
 scopes finer than "everything the tool list exposes".
+
+## 11. Refinements made while planning
+
+These replace the matching statements above.
+
+1. **No npm bin for the hosted server.** `tests/mcp-package.test.ts` pins `mcp`'s `bin` and `dependencies`. The hosted entry is built to `mcp/dist-http/http.mjs` (everything inlined, like the extension bundle) and run only from the Docker image. Express, `express-rate-limit` and `@types/express` become devDependencies of `mcp`, needed at build time only.
+2. **OAuth endpoints are the SDK's individual handlers mounted under `/mcp/oauth/*`.** The SDK's `mcpAuthRouter` resolves every endpoint against the domain root (`new URL("/token", base)`), so it cannot put them under `/mcp`. We mount `authorizationHandler`, `tokenHandler`, `clientRegistrationHandler` and `revocationHandler` ourselves and pass our own metadata to `mcpAuthMetadataRouter`.
+3. **The sealed `client_id` carries the whole registration**, including a `client_secret` when a confidential client registers. The SDK's client authentication then works with no storage.
+4. **Refresh grace window:** the generation just before the current one is accepted for 60 s after a rotation, without revoking. Two racing refreshes (claude.ai web and mobile, or a client retry) must not disconnect the user.
+5. **A tool-call auth error revokes the grant only for a dead Garmin session**, meaning a `GarminAuthError` whose message ends in `(401)` or says "log in again". A 403 is often Cloudflare and is transient, so it does not revoke. `Session.reset` gains an optional `error` to carry this.
+6. **Deploys go through the Dokploy API** (`POST /api/application.deploy` with `x-api-key`), not a webhook, because the API is documented. Secrets: `DOKPLOY_URL`, `DOKPLOY_API_KEY`, `DOKPLOY_APPLICATION_ID`.
+7. **An extra endpoint, `POST /mcp/oauth/signin`**, receives the sign-in form. `/mcp/oauth/authorize` (the SDK handler) only validates and renders it.
+8. **`node:sqlite` is loaded through `createRequire`** (`loadSqlite()` in `grants.ts`) because vite-node cannot import it. SQLite tests skip on Node < 22.13 and run on current Node 22 in CI.
+9. **A refresh calls Garmin before rotating the generation**, so a transient Garmin failure leaves the refresh token usable. Section 3.2 said "bump, then refresh".
+10. **Request bodies on the SDK OAuth endpoints are capped at 16 KB** by parsers mounted ahead of the SDK handlers.

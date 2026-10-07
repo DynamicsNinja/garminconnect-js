@@ -426,6 +426,8 @@ reference for every option. Runnable versions of those examples live in
 Desktop to build a workout, schedule it and send it to your watch, or to read your sleep and
 training data. It ships from this repo, in lockstep with the library.
 
+Or use it without installing anything: add `https://garmin.ficdev.xyz/mcp` as a custom connector in claude.ai (see [mcp/README.md](mcp/README.md)).
+
 ## 📊 API coverage
 
 **193 typed methods across 13 categories.** Each category links to a generated

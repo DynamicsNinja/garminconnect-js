@@ -97,3 +97,18 @@ jobs:
           else
             gh release create "$GITHUB_REF_NAME" "$file" --verify-tag --generate-notes
           fi
+
+      # The hosted server at garmin.ficdev.xyz/mcp ships with the release. Dokploy builds the
+      # configured branch (main), so tag a commit on main. Skipped until the secrets exist.
+      - name: Deploy the hosted MCP server (Dokploy)
+        env:
+          DOKPLOY_URL: ${{ secrets.DOKPLOY_URL }}
+          DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
+          DOKPLOY_APPLICATION_ID: ${{ secrets.DOKPLOY_APPLICATION_ID }}
+        run: |
+          if [ -z "$DOKPLOY_URL" ] || [ -z "$DOKPLOY_API_KEY" ] || [ -z "$DOKPLOY_APPLICATION_ID" ]; then
+            echo "Dokploy secrets not set; skipping the hosted deploy."; exit 0
+          fi
+          curl -fsS -X POST "$DOKPLOY_URL/api/application.deploy" \
+            -H "x-api-key: $DOKPLOY_API_KEY" -H "content-type: application/json" \
+            -d "{\"applicationId\":\"$DOKPLOY_APPLICATION_ID\"}"

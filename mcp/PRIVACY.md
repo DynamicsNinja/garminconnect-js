@@ -22,5 +22,18 @@ This extension/server runs entirely on your computer.
 - **What Claude sees:** the results of the tools Claude calls — for example your sleep data when you
   ask about sleep. How Claude handles conversation data is covered by Anthropic's privacy policy.
 
+## Hosted server (garmin.ficdev.xyz/mcp)
+
+Everything above describes the local server. The hosted server runs on a server instead of your
+computer.
+
+- **Stored:** one row per connection: a random id, a keyed hash of your Garmin profile id, the
+  client's name (for example "Claude"), a state, a counter, and timestamps. A row is deleted after
+  35 days unused.
+- **Never stored:** your password (sent once to Garmin), your email, your Garmin tokens (they are
+  encrypted inside the token your MCP client keeps), and your Garmin data (it is passed through to
+  your client, not kept).
+- **Logs** hold the connection id prefix, tool name, status and duration only.
+
 Unofficial: not made by, or affiliated with, Garmin. Garmin's own privacy policy applies to the data
 Garmin holds: https://www.garmin.com/privacy/
