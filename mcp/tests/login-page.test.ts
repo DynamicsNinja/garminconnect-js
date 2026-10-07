@@ -29,7 +29,7 @@ describe("login page", () => {
   it("carries the wordmark for both colour schemes, and the footer", () => {
     const page = loginShell("T", "<p>x</p>");
     expect(page).toContain("prefers-color-scheme: dark");
-    expect(page).toContain("garminconnect-js — TypeScript client for Garmin Connect");
+    expect(page).toContain("garminconnect-js: TypeScript client for Garmin Connect");
     expect(page).toContain("#0969DA");
     expect(page).toContain("#58A6FF");
     expect(page.length).toBeGreaterThan(WORDMARK_LIGHT.length + WORDMARK_DARK.length - 2000);

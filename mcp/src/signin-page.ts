@@ -206,7 +206,7 @@ export async function startSignInPage(options: SignInPageOptions): Promise<SignI
   server.on("error", () => void close());
   // An open sign-in page must never be the reason the MCP process stays alive; the idle timer
   // (also unref'd) closes it anyway. `server.unref()` alone only covers the listening socket
-  // itself — an ACCEPTED connection is a separate handle that otherwise keeps the process up for
+  // itself, since an ACCEPTED connection is a separate handle that otherwise keeps the process up for
   // as long as it stays open (e.g. ~90s of keep-alive after stdin closes), so unref every socket too.
   server.unref();
   server.on("connection", (socket) => socket.unref());
