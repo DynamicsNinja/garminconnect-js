@@ -67,6 +67,51 @@ function contract(name: string, open: () => Promise<GrantStore>) {
       expect(s.get(abandoned.grantId)).toBeUndefined();
       expect(s.get(fresh.grantId)).toBeDefined();
     });
+
+    it("counts people, not connections, and only active ones", async () => {
+      const s = await open();
+      const now = 100 * 86_400;
+      const add = (user: string, client: string | null, lastUsed: number, state: "active" | "pending" | "revoked" = "active") => {
+        const g = s.create(user, client, lastUsed);
+        if (state !== "pending") s.activate(g.grantId, lastUsed);
+        if (state === "revoked") s.revoke(g.grantId);
+      };
+      add("u1", "Claude", now - 100); // u1 on two clients: one person
+      add("u1", "Claude Desktop", now - 3 * 86_400);
+      add("u2", "Claude", now - 10 * 86_400);
+      add("u3", "Cursor", now - 20 * 86_400);
+      add("u4", "Claude", now, "pending");
+      add("u5", "Claude", now, "revoked");
+      expect(s.usage(now)).toEqual({
+        users: 3,
+        connections: 4,
+        active1d: 1,
+        active7d: 1,
+        active30d: 3,
+        byClient: [
+          { client: "Claude", users: 2 },
+          { client: "Claude Desktop", users: 1 },
+          { client: "Cursor", users: 1 },
+        ],
+      });
+    });
+
+    it("records one row per UTC day, overwriting the same day, and keeps rows through a purge", async () => {
+      const s = await open();
+      const day = 20_000 * 86_400; // 2024-10-04
+      const g = s.create("u1", "Claude", day);
+      s.activate(g.grantId, day);
+      s.recordDay(day + 60);
+      s.activate(s.create("u2", "Claude", day).grantId, day);
+      s.recordDay(day + 3600); // same day: overwritten
+      s.recordDay(day + 86_400);
+      s.purge(day + 400 * 86_400);
+      expect(s.history(day + 86_400, 90)).toEqual([
+        { day: "2024-10-04", users: 2, connections: 2, active7d: 2 },
+        { day: "2024-10-05", users: 2, connections: 2, active7d: 2 },
+      ]);
+      expect(s.history(day + 200 * 86_400, 90)).toEqual([]);
+    });
   });
 }
 

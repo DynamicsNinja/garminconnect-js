@@ -6,6 +6,16 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-10-12
+
+### Added
+
+- **Hosted MCP server: public usage stats** at `https://garmin.ficdev.xyz/mcp/stats` (and
+  `/mcp/stats.json`): people, connections, people active today / this week / this month, people
+  per client, and a 90-day trend. Counts only, no ids or hashes; a client name is shown only once
+  at least three people use it. The trend is recorded by `node http.mjs snapshot`, run by a
+  Dokploy Schedule (see `mcp/HOSTING.md`). The library itself is unchanged.
+
 ## [0.9.0] - 2026-10-06
 
 ### Added
@@ -282,7 +292,8 @@ a broken result. Each is recorded with its reason in `tests/parity.test.ts`.
 - `@types/node` is an optional peer dependency: needed only for type-checking against the
   `Buffer` return types, and not installed into consumers' projects automatically.
 
-[Unreleased]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.9.1...HEAD
+[0.9.1]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.8.2...v0.9.0
 [0.8.2]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.8.1...v0.8.2
 [0.8.1]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.8.0...v0.8.1

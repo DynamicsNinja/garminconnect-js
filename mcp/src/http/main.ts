@@ -3,6 +3,7 @@
  *   node http.mjs                     serve
  *   node http.mjs revoke <grant_id>   disconnect one connection
  *   node http.mjs revoke --all        disconnect everyone
+ *   node http.mjs snapshot            record today's /mcp/stats trend row (run by a Dokploy Schedule)
  */
 import { describeError } from "../errors.js";
 import { loadHostedConfig } from "./config.js";
@@ -27,6 +28,13 @@ try {
     }
     const n = target === "--all" ? grants.revokeAll() : Number(grants.revoke(target));
     console.log(`Revoked ${n} connection(s).`);
+    grants.close();
+    process.exit(0);
+  }
+
+  if (process.argv[2] === "snapshot") {
+    grants.recordDay(now());
+    log({ msg: "stats snapshot", ...grants.count() });
     grants.close();
     process.exit(0);
   }

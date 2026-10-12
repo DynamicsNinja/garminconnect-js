@@ -25,6 +25,7 @@ import { errorPage, pageHeaders } from "./pages.js";
 import { HostedOAuthProvider, type AccessExtra } from "./provider.js";
 import { requestSession } from "./request-session.js";
 import type { Sealer } from "./seal.js";
+import { buildStats, statsHeaders, statsPage, type Stats } from "./stats.js";
 
 export interface HttpAppDeps {
   publicUrl: URL;
@@ -102,6 +103,22 @@ export function createHttpApp(deps: HttpAppDeps): Express {
 
   app.get("/mcp/healthz", (_req, res) => {
     res.type("text/plain").send("ok");
+  });
+
+  // Public usage counts. Rebuilt at most every five minutes, so a busy page costs the database nothing.
+  const now = deps.now ?? (() => Math.floor(Date.now() / 1000));
+  let stats: { at: number; value: Stats } | null = null;
+  const currentStats = () => {
+    const t = now();
+    if (!stats || t - stats.at >= 300) stats = { at: t, value: buildStats(deps.grants, t) };
+    return stats.value;
+  };
+  const statsLimit = rateLimit({ windowMs: 60_000, limit: 60, standardHeaders: "draft-7", legacyHeaders: false });
+  app.get("/mcp/stats", statsLimit, (_req, res) => {
+    res.set(statsHeaders()).send(statsPage(currentStats()));
+  });
+  app.get("/mcp/stats.json", statsLimit, (_req, res) => {
+    res.set("cache-control", "public, max-age=300").json(currentStats());
   });
 
   app.use(

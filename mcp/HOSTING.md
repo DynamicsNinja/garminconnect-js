@@ -65,6 +65,13 @@ in-memory grant store and needs `GARMIN_EMAIL`, `GARMIN_PASSWORD` and `GARMIN_TE
   never re-issued, so they only ever unseal under the key they were made with. Drop an old key only
   if it was compromised, and know that doing so disconnects every user who connected before the
   rotation: each has to remove and re-add the connector.
+- **Usage stats:** `https://garmin.ficdev.xyz/mcp/stats` (and `/mcp/stats.json`) is public and
+  shows the live counts, recomputed at most every 5 minutes. The 90-day trend under it needs a
+  snapshot per day, written by `node http.mjs snapshot`. The server never runs it itself: add a
+  Dokploy **Schedule** on this application (Schedules tab, type Application), cron `0 * * * *`,
+  command `node http.mjs snapshot`. Each run overwrites today's row (UTC), so hourly keeps the
+  day's last count and a missed run costs nothing. Run it once by hand after adding it; the trend
+  starts from that day, since purged rows cannot be counted back.
 - **Logs** are JSON lines of grant prefix, RPC method, tool, status and milliseconds. They never
   hold tokens, emails, passwords, Garmin payloads or query strings.
 
