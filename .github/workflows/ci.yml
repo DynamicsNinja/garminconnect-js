@@ -25,6 +25,17 @@ jobs:
 
 # CI never runs `test:live` — it has no credentials and must not hit Garmin.
 
+  jsr:
+    # The release publishes to JSR after npm, so a slow type (an export without an explicit type)
+    # must fail here, not after npm has already shipped that version.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - run: npx --yes jsr publish --dry-run
+
   docker:
     # The hosted MCP server's image: it must build from a clean checkout and come up healthy.
     runs-on: ubuntu-latest
