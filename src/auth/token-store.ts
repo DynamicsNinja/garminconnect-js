@@ -2,12 +2,20 @@ import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { OAuth1Token, OAuth2Token, Tokens } from "./tokens.js";
 
+/**
+ * Persists a client's tokens between runs. Implement it to keep tokens in a database or a secret
+ * store; `FileTokenStore` and `MemoryTokenStore` are ready-made.
+ */
 export interface TokenStore {
+  /** The saved tokens, or `null` when there are none. */
   load(): Promise<Tokens | null>;
+  /** Saves tokens, replacing any saved before. */
   save(tokens: Tokens): Promise<void>;
+  /** Removes the saved tokens. */
   clear(): Promise<void>;
 }
 
+/** Keeps tokens in memory only, so they are lost when the process exits. The client's default. */
 export class MemoryTokenStore implements TokenStore {
   #tokens: Tokens | null = null;
 
@@ -27,6 +35,10 @@ const OAUTH2_FILE = "oauth2_token.json";
 
 /** garth-compatible on-disk format: tokens written by Python garth load directly. */
 export class FileTokenStore implements TokenStore {
+  /**
+   * Stores tokens as `oauth1_token.json` and `oauth2_token.json` in `dir`, which is created on the
+   * first save.
+   */
   constructor(private readonly dir: string) {}
 
   async load(): Promise<Tokens | null> {

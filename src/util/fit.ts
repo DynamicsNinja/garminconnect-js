@@ -111,6 +111,7 @@ const LMSG_WEIGHT_SCALE = 3;
 
 const FILE_TYPE_WEIGHT = 9;
 
+/** Optional body-composition values for `addBodyComposition`, alongside the weight. */
 export interface WeightScaleFields {
   percentFat?: number;
   percentHydration?: number;

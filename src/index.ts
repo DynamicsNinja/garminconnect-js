@@ -1,3 +1,25 @@
+/**
+ * An unofficial TypeScript client for the Garmin Connect API.
+ *
+ * Exports `GarminClient` (sign-in, tokens and the HTTP transport), `Garmin` (one method per
+ * endpoint), the token stores, the `GarminError` hierarchy, the request and response types, the
+ * workout id tables, and the workout tools: `buildWorkout`, `workoutFromSpec` and
+ * `WORKOUT_SPEC_JSON_SCHEMA`. The exercise catalogue and the method manifest are separate entry
+ * points (`./exercises` and `./manifest`).
+ *
+ * ```ts
+ * import { FileTokenStore, Garmin, GarminClient } from "garminconnect-js";
+ *
+ * const client = new GarminClient({ tokenStore: new FileTokenStore("./tokens") });
+ * const result = await client.login(email, password);
+ * if (result.state === "mfa_required") await client.resumeLogin(result.mfaState, code);
+ *
+ * const garmin = new Garmin(client);
+ * console.log(await garmin.getUserSummary("2026-09-22"));
+ * ```
+ *
+ * @module
+ */
 export * from "./errors.js";
 export { GarminClient, type ApiOptions, type GarminClientOptions } from "./client.js";
 export { Garmin, type SocialProfile, type UserSettings } from "./garmin.js";

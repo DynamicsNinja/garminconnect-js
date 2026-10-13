@@ -92,8 +92,9 @@ export const CATEGORIES: Record<string, { slug: string; title: string; blurb: st
 export function parseGarminClass(): { name: string; params: string; service: string }[] {
   const source = readFileSync(path.join(ROOT, "src", "garmin.ts"), "utf8");
   const out: { name: string; params: string; service: string }[] = [];
-  // `  methodName(a: T, b?: U): Ret {` … `return <service>.<fn>(this, …)`
-  const re = /\n {2}([a-zA-Z][A-Za-z0-9]*)\(([^)]*)\)[^{]*\{\s*\n?\s*return (\w+)\./g;
+  // `  methodName(a: T, b?: U): Ret {` … `return <service>.<fn>(this, …)`. The return type runs to
+  // the LAST ` {` on its line, since it may hold braces itself (`Promise<{ servingUnits: … }>`).
+  const re = /\n {2}([a-zA-Z][A-Za-z0-9]*)\(([^)]*)\)(?::[^\n]*)? \{\s*\n?\s*return (\w+)\./g;
   let m: RegExpExecArray | null;
   while ((m = re.exec(source)) !== null) {
     const [, name, params, service] = m;

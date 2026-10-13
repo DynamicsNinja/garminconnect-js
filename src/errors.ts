@@ -1,4 +1,9 @@
+/**
+ * Base class of every error this library throws, so `instanceof GarminError` catches them all.
+ * `name` is the concrete subclass's name.
+ */
 export class GarminError extends Error {
+  /** `options.cause` is the underlying error, if any. */
   constructor(message: string, options?: { cause?: unknown }) {
     super(message, options);
     this.name = new.target.name;
@@ -35,7 +40,9 @@ export class GarminConnectionError extends GarminError {}
  * it are listed in `CONNECT_PLUS_METHODS`. `cause` carries the original 403 when there was one.
  */
 export class GarminConnectPlusRequiredError extends GarminError {
+  /** Thrown by the methods that need Connect+; `cause` is the 403, when there was one. */
   constructor(
+    /** The `Garmin` method that was called. */
     readonly method: string,
     options?: { cause?: unknown },
   ) {
@@ -49,8 +56,10 @@ export class GarminConnectPlusRequiredError extends GarminError {
 
 /** 429. `retryAfter` is seconds, taken from the Retry-After header when present. */
 export class GarminRateLimitError extends GarminError {
+  /** Thrown by the transport on a 429. */
   constructor(
     message: string,
+    /** Seconds to wait before retrying, from the `Retry-After` header; absent without one. */
     readonly retryAfter?: number,
     options?: { cause?: unknown },
   ) {
@@ -60,10 +69,14 @@ export class GarminRateLimitError extends GarminError {
 
 /** Any other non-2xx response. */
 export class GarminHttpError extends GarminError {
+  /** Thrown by the transport for a non-2xx response that no other error class covers. */
   constructor(
     message: string,
+    /** The HTTP status code. */
     readonly status: number,
+    /** The URL that was requested. */
     readonly url: string,
+    /** The response body, as text. */
     readonly body: string,
     options?: { cause?: unknown },
   ) {

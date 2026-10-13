@@ -22,4 +22,5 @@ export const CONNECT_PLUS_METHODS = [
   "deleteFoodLogs",
 ] as const;
 
+/** The name of a method listed in `CONNECT_PLUS_METHODS`. */
 export type ConnectPlusMethod = (typeof CONNECT_PLUS_METHODS)[number];

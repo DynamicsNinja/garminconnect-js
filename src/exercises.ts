@@ -2,6 +2,10 @@
  * Garmin's exercise catalogue: every 1830 exercise names Garmin accepts, grouped by the
  * 51 categories that have any.
  *
+ * Exports {@link EXERCISES} (the catalogue), {@link exercise} (a `{ category, name }` pair checked
+ * at compile time, for a workout step's `exercise` option), {@link isExerciseName} (the same check
+ * at runtime), and the `ExerciseCategoryWithNames` and `ExerciseName` types.
+ *
  * Published as a SEPARATE entry point — `garminconnect-js/exercises` — because it is roughly a
  * third of the package's size and most callers never need it. Importing the package root does not
  * pull it in.
@@ -35,6 +39,8 @@
  * package root.
  *
  * This file is generated. To regenerate, see `scripts/verify-exercises.ts`.
+ *
+ * @module
  */
 import type { ExerciseCategory } from "./types/workouts.js";
 
@@ -1972,7 +1978,14 @@ export const EXERCISES = {
     "WALKOUT",
     "WALKOUT_FROM_PUSH_UP_POSITION",
   ],
-} as const satisfies Partial<Record<ExerciseCategory, readonly string[]>>;
+} as const;
+
+// `EXERCISES` is a plain `as const` literal (no inline `satisfies`) so JSR can read its type
+// straight from the literal. This annotated alias keeps the compile-time check that every key is a
+// real `ExerciseCategory`: a plain assignment skips excess-key checks, so any other key is typed
+// `never` and fails here.
+const CATALOGUE: Partial<Record<ExerciseCategory, readonly string[]>> &
+  Record<Exclude<keyof typeof EXERCISES, ExerciseCategory>, never> = EXERCISES;
 
 /** A category that has at least one named exercise — every key of {@link EXERCISES}. */
 export type ExerciseCategoryWithNames = keyof typeof EXERCISES;
@@ -2009,6 +2022,6 @@ export function isExerciseName(category: string, name: string): boolean {
   // `Object.prototype.constructor` and throw on `.includes`, and `"toString"` would be reported
   // as a valid exercise for every category.
   if (!Object.hasOwn(EXERCISES, category)) return false;
-  const names = (EXERCISES as Record<string, readonly string[]>)[category]!;
+  const names = (CATALOGUE as Record<string, readonly string[]>)[category]!;
   return names.includes(name);
 }

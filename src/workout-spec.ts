@@ -37,7 +37,9 @@ import type {
   WorkoutStepList,
 } from "./workout-builder.js";
 
+/** Every step `type` in a `WorkoutSpec` other than the repeat blocks. */
 export const SIMPLE_STEP_TYPES = ["warmup", "cooldown", "interval", "recovery", "main", "other", "rest"] as const;
+/** A plain (non-repeat) step type in a `WorkoutSpec`. */
 export type SimpleStepType = (typeof SIMPLE_STEP_TYPES)[number];
 
 /** One step: a plain step with builder options, or a block of nested steps. */
@@ -46,6 +48,7 @@ export type WorkoutSpecStep =
   | { type: "repeat"; times: number; steps: WorkoutSpecStep[] }
   | { type: "repeatForSeconds"; seconds: number; steps: WorkoutSpecStep[] };
 
+/** One sport's part of a multi-sport `WorkoutSpec`. */
 export interface WorkoutSpecLeg {
   sport: WorkoutSport;
   steps: WorkoutSpecStep[];

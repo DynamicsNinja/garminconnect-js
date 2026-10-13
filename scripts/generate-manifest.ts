@@ -312,6 +312,7 @@ export function renderManifest(methods: ManifestMethod[]): string {
     "// tests/manifest.test.ts fails if this file is out of date.",
     'import type { ManifestMethod } from "../manifest.js";',
     "",
+    "/** Every `Garmin` method, in the order `src/garmin.ts` declares them. */",
     `export const GARMIN_METHODS: readonly ManifestMethod[] = ${JSON.stringify(methods, null, 2)};`,
     "",
   ].join("\n");

@@ -1,3 +1,4 @@
+/** An activity summary, as listed by `getActivities` and returned by `getActivity`. */
 export interface Activity {
   activityId: number;
   activityName?: string;
@@ -8,6 +9,7 @@ export interface Activity {
   [key: string]: unknown;
 }
 
+/** A file format `downloadActivity` can produce. `ORIGINAL` is the file the device uploaded. */
 export type ActivityDownloadFormat = "ORIGINAL" | "TCX" | "GPX" | "KML" | "CSV";
 
 /**
@@ -82,26 +84,32 @@ export interface ActivitySplits {
   [key: string]: unknown;
 }
 
+/** `getActivityTypedSplits`' response. */
 export interface ActivityTypedSplits {
   [key: string]: unknown;
 }
 
+/** `getActivitySplitSummaries`' response. */
 export interface ActivitySplitSummaries {
   [key: string]: unknown;
 }
 
+/** `getActivityWeather`'s response. */
 export interface ActivityWeather {
   [key: string]: unknown;
 }
 
+/** `getActivityHrInTimezones`' response: time in each heart-rate zone. */
 export interface ActivityHrInTimezones {
   [key: string]: unknown;
 }
 
+/** `getActivityPowerInTimezones`' response: time in each power zone. */
 export interface ActivityPowerInTimezones {
   [key: string]: unknown;
 }
 
+/** `getActivityDetails`' response: the activity's time series and track. */
 export interface ActivityDetails {
   [key: string]: unknown;
 }

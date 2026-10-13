@@ -77,6 +77,7 @@ export type WidgetSuccess = { state: "success"; oauth1: OAuth1Token; oauth2: OAu
 /** Turns a service ticket into tokens; `sso.ts` passes `completeLogin` so there is no import cycle. */
 export type CompleteTicket = (ticket: string, loginUrl: string) => Promise<WidgetSuccess>;
 
+/** MFA state from the SSO widget login, the fallback used when the mobile login is rate limited. */
 export interface WidgetMfaState {
   flow: "widget";
   mfaMethod: string;

@@ -23,6 +23,7 @@ import {
   STROKE_KEYS,
 } from "./workout-spec.js";
 
+/** A JSON Schema (draft 2020-12) as a plain object. */
 export interface JsonSchemaDocument {
   $schema: string;
   $defs: Record<string, unknown>;
@@ -80,6 +81,10 @@ const STEP_PROPERTIES: Record<(typeof SPEC_STEP_OPTION_KEYS)[number], object> = 
   notes: { type: "string", description: "Free text shown on the watch" },
 };
 
+/**
+ * JSON Schema for `WorkoutSpec`, for validating workout JSON before `workoutFromSpec` or for
+ * use as a tool's input schema.
+ */
 export const WORKOUT_SPEC_JSON_SCHEMA: JsonSchemaDocument = {
   $schema: "https://json-schema.org/draft/2020-12/schema",
   title: "WorkoutSpec",

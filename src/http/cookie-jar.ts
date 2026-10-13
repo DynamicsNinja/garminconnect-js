@@ -1,3 +1,4 @@
+/** A cookie in JSON form, carried inside an `MfaState`. */
 export interface SerializedCookie {
   name: string;
   value: string;

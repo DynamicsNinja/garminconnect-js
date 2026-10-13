@@ -2,6 +2,7 @@
 // tests/manifest.test.ts fails if this file is out of date.
 import type { ManifestMethod } from "../manifest.js";
 
+/** Every `Garmin` method, in the order `src/garmin.ts` declares them. */
 export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getUserProfile",
@@ -22,7 +23,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "displayName",
     "category": "profile-and-misc",
-    "description": "Display name.",
+    "description": "The account's display name, which date-scoped endpoints put in their URLs. Cached.",
     "params": [],
     "safety": "read",
     "io": "json"
@@ -30,7 +31,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "fullName",
     "category": "profile-and-misc",
-    "description": "Full name.",
+    "description": "The account holder's full name, from the cached user profile.",
     "params": [],
     "safety": "read",
     "io": "json"
@@ -38,7 +39,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "userName",
     "category": "profile-and-misc",
-    "description": "User name.",
+    "description": "The account's user name, from the cached user profile.",
     "params": [],
     "safety": "read",
     "io": "json"
@@ -70,7 +71,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getUserSummary",
     "category": "wellness",
-    "description": "Get user summary.",
+    "description": "The daily summary for one date: steps, distance, calories and the rest of the day's totals.",
     "params": [
       {
         "name": "cdate",
@@ -106,7 +107,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getStepsData",
     "category": "wellness",
-    "description": "Get steps data.",
+    "description": "Step counts for one date, as a series of time intervals; `[]` if there are none.",
     "params": [
       {
         "name": "cdate",
@@ -124,7 +125,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getHeartRates",
     "category": "wellness",
-    "description": "Get heart rates.",
+    "description": "Heart-rate samples plus resting, min and max heart rate for one date.",
     "params": [
       {
         "name": "cdate",
@@ -142,7 +143,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getSleepData",
     "category": "wellness",
-    "description": "Get sleep data.",
+    "description": "Sleep data for one date: the night's summary and its sleep levels.",
     "params": [
       {
         "name": "cdate",
@@ -160,7 +161,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getHrvData",
     "category": "wellness",
-    "description": "Get hrv data.",
+    "description": "Heart-rate variability (HRV) readings and status for one date.",
     "params": [
       {
         "name": "cdate",
@@ -178,7 +179,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getBodyBattery",
     "category": "wellness",
-    "description": "Get body battery.",
+    "description": "Daily Body Battery reports for a date or a date range (`enddate` defaults to `startdate`).",
     "params": [
       {
         "name": "startdate",
@@ -205,7 +206,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getBodyBatteryEvents",
     "category": "wellness",
-    "description": "Get body battery events.",
+    "description": "Body Battery events for one date.",
     "params": [
       {
         "name": "cdate",
@@ -356,7 +357,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getWeeklyIntensityMinutes",
     "category": "wellness",
-    "description": "Get weekly intensity minutes.",
+    "description": "Weekly intensity-minute totals between two dates.",
     "params": [
       {
         "name": "start",
@@ -538,7 +539,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getHydrationData",
     "category": "wellness",
-    "description": "Get hydration data.",
+    "description": "The hydration log for one date.",
     "params": [
       {
         "name": "cdate",
@@ -556,7 +557,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getRespirationData",
     "category": "wellness",
-    "description": "Get respiration data.",
+    "description": "Breathing-rate data for one date.",
     "params": [
       {
         "name": "cdate",
@@ -592,7 +593,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getIntensityMinutesData",
     "category": "wellness",
-    "description": "Get intensity minutes data.",
+    "description": "Moderate and vigorous intensity minutes for one date.",
     "params": [
       {
         "name": "cdate",
@@ -610,7 +611,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getAllDayStress",
     "category": "wellness",
-    "description": "Get all day stress.",
+    "description": "All-day stress levels for one date.",
     "params": [
       {
         "name": "cdate",
@@ -646,7 +647,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getAllDayEvents",
     "category": "wellness",
-    "description": "Get all day events.",
+    "description": "Daily events for one date (Garmin's `dailyEvents` feed).",
     "params": [
       {
         "name": "cdate",
@@ -691,7 +692,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getRhrDay",
     "category": "wellness",
-    "description": "Get rhr day.",
+    "description": "Resting heart rate for one date.",
     "params": [
       {
         "name": "cdate",
@@ -763,7 +764,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getHrvDataRange",
     "category": "wellness",
-    "description": "Get hrv data range.",
+    "description": "Daily HRV summaries over a date range.",
     "params": [
       {
         "name": "start",
@@ -888,7 +889,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getActivity",
     "category": "activities",
-    "description": "Get activity.",
+    "description": "One activity's summary by id. Throws `GarminError` if Garmin returns nothing.",
     "params": [
       {
         "name": "activityId",
@@ -1322,7 +1323,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getActivitySplits",
     "category": "activities",
-    "description": "Get activity splits.",
+    "description": "An activity's laps.",
     "params": [
       {
         "name": "activityId",
@@ -1362,7 +1363,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getActivitySplitSummaries",
     "category": "activities",
-    "description": "Get activity split summaries.",
+    "description": "Summaries of an activity's splits.",
     "params": [
       {
         "name": "activityId",
@@ -1382,7 +1383,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getActivityWeather",
     "category": "activities",
-    "description": "Get activity weather.",
+    "description": "The weather recorded for an activity.",
     "params": [
       {
         "name": "activityId",
@@ -1402,7 +1403,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getActivityHrInTimezones",
     "category": "activities",
-    "description": "Get activity hr in timezones.",
+    "description": "Time spent in each heart-rate zone during an activity.",
     "params": [
       {
         "name": "activityId",
@@ -1422,7 +1423,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getActivityPowerInTimezones",
     "category": "activities",
-    "description": "Get activity power in timezones.",
+    "description": "Time spent in each power zone during an activity.",
     "params": [
       {
         "name": "activityId",
@@ -1476,7 +1477,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getActivityExerciseSets",
     "category": "activities",
-    "description": "Get activity exercise sets.",
+    "description": "A strength activity's exercise sets.",
     "params": [
       {
         "name": "activityId",
@@ -1752,12 +1753,12 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
         "schema": {
           "type": "string",
           "enum": [
-            "distance",
             "NONE",
             "DISTANCE",
             "DURATION",
             "DATE",
             "none",
+            "distance",
             "duration",
             "date"
           ]
@@ -2165,7 +2166,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getPrimaryTrainingDevice",
     "category": "devices",
-    "description": "Get primary training device.",
+    "description": "The account's primary training device.",
     "params": [],
     "safety": "read",
     "io": "json"
@@ -2382,7 +2383,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getWeighIns",
     "category": "body-composition-weight",
-    "description": "Get weigh ins.",
+    "description": "Weigh-ins between two dates.",
     "params": [
       {
         "name": "startdate",
@@ -2446,7 +2447,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "deleteWeighIn",
     "category": "body-composition-weight",
-    "description": "Delete weigh in.",
+    "description": "Deletes one weigh-in, by date and its `weightPk`.",
     "params": [
       {
         "name": "cdate",
@@ -2793,7 +2794,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getTrainingReadiness",
     "category": "metrics",
-    "description": "Get training readiness.",
+    "description": "Training readiness entries for one date.",
     "params": [
       {
         "name": "cdate",
@@ -2932,7 +2933,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getTrainingStatus",
     "category": "metrics",
-    "description": "Get training status.",
+    "description": "Training status for one date.",
     "params": [
       {
         "name": "cdate",
@@ -2950,7 +2951,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getFitnessAgeData",
     "category": "metrics",
-    "description": "Get fitness age data.",
+    "description": "Fitness age for one date.",
     "params": [
       {
         "name": "cdate",
@@ -3003,7 +3004,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getHeartRateZones",
     "category": "metrics",
-    "description": "Get heart rate zones.",
+    "description": "Heart-rate zone profiles: DEFAULT plus any per-sport ones.",
     "params": [],
     "safety": "read",
     "io": "json"
@@ -3091,7 +3092,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getPowerZones",
     "category": "metrics",
-    "description": "Get power zones.",
+    "description": "Power zone profiles.",
     "params": [],
     "safety": "read",
     "io": "json"
@@ -3138,7 +3139,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getWorkoutById",
     "category": "workouts",
-    "description": "Get workout by id.",
+    "description": "One workout from the library by id.",
     "params": [
       {
         "name": "workoutId",
@@ -4503,7 +4504,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getMenstrualDataForDate",
     "category": "womens-health",
-    "description": "Get menstrual data for date.",
+    "description": "The menstrual-cycle day view for one date.",
     "params": [
       {
         "name": "fordate",
@@ -4548,7 +4549,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getMenstrualLastConfirmed",
     "category": "womens-health",
-    "description": "Get menstrual last confirmed.",
+    "description": "The last confirmed period as of a date.",
     "params": [
       {
         "name": "fordate",
@@ -4566,7 +4567,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getMenstrualCycleSummary",
     "category": "womens-health",
-    "description": "Get menstrual cycle summary.",
+    "description": "A summary of the menstrual cycle containing a date.",
     "params": [
       {
         "name": "fordate",
@@ -4630,7 +4631,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getPregnancySummary",
     "category": "womens-health",
-    "description": "Get pregnancy summary.",
+    "description": "The pregnancy-tracking summary.",
     "params": [],
     "safety": "read",
     "io": "json"

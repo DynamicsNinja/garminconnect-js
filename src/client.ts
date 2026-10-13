@@ -17,12 +17,19 @@ import {
 } from "./auth/tokens.js";
 import { MemoryTokenStore, type TokenStore } from "./auth/token-store.js";
 
+/** Options for `new GarminClient(...)`. Every field is optional. */
 export interface GarminClientOptions {
+  /** Where tokens are loaded from and saved to. Default: a `MemoryTokenStore`. */
   tokenStore?: TokenStore;
+  /** `true` for a Garmin China account (`garmin.cn`); default `garmin.com`. */
   isCn?: boolean;
+  /** Per-request timeout in ms. Default 10000. */
   timeoutMs?: number;
+  /** How many times a transient failure is retried (POSTs normally are not). Default 3. */
   retries?: number;
+  /** Delay before the first retry in ms, doubled on each retry after it. Default 500. */
   backoffMs?: number;
+  /** A `fetch` to use instead of the global one, e.g. a mock in tests. */
   fetchImpl?: typeof fetch;
   /**
    * Pause before the SSO widget's credential POST (the fallback when the mobile login is rate
@@ -31,10 +38,15 @@ export interface GarminClientOptions {
   loginDelayMs?: number;
 }
 
+/** Options for one raw API call (`connectapi`, `download`). */
 export interface ApiOptions {
+  /** HTTP method. Default `GET`. */
   method?: string;
+  /** Query-string parameters; `undefined` values are left out. */
   params?: Record<string, string | number | undefined>;
+  /** A request body, sent as JSON. */
   json?: unknown;
+  /** Extra request headers. They cannot replace the `authorization` header. */
   headers?: Record<string, string>;
   /** Per-request timeout, overriding the client's default (10s). */
   timeoutMs?: number;
@@ -48,8 +60,14 @@ export interface ApiOptions {
  */
 const TRANSFER_DEFAULT_TIMEOUT_MS = 60_000;
 
+/**
+ * The authenticated HTTP transport: signs in, keeps the OAuth tokens fresh, and sends requests to
+ * `connectapi.garmin.com` (or `.cn`). Wrap it in a `Garmin` to call the API.
+ */
 export class GarminClient {
+  /** `garmin.com`, or `garmin.cn` when constructed with `isCn: true`. */
   readonly domain: string;
+  /** Where this client loads and saves its tokens. */
   readonly tokenStore: TokenStore;
 
   #fetcher: Fetcher;
@@ -57,6 +75,7 @@ export class GarminClient {
   #refreshing: Promise<void> | null = null;
   readonly #loginDelayMs: number | undefined;
 
+  /** Creates a client that is not signed in yet: call `login` or `loadTokens` next. */
   constructor(options: GarminClientOptions = {}) {
     this.domain = options.isCn ? "garmin.cn" : "garmin.com";
     this.tokenStore = options.tokenStore ?? new MemoryTokenStore();
@@ -73,6 +92,10 @@ export class GarminClient {
     return { fetcher: this.#fetcher, domain: this.domain, loginDelayMs: this.#loginDelayMs };
   }
 
+  /**
+   * Signs in with email and password and saves the tokens to the store. Resolves to
+   * `{ state: "mfa_required", mfaState }` when Garmin asks for a code: pass both to `resumeLogin`.
+   */
   async login(email: string, password: string): Promise<LoginResult> {
     const result = await ssoLogin(email, password, this.#ssoContext);
     if (result.state === "success") {
@@ -81,6 +104,9 @@ export class GarminClient {
     return result;
   }
 
+  /**
+   * Finishes a login that needed MFA, with the state from `login` and the code the user received.
+   */
   async resumeLogin(mfaState: MfaState, code: string): Promise<void> {
     this.#checkDomain(mfaState.domain);
     const result = await ssoResumeLogin(mfaState, code, { fetcher: this.#fetcher });
@@ -114,10 +140,12 @@ export class GarminClient {
     }
   }
 
+  /** Uses these tokens from now on. Does not save them to the store. */
   setTokens(tokens: Tokens): void {
     this.#tokens = tokens;
   }
 
+  /** The tokens currently held in memory, or `null` before a login or `loadTokens()`. */
   getTokens(): Tokens | null {
     return this.#tokens;
   }
@@ -231,11 +259,16 @@ export class GarminClient {
     }
   }
 
+  /**
+   * Calls any Connect API path (with a leading slash) and parses the JSON response; `null` for an
+   * empty body. For endpoints `Garmin` has no method for.
+   */
   async connectapi<T = unknown>(path: string, options: ApiOptions = {}): Promise<T | null> {
     const res = await this.#apiRequest(path, options);
     return this.#parseBody<T>(res);
   }
 
+  /** Fetches a Connect API path as raw bytes. Default timeout 60 s. */
   async download(path: string, options: ApiOptions = {}): Promise<Buffer> {
     const res = await this.#apiRequest(path, {
       ...options,
@@ -244,6 +277,10 @@ export class GarminClient {
     return Buffer.from(await res.arrayBuffer());
   }
 
+  /**
+   * Uploads a file as multipart form data to `path` (default `/upload-service/upload`) and parses
+   * the JSON response. Default timeout 60 s.
+   */
   async upload(
     file: Blob,
     filename: string,

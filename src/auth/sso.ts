@@ -28,6 +28,7 @@ export interface SsoContext {
   loginDelayMs?: number;
 }
 
+/** The SSO parameters a mobile-route login is started with. */
 export interface LoginParams {
   clientId: string;
   locale: string;
@@ -43,8 +44,13 @@ export interface MobileMfaState {
   domain: string;
 }
 
+/**
+ * What `login` returns when Garmin asks for an MFA code. Plain JSON: it can be stored and passed to
+ * `resumeLogin` later, even in another process.
+ */
 export type MfaState = MobileMfaState | WidgetMfaState;
 
+/** The outcome of `GarminClient.login`: signed in, or waiting for an MFA code. */
 export type LoginResult =
   | { state: "success"; oauth1: OAuth1Token; oauth2: OAuth2Token }
   | { state: "mfa_required"; mfaState: MfaState };

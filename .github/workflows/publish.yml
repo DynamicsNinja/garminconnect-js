@@ -57,8 +57,9 @@ jobs:
       # The same source on JSR (jsr.io/@dynamicsninja/garminconnect), authenticated by this job's OIDC
       # token once the package is linked to this repo on jsr.io. jsr.json's version is kept equal to
       # package.json's by the root `version` script and tests/mcp-package.test.ts.
-      # --allow-slow-types: most Garmin methods infer their return types; JSR accepts that, but then
-      # ships no generated .d.ts (Node users get typings from npm anyway).
+      # No --allow-slow-types: every exported symbol has an explicit type, so JSR type-checks fast and
+      # generates .d.ts files. A new method without a return type fails this publish, so catch it
+      # first with `npx jsr publish --dry-run --allow-dirty`.
       # Skipped, with a warning, until the package exists on jsr.io, and when this version is already there.
       - name: Publish library to JSR (skip if not set up or already published)
         run: |
@@ -69,7 +70,7 @@ jobs:
           elif echo "$meta" | node -e "const m=JSON.parse(require('fs').readFileSync(0,'utf8'));process.exit(m.versions&&m.versions[process.argv[1]]?0:1)" "$version"; then
             echo "@dynamicsninja/garminconnect@$version is already on JSR; skipping."
           else
-            npx --yes jsr publish --allow-slow-types
+            npx --yes jsr publish
           fi
 
       # The MCP server ships from the same tag, AFTER the library. tests/mcp-package.test.ts (run by

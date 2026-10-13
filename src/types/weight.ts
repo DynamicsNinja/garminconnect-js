@@ -1,3 +1,4 @@
+/** `getWeighIns`' response: per-day summaries and the range's averages. */
 export interface WeighInRange {
   dailyWeightSummaries?: Record<string, unknown>[];
   totalAverage?: Record<string, unknown>;

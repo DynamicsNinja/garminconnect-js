@@ -51,11 +51,35 @@ import type {
 import type { ExerciseCategoryWithNames, ExerciseName } from "./exercises.js";
 
 /**
+ * Sports you can build a workout for. Deliberately EXCLUDES walking and hiking: Garmin has no
+ * workout sport type for either, and sending activity-type ids (17/18) produces a workout with
+ * `sportTypeKey: null`. See `WORKOUT_SPORT_TYPE_ID`'s doc comment.
+ */
+export type WorkoutSport =
+  | "running"
+  | "cycling"
+  | "swimming"
+  | "strength_training"
+  | "multi_sport"
+  | "cardio_training"
+  | "hiit"
+  | "yoga"
+  | "pilates"
+  | "mobility"
+  | "rucking"
+  | "other";
+
+/**
  * `displayOrder` for each sport, as Garmin itself stores it. It is cosmetic — a workout is accepted
  * with the "wrong" value — but matching Garmin's own numbers costs nothing and avoids a diff that
  * looks like a bug.
+ *
+ * Annotated because JSR cannot infer a type from the `WORKOUT_SPORT_TYPE_ID` references; the
+ * `Record` still makes a missing or extra sport a compile error.
  */
-const SPORTS = {
+const SPORTS: Readonly<
+  Record<WorkoutSport, readonly [sportTypeId: number, displayOrder: number]>
+> = {
   running: [WORKOUT_SPORT_TYPE_ID.RUNNING, 1],
   cycling: [WORKOUT_SPORT_TYPE_ID.CYCLING, 2],
   swimming: [WORKOUT_SPORT_TYPE_ID.SWIMMING, 3],
@@ -68,20 +92,16 @@ const SPORTS = {
   mobility: [WORKOUT_SPORT_TYPE_ID.MOBILITY, 10],
   rucking: [WORKOUT_SPORT_TYPE_ID.RUCKING, 12],
   other: [WORKOUT_SPORT_TYPE_ID.OTHER, 13],
-} as const satisfies Record<string, readonly [number, number]>;
-
-/**
- * Sports you can build a workout for. Deliberately EXCLUDES walking and hiking: Garmin has no
- * workout sport type for either, and sending activity-type ids (17/18) produces a workout with
- * `sportTypeKey: null`. See `WORKOUT_SPORT_TYPE_ID`'s doc comment.
- */
-export type WorkoutSport = keyof typeof SPORTS;
+};
 
 /** Every `WorkoutSport`, at runtime — for validating JSON input and building schemas. */
 export const WORKOUT_SPORTS = Object.keys(SPORTS) as readonly WorkoutSport[];
 
+/** A swim stroke for a step's `stroke` option, e.g. `"free"`. */
 export type StrokeKey = Lowercase<keyof typeof WORKOUT_STROKE_TYPE_ID>;
+/** A swim drill type for a step's `drill` option: `"kick"`, `"pull"` or `"drill"`. */
 export type DrillKey = Lowercase<keyof typeof WORKOUT_DRILL_TYPE_ID>;
+/** Swim equipment for a step's `equipment` option, e.g. `"fins"`. */
 export type EquipmentKey = Lowercase<keyof typeof WORKOUT_EQUIPMENT_TYPE_ID>;
 
 const STROKES: Record<StrokeKey, number> = {
@@ -173,6 +193,7 @@ export type StepTarget =
   /** Swim: seconds offset from critical swim speed. */
   | { swimCssOffsetSeconds: number };
 
+/** Options for one builder step: how it ends (`StepEnd`), its targets, swim and strength details. */
 export interface StepOptions extends StepEnd {
   target?: StepTarget;
   /**
@@ -422,6 +443,7 @@ export class WorkoutStepList {
   }
 }
 
+/** Options for `buildWorkout`: the sport, plus sport-specific settings such as the pool length. */
 export interface WorkoutBuildOptions {
   sport: WorkoutSport;
   /** Swim only, in the unit given by `poolLengthUnit` (default metres). */

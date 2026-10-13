@@ -1,3 +1,4 @@
+/** The long-lived OAuth1 token from sign-in, used to mint new OAuth2 tokens. */
 export interface OAuth1Token {
   oauth_token: string;
   oauth_token_secret: string;
@@ -6,6 +7,7 @@ export interface OAuth1Token {
   domain?: string;
 }
 
+/** An OAuth2 token as Garmin's exchange endpoint returns it. */
 export interface RawOAuth2Token {
   scope: string;
   jti: string;
@@ -16,6 +18,7 @@ export interface RawOAuth2Token {
   refresh_token_expires_in: number;
 }
 
+/** The short-lived OAuth2 bearer token, with absolute expiry times added. */
 export interface OAuth2Token extends RawOAuth2Token {
   /** epoch seconds */
   expires_at: number;
@@ -23,6 +26,7 @@ export interface OAuth2Token extends RawOAuth2Token {
   refresh_token_expires_at: number;
 }
 
+/** The token pair a `TokenStore` saves and loads. */
 export interface Tokens {
   oauth1: OAuth1Token;
   oauth2: OAuth2Token;
