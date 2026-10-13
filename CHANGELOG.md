@@ -6,6 +6,23 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.9.2] - 2026-10-13
+
+Packaging and discovery only; the library and the MCP server behave exactly as in 0.9.1.
+
+### Added
+
+- **JSR:** the library is also published as
+  [`@dynamicsninja/garminconnect`](https://jsr.io/@dynamicsninja/garminconnect), from the
+  TypeScript source, with the same entry points as npm (`.`, `./exercises`, `./manifest`).
+- **MCP Registry:** `mcp/server.json` lists the hosted connector as
+  `io.github.DynamicsNinja/garminconnect` in the official MCP Registry.
+
+### Changed
+
+- npm `homepage` is now https://garmin.ficdev.xyz for the library and
+  https://garmin.ficdev.xyz/claude for the MCP server, and the library has more search keywords.
+
 ## [0.9.1] - 2026-10-12
 
 ### Added
@@ -292,7 +309,8 @@ a broken result. Each is recorded with its reason in `tests/parity.test.ts`.
 - `@types/node` is an optional peer dependency: needed only for type-checking against the
   `Buffer` return types, and not installed into consumers' projects automatically.
 
-[Unreleased]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.9.1...HEAD
+[Unreleased]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.9.2...HEAD
+[0.9.2]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.9.1...v0.9.2
 [0.9.1]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.8.2...v0.9.0
 [0.8.2]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.8.1...v0.8.2
