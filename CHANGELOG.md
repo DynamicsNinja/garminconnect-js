@@ -6,6 +6,21 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.9.3] - 2026-10-13
+
+Types and documentation only; no method, parameter or runtime behaviour changes.
+
+### Changed
+
+- **Explicit types on the whole public API.** Every `Garmin` method now declares its return type
+  (the same type it already returned), and `EXERCISES` and `WorkoutSport` are written out
+  explicitly. JSR now publishes without `--allow-slow-types`, so it ships generated `.d.ts` files
+  and type-checks faster for consumers. CI dry-runs the JSR publish on every push and PR.
+- **Documentation.** Every exported symbol and all three entry points (`.`, `./exercises`,
+  `./manifest`) have doc comments.
+- **MCP server:** about 40 tool descriptions that were generated from the method name (for example
+  "Get user summary.") now use the method's doc comment, so clients get a clearer description.
+
 ## [0.9.2] - 2026-10-13
 
 Packaging and discovery only; the library and the MCP server behave exactly as in 0.9.1.
@@ -309,7 +324,8 @@ a broken result. Each is recorded with its reason in `tests/parity.test.ts`.
 - `@types/node` is an optional peer dependency: needed only for type-checking against the
   `Buffer` return types, and not installed into consumers' projects automatically.
 
-[Unreleased]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.9.2...HEAD
+[Unreleased]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.9.3...HEAD
+[0.9.3]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.9.2...v0.9.3
 [0.9.2]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.9.1...v0.9.2
 [0.9.1]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.8.2...v0.9.0
