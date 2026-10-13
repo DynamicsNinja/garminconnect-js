@@ -101,6 +101,29 @@ jobs:
             npm publish -w mcp
           fi
 
+      # The official MCP Registry entry (mcp/server.json: the hosted connector), signed in with this
+      # job's OIDC token, so no device-code login. The io.github.DynamicsNinja namespace is granted
+      # by the repository owner. mcp-publisher is pinned and checked against the release checksums.
+      # Skipped when this version is already in the registry, so a re-run resumes.
+      - name: Publish to the MCP Registry (skip if already published)
+        working-directory: mcp
+        env:
+          MCP_PUBLISHER_VERSION: 1.8.1
+        run: |
+          name="$(node -p "require('./server.json').name")"
+          version="$(node -p "require('./server.json').version")"
+          if curl -fsS -o /dev/null "https://registry.modelcontextprotocol.io/v0/servers/$(node -p "encodeURIComponent('$name')")/versions/$version"; then
+            echo "$name@$version is already in the MCP Registry; skipping."
+            exit 0
+          fi
+          base="https://github.com/modelcontextprotocol/registry/releases/download/v$MCP_PUBLISHER_VERSION"
+          curl -fsSL -o mcp-publisher_linux_amd64.tar.gz "$base/mcp-publisher_linux_amd64.tar.gz"
+          curl -fsSL -o checksums.txt "$base/registry_${MCP_PUBLISHER_VERSION}_checksums.txt"
+          sha256sum --check --ignore-missing checksums.txt
+          tar xzf mcp-publisher_linux_amd64.tar.gz mcp-publisher
+          ./mcp-publisher login github-oidc
+          ./mcp-publisher publish
+
       # The Claude Desktop Extension, attached to this tag's GitHub Release.
       - name: Build Desktop Extension
         run: |

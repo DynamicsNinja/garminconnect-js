@@ -27,6 +27,13 @@ describe("@dynamicsninja/garminconnect-mcp package contract", () => {
     const npmEntries = Object.keys(root.exports as object).filter((k) => k !== "./package.json").sort();
     expect(Object.keys(jsr.exports as object).sort()).toEqual(npmEntries);
   });
+
+  it("lists the hosted connector in the MCP Registry at the release version", () => {
+    // publish.yml publishes mcp/server.json with GitHub OIDC, which only grants io.github.<owner>/*.
+    const server = read("mcp/server.json");
+    expect(server.version, "npm run bump updates mcp/server.json through the root version script").toBe(root.version);
+    expect(server.name).toBe("io.github.DynamicsNinja/garminconnect");
+  });
   it("is released in lockstep with the library", () => {
     expect(mcp.version, "run `npm run bump -- <version>` to bump both").toBe(root.version);
   });

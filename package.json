@@ -103,7 +103,7 @@
   "scripts": {
     "build": "tsup",
     "bump": "npm version --no-git-tag-version --workspaces --include-workspace-root",
-    "version": "tsx scripts/sync-jsr-version.ts",
+    "version": "tsx scripts/sync-versions.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:live": "vitest run --config vitest.live.config.ts",
