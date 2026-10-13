@@ -1,0 +1,20 @@
+{
+  "name": "@dynamicsninja/garminconnect",
+  "version": "0.9.1",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/index.ts",
+    "./exercises": "./src/exercises.ts",
+    "./manifest": "./src/manifest.ts"
+  },
+  "publish": {
+    "include": [
+      "src/**/*.ts",
+      "README.md",
+      "LICENSE"
+    ],
+    "exclude": [
+      "src/**/*.test.ts"
+    ]
+  }
+}

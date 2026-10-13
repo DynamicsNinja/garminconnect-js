@@ -54,6 +54,24 @@ jobs:
             npm publish
           fi
 
+      # The same source on JSR (jsr.io/@dynamicsninja/garminconnect), authenticated by this job's OIDC
+      # token once the package is linked to this repo on jsr.io. jsr.json's version is kept equal to
+      # package.json's by the root `version` script and tests/mcp-package.test.ts.
+      # --allow-slow-types: most Garmin methods infer their return types; JSR accepts that, but then
+      # ships no generated .d.ts (Node users get typings from npm anyway).
+      # Skipped, with a warning, until the package exists on jsr.io, and when this version is already there.
+      - name: Publish library to JSR (skip if not set up or already published)
+        run: |
+          version="$(node -p "require('./jsr.json').version")"
+          meta="$(curl -fsS https://jsr.io/@dynamicsninja/garminconnect/meta.json || true)"
+          if [ -z "$meta" ]; then
+            echo "::warning::@dynamicsninja/garminconnect is not on JSR yet. Create it on jsr.io and link it to DynamicsNinja/garminconnect-js, then re-run."
+          elif echo "$meta" | node -e "const m=JSON.parse(require('fs').readFileSync(0,'utf8'));process.exit(m.versions&&m.versions[process.argv[1]]?0:1)" "$version"; then
+            echo "@dynamicsninja/garminconnect@$version is already on JSR; skipping."
+          else
+            npx --yes jsr publish --allow-slow-types
+          fi
+
       # The MCP server ships from the same tag, AFTER the library. tests/mcp-package.test.ts (run by
       # the root prepublishOnly above) guarantees its version equals the library's.
       #

@@ -21,6 +21,12 @@ describe("@dynamicsninja/garminconnect-mcp package contract", () => {
     expect(mcp.bin).toEqual({ "garminconnect-mcp": "dist/cli.js" });
   });
 
+  it("publishes to JSR at the same version and entry points as npm", () => {
+    const jsr = read("jsr.json");
+    expect(jsr.version, "npm run bump updates jsr.json through the root version script").toBe(root.version);
+    const npmEntries = Object.keys(root.exports as object).filter((k) => k !== "./package.json").sort();
+    expect(Object.keys(jsr.exports as object).sort()).toEqual(npmEntries);
+  });
   it("is released in lockstep with the library", () => {
     expect(mcp.version, "run `npm run bump -- <version>` to bump both").toBe(root.version);
   });
