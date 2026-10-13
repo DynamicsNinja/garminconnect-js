@@ -1,0 +1,19 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.DynamicsNinja/garminconnect",
+  "title": "Garmin Connect",
+  "description": "Unofficial Garmin Connect access: sleep, HRV, training, activities, workouts and weight.",
+  "websiteUrl": "https://garmin.ficdev.xyz/claude",
+  "repository": {
+    "url": "https://github.com/DynamicsNinja/garminconnect-js",
+    "source": "github",
+    "subfolder": "mcp"
+  },
+  "version": "0.9.1",
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://garmin.ficdev.xyz/mcp"
+    }
+  ]
+}
