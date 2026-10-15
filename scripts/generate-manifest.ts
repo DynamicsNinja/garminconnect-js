@@ -224,13 +224,19 @@ const humanize = (name: string) => {
  */
 function stripJargon(text: string): string {
   return text
-    .replace(/[,;]?\s*passes through unchecked\.?/gi, "")
+    .replace(/[,;]?\s*passes (?:[^,;]*? )?through unchecked\.?/gi, "")
+    .replace(/\s*\(`src\/[^)]*\)/g, "")
     .replace(/no proven inverse write[^.;]*/gi, "")
     .replace(/\(see gotchas\)/gi, "")
     // "see gotchas for X" points at a doc the reader of a tool description cannot see, so the
     // whole clause goes, up to the next sentence break. A following ":" is kept.
     .replace(/[,;]?\s*see gotchas\b[^.;:]*/gi, "")
     .replace(/UNCERTAIN[^.;]*[.;]?/gi, "")
+    // How a method was verified, and which internal helper a value goes through, tell a tool
+    // caller nothing about what the tool does.
+    .replace(/[,;.]?\s*Live-verified\b[^;]*?(?:\.(?=\s|$)|;|$)/gi, ".")
+    // "is NOT routed through formatDate" is a real statement about the input format, so it stays.
+    .replace(/[,;]?\s*(?:both dates |`\w+` )?(?<!NOT )routed through `[^`]+`(?:, routed through `[^`]+`)?/gi, "")
     .replace(/\s{2,}/g, " ")
     .replace(/\s+([,.;])/g, "$1")
     // Collapse only the doubled punctuation a removal leaves behind. A blanket /[.;]{2,}/ also
@@ -253,7 +259,27 @@ function describe(
   const note = stripJargon(stripInternalNotes(notes.get(name)?.notes ?? ""));
   const symbol = checker.getSymbolAtLocation(member.name);
   const doc = symbol ? docOf(symbol, checker) : "";
-  const text = (note || doc || humanize(name)).replace(/\s+/g, " ").trim();
+  // The JSDoc says what the method does; the AGENTS.md note is detail (defaults, quirks, return
+  // shape) that only makes sense after it. Leading with the note gave tools like
+  // download_activity a description that never said what they do, which is what an agent picks a
+  // tool by.
+  const flat = (s: string) => s.replace(/\s+/g, " ").trim();
+  const lead = flat(doc);
+  const rest = flat(note);
+  const sentence = (s: string) => (s && !/[.!?:]$/.test(s) ? `${s}.` : s);
+  // Both sources often state the same fact ("Resolves to `null` on success"); keep it once.
+  const key = (s: string) => s.toLowerCase().replace(/[^a-z0-9`]+/g, " ").trim();
+  const sentences = (s: string) => s.split(/(?<=(?<!\be\.g|\bi\.e)[.;])\s+/);
+  const leadSentences = sentences(lead).map(key).filter(Boolean);
+  const kept = sentences(rest)
+    .filter((s) => {
+      const k = key(s);
+      return k && !leadSentences.some((l) => l.includes(k) || k.includes(l));
+    })
+    .join(" ")
+    .replace(/[;,]$/, "");
+  const detail = kept ? `${kept.charAt(0).toUpperCase()}${kept.slice(1)}` : "";
+  const text = [sentence(lead), sentence(detail)].filter(Boolean).join(" ") || humanize(name);
   return text.length > MAX_DESCRIPTION ? `${text.slice(0, MAX_DESCRIPTION - 1)}…` : text;
 }
 

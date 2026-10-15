@@ -263,8 +263,8 @@ export class Garmin {
 
   // --- userProfile ---
   /**
-   * `/userprofile-service/userprofile/settings` (SINGULAR "settings", distinct from
-   * `getUserSettings()`'s "user-settings" — the two paths are one character apart).
+   * The account's profile settings record, from `/userprofile-service/userprofile/settings`.
+   * Distinct from `getUserSettings()` ("user-settings"): the two paths are one character apart.
    */
   getUserprofileSettings(): Promise<UserprofileSettings | null> {
     return userProfile.getUserprofileSettings(this);
@@ -671,16 +671,13 @@ export class Garmin {
   getGearStats(gearUUID: string): Promise<GearStats> {
     return gear.getGearStats(this, gearUUID);
   }
-  /**
-   * Endpoint discovered by observing Garmin's own web client; see `src/services/gear.ts`.
-   * IRREVERSIBLE.
-   */
+  /** Deletes a piece of gear and its activity history. IRREVERSIBLE. */
   deleteGear(gearUUID: string): Promise<unknown> {
     return gear.deleteGear(this, gearUUID);
   }
   /**
    * Sets which activity types default to this gear. Uses the v2 full-record PUT Garmin's own web
-   * client uses (the older dedicated default-gear endpoint is dead). See `src/services/gear.ts`.
+   * client uses (the older dedicated default-gear endpoint is dead).
    */
   setGearActivityDefaults(gearUUID: string, activityTypeKeys: string[]): Promise<unknown> {
     return gear.setGearActivityDefaults(this, gearUUID, activityTypeKeys);
@@ -841,7 +838,7 @@ export class Garmin {
   getDailyWeighIns(cdate: string | Date): Promise<DailyWeighIns | null> {
     return weight.getDailyWeighIns(this, cdate);
   }
-  /** Irreversible — see `src/services/weight.ts` for the multi-entry/`deleteAll` semantics. */
+  /** Deletes the weigh-ins recorded on one date and returns how many went. IRREVERSIBLE. */
   deleteWeighIns(cdate: string | Date, deleteAll?: boolean): Promise<number | null> {
     return weight.deleteWeighIns(this, cdate, deleteAll);
   }
@@ -855,8 +852,8 @@ export class Garmin {
     return bodyComposition.getBodyComposition(this, startdate, enddate);
   }
   /**
-   * Builds a `.fit` weight-scale file in memory and uploads it — see
-   * `src/services/bodyComposition.ts` and `src/util/fit.ts`.
+   * Records a weight (kg) with optional body-composition fields such as body fat and muscle
+   * mass, uploaded as a `.fit` weight-scale file built in memory.
    */
   addBodyComposition(
     weight: number,
@@ -1128,11 +1125,8 @@ export class Garmin {
     return womensHealth.getPregnancySummary(this);
   }
   /**
-   * Irreversible write to real health data. Live-verified ONCE, on 2026-09-23, under the
-   * account-scoped exemption described in the file-level comment at the top of
-   * `src/services/womensHealth.ts` — which also states the default rule that still binds every
-   * other account: do not execute this against one whose data matters. There is no delete/undo
-   * endpoint for it.
+   * Logs a day's cycle-tracking entry (symptoms, moods, flow, notes). Replaces whatever that day
+   * already holds; there is no undo. Needs cycle tracking set up in Garmin Connect first.
    */
   updateMenstrualDailyLog(
     calendarDate: string | Date,
@@ -1150,11 +1144,8 @@ export class Garmin {
     return womensHealth.updateMenstrualDailyLog(this, calendarDate, options);
   }
   /**
-   * Irreversible write to real health data. Live-verified ONCE, on 2026-09-23, under the
-   * account-scoped exemption described in the file-level comment at the top of
-   * `src/services/womensHealth.ts` — which also states the default rule that still binds every
-   * other account: do not execute this against one whose data matters. There is no delete/undo
-   * endpoint for it.
+   * Rewrites the period days in a date range. Replaces what the range holds; there is no undo.
+   * Needs cycle tracking set up in Garmin Connect first.
    */
   updateMenstrualCalendar(
     startdate: string | Date,
@@ -1165,9 +1156,8 @@ export class Garmin {
     return womensHealth.updateMenstrualCalendar(this, startdate, enddate, cycleDatesLists, options);
   }
   /**
-   * Irreversible write to real health data (account-level cycle-tracking setup). NOT
-   * live-verified — see the file-level comment at the top of `src/services/womensHealth.ts` for
-   * why this must never be executed against a live account.
+   * Sets up cycle tracking from a first period start date and average period and cycle lengths.
+   * Account-level and not undoable; not meant for an account that is already set up.
    */
   initMenstrualCycleSetup(
     periodStartDate: string | Date,
@@ -1177,11 +1167,8 @@ export class Garmin {
     return womensHealth.initMenstrualCycleSetup(this, periodStartDate, periodLength, cycleLength);
   }
   /**
-   * Irreversible write to real health data. Live-verified ONCE, on 2026-09-23, under the
-   * account-scoped exemption described in the file-level comment at the top of
-   * `src/services/womensHealth.ts` — which also states the default rule that still binds every
-   * other account: do not execute this against one whose data matters. There is no delete/undo
-   * endpoint for it.
+   * Confirms that a period started on a date, with its period and cycle lengths. There is no
+   * undo. Needs cycle tracking set up in Garmin Connect first.
    */
   confirmMenstrualPeriodStart(
     periodStartDate: string | Date,
@@ -1198,9 +1185,8 @@ export class Garmin {
     );
   }
   /**
-   * Irreversible write to real health data (account-level tracking-preference flags). NOT
-   * live-verified — see the file-level comment at the top of `src/services/womensHealth.ts` for
-   * why this must never be executed against a live account.
+   * Changes cycle-tracking preferences (merged into the current ones). Has no effect until cycle
+   * tracking is set up in Garmin Connect.
    */
   updateMenstrualSettings(
     settings: Record<string, unknown>,
@@ -1211,10 +1197,8 @@ export class Garmin {
 
   // --- goals ---
   /**
-   * Paginated (see `src/services/goals.ts` for the loop, matching
-   * `getActivitiesByDate`'s pattern) and sends the load-bearing `Sec-Fetch-Site: same-origin`
-   * header on every request — without it `goal-service` silently returns `[]` for newer
-   * accumulation-goal types.
+   * The account's goals with a given status (active, future or past), every page fetched.
+   * Sends the `Sec-Fetch-Site: same-origin` header Garmin needs to return newer goal types.
    */
   getGoals(status?: GoalStatus, start?: number, limit?: number): Promise<Goal[]> {
     return goals.getGoals(this, status, start, limit);

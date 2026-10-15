@@ -135,6 +135,20 @@ describe("method manifest", () => {
     expect(method("getEnduranceScore").description).toContain(".../stats");
   });
 
+  it("leads each description with what the method does, not an implementation note", () => {
+    // Descriptions once led with the AGENTS.md note, so download_activity's began with a type
+    // definition and schedule_workout's with "`dateStr` routed through `formatDate`". Tool
+    // directories grade a description that never states its purpose as failing.
+    expect(method("downloadActivity").description).toMatch(/^Downloads an activity file/);
+    expect(method("scheduleWorkout").description).toMatch(/^Schedules a library workout on a date/);
+    expect(method("getFloors").description).toMatch(/^Floors climbed/);
+    for (const m of GARMIN_METHODS) {
+      expect(m.description, m.name).not.toMatch(/Live-verified|(?<!NOT )routed through `formatDate`|`src\//);
+      // A fact both sources state is kept once.
+      expect(m.description, m.name).not.toMatch(/(Resolves to `null` on success)\.[^]*\1/);
+    }
+  });
+
   it("gives every method a non-empty, bounded description", () => {
     for (const m of GARMIN_METHODS) {
       expect(m.description.length, m.name).toBeGreaterThan(0);
