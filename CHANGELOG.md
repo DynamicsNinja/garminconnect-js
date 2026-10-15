@@ -6,6 +6,24 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.9.4] - 2026-10-15
+
+Documentation only; no method, parameter or runtime behaviour changes.
+
+### Changed
+
+- **Manifest and MCP tool descriptions lead with what the method does.** They used to open with
+  the implementation note (for example `download_activity` with a type definition, and
+  `schedule_workout` with "`dateStr` routed through `formatDate`"). The method's doc comment now
+  comes first and the note follows as detail, with a fact both sources state kept once.
+  Verification history, internal helper routing and source-file pointers are left out, and the
+  doc comments on eleven methods were rewritten for callers instead of maintainers.
+
+### Added
+
+- `glama.json`, so Glama can verify the server's maintainers, and the release workflow now
+  publishes `mcp/server.json` to the MCP Registry.
+
 ## [0.9.3] - 2026-10-13
 
 Types and documentation only; no method, parameter or runtime behaviour changes.
@@ -324,7 +342,8 @@ a broken result. Each is recorded with its reason in `tests/parity.test.ts`.
 - `@types/node` is an optional peer dependency: needed only for type-checking against the
   `Buffer` return types, and not installed into consumers' projects automatically.
 
-[Unreleased]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.9.3...HEAD
+[Unreleased]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.9.4...HEAD
+[0.9.4]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.9.3...v0.9.4
 [0.9.3]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.9.2...v0.9.3
 [0.9.2]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.9.1...v0.9.2
 [0.9.1]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.9.0...v0.9.1

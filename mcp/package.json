@@ -1,6 +1,6 @@
 {
   "name": "@dynamicsninja/garminconnect-mcp",
-  "version": "0.9.3",
+  "version": "0.9.4",
   "description": "MCP server for Garmin Connect: create workouts and read your Garmin data from Claude. Built on garminconnect-js.",
   "keywords": [
     "garmin",
