@@ -1,4 +1,89 @@
-import type { ActivitySummaryDTO, SummarizedActivityDTO } from "../generated/personal-api.js";
+import type { ActivitySummaryDTO, ActivityWorkoutDTO, SummarizedActivityDTO } from "../generated/personal-api.js";
+
+/**
+ * Filters for `searchActivities`, from Garmin's Personal API spec and checked read-only on a real
+ * account (2026-10-23). Every filter is optional and they combine with AND.
+ */
+export interface ActivitySearchFilters {
+  /** Zero-based offset of the first activity. Default 0. */
+  start?: number;
+  /** Activities per page. Default 20. */
+  limit?: number;
+  /** Text to find in activity names and descriptions. */
+  search?: string;
+  /**
+   * A PARENT activity type key, e.g. `"running"` or `"cycling"`; it includes its subtypes
+   * (`"running"` also returns treadmill runs). A subtype key here is a 400; use `activitySubType`.
+   */
+  activityType?: string;
+  /** A subtype key, e.g. `"treadmill_running"` or `"trail_running"`. Works alone or with its parent. */
+  activitySubType?: string;
+  /** Subtype keys to leave out, e.g. `["treadmill_running", "indoor_cycling"]`. */
+  excludedActivitySubTypes?: string[];
+  /** The event type the activity is filed under, e.g. `"race"`. */
+  eventType?: ActivityEventTypeKey;
+  /** Earliest local start date, inclusive (YYYY-MM-DD). */
+  startDate?: string | Date;
+  /** Latest local start date, inclusive (YYYY-MM-DD). */
+  endDate?: string | Date;
+  /** Minimum distance in meters, inclusive. */
+  minDistance?: number;
+  /** Maximum distance in meters, inclusive. */
+  maxDistance?: number;
+  /** Minimum timer duration in seconds, inclusive. */
+  minDuration?: number;
+  /** Maximum timer duration in seconds, inclusive. */
+  maxDuration?: number;
+  /** Minimum elapsed duration in seconds (paused time included), inclusive. */
+  minElapsedDuration?: number;
+  /** Maximum elapsed duration in seconds (paused time included), inclusive. */
+  maxElapsedDuration?: number;
+  /** Minimum total elevation gain in meters, inclusive. */
+  minElevation?: number;
+  /** Maximum total elevation gain in meters, inclusive. */
+  maxElevation?: number;
+  /** Minimum average power in watts, inclusive. */
+  minAvgPower?: number;
+  /** `true`: favorites only; `false`: non-favorites only; omit for both. */
+  favorite?: boolean;
+  /** Leave out the legs of multisport activities. Garmin's default is `true`. */
+  excludeChildren?: boolean;
+  /**
+   * The field to sort by. `"startLocal"` (Garmin's default, the local start time) and
+   * `"distance"` were checked; the spec also names `"name"` and `"duration"`. An unknown field
+   * returns NO activities, not an error.
+   */
+  sortBy?: string;
+  /** `"asc"` or `"desc"` (the default). */
+  sortOrder?: "asc" | "desc";
+  /**
+   * Fields that must be present on every result, e.g. `["maxPower", "avgPower"]`. Garmin's own
+   * field names, which are not always the response's: `"averageHR"` matches nothing even though
+   * every activity has it. An unknown name returns NO activities, not an error.
+   */
+  requiredFields?: string[];
+  /**
+   * Activities that START inside this box, in decimal degrees. Garmin refuses a box wider than
+   * 50 km ("bounding box must not exceed 50km").
+   */
+  boundingBox?: { north: number; south: number; east: number; west: number };
+  /** Dives: minimum of the dive's maximum depth, in centimeters, inclusive. */
+  minMaxDepth?: number;
+  /** Dives: maximum of the dive's maximum depth, in centimeters, inclusive. */
+  maxMaxDepth?: number;
+  /** Dives: `true` decompression dives only, `false` non-decompression only. */
+  decoDive?: boolean;
+  /** Dives: minimum bottom time in seconds, inclusive. */
+  minBottomTime?: number;
+  /** Dives: maximum bottom time in seconds, inclusive. */
+  maxBottomTime?: number;
+}
+
+/**
+ * A workout done during an activity, from `getActivityWorkouts`: its name, sport and the steps the
+ * device ran (`PersonalApi.ActivityWorkoutDTO`, matched key for key on a real account).
+ */
+export interface ActivityWorkout extends ActivityWorkoutDTO {}
 
 /**
  * One row of an activity list (`getActivities`, `getActivitiesByDate`, `getLastActivity`).

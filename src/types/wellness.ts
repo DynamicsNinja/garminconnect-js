@@ -1,10 +1,32 @@
 import type {
   BodyBatteryDailyReportDTO,
+  DailySpO2AndAcclimationDTO,
   HrvChartDTO,
   HrvDailySummaryDTO,
+  MultiValueWellnessChartItemDTO,
   StepsDailyStatDTO,
+  UserDailyHydrationDTO,
   UserDailySummaryV2DTO,
 } from "../generated/personal-api.js";
+
+/**
+ * One day of `getDailyStress`. `values` holds `overallStressLevel` and the seconds spent at
+ * `rest`/`low`/`medium`/`high` stress (`restStressDuration`, …), as observed on a real account.
+ */
+export interface DailyStressEntry extends MultiValueWellnessChartItemDTO {
+  calendarDate: string;
+}
+
+/** One day of `getDailyHydration`: milliliters drunk (`valueInML`) and the goal (`goalInML`). */
+export interface DailyHydrationEntry extends UserDailyHydrationDTO {
+  calendarDate: string;
+}
+
+/**
+ * `getSpo2Acclimation`'s response: the day's SpO2 readings, sleep and hourly averages, and the
+ * monitoring environment (altitude acclimation). `PersonalApi.DailySpO2AndAcclimationDTO`.
+ */
+export interface Spo2Acclimation extends DailySpO2AndAcclimationDTO {}
 
 /** `getUserSummary`'s response: one day's totals. Only a few of its fields are typed. */
 export interface UserSummary {

@@ -36,6 +36,8 @@ import type {
   ActivityTypedSplits,
   ActivityTypesResponse,
   ActivityWeather,
+  ActivityWorkout,
+  ActivitySearchFilters,
   GearActivity,
   GearLinkResult,
   ImportActivityResult,
@@ -109,7 +111,7 @@ import type {
   TrainingPlansResult,
 } from "./types/trainingPlans.js";
 import type { UserprofileSettings } from "./types/userProfile.js";
-import type { DailyWeighIns, WeighInRange } from "./types/weight.js";
+import type { DailyWeighIns, WeighInRange, WeightGoals } from "./types/weight.js";
 import type {
   BloodPressureRange,
   BloodPressureSetResult,
@@ -120,7 +122,9 @@ import type {
   DailyStatsEntry,
   DailyStatsType,
   DailyStepsEntry,
+  DailyHydrationEntry,
   DailyStressData,
+  DailyStressEntry,
   DailySummary,
   FloorsData,
   HeartRateData,
@@ -133,6 +137,7 @@ import type {
   RhrDayData,
   SleepDailyEntry,
   SleepData,
+  Spo2Acclimation,
   Spo2Data,
   StatsAndBody,
   StepsEntry,
@@ -431,6 +436,18 @@ export class Garmin {
   getDailySummaries(start: string | Date, end: string | Date): Promise<DailySummary[]> {
     return wellness.getDailySummaries(this, start, end);
   }
+  /** Daily stress level and time at each stress level over a date range; ranges over 28 days are chunked. */
+  getDailyStress(start: string | Date, end: string | Date): Promise<DailyStressEntry[]> {
+    return wellness.getDailyStress(this, start, end);
+  }
+  /** Daily hydration in milliliters, with the goal, over a date range; ranges over 31 days are chunked. */
+  getDailyHydration(start: string | Date, end: string | Date): Promise<DailyHydrationEntry[]> {
+    return wellness.getDailyHydration(this, start, end);
+  }
+  /** One day's SpO2 readings with altitude acclimation. */
+  getSpo2Acclimation(cdate: string | Date): Promise<Spo2Acclimation | null> {
+    return wellness.getSpo2Acclimation(this, cdate);
+  }
 
   // --- activities ---
   /** The total number of activities on the account. */
@@ -468,6 +485,14 @@ export class Garmin {
   /** Every activity type Garmin knows: `{ typeId, typeKey, parentTypeId, ... }`. */
   getActivityTypes(): Promise<ActivityTypesResponse | null> {
     return activities.getActivityTypes(this);
+  }
+  /** One page of activities filtered by text, type, dates, distance, duration, power, location and more. */
+  searchActivities(filters?: ActivitySearchFilters): Promise<Activity[]> {
+    return activities.searchActivities(this, filters);
+  }
+  /** The workouts done during an activity, with the steps the device ran. */
+  getActivityWorkouts(activityId: number | string): Promise<ActivityWorkout[]> {
+    return activities.getActivityWorkouts(this, activityId);
   }
   /** Deletes an activity. IRREVERSIBLE. Resolves to `null` on success. */
   deleteActivity(activityId: number | string): Promise<unknown> {
@@ -814,6 +839,10 @@ export class Garmin {
   /** Weigh-ins between two dates. */
   getWeighIns(startdate: string | Date, enddate: string | Date): Promise<WeighInRange> {
     return weight.getWeighIns(this, startdate, enddate);
+  }
+  /** The weight goals in effect between two dates, in grams. */
+  getWeightGoals(startdate: string | Date, enddate: string | Date): Promise<WeightGoals | null> {
+    return weight.getWeightGoals(this, startdate, enddate);
   }
   /** Records a weigh-in in `"kg"` (the default) or `"lbs"`. `when` defaults to now. */
   addWeighIn(weightValue: number, unitKey?: "kg" | "lbs", when?: Date): Promise<unknown> {

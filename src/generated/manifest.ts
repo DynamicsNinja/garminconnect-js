@@ -816,6 +816,78 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
     "io": "json"
   },
   {
+    "name": "getDailyStress",
+    "category": "wellness",
+    "description": "Daily stress level and time at each stress level over a date range; ranges over 28 days are chunked. GETs `/usersummary-service/stats/stress/daily/{start}/{end}`: `{calendarDate, values: {overallStressLevel, restStressDuration, lowStressDuration, mediumStressDuration, highStressDuration}}` per day, durations in seconds. Garmin 400s `end - start > 27` (\"cannot be more than 28 days\"), so longer ranges go in 28-day windows; a reversed range throws `GarminError` before any request.",
+    "params": [
+      {
+        "name": "start",
+        "optional": false,
+        "schema": {
+          "type": "string",
+          "format": "date",
+          "description": "Calendar date, YYYY-MM-DD (UTC)"
+        }
+      },
+      {
+        "name": "end",
+        "optional": false,
+        "schema": {
+          "type": "string",
+          "format": "date",
+          "description": "Calendar date, YYYY-MM-DD (UTC)"
+        }
+      }
+    ],
+    "safety": "read",
+    "io": "json"
+  },
+  {
+    "name": "getDailyHydration",
+    "category": "wellness",
+    "description": "Daily hydration in milliliters, with the goal, over a date range; ranges over 31 days are chunked. GETs `/usersummary-service/stats/hydration/daily/{start}/{end}`: `{calendarDate, valueInML, goalInML}` per day that has an entry (the spec's `sweatLossInML`/`activityIntakeInML` were not seen). Garmin 400s `end - start > 30` (\"cannot be more than 31 days\"), so longer ranges go in 31-day windows.",
+    "params": [
+      {
+        "name": "start",
+        "optional": false,
+        "schema": {
+          "type": "string",
+          "format": "date",
+          "description": "Calendar date, YYYY-MM-DD (UTC)"
+        }
+      },
+      {
+        "name": "end",
+        "optional": false,
+        "schema": {
+          "type": "string",
+          "format": "date",
+          "description": "Calendar date, YYYY-MM-DD (UTC)"
+        }
+      }
+    ],
+    "safety": "read",
+    "io": "json"
+  },
+  {
+    "name": "getSpo2Acclimation",
+    "category": "wellness",
+    "description": "One day's SpO2 readings with altitude acclimation. GETs `/wellness-service/wellness/daily/spo2acclimation/{cdate}` (Garmin's Personal API spec): the day's SpO2 averages, sleep and hourly series and the monitoring environment, typed from `PersonalApi.DailySpO2AndAcclimationDTO`. Distinct from `getSpo2Data`'s path. A day with no data (even 2030-01-01) still returns the object, fields `null`.",
+    "params": [
+      {
+        "name": "cdate",
+        "optional": false,
+        "schema": {
+          "type": "string",
+          "format": "date",
+          "description": "Calendar date, YYYY-MM-DD (UTC)"
+        }
+      }
+    ],
+    "safety": "read",
+    "io": "json"
+  },
+  {
     "name": "countActivities",
     "category": "activities",
     "description": "The total number of activities on the account. Returns the envelope's `totalCount`, not the whole response; throws `GarminError` if Garmin returns nothing or a non-numeric `totalCount`.",
@@ -938,6 +1010,205 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
     "category": "activities",
     "description": "Every activity type Garmin knows: `{ typeId, typeKey, parentTypeId, ... }`.",
     "params": [],
+    "safety": "read",
+    "io": "json"
+  },
+  {
+    "name": "searchActivities",
+    "category": "activities",
+    "description": "One page of activities filtered by text, type, dates, distance, duration, power, location and more. One page from `/activitylist-service/activities/search/activities` (the `getActivities` endpoint) with the filters Garmin's Personal API spec documents: `search`, `activityType` (a PARENT key, includes its subtypes; a subtype there is a 400), `activitySubType`, `excludedActivitySubTypes`, `eventType`, `startDate`/`endDate`, min/max distance (m), duration and elapsed duration (s), elevation gain (m), `minAvgPower` (W), `favorite`, `excludeChildren`, `sortBy`/`sortOrder`, `requiredFields`, `bound…",
+    "params": [
+      {
+        "name": "filters",
+        "optional": true,
+        "schema": {
+          "type": "object",
+          "properties": {
+            "start": {
+              "type": "number",
+              "description": "Zero-based offset of the first activity. Default 0."
+            },
+            "limit": {
+              "type": "number",
+              "description": "Activities per page. Default 20."
+            },
+            "search": {
+              "type": "string",
+              "description": "Text to find in activity names and descriptions."
+            },
+            "activityType": {
+              "type": "string",
+              "description": "A PARENT activity type key, e.g. `\"running\"` or `\"cycling\"`; it includes its subtypes\n(`\"running\"` also returns treadmill runs). A subtype key here is a 400; use `activitySubType`."
+            },
+            "activitySubType": {
+              "type": "string",
+              "description": "A subtype key, e.g. `\"treadmill_running\"` or `\"trail_running\"`. Works alone or with its parent."
+            },
+            "excludedActivitySubTypes": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Subtype keys to leave out, e.g. `[\"treadmill_running\", \"indoor_cycling\"]`."
+            },
+            "eventType": {
+              "type": "string",
+              "enum": [
+                "race",
+                "recreation",
+                "specialEvent",
+                "training",
+                "transportation",
+                "touring",
+                "geocaching",
+                "fitness",
+                "uncategorized"
+              ],
+              "description": "The event type the activity is filed under, e.g. `\"race\"`."
+            },
+            "startDate": {
+              "type": "string",
+              "format": "date",
+              "description": "Earliest local start date, inclusive (YYYY-MM-DD)."
+            },
+            "endDate": {
+              "type": "string",
+              "format": "date",
+              "description": "Latest local start date, inclusive (YYYY-MM-DD)."
+            },
+            "minDistance": {
+              "type": "number",
+              "description": "Minimum distance in meters, inclusive."
+            },
+            "maxDistance": {
+              "type": "number",
+              "description": "Maximum distance in meters, inclusive."
+            },
+            "minDuration": {
+              "type": "number",
+              "description": "Minimum timer duration in seconds, inclusive."
+            },
+            "maxDuration": {
+              "type": "number",
+              "description": "Maximum timer duration in seconds, inclusive."
+            },
+            "minElapsedDuration": {
+              "type": "number",
+              "description": "Minimum elapsed duration in seconds (paused time included), inclusive."
+            },
+            "maxElapsedDuration": {
+              "type": "number",
+              "description": "Maximum elapsed duration in seconds (paused time included), inclusive."
+            },
+            "minElevation": {
+              "type": "number",
+              "description": "Minimum total elevation gain in meters, inclusive."
+            },
+            "maxElevation": {
+              "type": "number",
+              "description": "Maximum total elevation gain in meters, inclusive."
+            },
+            "minAvgPower": {
+              "type": "number",
+              "description": "Minimum average power in watts, inclusive."
+            },
+            "favorite": {
+              "type": "boolean",
+              "description": "`true`: favorites only; `false`: non-favorites only; omit for both."
+            },
+            "excludeChildren": {
+              "type": "boolean",
+              "description": "Leave out the legs of multisport activities. Garmin's default is `true`."
+            },
+            "sortBy": {
+              "type": "string",
+              "description": "The field to sort by. `\"startLocal\"` (Garmin's default, the local start time) and\n`\"distance\"` were checked; the spec also names `\"name\"` and `\"duration\"`. An unknown field\nreturns NO activities, not an error."
+            },
+            "sortOrder": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "description": "`\"asc\"` or `\"desc\"` (the default)."
+            },
+            "requiredFields": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Fields that must be present on every result, e.g. `[\"maxPower\", \"avgPower\"]`. Garmin's own\nfield names, which are not always the response's: `\"averageHR\"` matches nothing even though\nevery activity has it. An unknown name returns NO activities, not an error."
+            },
+            "boundingBox": {
+              "type": "object",
+              "properties": {
+                "north": {
+                  "type": "number"
+                },
+                "south": {
+                  "type": "number"
+                },
+                "east": {
+                  "type": "number"
+                },
+                "west": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "north",
+                "south",
+                "east",
+                "west"
+              ],
+              "additionalProperties": false,
+              "description": "Activities that START inside this box, in decimal degrees. Garmin refuses a box wider than\n50 km (\"bounding box must not exceed 50km\")."
+            },
+            "minMaxDepth": {
+              "type": "number",
+              "description": "Dives: minimum of the dive's maximum depth, in centimeters, inclusive."
+            },
+            "maxMaxDepth": {
+              "type": "number",
+              "description": "Dives: maximum of the dive's maximum depth, in centimeters, inclusive."
+            },
+            "decoDive": {
+              "type": "boolean",
+              "description": "Dives: `true` decompression dives only, `false` non-decompression only."
+            },
+            "minBottomTime": {
+              "type": "number",
+              "description": "Dives: minimum bottom time in seconds, inclusive."
+            },
+            "maxBottomTime": {
+              "type": "number",
+              "description": "Dives: maximum bottom time in seconds, inclusive."
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    ],
+    "safety": "read",
+    "io": "json"
+  },
+  {
+    "name": "getActivityWorkouts",
+    "category": "activities",
+    "description": "The workouts done during an activity, with the steps the device ran. GETs `/activity-service/activity/{id}/workouts`: the workouts done during the activity, `{index, workoutName, timeCreated, sport, manufacturer, multisportSet, steps, workoutPhrase}` with the steps the device ran (`PersonalApi.ActivityWorkoutDTO`, matched key for key, steps included). `[]` for an activity done without one.",
+    "params": [
+      {
+        "name": "activityId",
+        "optional": false,
+        "schema": {
+          "type": [
+            "integer",
+            "string"
+          ],
+          "description": "Numeric id"
+        }
+      }
+    ],
     "safety": "read",
     "io": "json"
   },
@@ -2411,6 +2682,33 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
     "name": "getWeighIns",
     "category": "body-composition-weight",
     "description": "Weigh-ins between two dates.",
+    "params": [
+      {
+        "name": "startdate",
+        "optional": false,
+        "schema": {
+          "type": "string",
+          "format": "date",
+          "description": "Calendar date, YYYY-MM-DD (UTC)"
+        }
+      },
+      {
+        "name": "enddate",
+        "optional": false,
+        "schema": {
+          "type": "string",
+          "format": "date",
+          "description": "Calendar date, YYYY-MM-DD (UTC)"
+        }
+      }
+    ],
+    "safety": "read",
+    "io": "json"
+  },
+  {
+    "name": "getWeightGoals",
+    "category": "body-composition-weight",
+    "description": "The weight goals in effect between two dates, in grams. GETs `/goal-service/goal/user/effective/weightgoal/{start}/{end}`: `{userGoals, userGoalRanges}`, weights in GRAMS (`PersonalApi.UserGoalsRangeDTO`). No range limit found (1000 days answered); a reversed range throws before any request although Garmin itself accepts one.",
     "params": [
       {
         "name": "startdate",

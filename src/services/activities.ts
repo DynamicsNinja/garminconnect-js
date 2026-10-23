@@ -1,4 +1,9 @@
-import { pathSegment, validateUuid } from "../util/validate.js";
+import {
+  pathSegment,
+  validateNonNegativeInteger,
+  validatePositiveInteger,
+  validateUuid,
+} from "../util/validate.js";
 import { GarminConnectionError, GarminError, GarminHttpError } from "../errors.js";
 import type { GarminClient } from "../client.js";
 import { formatDate } from "../util/date.js";
@@ -14,12 +19,14 @@ import type {
   ActivityGear,
   ActivityHrInTimezones,
   ActivityPowerInTimezones,
+  ActivitySearchFilters,
   ActivitySplits,
   ActivitySplitSummaries,
   ActivitySummary,
   ActivityTypedSplits,
   ActivityTypesResponse,
   ActivityWeather,
+  ActivityWorkout,
   GearActivity,
   GearLinkResult,
   ImportActivityResult,
@@ -66,6 +73,91 @@ export async function getActivity(
   );
   if (!activity) throw new GarminError(`No activity ${activityId} found`);
   return activity;
+}
+
+/**
+ * One page of activities matching `filters`, from
+ * `GET /activitylist-service/activities/search/activities`, the endpoint `getActivities` uses,
+ * with the filters Garmin's Personal API spec documents. See `ActivitySearchFilters` for what each
+ * one does and the quirks found on a real account (2026-10-23). Things Garmin would silently get
+ * wrong are refused here instead: a partial or inverted bounding box (Garmin ignores the box), a
+ * reversed date range, and a comma-joined list (sent as repeated parameters instead).
+ */
+export async function searchActivities(
+  host: ActivitiesHost,
+  filters: ActivitySearchFilters = {},
+): Promise<Activity[]> {
+  const f = filters;
+  const startDate = f.startDate === undefined ? undefined : formatDate(f.startDate);
+  const endDate = f.endDate === undefined ? undefined : formatDate(f.endDate);
+  if (startDate && endDate && startDate > endDate) {
+    throw new GarminError("searchActivities: startDate must not be after endDate");
+  }
+  const box = f.boundingBox;
+  if (box) {
+    const { north, south, east, west } = box;
+    if (![north, south, east, west].every((v) => typeof v === "number" && Number.isFinite(v))) {
+      throw new GarminError("searchActivities: boundingBox needs numeric north, south, east and west");
+    }
+    if (north < south || north > 90 || south < -90 || east > 180 || west < -180 || east < -180 || west > 180) {
+      throw new GarminError("searchActivities: boundingBox is not a valid box (north >= south, within ±90/±180)");
+    }
+  }
+  const bool = (v: boolean | undefined): string | undefined => (v === undefined ? undefined : String(v));
+  const activities = await host.client.connectapi<Activity[]>(
+    "/activitylist-service/activities/search/activities",
+    {
+      params: {
+        start: validateNonNegativeInteger(f.start ?? 0, "start"),
+        limit: validatePositiveInteger(f.limit ?? 20, "limit"),
+        search: f.search,
+        activityType: f.activityType,
+        activitySubType: f.activitySubType,
+        excludedActivitySubType: f.excludedActivitySubTypes,
+        eventType: f.eventType,
+        startDate,
+        endDate,
+        minDistance: f.minDistance,
+        maxDistance: f.maxDistance,
+        minDuration: f.minDuration,
+        maxDuration: f.maxDuration,
+        minElapsedDuration: f.minElapsedDuration,
+        maxElapsedDuration: f.maxElapsedDuration,
+        minElevation: f.minElevation,
+        maxElevation: f.maxElevation,
+        minAvgPower: f.minAvgPower,
+        favorite: f.favorite === undefined ? undefined : f.favorite ? 1 : 0,
+        excludeChildren: bool(f.excludeChildren),
+        sortBy: f.sortBy,
+        sortOrder: f.sortOrder,
+        requiredField: f.requiredFields,
+        upperLatitude: box?.north,
+        lowerLatitude: box?.south,
+        rightLongitude: box?.east,
+        leftLongitude: box?.west,
+        lowerMaxDepth: f.minMaxDepth,
+        upperMaxDepth: f.maxMaxDepth,
+        decoDive: bool(f.decoDive),
+        minBottomTime: f.minBottomTime,
+        maxBottomTime: f.maxBottomTime,
+      },
+    },
+  );
+  return activities ?? [];
+}
+
+/**
+ * The workouts done during an activity, from `GET /activity-service/activity/{id}/workouts`: name,
+ * sport and the steps the device ran. `[]` for an activity done without a workout.
+ */
+export async function getActivityWorkouts(
+  host: ActivitiesHost,
+  activityId: number | string,
+): Promise<ActivityWorkout[]> {
+  const workouts = await host.client.connectapi<ActivityWorkout[]>(
+    `/activity-service/activity/${pathSegment(activityId)}/workouts`,
+  );
+  return workouts ?? [];
 }
 
 const DOWNLOAD_PATHS: Record<ActivityDownloadFormat, string> = {

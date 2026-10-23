@@ -14,7 +14,7 @@ if (!(await client.loadTokens())) throw new Error("not connected to Garmin");
 const garmin = new Garmin(client);
 ```
 
-**36 methods.** The verification column says what has been
+**38 methods.** The verification column says what has been
 confirmed against a live Garmin account, not merely unit-tested.
 [`AGENTS.md`](../../AGENTS.md) carries the full evidence per method.
 
@@ -42,12 +42,14 @@ confirmed against a live Garmin account, not merely unit-tested.
 | [`getActivityTypedSplits`](#getactivitytypedsplits) | ✅ live-verified |
 | [`getActivityTypes`](#getactivitytypes) | ✅ live-verified |
 | [`getActivityWeather`](#getactivityweather) | ✅ live-verified |
+| [`getActivityWorkouts`](#getactivityworkouts) | ✅ live-verified |
 | [`getGearActivities`](#getgearactivities) | ✅ live-verified |
 | [`getLastActivity`](#getlastactivity) | ✅ live-verified |
 | [`getPersonalRecord`](#getpersonalrecord) | ✅ live-verified |
 | [`getProgressSummaryBetweenDates`](#getprogresssummarybetweendates) | ✅ live-verified |
 | [`importActivity`](#importactivity) | ✅ live-verified |
 | [`removeGearFromActivity`](#removegearfromactivity) | ✅ live-verified |
+| [`searchActivities`](#searchactivities) | ✅ live-verified |
 | [`setActivityDescription`](#setactivitydescription) | ✅ live-verified |
 | [`setActivityEventType`](#setactivityeventtype) | ✅ live-verified |
 | [`setActivityExerciseSets`](#setactivityexercisesets) | ✅ live-verified |
@@ -499,6 +501,28 @@ passes through unchecked
 
 Verification: ✅ live-verified
 
+## getActivityWorkouts
+
+```ts
+garmin.getActivityWorkouts(activityId: number | string): Promise<ActivityWorkout[]>
+```
+
+```ts
+const result = await garmin.getActivityWorkouts(activityId);
+```
+
+**Returns**
+
+An array of `ActivityWorkout`:
+
+With the 8 fields of `PersonalApi.ActivityWorkoutDTO`, typed from Garmin's Personal API spec. All optional: Garmin leaves out what does not apply, and may also send fields the spec does not list.
+
+`index`, `workoutName`, `timeCreated`, `sport`, `manufacturer`, `multisportSet`, `steps`, `workoutPhrase`
+
+GETs `/activity-service/activity/{id}/workouts`: the workouts done during the activity, `{index, workoutName, timeCreated, sport, manufacturer, multisportSet, steps, workoutPhrase}` with the steps the device ran (`PersonalApi.ActivityWorkoutDTO`, matched key for key, steps included). `[]` for an activity done without one
+
+Verification: ✅ live-verified
+
 ## getGearActivities
 
 ```ts
@@ -616,6 +640,36 @@ const result = await garmin.removeGearFromActivity(activityId, activityId);
 `GearLinkResult`, an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
 
 **PUT**, not DELETE; same 404-handling pattern as `addGearToActivity`
+
+Verification: ✅ live-verified
+
+## searchActivities
+
+```ts
+garmin.searchActivities(filters?: ActivitySearchFilters): Promise<Activity[]>
+```
+
+```ts
+const result = await garmin.searchActivities();
+```
+
+**Returns**
+
+An array of `Activity`:
+
+| Field | Type | Always present |
+|---|---|---|
+| `activityId` | `number` | yes |
+| `activityName` | `string` | no |
+| `startTimeLocal` | `string` | no |
+| `distance` | `number` | no |
+| `duration` | `number` | no |
+
+Plus the 225 fields of `PersonalApi.SummarizedActivityDTO`, typed from Garmin's Personal API spec. All optional: Garmin leaves out what does not apply, and may also send fields the spec does not list.
+
+`description`, `startTimeGMT`, `activityType`, `eventType`, `comments`, `isFavorite`, `isPR`, `isAutoCalcCalories`, `isParent`, `parentId`, `elapsedDuration`, `movingDuration`, `elevationGain`, `elevationLoss`, `averageSpeed`, `maxSpeed`, `startLatitude`, `startLongitude`, `hasPolyline`, `hasImages`, `ownerId`, `ownerDisplayName`, `ownerFullName`, `ownerProfileImageUrlSmall`, `ownerProfileImageUrlMedium`, `ownerProfileImageUrlLarge`, `calories`, `bmrCalories`, `averageHR`, `maxHR`, `averageRunningCadenceInStepsPerMinute`, `maxRunningCadenceInStepsPerMinute`, `maxLapAvgRunCadence`, `averageBikingCadenceInRevPerMinute`, `maxBikingCadenceInRevPerMinute`, `averageSwimCadenceInStrokesPerMinute`, `maxSwimCadenceInStrokesPerMinute`, `averageSwolf`, `activeLengths`, `steps`, `numberOfActivityLikes`, `numberOfActivityComments`, `likedByUser`, `commentedByUser`, `activityLikeDisplayNames`, `activityLikeFullNames`, `activityLikeProfileImageUrls`, `requestorRelationship`, `privacy`, `poolLength`, `unitOfPoolLength`, `hasVideo`, `videoUrl`, `beginTimestamp`, `sportTypeId`, `avgPower`, `maxPower`, `aerobicTrainingEffect`, `anaerobicTrainingEffect`, `strokes`, `normPower`, `leftBalance`, `rightBalance`, `avgLeftBalance`, `max20MinPower`, `avgVerticalOscillation`, `avgGroundContactTime`, `avgStrideLength`, `avgFractionalCadence`, `maxFractionalCadence`, `trainingStressScore`, `intensityFactor`, `vO2MaxValue`, `avgVerticalRatio`, `avgGroundContactBalance`, `lactateThresholdBpm`, `getlactateThresholdSpeed`, `maxFtp`, `avgStrokeDistance`, `avgStrokeCadence`, `maxStrokeCadence`, `avgStrokes`, `minStrokes`, `minTemperature`, `maxTemperature`, `minElevation`, `maxElevation`, `avgElevation`, `avgDoubleCadence`, `maxDoubleCadence`, `isElevationCorrected`, `summarizedExerciseSets`, `maxDepth`, `avgDepth`, `surfaceInterval`, `startN2`, `endN2`, `startCns`, `endCns`, `isDecoDive`, `summarizedDiveInfo`, `diveCount`, `activityLikeAuthors`, `avgVerticalSpeed`, `maxVerticalSpeed`, `floorsClimbed`, `floorsDescended`, `manufacturer`, `diveNumber`, `locationName`, `bottomTime`, `lapCount`, `endLatitude`, `endLongitude`, `flow`, `grit`, `jumpCount`, `caloriesEstimated`, `caloriesConsumed`, `waterEstimated`, `waterConsumed`, `maxAvgPower_1`, `maxAvgPower_2`, `maxAvgPower_5`, `maxAvgPower_10`, `maxAvgPower_20`, `maxAvgPower_30`, `maxAvgPower_60`, `maxAvgPower_120`, `maxAvgPower_300`, `maxAvgPower_600`, `maxAvgPower_1200`, `maxAvgPower_1800`, `maxAvgPower_3600`, `maxAvgPower_7200`, `maxAvgPower_18000`, `excludeFromPowerCurveReports`, `totalSets`, `activeSets`, `totalReps`, `minRespirationRate`, `maxRespirationRate`, `avgRespirationRate`, `trainingEffectLabel`, `activityTrainingLoad`, `avgFlow`, `avgGrit`, `minActivityLapDuration`, `avgStress`, `startStress`, `endStress`, `differenceStress`, `maxStress`, `aerobicTrainingEffectMessage`, `anaerobicTrainingEffectMessage`, `splitSummaries`, `isManualActivity`, `moderateIntensityMinutes`, `vigorousIntensityMinutes`, `maxBottomTime`, `hasSeedFirstbeatProfile`, `avgGradeAdjustedSpeed`, `avgWheelchairCadence`, `maxWheelchairCadence`, `avgJumpRopeCadence`, `maxJumpRopeCadence`, `gameName`, `differenceBodyBattery`, `gameType`, `beginPackWeight`, `fastestSplit_1000`, `fastestSplit_1609`, `fastestSplit_5000`, `fastestSplit_10000`, `fastestSplit_21098`, `fastestSplit_42195`, `fastestSplit_40000`, `fastestSplit_100`, `fastestSplit_400`, `fastestSplit_750`, `fastestSplit_1500`, `fastestSplit_91`, `fastestSplit_457`, `fastestSplit_914`, `fastestSplit_1508`, `impactLoad`, `avgStepSpeedLoss`, `avgStepSpeedLossPercent`, `hrTimeInZone_1`, `hrTimeInZone_2`, `hrTimeInZone_3`, `hrTimeInZone_4`, `hrTimeInZone_5`, `powerTimeInZone_1`, `powerTimeInZone_2`, `powerTimeInZone_3`, `powerTimeInZone_4`, `powerTimeInZone_5`, `powerTimeInZone_6`, `powerTimeInZone_7`, `longestPoolApneaInterval`, `avgForce`, `maxForce`, `normalizedForce`, `poolApneaBreathHoldDuration`, `deviceDisplayUnitsDTO`, `endTimeGMT`, `qualifyingDive`, `multiDayActivityUUIDs`, `activityUUID`, `carbonOffset`, `packWeightCalories`, `standingTime`, `seatedTime`, `maxStandingPower`, `maxSeatedPower`, `avgStandingPower`, `avgSeatedPower`, `parent`, `decoDive`, `elevationCorrected`, `pr`, `manualActivity`, `favorite`, `autoCalcCalories`
+
+one page from `/activitylist-service/activities/search/activities` (the `getActivities` endpoint) with the filters Garmin's Personal API spec documents: `search`, `activityType` (a PARENT key, includes its subtypes; a subtype there is a 400), `activitySubType`, `excludedActivitySubTypes`, `eventType`, `startDate`/`endDate`, min/max distance (m), duration and elapsed duration (s), elevation gain (m), `minAvgPower` (W), `favorite`, `excludeChildren`, `sortBy`/`sortOrder`, `requiredFields`, `boundingBox` and dive filters. Lists go as REPEATED params (`requiredField=a&requiredField=b`); the comma form returns nothing. **Three silent traps**, found live: an unknown `sortBy` or `requiredFields` name returns `[]` with no error (and `averageHR` counts as unknown); a box missing an edge is ignored entirely (refused here before sending); a box over 50 km is a 400. `limit` defaults to 20
 
 Verification: ✅ live-verified
 

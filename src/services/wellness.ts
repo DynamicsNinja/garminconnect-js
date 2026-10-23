@@ -13,7 +13,9 @@ import type {
   DailyStatsEntry,
   DailyStatsType,
   DailyStepsEntry,
+  DailyHydrationEntry,
   DailyStressData,
+  DailyStressEntry,
   DailySummary,
   FloorsData,
   HeartRateData,
@@ -26,6 +28,7 @@ import type {
   RhrDayData,
   SleepData,
   SleepDailyEntry,
+  Spo2Acclimation,
   Spo2Data,
   StatsAndBody,
   StepsEntry,
@@ -652,22 +655,86 @@ export async function getDailySummaries(
   start: string | Date,
   end: string | Date,
 ): Promise<DailySummary[]> {
-  const startDate = formatDate(start);
-  const endDate = formatDate(end);
-  if (startDate > endDate) {
-    throw new GarminError("getDailySummaries: start date must not be after end date");
-  }
-  const results: DailySummary[] = [];
-  let chunkStart = startDate;
-  while (chunkStart <= endDate) {
-    // 365 calendar days per window (`end - start` = 364), within P1Y even across a leap day.
-    const chunkEnd = daysBetween(chunkStart, endDate) > 364 ? addDays(chunkStart, 364) : endDate;
+  // 365 calendar days per window (`end - start` = 364), within P1Y even across a leap day.
+  return inWindows("getDailySummaries", start, end, 365, async (s, e) => {
     const page = await host.client.connectapi<{ data?: DailySummary[] | null }>(
       "/usersummary-service/v2/dailysummaries",
-      { params: { startDate: chunkStart, endDate: chunkEnd } },
+      { params: { startDate: s, endDate: e } },
     );
-    if (page?.data) results.push(...page.data);
+    return page?.data;
+  });
+}
+
+/**
+ * Fetches `start..end` in windows of at most `maxDays` calendar days and concatenates the rows.
+ * Throws before any request when `start` is after `end`.
+ */
+async function inWindows<T>(
+  method: string,
+  start: string | Date,
+  end: string | Date,
+  maxDays: number,
+  fetchWindow: (start: string, end: string) => Promise<T[] | null | undefined>,
+): Promise<T[]> {
+  const startDate = formatDate(start);
+  const endDate = formatDate(end);
+  if (startDate > endDate) throw new GarminError(`${method}: start date must not be after end date`);
+  const results: T[] = [];
+  let chunkStart = startDate;
+  while (chunkStart <= endDate) {
+    const chunkEnd = daysBetween(chunkStart, endDate) > maxDays - 1 ? addDays(chunkStart, maxDays - 1) : endDate;
+    const rows = await fetchWindow(chunkStart, chunkEnd);
+    if (rows) results.push(...rows);
     chunkStart = addDays(chunkEnd, 1);
   }
   return results;
+}
+
+/**
+ * Per-day stress for a date range, from `GET /usersummary-service/stats/stress/daily/{start}/{end}`
+ * (documented by Garmin's Personal API spec, verified on our host 2026-10-23). Each row is
+ * `{calendarDate, values: {overallStressLevel, restStressDuration, lowStressDuration,
+ * mediumStressDuration, highStressDuration}}`, durations in seconds. Garmin 400s a span over 28
+ * days, so longer ranges go in 28-day windows.
+ */
+export async function getDailyStress(
+  host: WellnessHost,
+  start: string | Date,
+  end: string | Date,
+): Promise<DailyStressEntry[]> {
+  return inWindows("getDailyStress", start, end, 28, (s, e) =>
+    host.client.connectapi<DailyStressEntry[]>(
+      `/usersummary-service/stats/stress/daily/${pathSegment(s)}/${pathSegment(e)}`,
+    ),
+  );
+}
+
+/**
+ * Per-day hydration for a date range, from
+ * `GET /usersummary-service/stats/hydration/daily/{start}/{end}`: `valueInML` drunk and the
+ * `goalInML`. Only days with an entry appear. Garmin 400s a span over 31 days (`end - start` > 30),
+ * so longer ranges go in 31-day windows.
+ */
+export async function getDailyHydration(
+  host: WellnessHost,
+  start: string | Date,
+  end: string | Date,
+): Promise<DailyHydrationEntry[]> {
+  return inWindows("getDailyHydration", start, end, 31, (s, e) =>
+    host.client.connectapi<DailyHydrationEntry[]>(
+      `/usersummary-service/stats/hydration/daily/${pathSegment(s)}/${pathSegment(e)}`,
+    ),
+  );
+}
+
+/**
+ * One day's SpO2 with altitude acclimation, from
+ * `GET /wellness-service/wellness/daily/spo2acclimation/{cdate}`: averages, the sleep and hourly
+ * series, and the monitoring environment. A day with no data still returns the object, with
+ * `null` fields.
+ */
+export async function getSpo2Acclimation(host: WellnessHost, cdate: string | Date): Promise<Spo2Acclimation | null> {
+  return host.client.connectapi<Spo2Acclimation>(
+    `/wellness-service/wellness/daily/spo2acclimation/${pathSegment(formatDate(cdate))}`,
+  );
 }

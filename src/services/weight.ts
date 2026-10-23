@@ -8,7 +8,7 @@ import {
   parseIsoLocal,
   parseIsoUtc,
 } from "../util/date.js";
-import type { DailyWeighIns, WeighInRange } from "../types/weight.js";
+import type { DailyWeighIns, WeighInRange, WeightGoals } from "../types/weight.js";
 
 export interface WeightHost {
   readonly client: GarminClient;
@@ -33,6 +33,24 @@ export async function getWeighIns(
     { params: { includeAll: "true" } },
   );
   return data ?? {};
+}
+
+/**
+ * The weight goals in effect over a date range, from
+ * `GET /goal-service/goal/user/effective/weightgoal/{start}/{end}` (Garmin's Personal API spec).
+ * Values are GRAMS, like `getWeighIns`. No range limit was found (1000 days answered).
+ */
+export async function getWeightGoals(
+  host: WeightHost,
+  startdate: string | Date,
+  enddate: string | Date,
+): Promise<WeightGoals | null> {
+  const start = formatDate(startdate);
+  const end = formatDate(enddate);
+  if (start > end) throw new GarminError("getWeightGoals: start date must not be after end date");
+  return host.client.connectapi<WeightGoals>(
+    `/goal-service/goal/user/effective/weightgoal/${pathSegment(start)}/${pathSegment(end)}`,
+  );
 }
 
 /**

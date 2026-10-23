@@ -14,7 +14,7 @@ if (!(await client.loadTokens())) throw new Error("not connected to Garmin");
 const garmin = new Garmin(client);
 ```
 
-**32 methods.** The verification column says what has been
+**35 methods.** The verification column says what has been
 confirmed against a live Garmin account, not merely unit-tested.
 [`AGENTS.md`](../../AGENTS.md) carries the full evidence per method.
 
@@ -28,8 +28,10 @@ confirmed against a live Garmin account, not merely unit-tested.
 | [`getBodyBattery`](#getbodybattery) | ✅ live-verified |
 | [`getBodyBatteryEvents`](#getbodybatteryevents) | ✅ live-verified |
 | [`getCaloriesDaily`](#getcaloriesdaily) | ✅ live-verified |
+| [`getDailyHydration`](#getdailyhydration) | ✅ live-verified |
 | [`getDailyStats`](#getdailystats) | ✅ live-verified |
 | [`getDailySteps`](#getdailysteps) | ✅ live-verified |
+| [`getDailyStress`](#getdailystress) | ✅ live-verified |
 | [`getDailySummaries`](#getdailysummaries) | ✅ live-verified |
 | [`getFloors`](#getfloors) | ✅ live-verified |
 | [`getHeartRates`](#getheartrates) | ✅ live-verified |
@@ -42,6 +44,7 @@ confirmed against a live Garmin account, not merely unit-tested.
 | [`getRhrDay`](#getrhrday) | ✅ live-verified |
 | [`getSleepDaily`](#getsleepdaily) | ✅ live-verified |
 | [`getSleepData`](#getsleepdata) | ✅ live-verified |
+| [`getSpo2Acclimation`](#getspo2acclimation) | ✅ live-verified |
 | [`getSpo2Data`](#getspo2data) | ✅ live-verified |
 | [`getStats`](#getstats) | ✅ live-verified |
 | [`getStatsAndBody`](#getstatsandbody) | ✅ live-verified |
@@ -221,6 +224,32 @@ merges active (metricId 22) and resting/BMR (metricId 23) series into `[{calenda
 
 Verification: ✅ live-verified
 
+## getDailyHydration
+
+```ts
+garmin.getDailyHydration(start: string | Date, end: string | Date): Promise<DailyHydrationEntry[]>
+```
+
+```ts
+const result = await garmin.getDailyHydration("2026-09-24", "2026-09-24");
+```
+
+**Returns**
+
+An array of `DailyHydrationEntry`:
+
+| Field | Type | Always present |
+|---|---|---|
+| `calendarDate` | `string` | yes |
+
+Plus the 6 fields of `PersonalApi.UserDailyHydrationDTO`, typed from Garmin's Personal API spec. All optional: Garmin leaves out what does not apply, and may also send fields the spec does not list.
+
+`userId`, `valueInML`, `goalInML`, `lastEntryTimestampLocal`, `sweatLossInML`, `activityIntakeInML`
+
+GETs `/usersummary-service/stats/hydration/daily/{start}/{end}`: `{calendarDate, valueInML, goalInML}` per day that has an entry (the spec's `sweatLossInML`/`activityIntakeInML` were not seen). Garmin 400s `end - start > 30` ("cannot be more than 31 days"), so longer ranges go in 31-day windows
+
+Verification: ✅ live-verified
+
 ## getDailyStats
 
 ```ts
@@ -277,6 +306,32 @@ Plus the 1 field of `PersonalApi.StepsDailyStatDTO`, typed from Garmin's Persona
 `totalDistance`
 
 auto-chunks ranges over Garmin's 28-day-per-request limit into ≤28-day windows and concatenates; a single request within the limit passes its (possibly `null`) result through unchecked
+
+Verification: ✅ live-verified
+
+## getDailyStress
+
+```ts
+garmin.getDailyStress(start: string | Date, end: string | Date): Promise<DailyStressEntry[]>
+```
+
+```ts
+const result = await garmin.getDailyStress("2026-09-24", "2026-09-24");
+```
+
+**Returns**
+
+An array of `DailyStressEntry`:
+
+| Field | Type | Always present |
+|---|---|---|
+| `calendarDate` | `string` | yes |
+
+Plus the 1 field of `PersonalApi.MultiValueWellnessChartItemDTO`, typed from Garmin's Personal API spec. All optional: Garmin leaves out what does not apply, and may also send fields the spec does not list.
+
+`values`
+
+GETs `/usersummary-service/stats/stress/daily/{start}/{end}`: `{calendarDate, values: {overallStressLevel, restStressDuration, lowStressDuration, mediumStressDuration, highStressDuration}}` per day, durations in seconds. Garmin 400s `end - start > 27` ("cannot be more than 28 days"), so longer ranges go in 28-day windows; a reversed range throws `GarminError` before any request
 
 Verification: ✅ live-verified
 
@@ -526,6 +581,28 @@ const result = await garmin.getSleepData("2026-09-24");
 | `sleepLevels` | `Record<string, unknown>[]` | no |
 
 Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
+
+Verification: ✅ live-verified
+
+## getSpo2Acclimation
+
+```ts
+garmin.getSpo2Acclimation(cdate: string | Date): Promise<Spo2Acclimation | null>
+```
+
+```ts
+const result = await garmin.getSpo2Acclimation("2026-09-24");
+```
+
+**Returns**
+
+`Spo2Acclimation`:
+
+With the 28 fields of `PersonalApi.DailySpO2AndAcclimationDTO`, typed from Garmin's Personal API spec. All optional: Garmin leaves out what does not apply, and may also send fields the spec does not list.
+
+`userProfilePK`, `calendarDate`, `startTimestampGMT`, `endTimestampGMT`, `startTimestampLocal`, `endTimestampLocal`, `sleepStartTimestampGMT`, `sleepEndTimestampGMT`, `sleepStartTimestampLocal`, `sleepEndTimestampLocal`, `tomorrowSleepStartTimestampGMT`, `tomorrowSleepEndTimestampGMT`, `tomorrowSleepStartTimestampLocal`, `tomorrowSleepEndTimestampLocal`, `averageSpO2`, `lowestSpO2`, `lastSevenDaysAvgSpO2`, `latestSpO2`, `latestSpO2TimestampGMT`, `latestSpO2TimestampLocal`, `avgSleepSpO2`, `avgTomorrowSleepSpO2`, `spO2SingleValuesDescriptorList`, `spO2SingleValues`, `spO2HourlyAveragesDescriptorList`, `spO2HourlyAverages`, `monitoringEnvironmentValuesDescriptorList`, `monitoringEnvironmentValues`
+
+GETs `/wellness-service/wellness/daily/spo2acclimation/{cdate}` (Garmin's Personal API spec): the day's SpO2 averages, sleep and hourly series and the monitoring environment, typed from `PersonalApi.DailySpO2AndAcclimationDTO`. Distinct from `getSpo2Data`'s path. A day with no data (even 2030-01-01) still returns the object, fields `null`
 
 Verification: ✅ live-verified
 

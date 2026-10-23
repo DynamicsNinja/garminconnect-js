@@ -27,7 +27,7 @@ const GARMIN_TS = path.join(ROOT, "src", "garmin.ts");
 export const MANIFEST_PATH = path.join(ROOT, "src", "generated", "manifest.ts");
 const MAX_DESCRIPTION = 600;
 
-const READ_PREFIXES = ["get", "list", "count", "download"];
+const READ_PREFIXES = ["get", "list", "count", "download", "search"];
 const DESTRUCTIVE_PREFIXES = ["delete", "unschedule"];
 const WRITE_PREFIXES = [
   "set", "add", "create", "import", "upload", "update", "remove", "push", "schedule", "init", "confirm", "request", "query",
@@ -50,10 +50,9 @@ export const SAFETY_OVERRIDES: Readonly<Record<string, Safety>> = {
   setGearActivityDefaults: "destructive",
   // Runs an arbitrary GraphQL body verbatim; a mutation looks the same as a query at this layer.
   queryGarminGraphql: "destructive",
-  // Food logging: a catalogue search, and two writes that add an entry to the day's log.
-  searchFoods: "read",
   // A subscription check against the cached profile.
   hasConnectPlus: "read",
+  // Food logging: two writes that add an entry to the day's log.
   logFood: "write",
   quickAddFood: "write",
 };

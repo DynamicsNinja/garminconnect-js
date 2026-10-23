@@ -1,4 +1,11 @@
-import type { WeightRangeDTO } from "../generated/personal-api.js";
+import type { UserGoalsRangeDTO, WeightRangeDTO } from "../generated/personal-api.js";
+
+/**
+ * `getWeightGoals`' response: the weight goals in effect over a range (`userGoals`, values in
+ * GRAMS) and, for pregnancy tracking, weekly target ranges (`userGoalRanges`).
+ * `PersonalApi.UserGoalsRangeDTO`.
+ */
+export interface WeightGoals extends UserGoalsRangeDTO {}
 
 /**
  * `getWeighIns`' response: per-day summaries and the range's averages. Weights are GRAMS. Fields

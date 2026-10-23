@@ -22,6 +22,7 @@
  */
 export * from "./errors.js";
 export { GarminClient, type ApiOptions, type GarminClientOptions } from "./client.js";
+export type { QueryParams } from "./http/fetcher.js";
 export { Garmin, type SocialProfile, type UserSettings } from "./garmin.js";
 export { CONNECT_PLUS_METHODS, type ConnectPlusMethod } from "./connect-plus.js";
 export {

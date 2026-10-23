@@ -1,5 +1,5 @@
 import { GarminAuthError, GarminError } from "./errors.js";
-import { Fetcher } from "./http/fetcher.js";
+import { Fetcher, type QueryParams } from "./http/fetcher.js";
 import { API_USER_AGENT } from "./auth/constants.js";
 import {
   exchange,
@@ -42,8 +42,11 @@ export interface GarminClientOptions {
 export interface ApiOptions {
   /** HTTP method. Default `GET`. */
   method?: string;
-  /** Query-string parameters; `undefined` values are left out. */
-  params?: Record<string, string | number | undefined>;
+  /**
+   * Query-string parameters; `undefined` values are left out, and an array repeats the key once
+   * per element (`requiredField=a&requiredField=b`).
+   */
+  params?: QueryParams;
   /** A request body, sent as JSON. */
   json?: unknown;
   /** Extra request headers. They cannot replace the `authorization` header. */

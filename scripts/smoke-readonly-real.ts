@@ -144,6 +144,32 @@ await probe("getDailyStats (STEPS, 41 days, chunked)", () => g.getDailyStats(mon
 await probe("getDailySummaries (7 days)", () => g.getDailySummaries(new Date(Date.now() - 6 * 86_400_000), today));
 // 731 days: three requests, since Garmin caps one at a year. Rows only for days with data.
 await probe("getDailySummaries (2 years, chunked)", () => g.getDailySummaries(new Date(Date.now() - 730 * 86_400_000), today));
+await probe("getDailyStress (41 days, chunked)", () => g.getDailyStress(monthStart, today));
+await probe("getDailyHydration (41 days, chunked)", () => g.getDailyHydration(monthStart, today));
+await probe("getSpo2Acclimation", () => g.getSpo2Acclimation(today));
+await probe("getWeightGoals (1 year)", () => g.getWeightGoals(new Date(Date.now() - 365 * 86_400_000), today));
+
+// --- activity search filters: each result is checked against the filter, booleans only ---------
+console.log("\nactivity search");
+type Found = { activityId?: number; distance?: number | null; activityType?: { typeKey?: string | null } | null; workoutId?: unknown };
+async function filtered(label: string, run: () => Promise<Found[]>, holds: (a: Found) => boolean): Promise<Found[]> {
+  const rows = ((await probe(label, run)) ?? []) as Found[];
+  console.log(`        ${rows.length} rows, every row matches: ${String(rows.every(holds))}`);
+  return rows;
+}
+await filtered("searchActivities minDistance", () => g.searchActivities({ minDistance: 5000, limit: 100 }), (a) => (a.distance ?? 0) >= 5000);
+await filtered("searchActivities running, no treadmill", () =>
+  g.searchActivities({ activityType: "running", excludedActivitySubTypes: ["treadmill_running", "indoor_running"], limit: 100 }),
+  (a) => a.activityType?.typeKey !== "treadmill_running");
+await filtered("searchActivities requiredFields x2", () =>
+  g.searchActivities({ requiredFields: ["maxPower", "avgPower"], limit: 100 }),
+  (a) => (a as Record<string, unknown>)["maxPower"] != null && (a as Record<string, unknown>)["avgPower"] != null);
+const byDistance = await filtered("searchActivities sortBy distance asc", () =>
+  g.searchActivities({ sortBy: "distance", sortOrder: "asc", limit: 100 }), () => true);
+console.log(`        ascending: ${String(byDistance.every((a, i, all) => i === 0 || (all[i - 1]!.distance ?? 0) <= (a.distance ?? 0)))}`);
+const withWorkout = (await g.searchActivities({ limit: 100 })).find((a) => (a as Found).workoutId != null);
+if (withWorkout) await probe("getActivityWorkouts", () => g.getActivityWorkouts(withWorkout.activityId));
+else skipped("getActivityWorkouts", "no activity done with a workout");
 
 // --- health snapshot: never once observed succeeding, anywhere ---------------------------------
 console.log("\nhealth snapshot");

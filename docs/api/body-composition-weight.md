@@ -14,7 +14,7 @@ if (!(await client.loadTokens())) throw new Error("not connected to Garmin");
 const garmin = new Garmin(client);
 ```
 
-**8 methods.** The verification column says what has been
+**9 methods.** The verification column says what has been
 confirmed against a live Garmin account, not merely unit-tested.
 [`AGENTS.md`](../../AGENTS.md) carries the full evidence per method.
 
@@ -28,6 +28,7 @@ confirmed against a live Garmin account, not merely unit-tested.
 | [`getBodyComposition`](#getbodycomposition) | ✅ live-verified |
 | [`getDailyWeighIns`](#getdailyweighins) | ✅ live-verified |
 | [`getWeighIns`](#getweighins) | ✅ live-verified |
+| [`getWeightGoals`](#getweightgoals) | ⚠️ partially verified |
 
 ---
 
@@ -190,3 +191,25 @@ With the 4 fields of `PersonalApi.WeightRangeDTO`, typed from Garmin's Personal 
 `dailyWeightSummaries`, `totalAverage`, `previousDateWeight`, `nextDateWeight`
 
 Verification: ✅ live-verified
+
+## getWeightGoals
+
+```ts
+garmin.getWeightGoals(startdate: string | Date, enddate: string | Date): Promise<WeightGoals | null>
+```
+
+```ts
+const result = await garmin.getWeightGoals("2026-09-24", "2026-09-24");
+```
+
+**Returns**
+
+`WeightGoals`:
+
+With the 2 fields of `PersonalApi.UserGoalsRangeDTO`, typed from Garmin's Personal API spec. All optional: Garmin leaves out what does not apply, and may also send fields the spec does not list.
+
+`userGoals`, `userGoalRanges`
+
+GETs `/goal-service/goal/user/effective/weightgoal/{start}/{end}`: `{userGoals, userGoalRanges}`, weights in GRAMS (`PersonalApi.UserGoalsRangeDTO`). No range limit found (1000 days answered); a reversed range throws before any request although Garmin itself accepts one
+
+Verification: ⚠️ partially verified

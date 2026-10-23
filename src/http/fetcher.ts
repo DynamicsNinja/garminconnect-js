@@ -26,9 +26,15 @@ export interface FetcherOptions {
   jar?: CookieJar;
 }
 
+/**
+ * Query-string parameters. `undefined` is left out; an array repeats the key once per element
+ * (`requiredField=a&requiredField=b`), which is how Garmin's list parameters take several values.
+ */
+export type QueryParams = Record<string, string | number | readonly (string | number)[] | undefined>;
+
 export interface RequestOptions {
   method?: string;
-  params?: Record<string, string | number | undefined>;
+  params?: QueryParams;
   body?: RequestInit["body"];
   json?: unknown;
   /**
@@ -81,7 +87,13 @@ export class Fetcher {
   async request(url: string, options: RequestOptions = {}): Promise<Response> {
     const target = new URL(url);
     for (const [k, v] of Object.entries(options.params ?? {})) {
-      if (v !== undefined) target.searchParams.set(k, String(v));
+      if (v === undefined) continue;
+      if (Array.isArray(v)) {
+        target.searchParams.delete(k);
+        for (const item of v as readonly (string | number)[]) target.searchParams.append(k, String(item));
+      } else {
+        target.searchParams.set(k, String(v));
+      }
     }
     const finalUrl = target.toString();
     // Computed once, alongside finalUrl, so every error construction path
