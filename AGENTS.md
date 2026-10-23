@@ -29,6 +29,13 @@ easy to get wrong by guessing:
   `[]` on an account that has goals (section 6).
 - **Return types follow live responses.** Several endpoints that look like they should return an
   object actually return an array (and vice versa); section 3 records what was observed.
+- **`getActivity` returns `ActivitySummary`, NOT the list-row `Activity`** (since 0.10.0):
+  measurements are under `summaryDTO`, the type under `activityTypeDTO`. Many response types
+  extend interfaces generated from Garmin's official Personal API spec (`PersonalApi`, section 3,
+  "Types from Garmin's Personal API spec"); every field there is optional.
+- **`searchActivities` fails SILENTLY on bad names**: an unknown `sortBy` or `requiredFields`
+  value returns `[]`, not an error, and Garmin's field names are not always the response's
+  (`averageHR` matches nothing). List filters are sent as repeated parameters; never comma-join.
 - **The `Live-verified` column in section 3 is the real confidence signal.** `attempted` and
   `n/a` appear there and mean what they say.
 

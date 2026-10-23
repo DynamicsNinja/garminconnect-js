@@ -464,6 +464,13 @@ it answers on both accounts, but neither has a weight goal, so only the empty re
 - The badge-challenge endpoints reject `start=0` server-side; pass `start >= 1`.
 - Women's-health writes need cycle-tracking settings that only Garmin's own first-run wizard
   creates. Run it once in the web UI first.
+- `getActivity(id)` is not shaped like a list row: distance, duration and the rest are under
+  `summaryDTO`, the type under `activityTypeDTO`.
+- `searchActivities` returns an empty list, not an error, for an unknown `sortBy` or
+  `requiredFields` name (Garmin's names, not always the response's: `averageHR` is unknown).
+- Many response types are filled in from Garmin's official Personal API spec, also exported on
+  their own as the `PersonalApi` type namespace. Every field there is optional: Garmin leaves out
+  what does not apply.
 
 The per-method gotchas and the evidence behind every verification are in [`AGENTS.md`](AGENTS.md)
 section 3.
@@ -499,6 +506,8 @@ npm install
 | `npm run smoke:matrix` | The builder's full option cross-product for swim, bike and run, compared field by field on read-back. |
 | `npm run verify:exercises -- <in.json> <out.json>` | Verifies candidate exercise names by upload and read-back, keeping only those Garmin echoes back. |
 | `npm run login:real` / `smoke:real` | Login to, and **read-only** probe of, a real personal account, on a transport that refuses any non-GET. Uses its own `./tokens-real`. See `AGENTS.md` section 8. |
+| `npm run smoke:personal-api` | Read-only, real account: calls every path in Garmin's Personal API spec on our host and diffs the field names against the spec. Fetches the spec from developer.garmin.com. |
+| `npm run personal-api-types` | Regenerates `src/generated/personal-api.ts` (the `PersonalApi` types) from the live spec. Needs network. |
 
 The four write commands (`smoke:write`, `smoke:gaps`, `smoke:builder`, `smoke:matrix`) and
 `verify:exercises` refuse to run unless the logged-in profile matches `GARMIN_TEST_PROFILE_ID`:

@@ -125,6 +125,7 @@ Just ask. Some things to try:
 - "How did I sleep last night, and what's my training readiness today?"
 - "Summarise my last run: distance, pace, average heart rate and training effect."
 - "What are my race predictions, and how has my HRV trended this month?"
+- "Find my runs over 10 km since June, longest first, and compare their average heart rate."
 
 **Workouts are always previewed first.** Claude shows the workout in readable form (steps, targets,
 paces in /km and /mi) and saves nothing until you confirm. Exercise names are checked against
@@ -142,9 +143,11 @@ destructive, and Claude is told to confirm with you before using them.
 - **Workouts**: `preview_workout`, `create_workout`, `update_workout`, `search_exercises`, for
   running, cycling, swimming, strength, HIIT, yoga, pilates, mobility, cardio, rucking and
   multi-sport; plus listing, scheduling, sending to your watch and deleting.
-- **Everything else in garminconnect-js**: sleep, HRV, stress, Body Battery, training readiness and
-  status, race predictions, activities (list, details, download, upload files, RPE and feel), gear, courses, race calendar,
-  devices, badges, weigh-ins, food logging (with Garmin Connect+), and more. One tool per library method.
+- **Everything else in garminconnect-js**: sleep, HRV, stress, Body Battery, whole-day summaries
+  over up to a year at a time, training readiness and status, race predictions, activities (list,
+  search by type, distance, duration, power, dates, text or place, details, the workout done,
+  download, upload files, RPE and feel), gear, courses, race calendar, devices, badges, weigh-ins
+  and weight goals, food logging (with Garmin Connect+), and more. One tool per library method.
 
 **Not exposed:** `logout` (it would delete your saved session), the raw-JSON workout uploads (the
 checked `create_workout` replaces them), and the raw GraphQL passthrough unless you opt in.
