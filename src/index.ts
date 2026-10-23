@@ -76,6 +76,11 @@ export type * from "./types/golf.js";
 export type * from "./types/nutrition.js";
 export type * from "./types/trainingPlans.js";
 export type * from "./types/misc.js";
+/**
+ * Response types generated from Garmin's official Personal API spec, e.g. `PersonalApi.SummaryDTO`
+ * for `getActivity(id).summaryDTO`. See scripts/generate-personal-api-types.ts.
+ */
+export type * as PersonalApi from "./generated/personal-api.js";
 
 /**
  * Fluent workout builder — a convenience layer over `uploadWorkout`, which

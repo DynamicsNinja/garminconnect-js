@@ -1,9 +1,10 @@
-/** `getWeighIns`' response: per-day summaries and the range's averages. */
-export interface WeighInRange {
-  dailyWeightSummaries?: Record<string, unknown>[];
-  totalAverage?: Record<string, unknown>;
-  [key: string]: unknown;
-}
+import type { WeightRangeDTO } from "../generated/personal-api.js";
+
+/**
+ * `getWeighIns`' response: per-day summaries and the range's averages. Weights are GRAMS. Fields
+ * from Garmin's Personal API spec (`PersonalApi.WeightRangeDTO`).
+ */
+export interface WeighInRange extends WeightRangeDTO {}
 
 /** One entry of `dateWeightList` on `getDailyWeighIns`'s response. */
 export interface WeighInEntry {

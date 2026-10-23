@@ -31,6 +31,7 @@ import type {
   ActivityHrInTimezones,
   ActivityPowerInTimezones,
   ActivitySplitSummaries,
+  ActivitySummary,
   ActivitySplits,
   ActivityTypedSplits,
   ActivityTypesResponse,
@@ -120,6 +121,7 @@ import type {
   DailyStatsType,
   DailyStepsEntry,
   DailyStressData,
+  DailySummary,
   FloorsData,
   HeartRateData,
   HrvData,
@@ -425,6 +427,10 @@ export class Garmin {
   getHrvDataRange(start: string | Date, end: string | Date): Promise<HrvDataRange | null> {
     return wellness.getHrvDataRange(this, start, end);
   }
+  /** One whole-day summary per day: steps, calories, heart rate, stress, Body Battery, SpO2 and more. Ranges over a year are chunked. */
+  getDailySummaries(start: string | Date, end: string | Date): Promise<DailySummary[]> {
+    return wellness.getDailySummaries(this, start, end);
+  }
 
   // --- activities ---
   /** The total number of activities on the account. */
@@ -455,8 +461,8 @@ export class Garmin {
   getLastActivity(): Promise<Activity | null> {
     return activities.getLastActivity(this);
   }
-  /** One activity's summary by id. Throws `GarminError` if Garmin returns nothing. */
-  getActivity(activityId: number | string): Promise<Activity> {
+  /** One activity by id; measurements are under `summaryDTO`. Throws `GarminError` if Garmin returns nothing. */
+  getActivity(activityId: number | string): Promise<ActivitySummary> {
     return activities.getActivity(this, activityId);
   }
   /** Every activity type Garmin knows: `{ typeId, typeKey, parentTypeId, ... }`. */

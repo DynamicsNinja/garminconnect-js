@@ -127,6 +127,7 @@
     "check": "npm run typecheck && npm run lint && npm run build && npm test && npm run check -w mcp",
     "docs:api": "tsx scripts/generate-api-docs.ts",
     "manifest": "tsx scripts/generate-manifest.ts",
+    "personal-api-types": "tsx scripts/generate-personal-api-types.ts",
     "prepublishOnly": "npm run check"
   },
   "devDependencies": {

@@ -1,12 +1,27 @@
-/** An activity summary, as listed by `getActivities` and returned by `getActivity`. */
-export interface Activity {
+import type { ActivitySummaryDTO, SummarizedActivityDTO } from "../generated/personal-api.js";
+
+/**
+ * One row of an activity list (`getActivities`, `getActivitiesByDate`, `getLastActivity`).
+ *
+ * Fields beyond the five below come from Garmin's Personal API spec (`PersonalApi.SummarizedActivityDTO`,
+ * 230 fields), which describes this same endpoint. All optional: Garmin leaves out what does not
+ * apply to the activity, so a run has no swim cadence and no dive fields.
+ */
+export interface Activity extends SummarizedActivityDTO {
   activityId: number;
   activityName?: string;
   startTimeLocal?: string;
   distance?: number;
   duration?: number;
-  activityType?: Record<string, unknown>;
-  [key: string]: unknown;
+}
+
+/**
+ * One activity by id, from `getActivity`. NOT the list-row shape: the measurements live under
+ * `summaryDTO` (distance in meters, duration in seconds), the type under `activityTypeDTO`.
+ * Fields from Garmin's Personal API spec (`PersonalApi.ActivitySummaryDTO`).
+ */
+export interface ActivitySummary extends ActivitySummaryDTO {
+  activityId: number;
 }
 
 /** A file format `downloadActivity` can produce. `ORIGINAL` is the file the device uploaded. */

@@ -132,6 +132,8 @@ describe("generated API reference", () => {
         else if (/^`\w+` = /m.test(section)) resolved++;
         else if (/^`(string|number|boolean|null|void)`$/m.test(section)) resolved++;
         else if (/passed through unparsed|Buffer` of file bytes|Nothing\./.test(section)) resolved++;
+        // A type extending one generated from Garmin's Personal API spec, with its fields listed.
+        else if (/ fields? of `PersonalApi\.\w+`/.test(section)) resolved++;
       }
     }
     expect(total).toBeGreaterThan(100);

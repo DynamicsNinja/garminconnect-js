@@ -14,7 +14,7 @@ if (!(await client.loadTokens())) throw new Error("not connected to Garmin");
 const garmin = new Garmin(client);
 ```
 
-**31 methods.** The verification column says what has been
+**32 methods.** The verification column says what has been
 confirmed against a live Garmin account, not merely unit-tested.
 [`AGENTS.md`](../../AGENTS.md) carries the full evidence per method.
 
@@ -30,6 +30,7 @@ confirmed against a live Garmin account, not merely unit-tested.
 | [`getCaloriesDaily`](#getcaloriesdaily) | ✅ live-verified |
 | [`getDailyStats`](#getdailystats) | ✅ live-verified |
 | [`getDailySteps`](#getdailysteps) | ✅ live-verified |
+| [`getDailySummaries`](#getdailysummaries) | ✅ live-verified |
 | [`getFloors`](#getfloors) | ✅ live-verified |
 | [`getHeartRates`](#getheartrates) | ✅ live-verified |
 | [`getHrvData`](#gethrvdata) | ✅ live-verified |
@@ -166,7 +167,9 @@ An array of `BodyBatteryEntry`:
 | `charged` | `number` | no |
 | `drained` | `number` | no |
 
-Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
+Plus the 9 fields of `PersonalApi.BodyBatteryDailyReportDTO`, typed from Garmin's Personal API spec. All optional: Garmin leaves out what does not apply, and may also send fields the spec does not list.
+
+`startTimestampGMT`, `endTimestampGMT`, `startTimestampLocal`, `endTimestampLocal`, `bodyBatteryValuesArray`, `bodyBatteryValueDescriptorDTOList`, `bodyBatteryDynamicFeedbackEvent`, `bodyBatteryActivityEvent`, `endOfDayBodyBatteryDynamicFeedbackEvent`
 
 Verification: ✅ live-verified
 
@@ -269,9 +272,37 @@ An array of `DailyStepsEntry`:
 | `totalSteps` | `number` | no |
 | `stepGoal` | `number` | no |
 
-Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
+Plus the 1 field of `PersonalApi.StepsDailyStatDTO`, typed from Garmin's Personal API spec. All optional: Garmin leaves out what does not apply, and may also send fields the spec does not list.
+
+`totalDistance`
 
 auto-chunks ranges over Garmin's 28-day-per-request limit into ≤28-day windows and concatenates; a single request within the limit passes its (possibly `null`) result through unchecked
+
+Verification: ✅ live-verified
+
+## getDailySummaries
+
+```ts
+garmin.getDailySummaries(start: string | Date, end: string | Date): Promise<DailySummary[]>
+```
+
+```ts
+const result = await garmin.getDailySummaries("2026-09-24", "2026-09-24");
+```
+
+**Returns**
+
+An array of `DailySummary`:
+
+| Field | Type | Always present |
+|---|---|---|
+| `calendarDate` | `string` | yes |
+
+Plus the 16 fields of `PersonalApi.UserDailySummaryV2DTO`, typed from Garmin's Personal API spec. All optional: Garmin leaves out what does not apply, and may also send fields the spec does not list.
+
+`uuid`, `userProfilePk`, `source`, `includesWellnessData`, `includesActivityData`, `wellnessChronology`, `movement`, `calories`, `heartRate`, `intensityMinutes`, `stress`, `bodyBattery`, `hydration`, `respiration`, `pulseOx`, `jetLag`
+
+GETs `/usersummary-service/v2/dailysummaries?startDate&endDate` and unwraps `data`: one object per day grouped by topic (`movement`, `calories`, `heartRate`, `intensityMinutes`, `stress`, `bodyBattery`, `hydration`, `respiration`, `pulseOx`, `jetLag`), typed from `PersonalApi.UserDailySummaryV2DTO`. Garmin caps one request at a year ("must be P1Y or less": a 365-day span passes, 366 is a 400), so longer ranges go in 365-day windows. Days with no data are ABSENT, not empty rows; a reversed range throws `GarminError` before any request (Garmin would 400 "startDate must occur before endDate")
 
 Verification: ✅ live-verified
 
@@ -338,12 +369,9 @@ const result = await garmin.getHrvData("2026-09-24");
 
 `HrvData`:
 
-| Field | Type | Always present |
-|---|---|---|
-| `hrvSummary` | `Record<string, unknown>` | no |
-| `hrvReadings` | `Record<string, unknown>[]` | no |
+With the 11 fields of `PersonalApi.HrvChartDTO`, typed from Garmin's Personal API spec. All optional: Garmin leaves out what does not apply, and may also send fields the spec does not list.
 
-Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
+`userProfilePk`, `hrvSummary`, `hrvReadings`, `startTimestampGMT`, `endTimestampGMT`, `startTimestampLocal`, `endTimestampLocal`, `sleepStartTimestampGMT`, `sleepEndTimestampGMT`, `sleepStartTimestampLocal`, `sleepEndTimestampLocal`
 
 Verification: ✅ live-verified
 
@@ -359,7 +387,11 @@ const result = await garmin.getHrvDataRange("2026-09-24", "2026-09-24");
 
 **Returns**
 
-`HrvDataRange`, an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
+`HrvDataRange`:
+
+With the 2 fields of `PersonalApi.HrvDailySummaryDTO`, typed from Garmin's Personal API spec. All optional: Garmin leaves out what does not apply, and may also send fields the spec does not list.
+
+`hrvSummaries`, `userProfilePk`
 
 Verification: ✅ live-verified
 
@@ -560,7 +592,7 @@ const result = await garmin.getStatsAndBody("2026-09-24");
 
 **Returns**
 
-`StatsAndBody`
+`StatsAndBody`, an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
 
 merges `getUserSummary` with the body-composition `totalAverage` block, delegating to `getBodyComposition` (bodyComposition service) for the latter
 

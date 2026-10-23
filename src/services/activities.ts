@@ -16,6 +16,7 @@ import type {
   ActivityPowerInTimezones,
   ActivitySplits,
   ActivitySplitSummaries,
+  ActivitySummary,
   ActivityTypedSplits,
   ActivityTypesResponse,
   ActivityWeather,
@@ -59,8 +60,8 @@ export async function getActivities(
 export async function getActivity(
   host: ActivitiesHost,
   activityId: number | string,
-): Promise<Activity> {
-  const activity = await host.client.connectapi<Activity>(
+): Promise<ActivitySummary> {
+  const activity = await host.client.connectapi<ActivitySummary>(
     `/activity-service/activity/${pathSegment(activityId)}`,
   );
   if (!activity) throw new GarminError(`No activity ${activityId} found`);

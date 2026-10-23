@@ -185,11 +185,8 @@ const result = await garmin.getWeighIns("2026-09-24", "2026-09-24");
 
 `WeighInRange`:
 
-| Field | Type | Always present |
-|---|---|---|
-| `dailyWeightSummaries` | `Record<string, unknown>[]` | no |
-| `totalAverage` | `Record<string, unknown>` | no |
+With the 4 fields of `PersonalApi.WeightRangeDTO`, typed from Garmin's Personal API spec. All optional: Garmin leaves out what does not apply, and may also send fields the spec does not list.
 
-Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
+`dailyWeightSummaries`, `totalAverage`, `previousDateWeight`, `nextDateWeight`
 
 Verification: ✅ live-verified

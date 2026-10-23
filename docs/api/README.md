@@ -16,7 +16,7 @@ One page per category, with every method's signature and a call you can paste. F
 | [Golf](golf.md) | 5 |
 | [Training metrics](metrics.md) | 18 |
 | [Profile, goals, nutrition, plans & misc](profile-and-misc.md) | 30 |
-| [Wellness](wellness.md) | 31 |
+| [Wellness](wellness.md) | 32 |
 | [Women's health](womens-health.md) | 11 |
 | [Workouts](workouts.md) | 19 |
-| **Total** | **193** |
+| **Total** | **194** |

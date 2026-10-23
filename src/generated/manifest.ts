@@ -789,6 +789,33 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
     "io": "json"
   },
   {
+    "name": "getDailySummaries",
+    "category": "wellness",
+    "description": "One whole-day summary per day: steps, calories, heart rate, stress, Body Battery, SpO2 and more. Ranges over a year are chunked. GETs `/usersummary-service/v2/dailysummaries?startDate&endDate` and unwraps `data`: one object per day grouped by topic (`movement`, `calories`, `heartRate`, `intensityMinutes`, `stress`, `bodyBattery`, `hydration`, `respiration`, `pulseOx`, `jetLag`), typed from `PersonalApi.UserDailySummaryV2DTO`. Garmin caps one request at a year (\"must be P1Y or less\": a 365-day span passes, 366 is a 400), so longer ranges go in 365-day windows. Days with no data are ABSENT, not…",
+    "params": [
+      {
+        "name": "start",
+        "optional": false,
+        "schema": {
+          "type": "string",
+          "format": "date",
+          "description": "Calendar date, YYYY-MM-DD (UTC)"
+        }
+      },
+      {
+        "name": "end",
+        "optional": false,
+        "schema": {
+          "type": "string",
+          "format": "date",
+          "description": "Calendar date, YYYY-MM-DD (UTC)"
+        }
+      }
+    ],
+    "safety": "read",
+    "io": "json"
+  },
+  {
     "name": "countActivities",
     "category": "activities",
     "description": "The total number of activities on the account. Returns the envelope's `totalCount`, not the whole response; throws `GarminError` if Garmin returns nothing or a non-numeric `totalCount`.",
@@ -889,7 +916,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getActivity",
     "category": "activities",
-    "description": "One activity's summary by id. Throws `GarminError` if Garmin returns nothing.",
+    "description": "One activity by id; measurements are under `summaryDTO`. Throws `GarminError` if Garmin returns nothing. `ActivitySummary` extends `PersonalApi.ActivitySummaryDTO`, typed from Garmin's Personal API spec (AGENTS.md section 3).",
     "params": [
       {
         "name": "activityId",

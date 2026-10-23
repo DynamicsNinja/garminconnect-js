@@ -127,7 +127,29 @@ const result = await garmin.getBadgeDetail(activityId);
 
 **Returns**
 
-`BadgeDetail`
+`BadgeDetail`:
+
+| Field | Type | Always present |
+|---|---|---|
+| `badgeKey` | `string` | no |
+| `badgeName` | `string` | no |
+| `badgeUuid` | `string | null` | no |
+| `badgeCategoryId` | `number` | no |
+| `badgeDifficultyId` | `number` | no |
+| `badgePoints` | `number` | no |
+| `badgeSeriesId` | `number | null` | no |
+| `badgeEarnedDate` | `string | null` | no |
+| `earnedByMe` | `boolean` | no |
+| `badgeStartDate` | `string | null` | no |
+| `badgeEndDate` | `string | null` | no |
+| `badgeAssocType` | `string` | no |
+| `badgeAssocDataId` | `string | null` | no |
+| `badgeAssocDataName` | `string | null` | no |
+| `relatedBadges` | `RelatedBadge[] | null` | no |
+| `followings` | `unknown[]` | no |
+| `followingNumber` | `number` | no |
+
+Plus every field of `Badge`.
 
 GETs `/badge-service/badge/detail/v3/{badgeId}`, the request Garmin Connect's web app makes when a badge is opened; `badgeId` validated as a positive integer. Returns an OBJECT: the `getEarnedBadges` fields plus `relatedBadges` (the rest of the series, each with `earnedByMe`), `badgeAssocType`/`badgeAssocDataId`/`badgeAssocDataName` (for `"activityId"`, the activity that earned it) and `followings`. Works for unearned badges. An unknown id is a **400** `GarminHttpError`, not a 404. The badge and each `relatedBadges` entry gain `badgeImageUrls` (see `getEarnedBadges`). Carries no description text; see the `BadgeDetail` type for where Garmin's web app gets it
 

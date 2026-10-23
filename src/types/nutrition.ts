@@ -1,10 +1,11 @@
+import type { DailyNutritionSummaryDTO } from "../generated/personal-api.js";
+
 /**
- * `GET /nutrition-service/food/logs/{cdate}`. Passes through
- * unchecked; undocumented shape.
+ * `GET /nutrition-service/food/logs/{cdate}`: the day's meals, logged foods and goals. Fields from
+ * Garmin's Personal API spec (`PersonalApi.DailyNutritionSummaryDTO`); its times are "HH:MM:SS"
+ * strings, not the objects the spec describes.
  */
-export interface NutritionDailyFoodLog {
-  [key: string]: unknown;
-}
+export interface NutritionDailyFoodLog extends DailyNutritionSummaryDTO {}
 
 /**
  * `GET /nutrition-service/meals/{cdate}`. Passes through unchecked;

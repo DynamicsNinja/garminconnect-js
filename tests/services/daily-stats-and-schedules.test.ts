@@ -19,6 +19,15 @@ const day = (calendarDate: string) => ({
   values: { totalSteps: 1000, totalDistance: 800, stepGoal: 5000 },
 });
 
+const summary = (calendarDate: string) => ({
+  uuid: `u-${calendarDate}`,
+  userProfilePk: 1,
+  calendarDate,
+  source: "garmin",
+  movement: { steps: { value: 1000, goal: 5000, distanceInMeters: 800 } },
+  stress: { avgLevel: 30, qualifier: "balanced" },
+});
+
 const SUMMARY = {
   scheduledWorkoutId: 1787582002,
   workoutUuid: null,
@@ -38,6 +47,14 @@ const server = setupServer(
     return HttpResponse.json({
       values: [day(String(params["start"])), day(String(params["end"]))],
       aggregations: { totalStepsAverage: 1000 },
+    });
+  }),
+  // Shape read live on 2026-10-23 (key names only): `{ data: [one object per day with data] }`.
+  http.get(`${API}/usersummary-service/v2/dailysummaries`, ({ request }) => {
+    seen.push({ url: request.url, method: request.method });
+    const q = new URL(request.url).searchParams;
+    return HttpResponse.json({
+      data: [summary(q.get("startDate")!), summary(q.get("endDate")!)],
     });
   }),
   http.post(`${API}/graphql-gateway/graphql`, async ({ request }) => {
@@ -107,6 +124,52 @@ describe("getDailyStats", () => {
     await expect(
       makeGarmin().getDailyStats("2026-09-01", "2026-09-02", "steps" as DailyStatsType),
     ).rejects.toThrow(GarminError);
+    expect(seen).toHaveLength(0);
+  });
+});
+
+describe("getDailySummaries", () => {
+  it("sends the range as startDate/endDate and unwraps `data`", async () => {
+    const rows = await makeGarmin().getDailySummaries("2026-09-01", "2026-09-10");
+    expect(seen.map((s) => s.url)).toEqual([
+      `${API}/usersummary-service/v2/dailysummaries?startDate=2026-09-01&endDate=2026-09-10`,
+    ]);
+    expect(rows).toEqual([summary("2026-09-01"), summary("2026-09-10")]);
+  });
+
+  it("keeps a 365-day range in one request and splits a 366-day one (Garmin: P1Y or less)", async () => {
+    await makeGarmin().getDailySummaries("2025-01-01", "2025-12-31");
+    expect(seen).toHaveLength(1);
+    seen.length = 0;
+    await makeGarmin().getDailySummaries("2025-01-01", "2026-01-01");
+    expect(seen.map((s) => new URL(s.url).search)).toEqual([
+      "?startDate=2025-01-01&endDate=2025-12-31",
+      "?startDate=2026-01-01&endDate=2026-01-01",
+    ]);
+  });
+
+  it("windows never exceed 365 days across a leap year", async () => {
+    await makeGarmin().getDailySummaries("2027-06-01", "2029-06-01");
+    const ranges = seen.map((s) => new URL(s.url).searchParams);
+    for (const q of ranges) {
+      const span = (Date.parse(q.get("endDate")!) - Date.parse(q.get("startDate")!)) / 86_400_000;
+      expect(span).toBeLessThanOrEqual(364);
+    }
+    expect(ranges[0]!.get("startDate")).toBe("2027-06-01");
+    expect(ranges.at(-1)!.get("endDate")).toBe("2029-06-01");
+  });
+
+  it("returns [] when Garmin has no data", async () => {
+    server.use(
+      http.get(`${API}/usersummary-service/v2/dailysummaries`, () => HttpResponse.json({ data: [] })),
+    );
+    await expect(makeGarmin().getDailySummaries("2030-01-01", "2030-01-03")).resolves.toEqual([]);
+    server.use(http.get(`${API}/usersummary-service/v2/dailysummaries`, () => HttpResponse.json(null)));
+    await expect(makeGarmin().getDailySummaries("2030-01-01", "2030-01-03")).resolves.toEqual([]);
+  });
+
+  it("rejects a reversed range before any request", async () => {
+    await expect(makeGarmin().getDailySummaries("2026-09-02", "2026-09-01")).rejects.toThrow(GarminError);
     expect(seen).toHaveLength(0);
   });
 });

@@ -45,7 +45,11 @@ function declaredExports(source: string): { values: string[]; types: string[] } 
     if (!name) continue;
     // Handle `X as Y` by taking the exported (right-hand) name.
     const exported = name.split(/\s+as\s+/).pop()!.trim();
-    if (/^type\s/.test(name)) types.push(exported);
+    const local = name.split(/\s+as\s+/)[0]!.trim();
+    // `export type * as PersonalApi` is rolled up as a `declare namespace` of types, re-exported
+    // without a `type` modifier. A namespace holding only types has no runtime value.
+    const typeOnlyNamespace = new RegExp(`^declare namespace ${local} \\{`, "m").test(source);
+    if (/^type\s/.test(name) || typeOnlyNamespace) types.push(exported);
     else values.push(exported);
   }
   return { values, types };

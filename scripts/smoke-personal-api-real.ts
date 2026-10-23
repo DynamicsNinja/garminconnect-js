@@ -13,47 +13,13 @@
  * Same safety as smoke-readonly-real.ts: GET-only transport, ./tokens-real, refuses the test
  * account. Output is key names and types, never values.
  */
-import { readFileSync } from "node:fs";
 import "./load-env.js";
 import { GarminClient, Garmin, FileTokenStore, GarminHttpError } from "../src/index.js";
 import { createReadOnlyFetch } from "./readonly-fetch.js";
-
-type Schema = {
-  $ref?: string;
-  type?: string;
-  properties?: Record<string, Schema>;
-  items?: Schema;
-  additionalProperties?: Schema | boolean;
-  allOf?: Schema[];
-};
-
-const SWAGGER_PAGE = "https://developer.garmin.com/gc-developer-program/personal/swagger-docs/";
-
-/**
- * The Swagger page links no spec file: the spec is inlined in the page's JS bundle as
- * `JSON.parse('{"openapi":…}')`. Fetched at run time rather than committed, because the
- * developer site's terms for redistributing it are unknown.
- */
-async function fetchSpecText(): Promise<string> {
-  const html = await (await fetch(SWAGGER_PAGE)).text();
-  const bundle = /src="(\/component---src-pages-gc-developer-program-personal-swagger-docs-js-[^"]+\.js)"/.exec(html)?.[1];
-  if (!bundle) throw new Error("swagger page layout changed: no swagger-docs bundle found");
-  const js = await (await fetch(new URL(bundle, SWAGGER_PAGE))).text();
-  const start = js.indexOf(`JSON.parse('{"openapi"`);
-  if (start < 0) throw new Error("swagger bundle changed: no inlined OpenAPI spec found");
-  const from = start + "JSON.parse('".length;
-  const end = js.indexOf("')", from);
-  // Undo the JS single-quoted string escaping in one pass, so `\\` and `\'` cannot interact.
-  return js.slice(from, end).replace(/\\(['\\])/g, "$1");
-}
+import { loadPersonalApiSpec, responseSchema, type OpenApiSchema as Schema } from "./lib/personal-api-spec.js";
 
 // Optional: a local copy of the spec instead of fetching it.
-const specPath = process.argv[2];
-const spec = JSON.parse(specPath ? readFileSync(specPath, "utf8") : await fetchSpecText()) as {
-  info: { version: string };
-  paths: Record<string, { get: { responses: Record<string, { content?: Record<string, { schema: Schema }> }> } }>;
-  components: { schemas: Record<string, Schema> };
-};
+const spec = await loadPersonalApiSpec(process.argv[2]);
 
 const TOKEN_DIR = "./tokens-real";
 const transport = createReadOnlyFetch();
@@ -186,8 +152,7 @@ const routes: {
 
 const summary: string[] = [];
 for (const r of routes) {
-  const op = spec.paths[r.path]?.get;
-  const schema = op?.responses["200"]?.content?.["application/json"]?.schema;
+  const schema = responseSchema(spec, r.path);
   const req = r.build();
   console.log(`\n== GET ${r.path}  (spec: ${schema ? refName(schema) : "?"})`);
   if (!req) {

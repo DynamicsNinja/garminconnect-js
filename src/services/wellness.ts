@@ -14,6 +14,7 @@ import type {
   DailyStatsType,
   DailyStepsEntry,
   DailyStressData,
+  DailySummary,
   FloorsData,
   HeartRateData,
   HrvData,
@@ -635,4 +636,38 @@ export async function getHrvDataRange(
   const s = formatDate(start);
   const e = formatDate(end);
   return host.client.connectapi<HrvDataRange>(`/hrv-service/hrv/daily/${pathSegment(s)}/${pathSegment(e)}`);
+}
+
+/**
+ * Whole-day summaries for a date range, from `GET /usersummary-service/v2/dailysummaries`, one
+ * endpoint that Garmin's Personal API spec documents and that answers on our host too (verified
+ * 2026-10-23 on a real account).
+ *
+ * Garmin allows a range of at most one year ("Range between startDate and endDate must be P1Y or
+ * less": a 365-day span passes, 366 is a 400), so a longer range is fetched in 365-day windows.
+ * Days with no data are absent rather than empty, and a range with none at all returns `[]`.
+ */
+export async function getDailySummaries(
+  host: WellnessHost,
+  start: string | Date,
+  end: string | Date,
+): Promise<DailySummary[]> {
+  const startDate = formatDate(start);
+  const endDate = formatDate(end);
+  if (startDate > endDate) {
+    throw new GarminError("getDailySummaries: start date must not be after end date");
+  }
+  const results: DailySummary[] = [];
+  let chunkStart = startDate;
+  while (chunkStart <= endDate) {
+    // 365 calendar days per window (`end - start` = 364), within P1Y even across a leap day.
+    const chunkEnd = daysBetween(chunkStart, endDate) > 364 ? addDays(chunkStart, 364) : endDate;
+    const page = await host.client.connectapi<{ data?: DailySummary[] | null }>(
+      "/usersummary-service/v2/dailysummaries",
+      { params: { startDate: chunkStart, endDate: chunkEnd } },
+    );
+    if (page?.data) results.push(...page.data);
+    chunkStart = addDays(chunkEnd, 1);
+  }
+  return results;
 }

@@ -37,6 +37,10 @@ export default tseslint.config(
       // `Promise.resolve()` wrapper or a no-op await at every such site adds
       // noise without catching a real bug.
       "@typescript-eslint/require-await": "off",
+      // `export interface HrvData extends HrvChartDTO {}` gives a spec-generated type the public
+      // name callers already import, and keeps it a named interface in the emitted .d.ts and in
+      // editor hovers. A type alias would work too but reads as the spec's name instead.
+      "@typescript-eslint/no-empty-object-type": ["error", { allowInterfaces: "with-single-extends" }],
       // Leading-underscore parameters are this codebase's convention for
       // "required by a callback signature but intentionally unused".
       "@typescript-eslint/no-unused-vars": [

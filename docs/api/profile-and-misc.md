@@ -289,7 +289,11 @@ const result = await garmin.getNutritionDailyFoodLog("2026-09-24");
 
 **Returns**
 
-`NutritionDailyFoodLog`, an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
+`NutritionDailyFoodLog`:
+
+With the 7 fields of `PersonalApi.DailyNutritionSummaryDTO`, typed from Garmin's Personal API spec. All optional: Garmin leaves out what does not apply, and may also send fields the spec does not list.
+
+`dailyNutritionContent`, `dailyNutritionGoals`, `dayEndTime`, `dayStartTime`, `loggedFoodsWithServingSizes`, `mealDate`, `mealDetails`
 
 GETs `/nutrition-service/food/logs/{cdate}`; passes through unchecked
 
@@ -432,7 +436,11 @@ const result = await garmin.getUserprofileSettings();
 
 **Returns**
 
-`UserprofileSettings`, an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
+`UserprofileSettings`:
+
+With the 19 fields of `PersonalApi.UserSettingsDTO`, typed from Garmin's Personal API spec. All optional: Garmin leaves out what does not apply, and may also send fields the spec does not list.
+
+`displayName`, `preferredLocale`, `measurementSystem`, `firstDayOfWeek`, `numberFormat`, `timeFormat`, `dateFormat`, `powerFormat`, `heartRateFormat`, `timeZone`, `hydrationMeasurementUnit`, `hydrationContainers`, `glucoseMeasurementUnit`, `golfDistanceUnit`, `golfElevationUnit`, `golfSpeedUnit`, `wheelchairModeEnabled`, `availableTrainingDays`, `preferredLongTrainingDays`
 
 GETs `/userprofile-service/userprofile/settings` (SINGULAR "settings", distinct from `getUserSettings`'s "user-settings"; the two paths are one character apart and easy to transpose); passes through unchecked. Three profile endpoints, three methods: `getUserProfile()` reads `/userprofile-service/socialProfile` (and backs `displayName`/`fullName`/`userName`), `getUserSettings()` reads `/userprofile-service/userprofile/user-settings` (and backs `unitSystem`), and this one reads `.../settings`
 
@@ -494,7 +502,11 @@ const result = await garmin.logFood(input);
 
 **Returns**
 
-`NutritionDailyFoodLog`, an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
+`NutritionDailyFoodLog`:
+
+With the 7 fields of `PersonalApi.DailyNutritionSummaryDTO`, typed from Garmin's Personal API spec. All optional: Garmin leaves out what does not apply, and may also send fields the spec does not list.
+
+`dailyNutritionContent`, `dailyNutritionGoals`, `dayEndTime`, `dayStartTime`, `loggedFoodsWithServingSizes`, `mealDate`, `mealDetails`
 
 PUTs `/nutrition-service/food/logs` with one `REGULAR_LOG` item and returns the whole day's log. `FoodLogInput` = `{date, foodId, servingId, servings? = 1, time?, meal?, source? = "GARMIN", regionCode?, languageCode?}`. Pass the catalogue food's `source`/`regionCode`/`languageCode` for a search result. **Needs a `mealId`**, which only exists after Garmin's nutrition setup in the app (400 `mealId must not be null` otherwise; this method throws a clearer error first). The meal is the named one, else the one whose window holds `time`, else SNACKS; with a `meal` and no `time` it picks a time that fits. Garmin VALIDATES the pairing: a snack inside LUNCH's window is a 400 `"Meal time for Snacks overlap with meal type: LUNCH"`. Needs Connect+
 
@@ -550,7 +562,11 @@ const result = await garmin.quickAddFood(input);
 
 **Returns**
 
-`NutritionDailyFoodLog`, an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
+`NutritionDailyFoodLog`:
+
+With the 7 fields of `PersonalApi.DailyNutritionSummaryDTO`, typed from Garmin's Personal API spec. All optional: Garmin leaves out what does not apply, and may also send fields the spec does not list.
+
+`dailyNutritionContent`, `dailyNutritionGoals`, `dayEndTime`, `dayStartTime`, `loggedFoodsWithServingSizes`, `mealDate`, `mealDetails`
 
 PUTs `/nutrition-service/food/logs/quickAdd`: an entry by `name` + `calories`/`carbs`/`protein`/`fat` with no food behind it (`QUICK_ADD`). Same meal rules as `logFood`. Needs Connect+
 

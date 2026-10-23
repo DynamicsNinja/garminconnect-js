@@ -21,7 +21,7 @@ A zero-dependency TypeScript client for Garmin Connect, for **Node and Next.js s
 It talks to the same undocumented endpoints the mobile app uses, with a fully typed,
 promise-based API.
 
-It handles Garmin's undocumented SSO/OAuth flow, refreshes tokens for you, and gives you 193
+It handles Garmin's undocumented SSO/OAuth flow, refreshes tokens for you, and gives you 194
 typed methods over the endpoints the mobile app uses, plus two things that exist because Garmin's
 API is quietly hostile in specific places:
 
@@ -430,13 +430,13 @@ Or use it without installing anything: add `https://garmin.ficdev.xyz/mcp` as a 
 
 ## 📊 API coverage
 
-**193 typed methods across 13 categories.** Each category links to a generated
+**194 typed methods across 13 categories.** Each category links to a generated
 [`docs/api/`](docs/api/README.md) page with every method's signature, a call you can paste, and
 its live-verification status (confirmed against a real Garmin account, not merely unit-tested).
 
 | Category | Methods | Verified live | Covers |
 |---|---|---|---|
-| [Wellness](docs/api/wellness.md) | 31 | all | steps, heart rate, sleep, HRV, stress, SpO2, respiration, hydration, blood pressure, body battery |
+| [Wellness](docs/api/wellness.md) | 32 | all | steps, heart rate, sleep, HRV, stress, SpO2, respiration, hydration, blood pressure, body battery, whole-day summaries |
 | [Activities](docs/api/activities.md) | 36 | all | list/search/detail, splits, weather, manual creation, import/upload, exercise sets, gear links, personal records, event type, RPE and feel |
 | [Training metrics](docs/api/metrics.md) | 18 | all | training status, race predictions, FTP, lactate threshold, HR/power zones (and setting HR zones), endurance and hill score |
 | [Workouts](docs/api/workouts.md) | 19 | all | CRUD, per-sport upload, scheduling, schedule summaries, training-plan and Garmin Coach workouts, device push |

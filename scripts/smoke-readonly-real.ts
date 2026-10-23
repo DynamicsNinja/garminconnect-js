@@ -141,6 +141,9 @@ console.log("\ndaily stats");
 const monthStart = new Date(Date.now() - 40 * 86_400_000).toISOString().slice(0, 10);
 await probe("getDailyStats (CALORIES, 41 days, chunked)", () => g.getDailyStats(monthStart, today, "CALORIES"));
 await probe("getDailyStats (STEPS, 41 days, chunked)", () => g.getDailyStats(monthStart, today, "STEPS"));
+await probe("getDailySummaries (7 days)", () => g.getDailySummaries(new Date(Date.now() - 6 * 86_400_000), today));
+// 731 days: three requests, since Garmin caps one at a year. Rows only for days with data.
+await probe("getDailySummaries (2 years, chunked)", () => g.getDailySummaries(new Date(Date.now() - 730 * 86_400_000), today));
 
 // --- health snapshot: never once observed succeeding, anywhere ---------------------------------
 console.log("\nhealth snapshot");

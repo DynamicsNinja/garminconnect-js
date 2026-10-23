@@ -48,6 +48,21 @@ interface MethodDoc {
   verified: string;
 }
 
+/** `Activity` -> `SummarizedActivityDTO`: our response types that extend a generated spec type. */
+const PARENTS = new Map<string, string>();
+
+/** Field names of each interface in `src/generated/personal-api.ts`, by interface name. */
+function loadPersonalApiFields(): Map<string, string[]> {
+  const out = new Map<string, string[]>();
+  const file = path.join(ROOT, "src", "generated", "personal-api.ts");
+  if (!existsSync(file)) return out;
+  for (const m of readFileSync(file, "utf8").matchAll(/^export interface (\w+) \{([\s\S]*?)^\}/gm)) {
+    out.set(m[1]!, [...m[2]!.matchAll(/^ {2}(\w+)\?:/gm)].map((f) => f[1]!));
+  }
+  return out;
+}
+const PERSONAL_API_FIELDS = loadPersonalApiFields();
+
 /**
  * Every exported `interface`/`type` in `src/types/*.ts` plus `src/garmin.ts`, as raw declaration
  * text, keyed by name. Regex rather than a TypeScript AST on purpose: this package has zero
@@ -63,8 +78,10 @@ function loadTypeDeclarations(): Map<string, string> {
   for (const file of files) {
     if (!existsSync(file)) continue;
     const source = readFileSync(file, "utf8");
-    for (const m of source.matchAll(/^export interface (\w+) \{([\s\S]*?)^\}/gm)) {
-      decls.set(m[1]!, m[2]!);
+    // `export interface X {` … `}`, `export interface X extends Y {` … `}`, or `… extends Y {}`.
+    for (const m of source.matchAll(/^export interface (\w+)(?: extends (\w+))? \{(\}|[\s\S]*?^\})/gm)) {
+      decls.set(m[1]!, m[3] === "}" ? "" : m[3]!.slice(0, -1));
+      if (m[2]) PARENTS.set(m[1]!, m[2]);
     }
     for (const m of source.matchAll(/^export type (\w+) = ([^;]+);/gm)) {
       decls.set(m[1]!, `= ${m[2]!.replace(/\s+/g, " ").trim()}`);
@@ -113,7 +130,7 @@ function renderResponse(signature: string, decls: Map<string, string>): string[]
     out.push("");
     return out;
   }
-  if (!body) {
+  if (body === undefined) {
     out.push(`\`${raw}\``);
     out.push("");
     return out;
@@ -125,6 +142,7 @@ function renderResponse(signature: string, decls: Map<string, string>): string[]
   }
 
   const fields: string[] = [];
+  const names = new Set<string>();
   let open = false;
   for (const line of body.split("\n")) {
     const text = line.trim();
@@ -134,7 +152,36 @@ function renderResponse(signature: string, decls: Map<string, string>): string[]
       continue;
     }
     const f = /^(\w+)(\??):\s*(.+?);?$/.exec(text);
-    if (f) fields.push(`| \`${f[1]!}\` | \`${f[3]!.replace(/;$/, "")}\` | ${f[2] ? "no" : "yes"} |`);
+    if (f) {
+      names.add(f[1]!);
+      fields.push(`| \`${f[1]!}\` | \`${f[3]!.replace(/;$/, "")}\` | ${f[2] ? "no" : "yes"} |`);
+    }
+  }
+
+  // A type extending one generated from Garmin's Personal API spec: our own fields (if any), then
+  // the inherited field names. Listed by name only; the full types are in `PersonalApi`.
+  const parent = PARENTS.get(base);
+  const inherited = parent ? PERSONAL_API_FIELDS.get(parent) : undefined;
+  if (parent && inherited) {
+    out.push(isArray ? `An array of \`${base}\`:` : `\`${base}\`:`);
+    out.push("");
+    if (fields.length > 0) {
+      out.push("| Field | Type | Always present |");
+      out.push("|---|---|---|");
+      out.push(...fields);
+      out.push("");
+    }
+    const rest = inherited.filter((n) => !names.has(n));
+    out.push(
+      `${fields.length > 0 ? "Plus" : "With"} the ${String(rest.length)} ` +
+        `${rest.length === 1 ? "field" : "fields"} of ` +
+        `\`PersonalApi.${parent}\`, typed from Garmin's Personal API spec. All optional: Garmin ` +
+        "leaves out what does not apply, and may also send fields the spec does not list.",
+    );
+    out.push("");
+    out.push(rest.map((n) => `\`${n}\``).join(", "));
+    out.push("");
+    return out;
   }
 
   // An interface with an index signature and NO named fields models nothing at all. Printing
@@ -155,6 +202,10 @@ function renderResponse(signature: string, decls: Map<string, string>): string[]
     out.push("| Field | Type | Always present |");
     out.push("|---|---|---|");
     out.push(...fields);
+    out.push("");
+  }
+  if (parent) {
+    out.push(`Plus every field of \`${parent}\`.`);
     out.push("");
   }
   if (open) {

@@ -1,3 +1,11 @@
+import type {
+  BodyBatteryDailyReportDTO,
+  HrvChartDTO,
+  HrvDailySummaryDTO,
+  StepsDailyStatDTO,
+  UserDailySummaryV2DTO,
+} from "../generated/personal-api.js";
+
 /** `getUserSummary`'s response: one day's totals. Only a few of its fields are typed. */
 export interface UserSummary {
   totalSteps?: number;
@@ -32,15 +40,17 @@ export interface SleepData {
   [key: string]: unknown;
 }
 
-/** `getHrvData`'s response: the day's HRV summary and individual readings. */
-export interface HrvData {
-  hrvSummary?: Record<string, unknown>;
-  hrvReadings?: Record<string, unknown>[];
-  [key: string]: unknown;
-}
+/**
+ * `getHrvData`'s response: the day's HRV summary and individual readings. Fields from Garmin's
+ * Personal API spec (`PersonalApi.HrvChartDTO`), which matched this endpoint key for key.
+ */
+export interface HrvData extends HrvChartDTO {}
 
-/** One day of `getBodyBattery`'s reports. */
-export interface BodyBatteryEntry {
+/**
+ * One day of `getBodyBattery`'s reports. Fields from Garmin's Personal API spec
+ * (`PersonalApi.BodyBatteryDailyReportDTO`).
+ */
+export interface BodyBatteryEntry extends BodyBatteryDailyReportDTO {
   date?: string;
   charged?: number;
   drained?: number;
@@ -53,8 +63,8 @@ export interface FloorsData {
   [key: string]: unknown;
 }
 
-/** One day of `getDailySteps`. */
-export interface DailyStepsEntry {
+/** One day of `getDailySteps`. `totalDistance` is meters (`PersonalApi.StepsDailyStatDTO`). */
+export interface DailyStepsEntry extends StepsDailyStatDTO {
   calendarDate?: string;
   totalSteps?: number;
   stepGoal?: number;
@@ -180,7 +190,16 @@ export interface DailyStatsEntry {
   };
 }
 
-/** `getHrvDataRange`'s response. */
-export interface HrvDataRange {
-  [key: string]: unknown;
+/** `getHrvDataRange`'s response: `hrvSummaries`, one per day (`PersonalApi.HrvDailySummaryDTO`). */
+export interface HrvDataRange extends HrvDailySummaryDTO {}
+
+/**
+ * One day of `getDailySummaries`: the whole day in one object, grouped by topic (`movement`,
+ * `calories`, `heartRate`, `intensityMinutes`, `stress`, `bodyBattery`, `hydration`,
+ * `respiration`, `pulseOx`, `jetLag`). Fields from Garmin's Personal API spec
+ * (`PersonalApi.UserDailySummaryV2DTO`); a block is missing or sparse when the device does not
+ * record it.
+ */
+export interface DailySummary extends UserDailySummaryV2DTO {
+  calendarDate: string;
 }
