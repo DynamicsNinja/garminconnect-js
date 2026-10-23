@@ -140,8 +140,9 @@ jobs:
             gh release create "$GITHUB_REF_NAME" "$file" --verify-tag --generate-notes
           fi
 
-      # The hosted server at garmin.ficdev.xyz/mcp ships with the release. Dokploy builds the
-      # configured branch (main), so tag a commit on main. Skipped until the secrets exist.
+      # The hosted server at garmin.ficdev.xyz/mcp is deployed by Dokploy's Auto Deploy on every
+      # push to main, so this step is normally skipped (its secrets are deliberately unset). It is
+      # for deploying on tags only instead; see mcp/HOSTING.md step 5.
       - name: Deploy the hosted MCP server (Dokploy)
         env:
           DOKPLOY_URL: ${{ secrets.DOKPLOY_URL }}

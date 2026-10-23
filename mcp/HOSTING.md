@@ -40,10 +40,14 @@ server on your own machine, use the same Node version.
    - path `/mcp`
    - path `/.well-known/oauth-protected-resource`
    - path `/.well-known/oauth-authorization-server`
-5. Turn Auto Deploy **off**. Create an API key (Settings, Profile, API keys) and add the GitHub
-   secrets `DOKPLOY_URL`, `DOKPLOY_API_KEY` and `DOKPLOY_APPLICATION_ID`. The release workflow
-   then deploys on each version tag. Dokploy builds the HEAD of `main`, not the tagged commit, so
-   tag the commit at `main`'s tip; a tag on an older commit deploys whatever `main` holds now.
+5. Turn Auto Deploy **on**, building `main`. Every push to `main` redeploys the hosted server,
+   released or not, so `main` must always be deployable: run `npm run check` before pushing, and
+   keep unfinished work on a branch. A release needs no extra step; the version tag points at a
+   commit on `main`, which is already live by the time the tag's publish workflow runs.
+   (The publish workflow also has a "Deploy the hosted MCP server" step for deploying on tags
+   only instead. It skips itself while the GitHub secrets `DOKPLOY_URL`, `DOKPLOY_API_KEY` and
+   `DOKPLOY_APPLICATION_ID` are unset, which is the intended state with Auto Deploy on: setting
+   them would deploy the same commit twice.)
 6. Deploy once by hand with the Deploy button. Then check:
    - `curl https://garmin.ficdev.xyz/mcp/healthz` returns `ok`.
    - `curl -i -X POST https://garmin.ficdev.xyz/mcp` returns `401` with a `resource_metadata`
