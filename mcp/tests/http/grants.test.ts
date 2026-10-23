@@ -107,8 +107,8 @@ function contract(name: string, open: () => Promise<GrantStore>) {
       s.recordDay(day + 86_400);
       s.purge(day + 400 * 86_400);
       expect(s.history(day + 86_400, 90)).toEqual([
-        { day: "2024-10-04", users: 2, connections: 2, active7d: 2, joined: 2 },
-        { day: "2024-10-05", users: 2, connections: 2, active7d: 2, joined: 0 },
+        { day: "2024-10-04", users: 2, connections: 2, active7d: 2, active1d: 2, joined: 2 },
+        { day: "2024-10-05", users: 2, connections: 2, active7d: 2, active1d: 2, joined: 0 },
       ]);
       expect(s.history(day + 200 * 86_400, 90)).toEqual([]);
     });
@@ -125,6 +125,17 @@ function contract(name: string, open: () => Promise<GrantStore>) {
       add("u4", day + 86_400 + 9);
       s.recordDay(day + 86_400 + 60);
       expect(s.history(day + 86_400, 90).map((d) => [d.day, d.joined])).toEqual([["2024-10-04", 2], ["2024-10-05", 1]]);
+    });
+
+    it("records who used it in the 24 hours before each snapshot, so a skipped day shows as a dip", async () => {
+      const s = await open();
+      const day = 20_000 * 86_400;
+      const a = s.create("u1", "Claude", day), b = s.create("u2", "Claude", day);
+      [a, b].forEach((g) => s.activate(g.grantId, day));
+      s.recordDay(day + 3600);
+      s.touch(a.grantId, day + 86_400 + 60); // only u1 comes back the next day
+      s.recordDay(day + 2 * 86_400 - 60);
+      expect(s.history(day + 86_400, 90).map((d) => [d.users, d.active1d])).toEqual([[2, 2], [2, 1]]);
     });
   });
 }
@@ -143,7 +154,7 @@ describe.skipIf(!sqliteAvailable)("sqlite", () => {
       INSERT INTO daily_stats VALUES ('2024-10-04', 1, 1, 1), ('2024-10-05', 2, 2, 2);`);
     db.close();
     const s = await SqliteGrantStore.open(file);
-    expect(s.history(day + 86_400, 90).map((d) => d.joined)).toEqual([1, 1]);
+    expect(s.history(day + 86_400, 90).map((d) => [d.joined, d.active1d])).toEqual([[1, null], [1, null]]);
     s.close();
   });
   it("persists across reopen", async () => {

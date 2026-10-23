@@ -50,6 +50,8 @@ export interface DailyCount {
   users: number;
   connections: number;
   active7d: number;
+  /** People who used a connection in the 24 hours before the day's snapshot; null on days recorded before it was kept. */
+  active1d: number | null;
   /** People whose first connection still on record was made that day: new people, not new connections. */
   joined: number;
 }
@@ -216,7 +218,7 @@ export class MemoryGrantStore implements GrantStore {
   recordDay(now: number): void {
     const u = this.usage(now);
     const day = utcDay(now);
-    this.#days.set(day, { day, users: u.users, connections: u.connections, active7d: u.active7d, joined: 0 });
+    this.#days.set(day, { day, users: u.users, connections: u.connections, active7d: u.active7d, active1d: u.active1d, joined: 0 });
     const first = new Map<string, number>();
     for (const g of this.#grants.values()) if (g.state !== "pending") first.set(g.userHash, Math.min(first.get(g.userHash) ?? Infinity, g.created));
     for (const d of openDays(now)) {
@@ -248,7 +250,8 @@ CREATE TABLE IF NOT EXISTS daily_stats (
   users INTEGER NOT NULL,
   connections INTEGER NOT NULL,
   active_7d INTEGER NOT NULL,
-  joined INTEGER
+  joined INTEGER,
+  active_1d INTEGER
 );`;
 
 /** People per day of their first connection still on record. Pending grants never finished connecting, so they don't count. */
@@ -287,7 +290,10 @@ export class SqliteGrantStore implements GrantStore {
     db.exec("PRAGMA busy_timeout = 5000;");
     db.exec(SCHEMA);
     // Rows from before `joined` existed: fill them from the grants still on record (all of them, while the trend is younger than the 35-day purge).
-    if (!(db.prepare("PRAGMA table_info(daily_stats)").all() as Row[]).some((c) => c["name"] === "joined")) db.exec("ALTER TABLE daily_stats ADD COLUMN joined INTEGER;");
+    const columns = new Set((db.prepare("PRAGMA table_info(daily_stats)").all() as Row[]).map((c) => c["name"]));
+    if (!columns.has("joined")) db.exec("ALTER TABLE daily_stats ADD COLUMN joined INTEGER;");
+    // Only the last use of each connection is kept, so past days' active_1d can't be rebuilt: they stay NULL.
+    if (!columns.has("active_1d")) db.exec("ALTER TABLE daily_stats ADD COLUMN active_1d INTEGER;");
     db.exec(`UPDATE daily_stats SET joined = ${JOINED_ON} WHERE joined IS NULL;`);
     return new SqliteGrantStore(db);
   }
@@ -358,15 +364,15 @@ export class SqliteGrantStore implements GrantStore {
   recordDay(now: number): void {
     const u = this.usage(now);
     this.#db
-      .prepare("INSERT INTO daily_stats (day, users, connections, active_7d) VALUES (?, ?, ?, ?) ON CONFLICT (day) DO UPDATE SET users = excluded.users, connections = excluded.connections, active_7d = excluded.active_7d")
-      .run(utcDay(now), u.users, u.connections, u.active7d);
+      .prepare("INSERT INTO daily_stats (day, users, connections, active_7d, active_1d) VALUES (?, ?, ?, ?, ?) ON CONFLICT (day) DO UPDATE SET users = excluded.users, connections = excluded.connections, active_7d = excluded.active_7d, active_1d = excluded.active_1d")
+      .run(utcDay(now), u.users, u.connections, u.active7d, u.active1d);
     this.#db.prepare(`UPDATE daily_stats SET joined = ${JOINED_ON} WHERE day IN (?, ?)`).run(...openDays(now));
   }
   history(now: number, days: number): DailyCount[] {
     const rows = this.#db
-      .prepare("SELECT day, users, connections, active_7d, joined FROM daily_stats WHERE day >= ? AND day <= ? ORDER BY day")
+      .prepare("SELECT day, users, connections, active_7d, active_1d, joined FROM daily_stats WHERE day >= ? AND day <= ? ORDER BY day")
       .all(utcDay(now - (days - 1) * 86_400), utcDay(now)) as Row[];
-    return rows.map((r) => ({ day: String(r["day"]), users: Number(r["users"]), connections: Number(r["connections"]), active7d: Number(r["active_7d"]), joined: Number(r["joined"] ?? 0) }));
+    return rows.map((r) => ({ day: String(r["day"]), users: Number(r["users"]), connections: Number(r["connections"]), active7d: Number(r["active_7d"]), active1d: r["active_1d"] == null ? null : Number(r["active_1d"]), joined: Number(r["joined"] ?? 0) }));
   }
   close(): void {
     this.#db.close();

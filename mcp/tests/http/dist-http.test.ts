@@ -40,7 +40,7 @@ describe.skipIf(!existsSync(BUNDLE) || !sqliteAvailable)("built hosted server", 
     const env = { PATH: process.env["PATH"], PUBLIC_URL: "http://127.0.0.1:1", SEAL_KEYS: randomBytes(32).toString("base64"), DB_PATH: db };
     expect(execFileSync(process.execPath, [BUNDLE, "snapshot"], { env, encoding: "utf8" })).toContain('"msg":"stats snapshot"');
     const store = await SqliteGrantStore.open(db);
-    expect(store.history(now, 1)).toEqual([{ day: utcDay(now), users: 1, connections: 1, active7d: 1, joined: 1 }]);
+    expect(store.history(now, 1)).toEqual([{ day: utcDay(now), users: 1, connections: 1, active7d: 1, active1d: 1, joined: 1 }]);
     store.close();
   }, 15_000);
 });
