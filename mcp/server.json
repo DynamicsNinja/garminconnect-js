@@ -9,7 +9,7 @@
     "source": "github",
     "subfolder": "mcp"
   },
-  "version": "0.9.4",
+  "version": "0.10.0",
   "remotes": [
     {
       "type": "streamable-http",

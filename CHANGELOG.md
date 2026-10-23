@@ -6,6 +6,53 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-10-23
+
+New methods and much richer response types, both from Garmin's official Personal API spec. That
+spec documents an API-key product this library does not use, but its paths are the same services
+we call; every path used here was checked read-only on a real account first.
+
+### Breaking
+
+- **`getActivity` returns `ActivitySummary`, not `Activity`.** `Activity` is the shape of an
+  activity LIST row; the single-activity response keeps its measurements under `summaryDTO`
+  (distance in meters, duration in seconds) and its type under `activityTypeDTO`. The old type
+  promised top-level `distance`, `duration` and `startTimeLocal` that were never there, so
+  `getActivity(id).distance` was always `undefined`; it now fails to compile instead. Read
+  `getActivity(id).summaryDTO?.distance`.
+
+### Added
+
+- **`searchActivities(filters)`**: one page of activities filtered by text, parent type or
+  subtype, excluded subtypes, event type, dates, distance, duration, elapsed time, elevation gain,
+  average power, favorites, multisport legs, sort, required fields, a start-location box and dive
+  filters. Quirks found live are documented on `ActivitySearchFilters`: an unknown `sortBy` or
+  `requiredFields` name returns no activities and no error, a box over 50 km is a 400, and
+  `activityType` must be a parent type. A box missing an edge, which Garmin silently ignores, is
+  refused before sending.
+- **`getDailySummaries(start, end)`**: one whole-day summary per day (steps, calories, heart rate,
+  intensity minutes, stress, Body Battery, hydration, respiration, SpO2). Garmin caps a request at
+  a year; longer ranges are split.
+- **`getDailyStress`**, **`getDailyHydration`** (per-day ranges, split into Garmin's 28- and 31-day
+  windows), **`getSpo2Acclimation`**, **`getActivityWorkouts`** and **`getWeightGoals`**. 200
+  methods in all.
+- **`PersonalApi` types**: 106 response interfaces generated from the spec, exported as a type
+  namespace (`PersonalApi.SummaryDTO`, …), plus `PersonalApi.Endpoints`, a path-to-response map.
+  Every field is optional and nullable, since Garmin leaves out what does not apply.
+- `QueryParams` is exported, and `ApiOptions.params` accepts arrays: the key is repeated once per
+  element, which is how Garmin's list parameters take several values.
+
+### Changed
+
+- **Typed responses.** `Activity` now carries the 230 list-row fields (heart rate, power, training
+  effect, time in zones, …), and `HrvData`, `HrvDataRange`, `BodyBatteryEntry`, `DailyStepsEntry`,
+  `WeighInRange`, `UserprofileSettings` and `NutritionDailyFoodLog` carry the spec's fields. Their
+  previous fields are unchanged; `Activity.activityType` is now typed instead of
+  `Record<string, unknown>`.
+- **MCP server:** a tool for each new method, including `search_activities` with every filter
+  described in its input schema. The hosted server's usage stats also count new and active people
+  per day.
+
 ## [0.9.4] - 2026-10-15
 
 Documentation only; no method, parameter or runtime behaviour changes.
@@ -342,7 +389,8 @@ a broken result. Each is recorded with its reason in `tests/parity.test.ts`.
 - `@types/node` is an optional peer dependency: needed only for type-checking against the
   `Buffer` return types, and not installed into consumers' projects automatically.
 
-[Unreleased]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.9.4...HEAD
+[Unreleased]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.10.0...HEAD
+[0.10.0]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.9.4...v0.10.0
 [0.9.4]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.9.3...v0.9.4
 [0.9.3]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.9.2...v0.9.3
 [0.9.2]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.9.1...v0.9.2
