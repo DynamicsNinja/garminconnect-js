@@ -1092,6 +1092,17 @@ for the rows `smoke-writes.ts` does not reach: gear linking and defaults, course
 event type/RPE/feel, heart-rate zones, calendar events, daily stats and the schedule reads. Every
 probe writes, reads the stored value back, and restores or deletes what it created.
 
+`npm run smoke:personal-api` (`scripts/smoke-personal-api-real.ts`) checks Garmin's official
+Personal API OpenAPI spec against what OUR host returns, read-only, on the real account (same
+three safeguards). The spec is not linked from its Swagger page: it is inlined in the page's JS
+bundle, and the script extracts it at run time rather than committing it (the developer site's
+redistribution terms are unknown). First run, 2026-10-23: all 26 spec paths answer on
+`connectapi.garmin.com` with our OAuth tokens; key names match the schemas, with fields Garmin
+leaves out when empty, so treat every spec field as optional. Spec errors seen on our host:
+`fitnessage/v2/{date}` is an OBJECT (spec: array); `LocalTime`/`ConnectDate`/`ConnectTimestamp`
+fields are plain strings; `weight/all/{s}/{e}` 400s on 7- and 90-day spans ("Number of weeks
+should be 52 weeks…") and answers a 364-day one.
+
 `scripts/smoke-nutrition-real.ts` is the one place food logging can be verified: it needs Garmin
 Connect+, which the test account can never have (Connect+ needs a paired device). It writes to a
 REAL account, so it is gated like `push-workout-real.ts` — the `--yes-write-to-real-account`
