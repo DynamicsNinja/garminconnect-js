@@ -4,7 +4,7 @@
  * by whoever registers a client, so rare ones are folded into "Other" and every name is escaped.
  */
 import { escape, loginShell } from "../login-page.js";
-import type { GrantStore } from "./grants.js";
+import type { DailyCount, GrantStore } from "./grants.js";
 
 /** A client name is shown only once this many people use it; anything rarer could identify someone. */
 export const MIN_CLIENT_USERS = 3;
@@ -16,7 +16,7 @@ export interface Stats {
   connections: number;
   active: { day: number; week: number; month: number };
   clients: { name: string; users: number }[];
-  daily: { day: string; users: number; connections: number; active7d: number }[];
+  daily: DailyCount[];
 }
 
 export function foldClients(byClient: { client: string | null; users: number }[]): Stats["clients"] {

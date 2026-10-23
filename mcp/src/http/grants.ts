@@ -50,9 +50,14 @@ export interface DailyCount {
   users: number;
   connections: number;
   active7d: number;
+  /** People whose first connection still on record was made that day: new people, not new connections. */
+  joined: number;
 }
 
 export const utcDay = (now: number): string => new Date(now * 1000).toISOString().slice(0, 10);
+
+/** Days whose `joined` the next snapshot recomputes: today, and yesterday so people who join after a once-a-day snapshot still land on their day. */
+const openDays = (now: number): string[] => [utcDay(now - 86_400), utcDay(now)];
 
 export const newGrantId = (): string => randomBytes(16).toString("base64url");
 
@@ -88,7 +93,7 @@ export interface GrantStore {
   purge(now: number): number;
   count(): { active: number; total: number };
   usage(now: number): UsageCounts;
-  /** Upserts today's (UTC) row of the trend from `usage(now)`. Purge never deletes these rows. */
+  /** Upserts today's (UTC) row of the trend from `usage(now)` and settles yesterday's `joined`. Purge never deletes these rows. */
   recordDay(now: number): void;
   /** The trend rows from the last `days` UTC days up to `now`, oldest first. */
   history(now: number, days: number): DailyCount[];
@@ -211,7 +216,13 @@ export class MemoryGrantStore implements GrantStore {
   recordDay(now: number): void {
     const u = this.usage(now);
     const day = utcDay(now);
-    this.#days.set(day, { day, users: u.users, connections: u.connections, active7d: u.active7d });
+    this.#days.set(day, { day, users: u.users, connections: u.connections, active7d: u.active7d, joined: 0 });
+    const first = new Map<string, number>();
+    for (const g of this.#grants.values()) if (g.state !== "pending") first.set(g.userHash, Math.min(first.get(g.userHash) ?? Infinity, g.created));
+    for (const d of openDays(now)) {
+      const row = this.#days.get(d);
+      if (row) row.joined = [...first.values()].filter((t) => utcDay(t) === d).length;
+    }
   }
   history(now: number, days: number): DailyCount[] {
     const from = utcDay(now - (days - 1) * 86_400), to = utcDay(now);
@@ -236,8 +247,13 @@ CREATE TABLE IF NOT EXISTS daily_stats (
   day TEXT PRIMARY KEY,
   users INTEGER NOT NULL,
   connections INTEGER NOT NULL,
-  active_7d INTEGER NOT NULL
+  active_7d INTEGER NOT NULL,
+  joined INTEGER
 );`;
+
+/** People per day of their first connection still on record. Pending grants never finished connecting, so they don't count. */
+const JOINED_ON = `(SELECT COUNT(*) FROM (SELECT MIN(created) AS first FROM grants WHERE state != 'pending' GROUP BY user_hash)
+  WHERE first >= unixepoch(daily_stats.day) AND first < unixepoch(daily_stats.day) + 86400)`;
 
 type Row = Record<string, unknown>;
 const toGrant = (r: Row): Grant => {
@@ -270,6 +286,9 @@ export class SqliteGrantStore implements GrantStore {
     // Wait for a lock (e.g. the revoke CLI writing from another process) instead of failing at once.
     db.exec("PRAGMA busy_timeout = 5000;");
     db.exec(SCHEMA);
+    // Rows from before `joined` existed: fill them from the grants still on record (all of them, while the trend is younger than the 35-day purge).
+    if (!(db.prepare("PRAGMA table_info(daily_stats)").all() as Row[]).some((c) => c["name"] === "joined")) db.exec("ALTER TABLE daily_stats ADD COLUMN joined INTEGER;");
+    db.exec(`UPDATE daily_stats SET joined = ${JOINED_ON} WHERE joined IS NULL;`);
     return new SqliteGrantStore(db);
   }
 
@@ -341,12 +360,13 @@ export class SqliteGrantStore implements GrantStore {
     this.#db
       .prepare("INSERT INTO daily_stats (day, users, connections, active_7d) VALUES (?, ?, ?, ?) ON CONFLICT (day) DO UPDATE SET users = excluded.users, connections = excluded.connections, active_7d = excluded.active_7d")
       .run(utcDay(now), u.users, u.connections, u.active7d);
+    this.#db.prepare(`UPDATE daily_stats SET joined = ${JOINED_ON} WHERE day IN (?, ?)`).run(...openDays(now));
   }
   history(now: number, days: number): DailyCount[] {
     const rows = this.#db
-      .prepare("SELECT day, users, connections, active_7d FROM daily_stats WHERE day >= ? AND day <= ? ORDER BY day")
+      .prepare("SELECT day, users, connections, active_7d, joined FROM daily_stats WHERE day >= ? AND day <= ? ORDER BY day")
       .all(utcDay(now - (days - 1) * 86_400), utcDay(now)) as Row[];
-    return rows.map((r) => ({ day: String(r["day"]), users: Number(r["users"]), connections: Number(r["connections"]), active7d: Number(r["active_7d"]) }));
+    return rows.map((r) => ({ day: String(r["day"]), users: Number(r["users"]), connections: Number(r["connections"]), active7d: Number(r["active_7d"]), joined: Number(r["joined"] ?? 0) }));
   }
   close(): void {
     this.#db.close();

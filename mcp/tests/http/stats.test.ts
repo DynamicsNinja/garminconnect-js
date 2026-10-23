@@ -47,7 +47,7 @@ describe("buildStats", () => {
       connections: 4,
       active: { day: 3, week: 3, month: 3 },
       clients: [{ name: "Claude", users: 3 }, { name: "Other", users: 1 }],
-      daily: [{ day: "2024-10-04", users: 3, connections: 4, active7d: 3 }],
+      daily: [{ day: "2024-10-04", users: 3, connections: 4, active7d: 3, joined: 3 }],
     });
   });
 });
@@ -73,10 +73,10 @@ describe("statsPage", () => {
 
   it("draws a line once there are two days, and explains a trend that has not started", () => {
     expect(statsPage(sample([]))).not.toContain("<polyline");
-    expect(statsPage(sample([{ day: "2024-10-04", users: 3, connections: 3, active7d: 3 }]))).toContain("The trend starts on 2024-10-04");
+    expect(statsPage(sample([{ day: "2024-10-04", users: 3, connections: 3, active7d: 3, joined: 0 }]))).toContain("The trend starts on 2024-10-04");
     const page = statsPage(sample([
-      { day: "2024-10-03", users: 2, connections: 2, active7d: 2 },
-      { day: "2024-10-04", users: 3, connections: 3, active7d: 3 },
+      { day: "2024-10-03", users: 2, connections: 2, active7d: 2, joined: 0 },
+      { day: "2024-10-04", users: 3, connections: 3, active7d: 3, joined: 0 },
     ]));
     expect(page).toContain("<polyline");
     expect(page).not.toContain("The trend starts");

@@ -107,10 +107,24 @@ function contract(name: string, open: () => Promise<GrantStore>) {
       s.recordDay(day + 86_400);
       s.purge(day + 400 * 86_400);
       expect(s.history(day + 86_400, 90)).toEqual([
-        { day: "2024-10-04", users: 2, connections: 2, active7d: 2 },
-        { day: "2024-10-05", users: 2, connections: 2, active7d: 2 },
+        { day: "2024-10-04", users: 2, connections: 2, active7d: 2, joined: 2 },
+        { day: "2024-10-05", users: 2, connections: 2, active7d: 2, joined: 0 },
       ]);
       expect(s.history(day + 200 * 86_400, 90)).toEqual([]);
+    });
+
+    it("counts people on the day of their first finished connection, settling yesterday on the next snapshot", async () => {
+      const s = await open();
+      const day = 20_000 * 86_400; // 2024-10-04
+      const add = (user: string, at: number) => s.activate(s.create(user, "Claude", at).grantId, at);
+      add("u1", day + 10);
+      s.create("u2", "Claude", day + 20); // never finished: not a person yet
+      s.recordDay(day + 60);
+      add("u3", day + 80_000); // after today's snapshot
+      add("u1", day + 86_400 + 5); // u1 again on a second client: not new
+      add("u4", day + 86_400 + 9);
+      s.recordDay(day + 86_400 + 60);
+      expect(s.history(day + 86_400, 90).map((d) => [d.day, d.joined])).toEqual([["2024-10-04", 2], ["2024-10-05", 1]]);
     });
   });
 }
@@ -118,6 +132,20 @@ function contract(name: string, open: () => Promise<GrantStore>) {
 contract("MemoryGrantStore", async () => new MemoryGrantStore());
 describe.skipIf(!sqliteAvailable)("sqlite", () => {
   contract("SqliteGrantStore", () => SqliteGrantStore.open(tmpDb()));
+
+  it("adds `joined` to an older database and fills it from the grants on record", async () => {
+    const file = tmpDb();
+    const db = new (loadSqlite()!.DatabaseSync)(file);
+    const day = 20_000 * 86_400;
+    db.exec(`CREATE TABLE grants (grant_id TEXT PRIMARY KEY, user_hash TEXT NOT NULL, client_name TEXT, state TEXT NOT NULL, generation INTEGER NOT NULL DEFAULT 0, rotated_at INTEGER, created INTEGER NOT NULL, last_used INTEGER NOT NULL);
+      CREATE TABLE daily_stats (day TEXT PRIMARY KEY, users INTEGER NOT NULL, connections INTEGER NOT NULL, active_7d INTEGER NOT NULL);
+      INSERT INTO grants VALUES ('a', 'u1', NULL, 'active', 0, NULL, ${day + 5}, ${day + 5}), ('b', 'u2', NULL, 'revoked', 0, NULL, ${day + 86_400 + 5}, ${day + 86_400 + 5});
+      INSERT INTO daily_stats VALUES ('2024-10-04', 1, 1, 1), ('2024-10-05', 2, 2, 2);`);
+    db.close();
+    const s = await SqliteGrantStore.open(file);
+    expect(s.history(day + 86_400, 90).map((d) => d.joined)).toEqual([1, 1]);
+    s.close();
+  });
   it("persists across reopen", async () => {
     const file = tmpDb();
     const s = await SqliteGrantStore.open(file);
