@@ -8,6 +8,8 @@ export interface HostedConfig {
   dbPath: string;
   /** Where log lines are kept for good, one file per month: LOG_DIR, else `logs` beside the database. */
   logDir: string;
+  /** ADMIN_PASSWORD: turns on the log viewer at /mcp/admin. Null when unset. */
+  adminPassword: string | null;
   port: number;
   trustProxy: boolean;
   /** Lower-case name of a header carrying the real client IP (e.g. cf-connecting-ip), or null. */
@@ -26,9 +28,11 @@ export function loadHostedConfig(env: Record<string, string | undefined> = proce
   const dbPath = env["DB_PATH"]?.trim();
   if (!dbPath) throw new Error("DB_PATH is not set (e.g. /data/grants.db)");
   const logDir = env["LOG_DIR"]?.trim() || join(dirname(dbPath), "logs");
+  const adminPassword = env["ADMIN_PASSWORD"] || null;
+  if (adminPassword !== null && adminPassword.length < 16) throw new Error("ADMIN_PASSWORD must be at least 16 characters (e.g. openssl rand -base64 24)");
   const port = Number(env["PORT"] ?? 3000);
   if (!Number.isInteger(port) || port < 1 || port > 65_535) throw new Error(`PORT must be a port number, got ${env["PORT"]}`);
   const clientIpHeader = env["CLIENT_IP_HEADER"]?.trim().toLowerCase() || null;
   if (clientIpHeader !== null && !/^[a-z0-9-]+$/.test(clientIpHeader)) throw new Error(`CLIENT_IP_HEADER must be a header name (letters, digits, hyphens), got ${env["CLIENT_IP_HEADER"]}`);
-  return { publicUrl, keys, dbPath, logDir, port, trustProxy: env["TRUST_PROXY"] === "1", clientIpHeader, mcp: loadConfig(env) };
+  return { publicUrl, keys, dbPath, logDir, adminPassword, port, trustProxy: env["TRUST_PROXY"] === "1", clientIpHeader, mcp: loadConfig(env) };
 }

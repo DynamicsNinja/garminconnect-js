@@ -22,7 +22,7 @@ server on your own machine, use the same Node version.
 1. Create a new Application. Source is this GitHub repo, branch `main`, build type Dockerfile,
    Dockerfile path `mcp/Dockerfile`, build context `.`.
 2. Set the environment: `PUBLIC_URL=https://garmin.ficdev.xyz`, `SEAL_KEYS=<openssl rand -base64 32>`,
-   `DB_PATH=/data/grants.db`, `PORT=3000`, `TRUST_PROXY=1`. Optionally set `LOG_DIR`, `GARMIN_MCP_GROUPS`,
+   `DB_PATH=/data/grants.db`, `PORT=3000`, `TRUST_PROXY=1`. Optionally set `ADMIN_PASSWORD` (the log viewer, see Operations), `LOG_DIR`, `GARMIN_MCP_GROUPS`,
    `GARMIN_MCP_ENABLE_GRAPHQL` and `CLIENT_IP_HEADER` (see below). `TRUST_PROXY=1` trusts exactly
    one proxy hop, Traefik.
 
@@ -84,6 +84,15 @@ in-memory grant store and needs `GARMIN_EMAIL`, `GARMIN_PASSWORD` and `GARMIN_TE
   (default: `logs` beside `DB_PATH`). To read them, open the Dokploy Terminal and run, say,
   `tail -n 100 /data/logs/$(date -u +%Y-%m).jsonl` or `grep '"tool":"get_sleep_daily"' /data/logs/*.jsonl`.
   To copy them off the server: `docker cp <container>:/data/logs ./logs` on the host.
+- **Log viewer:** `https://garmin.ficdev.xyz/mcp/admin`, linked from nowhere and off by default.
+  Set `ADMIN_PASSWORD` (16+ characters, e.g. `openssl rand -base64 24`) and redeploy; without it
+  the path is a 404. The browser asks for a user name and password: the user name is ignored, the
+  password is `ADMIN_PASSWORD`. Ten wrong passwords from one IP lock it out for 15 minutes, and
+  each wrong one is logged as `admin auth failed`. Pick a date range; the page shows requests,
+  tool calls, connections, error rate, tool latency and sign-ins, a per-day chart (per hour for
+  a one- or two-day range), and tables per tool, connection, RPC method and server event. Click a
+  row to filter by it; the newest 500 matching lines are listed at the bottom. One load returns
+  at most 200,000 lines (the newest), and the raw lines are at `/mcp/admin/logs.json?from=YYYY-MM-DD&to=YYYY-MM-DD`.
 
 ## Known risks
 

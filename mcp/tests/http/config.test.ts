@@ -20,6 +20,12 @@ describe("loadHostedConfig", () => {
     expect(loadHostedConfig(env({ LOG_DIR: " /var/log/mcp " })).logDir).toBe("/var/log/mcp");
   });
 
+  it("turns the log viewer on only with a long enough ADMIN_PASSWORD", () => {
+    expect(loadHostedConfig(env()).adminPassword).toBeNull();
+    expect(loadHostedConfig(env({ ADMIN_PASSWORD: "0123456789abcdef" })).adminPassword).toBe("0123456789abcdef");
+    expect(() => loadHostedConfig(env({ ADMIN_PASSWORD: "short" }))).toThrow(/ADMIN_PASSWORD/);
+  });
+
   it("honours PORT, TRUST_PROXY and the tool settings", () => {
     const c = loadHostedConfig(env({ PORT: "8080", TRUST_PROXY: "1", GARMIN_MCP_ENABLE_GRAPHQL: "true" }));
     expect(c).toMatchObject({ port: 8080, trustProxy: true });

@@ -18,6 +18,7 @@ import type { GarminClientOptions } from "garminconnect-js";
 import { buildTools, serverForTools, type ServerDeps } from "../server.js";
 import type { McpConfig } from "../session.js";
 import { HOSTED_TOOL_FACTORIES } from "../tools.js";
+import { adminHeaders, adminPage, checkBasicAuth, isDay, readLogs } from "./admin.js";
 import { isDeadSession, type GarminAuth } from "./garmin-auth.js";
 import type { GrantStore } from "./grants.js";
 import { inlineFiles } from "./inline-files.js";
@@ -39,6 +40,8 @@ export interface HttpAppDeps {
   clientIpHeader?: string | null;
   garminClient?: Omit<GarminClientOptions, "tokenStore">;
   log?: (line: Record<string, unknown>) => void;
+  /** The log viewer at /mcp/admin; absent (no ADMIN_PASSWORD) means those paths 404. */
+  admin?: { password: string; logDir: string };
   now?: () => number;
 }
 
@@ -120,6 +123,36 @@ export function createHttpApp(deps: HttpAppDeps): Express {
   app.get("/mcp/stats.json", statsLimit, (_req, res) => {
     res.set("cache-control", "public, max-age=300").json(currentStats());
   });
+
+  if (deps.admin) {
+    const { password, logDir } = deps.admin;
+    // Only tries that sent a password count, so the browser's first, credential-less request is free.
+    const adminLimit = rateLimit({
+      windowMs: 15 * 60_000,
+      limit: 10,
+      skipSuccessfulRequests: true,
+      skip: (req) => !req.headers.authorization,
+      standardHeaders: "draft-7",
+      legacyHeaders: false,
+    });
+    const adminAuth: RequestHandler = (req, res, next) => {
+      if (checkBasicAuth(req.headers.authorization, password)) return next();
+      if (req.headers.authorization) log({ msg: "admin auth failed" });
+      res.status(401).set({ "www-authenticate": 'Basic realm="Garmin MCP admin", charset="UTF-8"', "cache-control": "no-store" }).type("text/plain").send("Unauthorized");
+    };
+    app.get("/mcp/admin", adminLimit, adminAuth, (_req, res) => {
+      res.set(adminHeaders()).send(adminPage());
+    });
+    app.get("/mcp/admin/", (_req, res) => res.redirect(301, "/mcp/admin"));
+    app.get("/mcp/admin/logs.json", adminLimit, adminAuth, async (req, res) => {
+      const { from, to } = req.query;
+      if (!isDay(from) || !isDay(to) || from > to) {
+        res.status(400).json({ error: "from and to must be YYYY-MM-DD, from <= to" });
+        return;
+      }
+      res.set({ "cache-control": "no-store", "x-robots-tag": "noindex, nofollow" }).json(await readLogs(logDir, from, to));
+    });
+  }
 
   app.use(
     mcpAuthMetadataRouter({
