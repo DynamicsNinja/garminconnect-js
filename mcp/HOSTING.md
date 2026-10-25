@@ -89,14 +89,17 @@ in-memory grant store and needs `GARMIN_EMAIL`, `GARMIN_PASSWORD` and `GARMIN_TE
   Set `ADMIN_PASSWORD` (a long random one is best, e.g. `openssl rand -base64 24`) and redeploy; without it
   the path is a 404. The browser asks for a user name and password: the user name is ignored, the
   password is `ADMIN_PASSWORD`. Ten wrong passwords from one IP lock it out for 15 minutes, and
-  each wrong one is logged as `admin auth failed`. Pick a date range; the page shows requests,
-  tool calls, people, connections, error rate, tool latency and sign-ins, a per-day chart (per
-  hour for a one- or two-day range), and tables per person (apps, top tools, connections),
-  connection (with its person and app), tool, RPC method and server event. Click a row to filter
-  by it: click a person and the Tools table becomes that person's tools. Lines logged before the
-  person prefix existed get one from the grants still on record (or from a newer line of the same
-  connection), so only purged connections' old lines show no person; the newest 500 matching lines are listed at the bottom. One load returns
-  at most 200,000 lines (the newest), and the raw lines are at `/mcp/admin/logs.json?from=YYYY-MM-DD&to=YYYY-MM-DD`.
+  each wrong one is logged as `admin auth failed`. Pick a range (Today to 1 year, or two dates;
+  the page reloads on its own). It shows traffic, failure rate, tool latency and sign-ins, a
+  per-day chart with failures in red (click a day to see it hour by hour), and sortable tables
+  of people, connections, tools, request types, server events and log lines. Click a person to
+  open their tools, daily activity, connections and latest requests, and to give them a name that
+  stays in your browser. Clicking any other row filters the page to it; active filters show as
+  removable chips, and the range and filters live in the URL, so a view can be bookmarked.
+  "Download CSV" exports the matching lines. Lines logged before the person prefix existed get
+  one from the grants still on record (or from a newer line of the same connection), so only
+  purged connections' old lines show no person. One load returns at most 200,000 lines (the
+  newest), and the raw lines are at `/mcp/admin/logs.json?from=YYYY-MM-DD&to=YYYY-MM-DD`.
 
 ## Known risks
 
