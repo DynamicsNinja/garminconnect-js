@@ -9,15 +9,17 @@ import { describeError } from "../errors.js";
 import { loadHostedConfig } from "./config.js";
 import { createHttpApp } from "./app.js";
 import { garminAuth } from "./garmin-auth.js";
+import { createLogger, type LogLine } from "./log-file.js";
 import { purgeSafely, SqliteGrantStore } from "./grants.js";
 import { Sealer } from "./seal.js";
 
 const version = __MCP_VERSION__;
 const now = () => Math.floor(Date.now() / 1000);
-const log = (line: Record<string, unknown>) => console.log(JSON.stringify({ t: new Date().toISOString(), ...line }));
+let log = (line: LogLine) => console.log(JSON.stringify({ t: new Date().toISOString(), ...line }));
 
 try {
   const config = loadHostedConfig();
+  log = createLogger(config.logDir);
   const grants = await SqliteGrantStore.open(config.dbPath);
 
   if (process.argv[2] === "revoke") {

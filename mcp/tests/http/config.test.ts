@@ -15,6 +15,11 @@ describe("loadHostedConfig", () => {
     expect(c.mcp.enableGraphql).toBe(false);
   });
 
+  it("keeps logs beside the database unless LOG_DIR says otherwise", () => {
+    expect(loadHostedConfig(env()).logDir.replace(/\\/g, "/")).toBe("/data/logs");
+    expect(loadHostedConfig(env({ LOG_DIR: " /var/log/mcp " })).logDir).toBe("/var/log/mcp");
+  });
+
   it("honours PORT, TRUST_PROXY and the tool settings", () => {
     const c = loadHostedConfig(env({ PORT: "8080", TRUST_PROXY: "1", GARMIN_MCP_ENABLE_GRAPHQL: "true" }));
     expect(c).toMatchObject({ port: 8080, trustProxy: true });

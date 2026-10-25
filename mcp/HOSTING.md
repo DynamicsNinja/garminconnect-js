@@ -22,7 +22,7 @@ server on your own machine, use the same Node version.
 1. Create a new Application. Source is this GitHub repo, branch `main`, build type Dockerfile,
    Dockerfile path `mcp/Dockerfile`, build context `.`.
 2. Set the environment: `PUBLIC_URL=https://garmin.ficdev.xyz`, `SEAL_KEYS=<openssl rand -base64 32>`,
-   `DB_PATH=/data/grants.db`, `PORT=3000`, `TRUST_PROXY=1`. Optionally set `GARMIN_MCP_GROUPS`,
+   `DB_PATH=/data/grants.db`, `PORT=3000`, `TRUST_PROXY=1`. Optionally set `LOG_DIR`, `GARMIN_MCP_GROUPS`,
    `GARMIN_MCP_ENABLE_GRAPHQL` and `CLIENT_IP_HEADER` (see below). `TRUST_PROXY=1` trusts exactly
    one proxy hop, Traefik.
 
@@ -77,7 +77,13 @@ in-memory grant store and needs `GARMIN_EMAIL`, `GARMIN_PASSWORD` and `GARMIN_TE
   day's last count and a missed run costs nothing. Run it once by hand after adding it; the trend
   starts from that day, since purged rows cannot be counted back.
 - **Logs** are JSON lines of grant prefix, RPC method, tool, status and milliseconds. They never
-  hold tokens, emails, passwords, Garmin payloads or query strings.
+  hold tokens, emails, passwords, Garmin payloads or query strings. Each line goes to stdout (the
+  Dokploy log view, which loses it on redeploy) and is also appended to `/data/logs/YYYY-MM.jsonl`,
+  one file per UTC month on the data volume, so the history survives restarts and redeploys.
+  Nothing deletes those files; prune them by hand if you ever want to. `LOG_DIR` moves them
+  (default: `logs` beside `DB_PATH`). To read them, open the Dokploy Terminal and run, say,
+  `tail -n 100 /data/logs/$(date -u +%Y-%m).jsonl` or `grep '"tool":"get_sleep_daily"' /data/logs/*.jsonl`.
+  To copy them off the server: `docker cp <container>:/data/logs ./logs` on the host.
 
 ## Known risks
 

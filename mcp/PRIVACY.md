@@ -33,7 +33,8 @@ computer.
 - **Never stored:** your password (sent once to Garmin), your email, your Garmin tokens (they are
   encrypted inside the token your MCP client keeps), and your Garmin data (it is passed through to
   your client, not kept).
-- **Logs** hold the connection id prefix, tool name, status and duration only.
+- **Logs** hold the connection id prefix, tool name, status and duration only. They are kept on
+  the server with no expiry, so the operator can look back at how the service has been used.
 - **Public usage counts:** `https://garmin.ficdev.xyz/mcp/stats` shows how many people and
   connections there are, per client and per day. It is computed from the rows above, and a daily
   total (people, connections, people active that week) is kept for the trend. Counts only: no
