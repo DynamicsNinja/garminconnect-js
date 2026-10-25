@@ -33,11 +33,12 @@ async function start(o: { grants?: GrantStore; routes?: Parameters<typeof fakeFe
   const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
   const grants = o.grants ?? new MemoryGrantStore();
   const { fetchImpl } = fakeFetch(o.routes ?? PROFILE_ROUTE);
+  const logged: Record<string, unknown>[] = [];
   server.on("request", createHttpApp({
     publicUrl: new URL(base), sealer: new Sealer([randomBytes(32)]), grants, auth: fakeAuth(), mcp: testConfig(),
-    version: "test", trustProxy: o.trustProxy, clientIpHeader: o.clientIpHeader, garminClient: { fetchImpl, retries: 0 }, log: () => {},
+    version: "test", trustProxy: o.trustProxy, clientIpHeader: o.clientIpHeader, garminClient: { fetchImpl, retries: 0 }, log: (l) => logged.push(l),
   }));
-  return { base, grants };
+  return { base, grants, logged };
 }
 
 describe.skipIf(NODE_MAJOR < 20)("hosted MCP over HTTP", () => {
@@ -63,6 +64,19 @@ describe.skipIf(NODE_MAJOR < 20)("hosted MCP over HTTP", () => {
       revocation_endpoint: `${base}/mcp/oauth/revoke`,
       code_challenge_methods_supported: ["S256"],
     });
+  });
+
+  it("logs each request with its connection and person prefixes only", async () => {
+    const grants = new MemoryGrantStore();
+    const { base, logged } = await start({ grants });
+    const { accessToken } = await signIn(base, { email: "a@b.c", password: PASSWORD });
+    const client = await mcpClient(base, accessToken);
+    await client.callTool({ name: "get_user_profile", arguments: {} });
+    await client.close();
+    const [owner] = grants.owners();
+    const call = logged.find((l) => l["rpc"] === "tools/call");
+    expect(call).toMatchObject({ grant: owner!.grantId.slice(0, 8), user: owner!.userHash.slice(0, 8), tool: "get_user_profile", status: 200 });
+    expect(Object.keys(call!).sort()).toEqual(["grant", "ms", "rpc", "status", "tool", "user"]);
   });
 
   it("signs in, lists the hosted tools and runs one", async () => {

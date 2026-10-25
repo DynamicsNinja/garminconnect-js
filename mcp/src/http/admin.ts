@@ -9,6 +9,7 @@ import { createReadStream, existsSync } from "node:fs";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
 import { loginShell } from "../login-page.js";
+import type { GrantOwner } from "./grants.js";
 import { logFileName, type LogLine } from "./log-file.js";
 
 /** The most lines one request returns; past it the newest are kept. */
@@ -76,6 +77,21 @@ export async function readLogs(dir: string, from: string, to: string, max = MAX_
 }
 
 /**
+ * Adds each line's person (`user`, the first 8 characters of the grant's pseudonym) and app
+ * (`client`) from the grants still on record. Lines logged before requests carried `user` get it
+ * only this way, so a purged grant's old lines stay without a person unless the page can borrow
+ * one from a newer line of the same connection.
+ */
+export function addOwners(lines: LogLine[], owners: GrantOwner[]): LogLine[] {
+  const byPrefix = new Map(owners.map((o) => [o.grantId.slice(0, 8), o]));
+  return lines.map((l) => {
+    const owner = typeof l["grant"] === "string" ? byPrefix.get(l["grant"]) : undefined;
+    if (!owner) return l;
+    return { ...l, user: typeof l["user"] === "string" ? l["user"] : owner.userHash.slice(0, 8), client: owner.clientName };
+  });
+}
+
+/**
  * The page's only script. A constant, so the CSP can pin it by hash. It loads
  * /mcp/admin/logs.json?from&to and draws the tiles, the per-day (or per-hour) chart and the tables.
  */
@@ -99,12 +115,16 @@ function load(){
   fetch("/mcp/admin/logs.json?from="+encodeURIComponent(from)+"&to="+encodeURIComponent(to),{credentials:"same-origin"}).then(function(r){
     if(!r.ok)throw new Error("HTTP "+r.status);return r.json();
   }).then(function(d){
-    all=d.lines;$("status").textContent=fmt(all.length)+" lines from "+from+" to "+to+(d.truncated?" (truncated to the newest "+fmt(all.length)+")":"")+".";
+    all=d.lines;
+    // A line from before requests carried a person borrows one from its connection's other lines.
+    var owner={};all.forEach(function(l){if(l.grant&&l.user)owner[l.grant]=l.user;});
+    all.forEach(function(l){if(l.grant&&!l.user&&owner[l.grant])l.user=owner[l.grant];});
+    $("status").textContent=fmt(all.length)+" lines from "+from+" to "+to+(d.truncated?" (truncated to the newest "+fmt(all.length)+")":"")+".";
     fillSelects();render();
   }).catch(function(e){$("status").textContent="Could not load: "+e.message;});
 }
 function fillSelects(){
-  [["grant","grant"],["tool","tool"],["rpc","rpc"],["msg","msg"]].forEach(function(p){
+  [["user","user"],["grant","grant"],["tool","tool"],["rpc","rpc"],["msg","msg"]].forEach(function(p){
     var sel=$("f-"+p[0]),keep=sel.value,seen={};
     all.forEach(function(l){var v=l[p[1]];if(typeof v==="string")seen[v]=(seen[v]||0)+1;});
     while(sel.options.length>1)sel.remove(1);
@@ -113,9 +133,9 @@ function fillSelects(){
   });
 }
 function filtered(){
-  var g=$("f-grant").value,t=$("f-tool").value,r=$("f-rpc").value,m=$("f-msg").value,s=$("f-status").value,q=$("f-q").value.toLowerCase();
+  var u=$("f-user").value,g=$("f-grant").value,t=$("f-tool").value,r=$("f-rpc").value,m=$("f-msg").value,s=$("f-status").value,q=$("f-q").value.toLowerCase();
   return all.filter(function(l){
-    if(g&&l.grant!==g)return false;if(t&&l.tool!==t)return false;if(r&&l.rpc!==r)return false;if(m&&l.msg!==m)return false;
+    if(u&&l.user!==u)return false;if(g&&l.grant!==g)return false;if(t&&l.tool!==t)return false;if(r&&l.rpc!==r)return false;if(m&&l.msg!==m)return false;
     if(s==="ok"&&(typeof l.status!=="number"||isError(l)))return false;
     if(s==="error"&&!isError(l))return false;
     if(s==="events"&&kind(l)!=="event")return false;
@@ -135,29 +155,37 @@ function pick(sel){return function(v){$(sel).value=v;render();window.scrollTo({t
 function render(){
   shown=filtered();
   var rpc=shown.filter(function(l){return kind(l)==="rpc";}),calls=rpc.filter(function(l){return l.rpc==="tools/call";});
-  var grants={};rpc.forEach(function(l){if(l.grant)grants[l.grant]=1;});
+  var grants={},people={};rpc.forEach(function(l){if(l.grant)grants[l.grant]=1;if(l.user)people[l.user]=1;});
   var errs=shown.filter(isError).length,signins=shown.filter(function(l){return l.msg==="sign-in";});
   var callMs=calls.map(function(l){return l.ms;}).filter(function(v){return typeof v==="number";});
   var tiles=$("tiles");tiles.textContent="";
-  tile(tiles,fmt(rpc.length),"requests");tile(tiles,fmt(calls.length),"tool calls");tile(tiles,fmt(Object.keys(grants).length),"connections");
+  tile(tiles,fmt(rpc.length),"requests");tile(tiles,fmt(calls.length),"tool calls");tile(tiles,fmt(Object.keys(people).length),"people");tile(tiles,fmt(Object.keys(grants).length),"connections");
   tile(tiles,pct(errs,rpc.length),"errors ("+fmt(errs)+")");tile(tiles,ms(quant(callMs,.5)),"median tool call");tile(tiles,ms(quant(callMs,.95)),"p95 tool call");
   tile(tiles,fmt(signins.filter(function(l){return l.ok===true;}).length)+" / "+fmt(signins.filter(function(l){return l.ok===false;}).length),"sign-ins ok / failed");
   chart(rpc);
   var tools={};calls.forEach(function(l){var k=l.tool||"(unnamed)",o=tools[k]||(tools[k]={n:0,e:0,ms:[]});o.n++;if(isError(l))o.e++;if(typeof l.ms==="number")o.ms.push(l.ms);});
   table("t-tools",["Tool","Calls","Errors","Median","p95","Max"],Object.keys(tools).sort(function(a,b){return tools[b].n-tools[a].n;}).map(function(k){var o=tools[k];
     return {key:k,cells:[k,fmt(o.n),o.e?fmt(o.e)+" ("+pct(o.e,o.n)+")":"0",ms(quant(o.ms,.5)),ms(quant(o.ms,.95)),ms(o.ms.length?Math.max.apply(null,o.ms):null)]};}),pick("f-tool"));
-  var gs={};rpc.forEach(function(l){if(!l.grant)return;var o=gs[l.grant]||(gs[l.grant]={n:0,c:0,first:l.t,last:l.t,tools:{}});o.n++;if(l.t<o.first)o.first=l.t;if(l.t>o.last)o.last=l.t;
-    if(l.rpc==="tools/call"){o.c++;o.tools[l.tool]=(o.tools[l.tool]||0)+1;}});
-  table("t-grants",["Connection","Requests","Tool calls","Top tool","First seen","Last seen"],Object.keys(gs).sort(function(a,b){return gs[b].last<gs[a].last?-1:1;}).map(function(k){var o=gs[k];
-    var top=Object.keys(o.tools).sort(function(a,b){return o.tools[b]-o.tools[a];})[0]||"-";return {key:k,cells:[k,fmt(o.n),fmt(o.c),top,local(o.first),local(o.last)]};}),pick("f-grant"));
+  function group(field){var out={};rpc.forEach(function(l){var k=l[field];if(!k)return;
+    var o=out[k]||(out[k]={n:0,c:0,e:0,first:l.t,last:l.t,tools:{},grants:{},apps:{},user:l.user,client:l.client});o.n++;if(isError(l))o.e++;if(l.t<o.first)o.first=l.t;if(l.t>o.last)o.last=l.t;
+    if(l.grant)o.grants[l.grant]=1;if(l.client)o.apps[l.client]=1;if(l.user)o.user=l.user;if(l.client)o.client=l.client;
+    if(l.rpc==="tools/call"){o.c++;o.tools[l.tool]=(o.tools[l.tool]||0)+1;}});return out;}
+  function byLast(m){return Object.keys(m).sort(function(a,b){return m[b].last<m[a].last?-1:1;});}
+  function topTools(o,n){return Object.keys(o.tools).sort(function(a,b){return o.tools[b]-o.tools[a];}).slice(0,n).map(function(k){return k+" ×"+fmt(o.tools[k]);}).join(", ")||"-";}
+  var us=group("user");
+  table("t-users",["Person","Apps","Top tools","Connections","Requests","Tool calls","Tools used","Errors","First seen","Last seen"],byLast(us).map(function(k){var o=us[k];
+    return {key:k,cells:[k,Object.keys(o.apps).join(", ")||"-",topTools(o,3),fmt(Object.keys(o.grants).length),fmt(o.n),fmt(o.c),fmt(Object.keys(o.tools).length),fmt(o.e),local(o.first),local(o.last)]};}),pick("f-user"),3);
+  var gs=group("grant");
+  table("t-grants",["Connection","Person","App","Requests","Tool calls","Top tool","First seen","Last seen"],byLast(gs).map(function(k){var o=gs[k];
+    return {key:k,cells:[k,o.user||"-",o.client||"-",fmt(o.n),fmt(o.c),topTools(o,1),local(o.first),local(o.last)]};}),pick("f-grant"),3);
   var rs={};rpc.forEach(function(l){var o=rs[l.rpc]||(rs[l.rpc]={n:0,e:0});o.n++;if(isError(l))o.e++;});
   table("t-rpc",["RPC method","Requests","Errors"],Object.keys(rs).sort(function(a,b){return rs[b].n-rs[a].n;}).map(function(k){return {key:k,cells:[k,fmt(rs[k].n),fmt(rs[k].e)]};}),pick("f-rpc"));
   var ev={};shown.forEach(function(l){if(kind(l)!=="event")return;var o=ev[l.msg]||(ev[l.msg]={n:0,last:l.t});o.n++;if(l.t>o.last)o.last=l.t;});
   table("t-events",["Event","Count","Last"],Object.keys(ev).sort(function(a,b){return ev[b].n-ev[a].n;}).map(function(k){return {key:k,cells:[k,fmt(ev[k].n),local(ev[k].last)]};}),pick("f-msg"));
   var recent=shown.slice(-500).reverse();
-  table("t-lines",["Time (UTC)","Connection","What","Status","Duration"],recent.map(function(l){
+  table("t-lines",["Time (UTC)","Person","Connection","What","Status","Duration"],recent.map(function(l){
     var what=l.tool?l.tool:l.rpc?l.rpc:l.msg?l.msg:"";var extra=kind(l)==="event"?JSON.stringify(Object.assign({},l,{t:undefined,msg:undefined})):"";
-    return {cells:[local(l.t),l.grant||"",what+(extra&&extra!=="{}"?" "+extra:""),l.status!==undefined?l.status:(l.ok===false?"failed":l.ok===true?"ok":""),l.ms!==undefined?ms(l.ms):""]};}),null,3);
+    return {cells:[local(l.t),l.user||"",l.grant||"",what+(extra&&extra!=="{}"?" "+extra:""),l.status!==undefined?l.status:(l.ok===false?"failed":l.ok===true?"ok":""),l.ms!==undefined?ms(l.ms):""]};}),null,4);
   $("lines-note").textContent=shown.length>500?"Newest 500 of "+fmt(shown.length)+" matching lines.":fmt(shown.length)+" matching lines.";
 }
 function chart(rpc){
@@ -183,9 +211,9 @@ function chart(rpc){
   $("chart-title").textContent=(hourly?"Requests per hour":"Requests per day")+" (UTC)";
 }
 $("load").onclick=load;
-["f-grant","f-tool","f-rpc","f-msg","f-status"].forEach(function(id){$(id).onchange=render;});
+["f-user","f-grant","f-tool","f-rpc","f-msg","f-status"].forEach(function(id){$(id).onchange=render;});
 $("f-q").oninput=render;
-$("clear").onclick=function(){["f-grant","f-tool","f-rpc","f-msg","f-status","f-q"].forEach(function(id){$(id).value="";});render();};
+$("clear").onclick=function(){["f-user","f-grant","f-tool","f-rpc","f-msg","f-status","f-q"].forEach(function(id){$(id).value="";});render();};
 load();
 })();`;
 
@@ -216,7 +244,7 @@ h2{font-size:1rem;margin:24px 0 8px}
 .wrap{overflow-x:auto}
 table{width:100%;border-collapse:collapse;font-size:.85rem}
 th{text-align:left;font-weight:600;color:var(--muted);padding:6px 8px 6px 0;border-bottom:1px solid var(--line)}
-td{padding:5px 8px 5px 0;border-bottom:1px solid var(--line);vertical-align:top;word-break:break-word}
+td{padding:5px 8px 5px 0;border-bottom:1px solid var(--line);vertical-align:top;overflow-wrap:break-word}
 .num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
 tr.pick{cursor:pointer}tr.pick:hover,tr.pick:focus-visible{background:color-mix(in srgb,var(--accent) 10%,transparent);outline:none}
 .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,460px),1fr));gap:0 24px}
@@ -239,16 +267,18 @@ export function adminPage(): string {
 </div>
 <p id="status" role="status"></p>
 <div class="controls" style="margin-top:12px">
-${select("f-grant", "Connection")}${select("f-tool", "Tool")}${select("f-rpc", "RPC method")}${select("f-msg", "Event")}
+${select("f-user", "Person")}${select("f-grant", "Connection")}${select("f-tool", "Tool")}${select("f-rpc", "RPC method")}${select("f-msg", "Event")}
 <label>Status<select id="f-status"><option value="">All</option><option value="ok">OK</option><option value="error">Errors</option><option value="events">Events only</option></select></label>
 <label>Search<input id="f-q" type="text" placeholder="any text"></label><button id="clear" type="button" class="plain">Clear filters</button>
 </div>
 <div class="tiles" id="tiles"></div>
 <h2 id="chart-title">Requests</h2>
 <div class="chartbox"><svg id="chart" role="img" aria-label="Requests over time; the tables below hold the numbers"></svg><div id="tip" hidden></div></div>
+<h2>People</h2><p class="note">A person is the first 8 characters of their keyed Garmin pseudonym; one person can hold several connections. Click one to see only their activity.</p>
+<div class="wrap"><table id="t-users"></table></div>
+<h2>Connections</h2><div class="wrap"><table id="t-grants"></table></div>
 <div class="grid2">
 <div><h2>Tools</h2><div class="wrap"><table id="t-tools"></table></div></div>
-<div><h2>Connections</h2><div class="wrap"><table id="t-grants"></table></div></div>
 <div><h2>RPC methods</h2><div class="wrap"><table id="t-rpc"></table></div></div>
 <div><h2>Server events</h2><div class="wrap"><table id="t-events"></table></div></div>
 </div>

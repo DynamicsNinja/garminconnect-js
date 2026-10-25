@@ -80,6 +80,12 @@ export function loadSqlite(): Sqlite | null {
   }
 }
 
+export interface GrantOwner {
+  grantId: string;
+  userHash: string;
+  clientName: string | null;
+}
+
 export interface GrantStore {
   create(userHash: string, clientName: string | null, now: number): Grant;
   get(grantId: string): Grant | undefined;
@@ -94,6 +100,8 @@ export interface GrantStore {
   /** Deletes grants idle for 35 days and pending ones older than 10 minutes. */
   purge(now: number): number;
   count(): { active: number; total: number };
+  /** Every grant still on record (purge removes the rest) with its person and client, for the log viewer. */
+  owners(): GrantOwner[];
   usage(now: number): UsageCounts;
   /** Upserts today's (UTC) row of the trend from `usage(now)` and settles yesterday's `joined`. Purge never deletes these rows. */
   recordDay(now: number): void;
@@ -200,6 +208,9 @@ export class MemoryGrantStore implements GrantStore {
   count(): { active: number; total: number } {
     const all = [...this.#grants.values()];
     return { active: all.filter((g) => g.state === "active").length, total: all.length };
+  }
+  owners(): GrantOwner[] {
+    return [...this.#grants.values()].map((g) => ({ grantId: g.grantId, userHash: g.userHash, clientName: g.clientName }));
   }
   usage(now: number): UsageCounts {
     const active = [...this.#grants.values()].filter((g) => g.state === "active");
@@ -338,6 +349,10 @@ export class SqliteGrantStore implements GrantStore {
   count(): { active: number; total: number } {
     const r = this.#db.prepare("SELECT COUNT(*) AS total, COALESCE(SUM(state = 'active'), 0) AS active FROM grants").get() as Row;
     return { active: Number(r["active"]), total: Number(r["total"]) };
+  }
+  owners(): GrantOwner[] {
+    const rows = this.#db.prepare("SELECT grant_id, user_hash, client_name FROM grants").all() as Row[];
+    return rows.map((r) => ({ grantId: String(r["grant_id"]), userHash: String(r["user_hash"]), clientName: r["client_name"] == null ? null : (r["client_name"] as string) }));
   }
   usage(now: number): UsageCounts {
     const r = this.#db

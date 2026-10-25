@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 // eslint-disable-next-line no-restricted-imports
-import { ADMIN_SCRIPT, adminHeaders, adminPage, checkBasicAuth, isDay, monthFiles, readLogs } from "../../src/http/admin.js";
+import { addOwners, ADMIN_SCRIPT, adminHeaders, adminPage, checkBasicAuth, isDay, monthFiles, readLogs } from "../../src/http/admin.js";
 // eslint-disable-next-line no-restricted-imports
 import { createHttpApp } from "../../src/http/app.js";
 // eslint-disable-next-line no-restricted-imports
@@ -66,6 +66,22 @@ describe("admin helpers", () => {
     const capped = await readLogs(dir, "2026-10-01", "2026-11-30", 2);
     expect(capped.truncated).toBe(true);
     expect(capped.lines.map((l) => l["rpc"])).toEqual(["c", "d"]);
+  });
+
+  it("adds each line's person and app from the grants on record, keeping a logged person", () => {
+    const owners = [{ grantId: "J4OQcl_Fxxxxxxxxxxxxxx", userHash: "personAAAAyyyy", clientName: "Claude" }];
+    const lines = [
+      { t: "1", grant: "J4OQcl_F", rpc: "tools/list" },
+      { t: "2", grant: "J4OQcl_F", user: "loggedXX", rpc: "tools/list" },
+      { t: "3", grant: "purged__", rpc: "tools/list" },
+      { t: "4", msg: "sign-in" },
+    ];
+    expect(addOwners(lines, owners)).toEqual([
+      { t: "1", grant: "J4OQcl_F", user: "personAA", client: "Claude", rpc: "tools/list" },
+      { t: "2", grant: "J4OQcl_F", user: "loggedXX", client: "Claude", rpc: "tools/list" },
+      { t: "3", grant: "purged__", rpc: "tools/list" },
+      { t: "4", msg: "sign-in" },
+    ]);
   });
 
   it("pins its one script by hash and keeps the page out of search engines", () => {

@@ -18,7 +18,7 @@ import type { GarminClientOptions } from "garminconnect-js";
 import { buildTools, serverForTools, type ServerDeps } from "../server.js";
 import type { McpConfig } from "../session.js";
 import { HOSTED_TOOL_FACTORIES } from "../tools.js";
-import { adminHeaders, adminPage, checkBasicAuth, isDay, readLogs } from "./admin.js";
+import { addOwners, adminHeaders, adminPage, checkBasicAuth, isDay, readLogs } from "./admin.js";
 import { isDeadSession, type GarminAuth } from "./garmin-auth.js";
 import type { GrantStore } from "./grants.js";
 import { inlineFiles } from "./inline-files.js";
@@ -150,7 +150,8 @@ export function createHttpApp(deps: HttpAppDeps): Express {
         res.status(400).json({ error: "from and to must be YYYY-MM-DD, from <= to" });
         return;
       }
-      res.set({ "cache-control": "no-store", "x-robots-tag": "noindex, nofollow" }).json(await readLogs(logDir, from, to));
+      const read = await readLogs(logDir, from, to);
+      res.set({ "cache-control": "no-store", "x-robots-tag": "noindex, nofollow" }).json({ ...read, lines: addOwners(read.lines, deps.grants.owners()) });
     });
   }
 
@@ -210,7 +211,7 @@ export function createHttpApp(deps: HttpAppDeps): Express {
   const bearer = requireBearerAuth({ verifier: provider, resourceMetadataUrl: at("/.well-known/oauth-protected-resource/mcp") });
   const perGrant = rateLimit({ windowMs: 60_000, limit: 120, standardHeaders: "draft-7", legacyHeaders: false, keyGenerator: (req) => accessOf(req).grantId });
   const handleMcp: RequestHandler = async (req, res) => {
-    const { grantId, tokens } = accessOf(req);
+    const { grantId, userHash, tokens } = accessOf(req);
     const started = Date.now();
     const server = serverForTools(tools, serverDeps);
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
@@ -218,7 +219,7 @@ export function createHttpApp(deps: HttpAppDeps): Express {
       void transport.close();
       void server.close();
     });
-    res.on("finish", () => log({ grant: grantId.slice(0, 8), ...describeRpc(req.body), status: res.statusCode, ms: Date.now() - started }));
+    res.on("finish", () => log({ grant: grantId.slice(0, 8), user: userHash.slice(0, 8), ...describeRpc(req.body), status: res.statusCode, ms: Date.now() - started }));
     await server.connect(transport);
     const onRejected = (error: unknown) => {
       if (isDeadSession(error)) deps.grants.revoke(grantId);

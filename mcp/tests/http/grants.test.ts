@@ -53,6 +53,17 @@ function contract(name: string, open: () => Promise<GrantStore>) {
       expect(s.revokeAll()).toBe(1);
     });
 
+    it("lists every grant on record with its person and client", async () => {
+      const s = await open();
+      const a = s.create("u1", "Claude", 1), b = s.create("u2", null, 1);
+      s.activate(a.grantId, 1);
+      s.revoke(a.grantId);
+      expect(s.owners().sort((x, y) => x.userHash.localeCompare(y.userHash))).toEqual([
+        { grantId: a.grantId, userHash: "u1", clientName: "Claude" },
+        { grantId: b.grantId, userHash: "u2", clientName: null },
+      ]);
+    });
+
     it("purges idle grants and abandoned pending ones", async () => {
       const s = await open();
       const now = 10_000_000;

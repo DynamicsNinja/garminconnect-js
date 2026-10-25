@@ -76,7 +76,8 @@ in-memory grant store and needs `GARMIN_EMAIL`, `GARMIN_PASSWORD` and `GARMIN_TE
   command `node http.mjs snapshot`. Each run overwrites today's row (UTC), so hourly keeps the
   day's last count and a missed run costs nothing. Run it once by hand after adding it; the trend
   starts from that day, since purged rows cannot be counted back.
-- **Logs** are JSON lines of grant prefix, RPC method, tool, status and milliseconds. They never
+- **Logs** are JSON lines of grant prefix, person prefix (`user`, the first 8 characters of the
+  grant's keyed pseudonym), RPC method, tool, status and milliseconds. They never
   hold tokens, emails, passwords, Garmin payloads or query strings. Each line goes to stdout (the
   Dokploy log view, which loses it on redeploy) and is also appended to `/data/logs/YYYY-MM.jsonl`,
   one file per UTC month on the data volume, so the history survives restarts and redeploys.
@@ -89,9 +90,12 @@ in-memory grant store and needs `GARMIN_EMAIL`, `GARMIN_PASSWORD` and `GARMIN_TE
   the path is a 404. The browser asks for a user name and password: the user name is ignored, the
   password is `ADMIN_PASSWORD`. Ten wrong passwords from one IP lock it out for 15 minutes, and
   each wrong one is logged as `admin auth failed`. Pick a date range; the page shows requests,
-  tool calls, connections, error rate, tool latency and sign-ins, a per-day chart (per hour for
-  a one- or two-day range), and tables per tool, connection, RPC method and server event. Click a
-  row to filter by it; the newest 500 matching lines are listed at the bottom. One load returns
+  tool calls, people, connections, error rate, tool latency and sign-ins, a per-day chart (per
+  hour for a one- or two-day range), and tables per person (apps, top tools, connections),
+  connection (with its person and app), tool, RPC method and server event. Click a row to filter
+  by it: click a person and the Tools table becomes that person's tools. Lines logged before the
+  person prefix existed get one from the grants still on record (or from a newer line of the same
+  connection), so only purged connections' old lines show no person; the newest 500 matching lines are listed at the bottom. One load returns
   at most 200,000 lines (the newest), and the raw lines are at `/mcp/admin/logs.json?from=YYYY-MM-DD&to=YYYY-MM-DD`.
 
 ## Known risks

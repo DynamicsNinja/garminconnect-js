@@ -64,6 +64,8 @@ interface RefreshPayload extends AccessPayload {
 }
 export interface AccessExtra {
   grantId: string;
+  /** The grant's person pseudonym, so request logs can group a person's connections. */
+  userHash: string;
   tokens: Tokens;
 }
 
@@ -280,7 +282,7 @@ export class HostedOAuthProvider implements OAuthServerProvider {
     if (grant?.state !== "active") throw new InvalidTokenError("This connection was disconnected");
     const now = this.#now();
     if (now - grant.lastUsed >= TOUCH_EVERY_S) this.#grants.touch(grant.grantId, now);
-    const extra: AccessExtra = { grantId: grant.grantId, tokens: sealed.data.tokens };
+    const extra: AccessExtra = { grantId: grant.grantId, userHash: grant.userHash, tokens: sealed.data.tokens };
     return { token, clientId: sealed.data.clientId, scopes: [], expiresAt: sealed.exp, extra: { ...extra } };
   }
 
