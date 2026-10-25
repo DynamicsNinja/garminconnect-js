@@ -20,10 +20,10 @@ describe("loadHostedConfig", () => {
     expect(loadHostedConfig(env({ LOG_DIR: " /var/log/mcp " })).logDir).toBe("/var/log/mcp");
   });
 
-  it("turns the log viewer on only with a long enough ADMIN_PASSWORD", () => {
+  it("turns the log viewer on only when ADMIN_PASSWORD is set", () => {
     expect(loadHostedConfig(env()).adminPassword).toBeNull();
-    expect(loadHostedConfig(env({ ADMIN_PASSWORD: "0123456789abcdef" })).adminPassword).toBe("0123456789abcdef");
-    expect(() => loadHostedConfig(env({ ADMIN_PASSWORD: "short" }))).toThrow(/ADMIN_PASSWORD/);
+    expect(loadHostedConfig(env({ ADMIN_PASSWORD: "" })).adminPassword).toBeNull();
+    expect(loadHostedConfig(env({ ADMIN_PASSWORD: "short" })).adminPassword).toBe("short");
   });
 
   it("honours PORT, TRUST_PROXY and the tool settings", () => {

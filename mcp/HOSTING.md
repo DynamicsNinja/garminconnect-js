@@ -85,7 +85,7 @@ in-memory grant store and needs `GARMIN_EMAIL`, `GARMIN_PASSWORD` and `GARMIN_TE
   `tail -n 100 /data/logs/$(date -u +%Y-%m).jsonl` or `grep '"tool":"get_sleep_daily"' /data/logs/*.jsonl`.
   To copy them off the server: `docker cp <container>:/data/logs ./logs` on the host.
 - **Log viewer:** `https://garmin.ficdev.xyz/mcp/admin`, linked from nowhere and off by default.
-  Set `ADMIN_PASSWORD` (16+ characters, e.g. `openssl rand -base64 24`) and redeploy; without it
+  Set `ADMIN_PASSWORD` (a long random one is best, e.g. `openssl rand -base64 24`) and redeploy; without it
   the path is a 404. The browser asks for a user name and password: the user name is ignored, the
   password is `ADMIN_PASSWORD`. Ten wrong passwords from one IP lock it out for 15 minutes, and
   each wrong one is logged as `admin auth failed`. Pick a date range; the page shows requests,

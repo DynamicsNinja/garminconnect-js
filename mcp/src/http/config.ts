@@ -29,7 +29,6 @@ export function loadHostedConfig(env: Record<string, string | undefined> = proce
   if (!dbPath) throw new Error("DB_PATH is not set (e.g. /data/grants.db)");
   const logDir = env["LOG_DIR"]?.trim() || join(dirname(dbPath), "logs");
   const adminPassword = env["ADMIN_PASSWORD"] || null;
-  if (adminPassword !== null && adminPassword.length < 16) throw new Error("ADMIN_PASSWORD must be at least 16 characters (e.g. openssl rand -base64 24)");
   const port = Number(env["PORT"] ?? 3000);
   if (!Number.isInteger(port) || port < 1 || port > 65_535) throw new Error(`PORT must be a port number, got ${env["PORT"]}`);
   const clientIpHeader = env["CLIENT_IP_HEADER"]?.trim().toLowerCase() || null;
