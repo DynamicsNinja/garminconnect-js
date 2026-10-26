@@ -104,7 +104,7 @@ var DAY=864e5,DIMS=["user","tool","status","q","grant","rpc","msg"],MORE=["grant
 var LABEL={user:"Person",grant:"Connection",tool:"Tool",rpc:"Request type",msg:"Event",status:"Status",q:"Search"};
 var STATUS={ok:"OK only",error:"Failures only",events:"Server events only"};
 var all=null,truncated=false,qTimer=null,dateTimer=null,seq=0;
-var st={from:"",to:"",preset:"7",f:{},sort:{},open:null,limit:{}};
+var st={from:"",to:"",preset:"7",f:{},sort:{},open:null,limit:{},checks:false};
 function recall(k){try{return JSON.parse(localStorage.getItem(k)||"null");}catch(e){return null;}}
 function keep(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
 var names=recall("gmcp-names")||{},tz=recall("gmcp-tz")==="local"?"local":"utc";
@@ -129,9 +129,12 @@ function who(u){return u?(names[u]?names[u]+" ("+u+")":u):"–";}
 function isError(l){return typeof l.status==="number"&&l.status>=400&&!(l.rpc==="server/discover"&&l.status===400);}
 function bad(l){return isError(l)||(!!l.msg&&l.ok===false);}
 function kind(l){return l.rpc?"rpc":l.msg?"event":"other";}
+// Glama's MCP directory connects and lists the tools every ~25 minutes; it is a robot, not a user.
+function isCheck(l){return !!l.client&&/glama/i.test(l.client);}
 function hay(l){if(l._h===undefined)l._h=[l.user,names[l.user],l.grant,l.client,l.tool,l.rpc,l.msg,l.status,l.ok===false?"failed":""]
   .filter(function(v){return v!==undefined&&v!==null&&v!=="";}).join(" ").toLowerCase();return l._h;}
 function match(l,skip){var f=st.f;
+  if(!st.checks&&isCheck(l))return false;
   if(f.user&&skip!=="user"&&l.user!==f.user)return false;
   if(f.grant&&skip!=="grant"&&l.grant!==f.grant)return false;
   if(f.tool&&skip!=="tool"&&l.tool!==f.tool)return false;
@@ -145,9 +148,9 @@ function active(){return DIMS.filter(function(d){return !!st.f[d];});}
 
 function readHash(){var h=new URLSearchParams(location.hash.slice(1)),p=h.get("preset"),f=h.get("from"),t=h.get("to");
   if(isDay(f)&&isDay(t)){st.preset="";st.from=f;st.to=t;}else if(p&&/^\d+$/.test(p))st.preset=p;
-  DIMS.forEach(function(d){var v=h.get(d);if(v)st.f[d]=v;});}
+  DIMS.forEach(function(d){var v=h.get(d);if(v)st.f[d]=v;});st.checks=h.get("checks")==="show";}
 function writeHash(){var h=new URLSearchParams();if(st.preset)h.set("preset",st.preset);else{h.set("from",st.from);h.set("to",st.to);}
-  DIMS.forEach(function(d){if(st.f[d])h.set(d,st.f[d]);});history.replaceState(null,"","#"+h.toString());}
+  DIMS.forEach(function(d){if(st.f[d])h.set(d,st.f[d]);});if(st.checks)h.set("checks","show");history.replaceState(null,"","#"+h.toString());}
 function syncRange(){var t=day(new Date());$("from").value=st.from;$("to").value=st.to;$("from").max=st.to||t;$("to").min=st.from;$("to").max=t;
   Array.prototype.forEach.call(document.querySelectorAll("[data-preset]"),function(b){b.setAttribute("aria-pressed",String(b.getAttribute("data-preset")===st.preset));});}
 
@@ -199,7 +202,8 @@ function render(){
   if(!all)return;
   writeHash();syncFilters();
   var shown=lines(null),rpc=shown.filter(function(l){return !!l.rpc;});
-  $("status").textContent=fmt(all.length)+" log lines, "+st.from+" to "+st.to+(active().length?" · "+fmt(shown.length)+" match the filters":"")+".";
+  var checks=st.checks?0:all.filter(isCheck).length;$("f-checks").checked=!st.checks;
+  $("status").textContent=fmt(all.length)+" log lines, "+st.from+" to "+st.to+(checks?" · "+fmt(checks)+" Glama checks hidden":"")+(active().length?" · "+fmt(shown.length)+" match the filters":"")+".";
   var tr=$("trunc");tr.hidden=!truncated;if(truncated)tr.textContent="This range holds more lines than one load returns, so only the newest "+fmt(all.length)+" are shown. Pick a shorter range to see everything.";
   overview(shown,rpc);chart(rpc);people();connections();tools();requestTypes();events();logLines(shown);
 }
@@ -431,6 +435,7 @@ $("reload").onclick=load;
 ["user","tool","grant","rpc","msg","status"].forEach(function(d){$("f-"+d).onchange=function(){setF(d,this.value);};});
 $("f-q").addEventListener("input",function(){var v=this.value;clearTimeout(qTimer);qTimer=setTimeout(function(){setF("q",v.trim());},200);});
 $("more-btn").onclick=function(){toggleMore();};
+$("f-checks").onchange=function(){st.checks=!this.checked;st.limit={};render();};
 $("tz").value=tz;$("tz").onchange=function(){tz=this.value==="local"?"local":"utc";keep("gmcp-tz",tz);render();};
 $("csv").onclick=csv;
 document.addEventListener("keydown",function(e){if(e.key==="Escape"&&st.open){st.open=null;render();}});
@@ -468,6 +473,8 @@ nav button{background:none;border:0;border-radius:6px;color:var(--muted);font:in
 nav button:hover{background:var(--accent-soft);color:var(--text)}
 label{display:flex;flex-direction:column;gap:2px;font-size:.75rem;font-weight:600;color:var(--muted)}
 label.inline{flex-direction:row;align-items:center;gap:6px}
+label.check{flex-direction:row;align-items:center;gap:8px;min-height:36px;font-size:.85rem;font-weight:500;color:var(--text);cursor:pointer}
+label.check input{width:16px;height:16px;min-height:0;margin:0;padding:0;accent-color:var(--accent);cursor:pointer}
 input,select{font:inherit;font-size:.9rem;color:var(--text);background:var(--input);border:1px solid var(--line);border-radius:6px;padding:6px 8px;min-height:36px;max-width:240px}
 input[type=search]{width:220px}
 button{font:inherit;cursor:pointer}
@@ -570,6 +577,7 @@ export function adminPage(): string {
 ${select("f-user", "Person")}${select("f-tool", "Tool")}
 <label>Status<select id="f-status"><option value="">All</option><option value="ok">OK only</option><option value="error">Failures only</option><option value="events">Server events only</option></select></label>
 <label>Search<input id="f-q" type="search" placeholder="Person, tool, app…" autocomplete="off"></label>
+<label class="check"><input id="f-checks" type="checkbox" checked>Hide Glama checks</label>
 <div id="more" hidden>${select("f-grant", "Connection")}${select("f-rpc", "Request type")}${select("f-msg", "Event")}</div>
 <button id="more-btn" type="button" class="plain" aria-expanded="false" aria-controls="more">More filters</button></div>
 <div id="chips" class="chips" aria-label="Active filters" hidden></div>
