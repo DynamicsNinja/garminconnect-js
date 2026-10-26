@@ -534,6 +534,10 @@ export class Garmin {
   setActivityFeel(activityId: number | string, feel: ActivityFeel | null): Promise<unknown> {
     return activities.setActivityFeel(this, activityId, feel);
   }
+  /** Sets an activity's total distance in meters; Garmin recomputes the average speeds. */
+  setActivityDistance(activityId: number | string, meters: number): Promise<unknown> {
+    return activities.setActivityDistance(this, activityId, meters);
+  }
   /** Creates a manual activity from a payload sent to Garmin verbatim. */
   createManualActivityFromJson(payload: Record<string, unknown>): Promise<unknown> {
     return activities.createManualActivityFromJson(this, payload);

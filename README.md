@@ -430,14 +430,14 @@ Or use it without installing anything: add `https://garmin.ficdev.xyz/mcp` as a 
 
 ## 📊 API coverage
 
-**200 typed methods across 13 categories.** Each category links to a generated
+**201 typed methods across 13 categories.** Each category links to a generated
 [`docs/api/`](docs/api/README.md) page with every method's signature, a call you can paste, and
 its live-verification status (confirmed against a real Garmin account, not merely unit-tested).
 
 | Category | Methods | Verified live | Covers |
 |---|---|---|---|
 | [Wellness](docs/api/wellness.md) | 35 | all | steps, heart rate, sleep, HRV, stress, SpO2, respiration, hydration, blood pressure, body battery, whole-day summaries |
-| [Activities](docs/api/activities.md) | 38 | all | list/filtered search/detail, splits, weather, workouts done, manual creation, import/upload, exercise sets, gear links, personal records, event type, RPE and feel |
+| [Activities](docs/api/activities.md) | 39 | all | list/filtered search/detail, splits, weather, workouts done, manual creation, import/upload, exercise sets, gear links, personal records, event type, RPE, feel and distance |
 | [Training metrics](docs/api/metrics.md) | 18 | all | training status, race predictions, FTP, lactate threshold, HR/power zones (and setting HR zones), endurance and hill score |
 | [Workouts](docs/api/workouts.md) | 19 | all | CRUD, per-sport upload, scheduling, schedule summaries, training-plan and Garmin Coach workouts, device push |
 | [Gear](docs/api/gear.md) | 6 | all | CRUD, activity defaults, stats |

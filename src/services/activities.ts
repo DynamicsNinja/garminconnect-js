@@ -355,6 +355,26 @@ export async function setActivityFeel(
 }
 
 /**
+ * Sets an activity's total distance in meters (`summaryDTO.distance`), the edit Garmin Connect
+ * offers for treadmill runs. Garmin recomputes the average and moving speeds from the new
+ * distance; duration, calories and laps are left as recorded, so the laps no longer add up to
+ * the total. The activity list lags the change by a few seconds.
+ */
+export async function setActivityDistance(
+  host: ActivitiesHost,
+  activityId: number | string,
+  meters: number,
+): Promise<unknown> {
+  if (!Number.isFinite(meters) || meters <= 0) {
+    throw new GarminError(`meters must be a positive number; got ${String(meters)}`);
+  }
+  return host.client.connectapi(`/activity-service/activity/${pathSegment(activityId)}`, {
+    method: "PUT",
+    json: { activityId, summaryDTO: { distance: meters } },
+  });
+}
+
+/**
  * Low-level entry point: `payload` is sent to Garmin verbatim, no shape
  * validation. `createManualActivity` builds on top of this. Returns Garmin's
  * raw response.

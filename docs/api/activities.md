@@ -14,7 +14,7 @@ if (!(await client.loadTokens())) throw new Error("not connected to Garmin");
 const garmin = new Garmin(client);
 ```
 
-**38 methods.** The verification column says what has been
+**39 methods.** The verification column says what has been
 confirmed against a live Garmin account, not merely unit-tested.
 [`AGENTS.md`](../../AGENTS.md) carries the full evidence per method.
 
@@ -51,6 +51,7 @@ confirmed against a live Garmin account, not merely unit-tested.
 | [`removeGearFromActivity`](#removegearfromactivity) | ✅ live-verified |
 | [`searchActivities`](#searchactivities) | ✅ live-verified |
 | [`setActivityDescription`](#setactivitydescription) | ✅ live-verified |
+| [`setActivityDistance`](#setactivitydistance) | ✅ live-verified |
 | [`setActivityEventType`](#setactivityeventtype) | ✅ live-verified |
 | [`setActivityExerciseSets`](#setactivityexercisesets) | ✅ live-verified |
 | [`setActivityFeel`](#setactivityfeel) | ✅ live-verified |
@@ -688,6 +689,24 @@ const result = await garmin.setActivityDescription(activityId, "description");
 `unknown`: Garmin's response is passed through unparsed. Cast it to whatever you need; this library does not model it.
 
 resolves to `null` on success. Live-verified: `description` read back via `getActivity` after the call
+
+Verification: ✅ live-verified
+
+## setActivityDistance
+
+```ts
+garmin.setActivityDistance(activityId: number | string, meters: number): Promise<unknown>
+```
+
+```ts
+const result = await garmin.setActivityDistance(activityId, 1);
+```
+
+**Returns**
+
+`unknown`: Garmin's response is passed through unparsed. Cast it to whatever you need; this library does not model it.
+
+Partial PUT of `summaryDTO.distance` in METERS (no conversion; `createManualActivity` is the one that takes km), the edit Garmin Connect offers for treadmill runs. Garmin recomputes `averageSpeed`/`averageMovingSpeed` from it; duration, calories and laps stay as recorded, so the laps no longer sum to the total. `getActivities` lags the change by a few seconds while `getActivity` shows it at once. Throws `GarminError` before any request for a non-positive or non-finite value
 
 Verification: ✅ live-verified
 

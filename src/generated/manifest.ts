@@ -1459,6 +1459,33 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
     "io": "json"
   },
   {
+    "name": "setActivityDistance",
+    "category": "activities",
+    "description": "Sets an activity's total distance in meters; Garmin recomputes the average speeds. Partial PUT of `summaryDTO.distance` in METERS (no conversion; `createManualActivity` is the one that takes km), the edit Garmin Connect offers for treadmill runs. Garmin recomputes `averageSpeed`/`averageMovingSpeed` from it; duration, calories and laps stay as recorded, so the laps no longer sum to the total. `getActivities` lags the change by a few seconds while `getActivity` shows it at once. Throws `GarminError` before any request for a non-positive or non-finite value.",
+    "params": [
+      {
+        "name": "activityId",
+        "optional": false,
+        "schema": {
+          "type": [
+            "integer",
+            "string"
+          ],
+          "description": "Numeric id"
+        }
+      },
+      {
+        "name": "meters",
+        "optional": false,
+        "schema": {
+          "type": "number"
+        }
+      }
+    ],
+    "safety": "write",
+    "io": "json"
+  },
+  {
     "name": "createManualActivityFromJson",
     "category": "activities",
     "description": "Creates a manual activity from a payload sent to Garmin verbatim. Sends `payload` to Garmin verbatim, no shape validation.",

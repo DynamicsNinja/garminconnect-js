@@ -7,7 +7,8 @@ import { GarminError } from "../../src/errors.js";
 import type { Tokens } from "../../src/auth/tokens.js";
 import type { ActivityEventTypeKey, ActivityFeel } from "../../src/types/activities.js";
 
-// getActivityEventTypes / setActivityEventType / setActivityPerceivedEffort / setActivityFeel.
+// getActivityEventTypes / setActivityEventType / setActivityPerceivedEffort / setActivityFeel /
+// setActivityDistance.
 // Shapes from the live round-trip on 2026-10-06 (smoke:gaps).
 const API = "https://connectapi.garmin.com";
 const seen: { url: string; method: string; body?: unknown }[] = [];
@@ -120,4 +121,21 @@ describe("setActivityFeel", () => {
     await expect(makeGarmin().setActivityFeel(123, 30 as ActivityFeel)).rejects.toThrow(GarminError);
     expect(seen).toHaveLength(0);
   });
+});
+
+describe("setActivityDistance", () => {
+  it("sends the meters as summaryDTO.distance, unconverted", async () => {
+    await makeGarmin().setActivityDistance(123, 4510.5);
+    expect(seen[0]!.method).toBe("PUT");
+    expect(seen[0]!.url).toBe(`${API}/activity-service/activity/123`);
+    expect(seen[0]!.body).toEqual({ activityId: 123, summaryDTO: { distance: 4510.5 } });
+  });
+
+  it.each([0, -1, Number.NaN, Number.POSITIVE_INFINITY])(
+    "rejects %s before sending anything",
+    async (meters) => {
+      await expect(makeGarmin().setActivityDistance(123, meters)).rejects.toThrow(GarminError);
+      expect(seen).toHaveLength(0);
+    },
+  );
 });

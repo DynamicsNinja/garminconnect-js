@@ -6,6 +6,12 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **`setActivityDistance(activityId, meters)`**: corrects an activity's total distance, e.g. a
+  treadmill run. Garmin recomputes the average speeds; laps keep their recorded distances.
+  Verified on a real treadmill run.
+
 ## [0.10.0] - 2026-10-23
 
 New methods and much richer response types, both from Garmin's official Personal API spec. That
