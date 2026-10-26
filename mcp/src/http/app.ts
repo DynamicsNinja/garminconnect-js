@@ -26,7 +26,8 @@ import { errorPage, pageHeaders } from "./pages.js";
 import { HostedOAuthProvider, type AccessExtra } from "./provider.js";
 import { requestSession } from "./request-session.js";
 import type { Sealer } from "./seal.js";
-import { buildStats, statsHeaders, statsPage, type Stats } from "./stats.js";
+import { buildStats, statsHeaders, statsPage, TREND_DAYS, type Stats } from "./stats.js";
+import { ToolUsage } from "./tool-usage.js";
 
 export interface HttpAppDeps {
   publicUrl: URL;
@@ -42,6 +43,8 @@ export interface HttpAppDeps {
   log?: (line: Record<string, unknown>) => void;
   /** The log viewer at /mcp/admin; absent (no ADMIN_PASSWORD) means those paths 404. */
   admin?: { password: string; logDir: string };
+  /** The month log files; the stats page counts people who called a tool from them. Without it, no one is active. */
+  logDir?: string;
   now?: () => number;
 }
 
@@ -111,9 +114,11 @@ export function createHttpApp(deps: HttpAppDeps): Express {
   // Public usage counts. Rebuilt at most every five minutes, so a busy page costs the database nothing.
   const now = deps.now ?? (() => Math.floor(Date.now() / 1000));
   let stats: { at: number; value: Stats } | null = null;
+  // 30 days for the active tiles, TREND_DAYS for the chart; a month file overlapping either is read.
+  const usage = new ToolUsage(deps.logDir ?? "", () => deps.grants.owners(), TREND_DAYS);
   const currentStats = () => {
     const t = now();
-    if (!stats || t - stats.at >= 300) stats = { at: t, value: buildStats(deps.grants, t) };
+    if (!stats || t - stats.at >= 300) stats = { at: t, value: buildStats(deps.grants, usage, t) };
     return stats.value;
   };
   const statsLimit = rateLimit({ windowMs: 60_000, limit: 60, standardHeaders: "draft-7", legacyHeaders: false });

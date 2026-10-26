@@ -76,6 +76,10 @@ in-memory grant store and needs `GARMIN_EMAIL`, `GARMIN_PASSWORD` and `GARMIN_TE
   command `node http.mjs snapshot`. Each run overwrites today's row (UTC), so hourly keeps the
   day's last count and a missed run costs nothing. Run it once by hand after adding it; the trend
   starts from that day, since purged rows cannot be counted back.
+  "Active" (the tiles, and the dashed line in the trend) means calling at least one tool, read
+  from the log files below: connecting, listing tools or refreshing a token does not count, so
+  Glama's checks and people who only have the connector switched on are left out. It needs no
+  snapshot and covers every day the log files do; pruning old log files shortens that line.
 - **Logs** are JSON lines of grant prefix, person prefix (`user`, the first 8 characters of the
   grant's keyed pseudonym), RPC method, tool, status and milliseconds. They never
   hold tokens, emails, passwords, Garmin payloads or query strings. Each line goes to stdout (the

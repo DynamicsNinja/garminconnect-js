@@ -46,7 +46,7 @@ try {
     const n = purgeSafely(grants, now(), log);
     if (n !== null) log({ msg: "purge", purged: n });
   }, 86_400_000).unref();
-  const app = createHttpApp({ publicUrl: config.publicUrl, sealer: new Sealer(config.keys), grants, auth: garminAuth(), mcp: config.mcp, version, trustProxy: config.trustProxy, clientIpHeader: config.clientIpHeader, log, ...(config.adminPassword && { admin: { password: config.adminPassword, logDir: config.logDir } }) });
+  const app = createHttpApp({ publicUrl: config.publicUrl, sealer: new Sealer(config.keys), grants, auth: garminAuth(), mcp: config.mcp, version, trustProxy: config.trustProxy, clientIpHeader: config.clientIpHeader, log, logDir: config.logDir, ...(config.adminPassword && { admin: { password: config.adminPassword, logDir: config.logDir } }) });
   const server = app.listen(config.port, "0.0.0.0", () => log({ msg: "listening", port: config.port, version, purged, ...grants.count() }));
   const stop = () => server.close(() => {
     grants.close();

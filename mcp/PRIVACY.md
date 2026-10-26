@@ -39,8 +39,9 @@ computer.
   the service has been used, including which tools each pseudonymous person called.
 - **Public usage counts:** `https://garmin.ficdev.xyz/mcp/stats` shows how many people and
   connections there are, per client and per day. It is computed from the rows above, and a daily
-  total (people, connections, people active that week) is kept for the trend. Counts only: no
-  ids, hashes or names, and a client name is shown only once at least three people use it.
+  total (people, connections, people active that week) is kept for the trend. How many people
+  used a tool, per day and over the last 1, 7 and 30 days, is counted from the logs below. Counts
+  only: no ids, hashes or names, and a client name is shown only once at least three people use it.
 
 Unofficial: not made by, or affiliated with, Garmin. Garmin's own privacy policy applies to the data
 Garmin holds: https://www.garmin.com/privacy/
