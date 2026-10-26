@@ -104,7 +104,7 @@ var DAY=864e5,DIMS=["user","tool","status","q","grant","rpc","msg"],MORE=["grant
 var LABEL={user:"Person",grant:"Connection",tool:"Tool",rpc:"Request type",msg:"Event",status:"Status",q:"Search"};
 var STATUS={ok:"OK only",error:"Failures only",events:"Server events only"};
 var all=null,truncated=false,qTimer=null,dateTimer=null,seq=0;
-var st={from:"",to:"",preset:"7",f:{},sort:{},open:null,limit:{},checks:false};
+var st={from:"",to:"",preset:"7",f:{},sort:{},open:null,limit:{},checks:false,callsOnly:false};
 function recall(k){try{return JSON.parse(localStorage.getItem(k)||"null");}catch(e){return null;}}
 function keep(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
 var names=recall("gmcp-names")||{},tz=recall("gmcp-tz")==="local"?"local":"utc";
@@ -148,9 +148,9 @@ function active(){return DIMS.filter(function(d){return !!st.f[d];});}
 
 function readHash(){var h=new URLSearchParams(location.hash.slice(1)),p=h.get("preset"),f=h.get("from"),t=h.get("to");
   if(isDay(f)&&isDay(t)){st.preset="";st.from=f;st.to=t;}else if(p&&/^\d+$/.test(p))st.preset=p;
-  DIMS.forEach(function(d){var v=h.get(d);if(v)st.f[d]=v;});st.checks=h.get("checks")==="show";}
+  DIMS.forEach(function(d){var v=h.get(d);if(v)st.f[d]=v;});st.checks=h.get("checks")==="show";st.callsOnly=h.get("lines")==="calls";}
 function writeHash(){var h=new URLSearchParams();if(st.preset)h.set("preset",st.preset);else{h.set("from",st.from);h.set("to",st.to);}
-  DIMS.forEach(function(d){if(st.f[d])h.set(d,st.f[d]);});if(st.checks)h.set("checks","show");history.replaceState(null,"","#"+h.toString());}
+  DIMS.forEach(function(d){if(st.f[d])h.set(d,st.f[d]);});if(st.checks)h.set("checks","show");if(st.callsOnly)h.set("lines","calls");history.replaceState(null,"","#"+h.toString());}
 function syncRange(){var t=day(new Date());$("from").value=st.from;$("to").value=st.to;$("from").max=st.to||t;$("to").min=st.from;$("to").max=t;
   Array.prototype.forEach.call(document.querySelectorAll("[data-preset]"),function(b){b.setAttribute("aria-pressed",String(b.getAttribute("data-preset")===st.preset));});}
 
@@ -407,7 +407,12 @@ function what(l){if(l.tool)return l.tool;if(l.rpc)return l.rpc;if(!l.msg)return 
   var x={};Object.keys(l).forEach(function(k){if(["t","msg","_h","user","grant","client","ok","ms"].indexOf(k)<0)x[k]=l[k];});
   var s=JSON.stringify(x);return l.msg+(s!=="{}"?" "+s:"");}
 function statusText(l){if(typeof l.status==="number")return isError(l)?l.status+" · failed":String(l.status);if(l.ok===false)return "failed";if(l.ok===true)return "ok";return "";}
+function isCall(l){return l.rpc==="tools/call";}
+// The Log lines view: everything matching the page's filters, or only its tool calls.
+function lineView(shown){return st.callsOnly?shown.filter(isCall):shown;}
 function logLines(shown){
+  var total=shown.length;shown=lineView(shown);
+  Array.prototype.forEach.call(document.querySelectorAll("[data-lines]"),function(b){b.setAttribute("aria-pressed",String((b.getAttribute("data-lines")==="calls")===st.callsOnly));});
   grid("t-lines",[
     {h:"Time ("+(tz==="utc"?"UTC":"local")+")",v:function(l){return when(l.t);},s:function(l){return l.t;}},
     {h:"Person",v:function(l){return l.user?who(l.user):"";}},
@@ -416,13 +421,15 @@ function logLines(shown){
     {h:"Status",v:statusText,cls:function(l){return bad(l)?"crit":"";}},
     {h:"Duration",num:1,v:function(l){return l.ms!==undefined?dur(l.ms):"";},s:function(l){return typeof l.ms==="number"?l.ms:-1;}}
   ],shown.slice().reverse(),{sort:{i:0,dir:-1},presorted:true,limit:500,step:500});
-  $("lines-note").textContent=fmt(shown.length)+" matching line"+(shown.length===1?"":"s")+", newest first.";
+  $("lines-note").textContent=st.callsOnly
+    ?fmt(shown.length)+" tool call"+(shown.length===1?"":"s")+" of "+fmt(total)+" matching lines, newest first."
+    :fmt(shown.length)+" matching line"+(shown.length===1?"":"s")+", newest first.";
 }
 function csv(){
   if(!all)return;
   var esc=function(v){if(v===undefined||v===null)return "";v=String(v);if(/^[=+\-@\t\r]/.test(v))v="'"+v;return /[",\r\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};
   var out=["time_utc,person,person_name,connection,app,request_type,tool,event,status,ok,ms"];
-  lines(null).forEach(function(l){out.push([l.t,l.user,names[l.user],l.grant,l.client,l.rpc,l.tool,l.msg,l.status,l.ok,l.ms].map(esc).join(","));});
+  lineView(lines(null)).forEach(function(l){out.push([l.t,l.user,names[l.user],l.grant,l.client,l.rpc,l.tool,l.msg,l.status,l.ok,l.ms].map(esc).join(","));});
   var url=URL.createObjectURL(new Blob([out.join("\r\n")],{type:"text/csv"})),a=el("a");
   a.href=url;a.download="garmin-mcp-logs-"+st.from+"-to-"+st.to+".csv";document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(url);},1000);
 }
@@ -438,6 +445,7 @@ $("more-btn").onclick=function(){toggleMore();};
 $("f-checks").onchange=function(){st.checks=!this.checked;st.limit={};render();};
 $("tz").value=tz;$("tz").onchange=function(){tz=this.value==="local"?"local":"utc";keep("gmcp-tz",tz);render();};
 $("csv").onclick=csv;
+Array.prototype.forEach.call(document.querySelectorAll("[data-lines]"),function(b){b.onclick=function(){st.callsOnly=b.getAttribute("data-lines")==="calls";st.limit["t-lines"]=0;render();};});
 document.addEventListener("keydown",function(e){if(e.key==="Escape"&&st.open){st.open=null;render();}});
 readHash();if(!st.preset&&!st.from)st.preset="7";load();
 })();`;
@@ -515,6 +523,7 @@ h4{font-size:.9rem;font-weight:700;margin-bottom:8px}
 .group dl{display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:8px;margin:0}
 .group dt{font-size:.75rem;color:var(--muted)}.group dd{margin:0;font-size:1.1rem;font-weight:600;font-variant-numeric:tabular-nums}
 .sec-head{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:baseline;justify-content:space-between}
+.sec-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:6px}
 .legend{display:flex;gap:16px;font-size:.85rem;color:var(--muted)}
 .sw{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}.sw.ok{background:var(--accent)}.sw.err{background:var(--crit)}
 .chartbox{position:relative;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:12px;margin-bottom:6px}
@@ -607,7 +616,9 @@ ${select("f-user", "Person")}${select("f-tool", "Tool")}
 <div><h2>Tools</h2><p class="note">Click a tool to show only its calls.</p><div class="wrap"><table id="t-tools"></table></div></div>
 <div><h2>Request types</h2><div class="wrap"><table id="t-rpc"></table></div>
 <h2>Server events</h2><div class="wrap"><table id="t-events"></table></div></div></section>
-<section id="lines" aria-labelledby="h-lines"><div class="sec-head"><h2 id="h-lines">Log lines</h2><button id="csv" type="button" class="plain">Download CSV</button></div>
+<section id="lines" aria-labelledby="h-lines"><div class="sec-head"><h2 id="h-lines">Log lines</h2><div class="sec-actions">
+<div class="presets" role="group" aria-label="Which lines"><button type="button" data-lines="all" aria-pressed="true">All lines</button><button type="button" data-lines="calls" aria-pressed="false">Tool calls only</button></div>
+<button id="csv" type="button" class="plain">Download CSV</button></div></div>
 <p class="note" id="lines-note"></p>
 <div class="wrap"><table id="t-lines"></table></div>
 <p class="note" style="margin-top:12px">A <code>server/discover</code> 400 is how every client probes the server, so it never counts as a failure.</p></section>
