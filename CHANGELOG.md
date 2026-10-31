@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-10-31
+
 ### Added
 
 - **`setActivityDistance(activityId, meters)`**: corrects an activity's total distance, e.g. a
@@ -395,7 +397,8 @@ a broken result. Each is recorded with its reason in `tests/parity.test.ts`.
 - `@types/node` is an optional peer dependency: needed only for type-checking against the
   `Buffer` return types, and not installed into consumers' projects automatically.
 
-[Unreleased]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.10.0...HEAD
+[Unreleased]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.11.0...HEAD
+[0.11.0]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.9.4...v0.10.0
 [0.9.4]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.9.3...v0.9.4
 [0.9.3]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.9.2...v0.9.3
