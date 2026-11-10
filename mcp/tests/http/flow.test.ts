@@ -11,6 +11,8 @@ import { createHttpApp } from "../../src/http/app.js";
 import { loadSqlite, MemoryGrantStore, SqliteGrantStore, type GrantStore } from "../../src/http/grants.js";
 // eslint-disable-next-line no-restricted-imports
 import { Sealer } from "../../src/http/seal.js";
+// eslint-disable-next-line no-restricted-imports
+import { SERVER_ICON_SVG } from "../../src/icon.js";
 import { fakeFetch, json, PROFILE_ROUTE, testConfig, textOf } from "../helpers.js";
 import { fakeAuth, MFA_CODE, PASSWORD, SECRET_TOKENS } from "./fakes.js";
 import { authorizePage, mcpClient, pkce, postSignIn, register, REDIRECT, signIn, tokenRequest } from "./oauth-dance.js";
@@ -47,6 +49,16 @@ describe.skipIf(NODE_MAJOR < 20)("hosted MCP over HTTP", () => {
     expect(await (await fetch(`${base}/mcp/healthz`)).text()).toBe("ok");
     expect((await fetch(`${base}/mcp`)).status).toBe(405);
     expect((await fetch(`${base}/mcp`, { method: "DELETE" })).status).toBe(405);
+  });
+
+  it("serves the registry icon at /mcp/icon.svg, the URL server.json names", async () => {
+    const { base } = await start();
+    const res = await fetch(`${base}/mcp/icon.svg`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toMatch(/^image\/svg\+xml/);
+    expect(await res.text()).toBe(SERVER_ICON_SVG);
+    const serverJson = JSON.parse(readFileSync(new URL("../../server.json", import.meta.url), "utf8")) as { icons: { src: string }[] };
+    expect(serverJson.icons.map((i) => new URL(i.src).pathname)).toEqual(["/mcp/icon.svg"]);
   });
 
   it("challenges an unauthenticated client and publishes discovery metadata", async () => {

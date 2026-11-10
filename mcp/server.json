@@ -10,6 +10,13 @@
     "subfolder": "mcp"
   },
   "version": "0.11.0",
+  "icons": [
+    {
+      "src": "https://garmin.ficdev.xyz/mcp/icon.svg",
+      "mimeType": "image/svg+xml",
+      "sizes": ["any"]
+    }
+  ],
   "remotes": [
     {
       "type": "streamable-http",

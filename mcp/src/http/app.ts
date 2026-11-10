@@ -17,6 +17,7 @@ import type { OAuthMetadata } from "@modelcontextprotocol/sdk/shared/auth.js";
 import type { GarminClientOptions } from "garminconnect-js";
 import { buildTools, serverForTools, type ServerDeps } from "../server.js";
 import type { McpConfig } from "../session.js";
+import { SERVER_ICON_SVG } from "../icon.js";
 import { HOSTED_TOOL_FACTORIES } from "../tools.js";
 import { addOwners, adminHeaders, adminPage, checkBasicAuth, isDay, readLogs } from "./admin.js";
 import { isDeadSession, type GarminAuth } from "./garmin-auth.js";
@@ -109,6 +110,12 @@ export function createHttpApp(deps: HttpAppDeps): Express {
 
   app.get("/mcp/healthz", (_req, res) => {
     res.type("text/plain").send("ok");
+  });
+
+  // The icon the MCP Registry entry (server.json) points at: the registry wants an https URL, not
+  // the data URI the server itself advertises. A fixed string, so it is cached hard.
+  app.get("/mcp/icon.svg", (_req, res) => {
+    res.set({ "cache-control": "public, max-age=86400", "x-content-type-options": "nosniff" }).type("image/svg+xml").send(SERVER_ICON_SVG);
   });
 
   // Public usage counts. Rebuilt at most every five minutes, so a busy page costs the database nothing.
