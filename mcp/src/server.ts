@@ -22,6 +22,8 @@ export interface ServerDeps {
   version?: string;
   /** Where upload/download tools get and put files; the stdio default is the local disk. */
   files?: FilesStrategy;
+  /** The icon advertised on initialize; the stdio default is the inline data URI (no network needed). */
+  icon?: { src: string; mimeType: string; sizes: string[] };
 }
 
 export type ToolFactory = (deps: ServerDeps) => ToolDef[];
@@ -45,7 +47,7 @@ export function serverForTools(tools: readonly ToolDef[], deps: ServerDeps): Ser
       title: "Garmin Connect (unofficial)",
       version: deps.version ?? "0.0.0",
       websiteUrl: "https://github.com/DynamicsNinja/garminconnect-js/tree/main/mcp#readme",
-      icons: [SERVER_ICON],
+      icons: [deps.icon ?? SERVER_ICON],
     },
     { capabilities: { tools: {} } },
   );

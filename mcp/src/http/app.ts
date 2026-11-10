@@ -89,7 +89,9 @@ export function createHttpApp(deps: HttpAppDeps): Express {
   };
 
   const session = requestSession(deps.garminClient);
-  const serverDeps: ServerDeps = { config: deps.mcp, session, version: deps.version, files: inlineFiles };
+  // An https icon rather than the stdio server's data URI: Claude's apps showed a generic letter for that.
+  const icon = { src: at("/mcp/icon.svg"), mimeType: "image/svg+xml", sizes: ["any"] };
+  const serverDeps: ServerDeps = { config: deps.mcp, session, version: deps.version, files: inlineFiles, icon };
   const tools = buildTools(serverDeps, HOSTED_TOOL_FACTORIES);
 
   const app = express();

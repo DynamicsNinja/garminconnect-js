@@ -127,7 +127,10 @@ describe.skipIf(NODE_MAJOR < 20)("hosted MCP over HTTP", () => {
     const first = await signIn(base, { email: "a@b.c", password: PASSWORD });
     const refresh = (token: string) => tokenRequest(base, { grant_type: "refresh_token", refresh_token: token, client_id: first.clientId });
     const second = (await (await refresh(first.refreshToken)).json()) as { access_token: string; refresh_token: string };
-    expect((await mcpClient(base, second.access_token)).getServerVersion()?.name).toBe("garminconnect-mcp");
+    const info = (await mcpClient(base, second.access_token)).getServerVersion();
+    expect(info?.name).toBe("garminconnect-mcp");
+    // The hosted server advertises its icon as an https URL it serves, not the stdio data URI.
+    expect(info?.icons?.map((i) => i.src)).toEqual([`${base}/mcp/icon.svg`]);
     await refresh(second.refresh_token); // generation 2: the first refresh token is now two behind
     expect((await refresh(first.refreshToken)).status).toBe(400);
     const res = await fetch(`${base}/mcp`, { method: "POST", headers: { authorization: `Bearer ${second.access_token}`, "content-type": "application/json" }, body: "{}" });
