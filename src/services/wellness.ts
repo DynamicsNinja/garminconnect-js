@@ -28,6 +28,7 @@ import type {
   RhrDayData,
   SleepData,
   SleepDailyEntry,
+  SleepWindow,
   Spo2Acclimation,
   Spo2Data,
   StatsAndBody,
@@ -98,6 +99,53 @@ export async function getSleepData(
     `/wellness-service/wellness/dailySleepData/${pathSegment(await host.displayName())}`,
     { params: { date, nonSleepBufferMinutes: 60 } },
   );
+}
+
+/**
+ * Moves one night's bedtime and wake time, as Garmin Connect's "edit sleep times" dialog does.
+ * `cdate` is the calendar date Garmin files the night under, which is the WAKE-UP day (a night
+ * from 23:00 to 07:00 belongs to the second date). `sleepStart` and `sleepEnd` are absolute
+ * instants. The record is read first, because its `id` is its current start in epoch ms and
+ * changes after every edit. Garmin recomputes the duration and the sleep score, but NOT the sleep
+ * stages: time added to the window is counted as light sleep.
+ */
+export async function setSleepWindow(
+  host: WellnessHost,
+  cdate: string | Date,
+  sleepStart: Date,
+  sleepEnd: Date,
+): Promise<SleepWindow | null> {
+  const date = formatDate(cdate);
+  const start = sleepStart.getTime();
+  const end = sleepEnd.getTime();
+  if (!Number.isFinite(start) || !Number.isFinite(end)) {
+    throw new GarminError("sleepStart and sleepEnd must be valid dates");
+  }
+  if (start >= end) {
+    throw new GarminError("sleepStart must be before sleepEnd");
+  }
+  const night = (await getSleepData(host, date))?.dailySleepDTO;
+  const id = night?.id;
+  if (!night || typeof id !== "number" || !Number.isFinite(id)) {
+    throw new GarminError(`Garmin has no sleep recorded on ${date}`);
+  }
+  const userProfilePK = night.userProfilePK;
+  if (typeof userProfilePK !== "number" || !Number.isFinite(userProfilePK)) {
+    throw new GarminError(`Garmin's sleep record for ${date} carries no userProfilePK`);
+  }
+  return host.client.connectapi<SleepWindow>(`/sleep-service/sleep/dailySleep/${pathSegment(id)}`, {
+    method: "PUT",
+    json: {
+      calendarDate: date,
+      sleepStartTimestampGMT: start,
+      sleepEndTimestampGMT: end,
+      sleepTimeSeconds: Math.round((end - start) / 1000),
+      napTimeSeconds: night.napTimeSeconds ?? 0,
+      sleepWindowConfirmed: true,
+      userProfilePK,
+      id,
+    },
+  });
 }
 
 export async function getHrvData(

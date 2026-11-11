@@ -55,9 +55,42 @@ export interface HeartRateData {
   [key: string]: unknown;
 }
 
+/**
+ * One night's sleep record, as `setSleepWindow` returns it and as `getSleepData` carries it under
+ * `dailySleepDTO`. Timestamps are epoch MILLISECONDS; `id` equals `sleepStartTimestampGMT` and
+ * changes whenever the window is moved. The typed fields are the ones observed in the PUT response
+ * captured from Garmin's web client; every one is optional, and Garmin sends more.
+ */
+export interface SleepWindow {
+  id?: number | null;
+  userProfilePK?: number | null;
+  calendarDate?: string | null;
+  sleepTimeSeconds?: number | null;
+  napTimeSeconds?: number | null;
+  sleepWindowConfirmed?: boolean | null;
+  sleepWindowConfirmationType?: string | null;
+  sleepStartTimestampGMT?: number | null;
+  sleepEndTimestampGMT?: number | null;
+  sleepStartTimestampLocal?: number | null;
+  sleepEndTimestampLocal?: number | null;
+  autoSleepStartTimestampGMT?: number | null;
+  autoSleepEndTimestampGMT?: number | null;
+  deepSleepSeconds?: number | null;
+  lightSleepSeconds?: number | null;
+  remSleepSeconds?: number | null;
+  awakeSleepSeconds?: number | null;
+  deviceRemCapable?: boolean | null;
+  retro?: boolean | null;
+  sleepFromDevice?: boolean | null;
+  averageSpO2Value?: number | null;
+  sleepScores?: Record<string, unknown> | null;
+  sleepVersion?: number | null;
+  [key: string]: unknown;
+}
+
 /** `getSleepData`'s response: the night's summary (`dailySleepDTO`) and its sleep levels. */
 export interface SleepData {
-  dailySleepDTO?: Record<string, unknown>;
+  dailySleepDTO?: SleepWindow;
   sleepLevels?: Record<string, unknown>[];
   [key: string]: unknown;
 }

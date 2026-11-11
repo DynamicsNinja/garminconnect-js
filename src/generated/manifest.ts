@@ -159,6 +159,44 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
     "io": "json"
   },
   {
+    "name": "setSleepWindow",
+    "category": "wellness",
+    "description": "Moves one night's bedtime and wake time; the night is filed under its wake-up date. `cdate` is the date Garmin files the night under, the WAKE-UP day. Reads the night through `getSleepData` first, because the record's `id` is its current `sleepStartTimestampGMT` in epoch ms and CHANGES after every edit, then PUTs `/sleep-service/sleep/dailySleep/{id}` with `{calendarDate, sleepStartTimestampGMT, sleepEndTimestampGMT, sleepTimeSeconds, napTimeSeconds, sleepWindowConfirmed: true, userProfilePK, id}`, timestamps in epoch MILLISECONDS. Returns the stored record (`sleepWindowConfirmationType: \"man…",
+    "params": [
+      {
+        "name": "cdate",
+        "optional": false,
+        "schema": {
+          "type": "string",
+          "format": "date",
+          "description": "Calendar date, YYYY-MM-DD (UTC)"
+        }
+      },
+      {
+        "name": "sleepStart",
+        "optional": false,
+        "schema": {
+          "type": "string",
+          "format": "date-time",
+          "description": "A moment in time, ISO 8601, e.g. 2026-09-28T07:30:00 (local) or with Z/offset"
+        },
+        "coerce": "date"
+      },
+      {
+        "name": "sleepEnd",
+        "optional": false,
+        "schema": {
+          "type": "string",
+          "format": "date-time",
+          "description": "A moment in time, ISO 8601, e.g. 2026-09-28T07:30:00 (local) or with Z/offset"
+        },
+        "coerce": "date"
+      }
+    ],
+    "safety": "write",
+    "io": "json"
+  },
+  {
     "name": "getHrvData",
     "category": "wellness",
     "description": "Heart-rate variability (HRV) readings and status for one date.",

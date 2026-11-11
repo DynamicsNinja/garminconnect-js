@@ -225,6 +225,10 @@ function exampleArg(param: string): string {
   const name = (rawName ?? "").replace(/\?$/, "");
   const type = rawType ?? "";
   if (/^"/.test(type)) return type.split("|")[0]!.trim(); // a string-literal union
+  // A bare `Date` is an instant, not a calendar date, so a string would not type-check.
+  if (type === "Date") {
+    return /^end$|End$/.test(name) ? 'new Date("2026-09-24T06:30:00Z")' : 'new Date("2026-09-23T22:30:00Z")';
+  }
   if (/Date/.test(type) && /date|cdate|start|end|when|fordate/i.test(name)) return '"2026-09-24"';
   if (/number \| string/.test(type) || /Id$/i.test(name)) return "activityId";
   if (/number/.test(type)) return "1";

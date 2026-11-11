@@ -137,6 +137,7 @@ import type {
   RhrDayData,
   SleepDailyEntry,
   SleepData,
+  SleepWindow,
   Spo2Acclimation,
   Spo2Data,
   StatsAndBody,
@@ -304,6 +305,10 @@ export class Garmin {
   /** Sleep data for one date: the night's summary and its sleep levels. */
   getSleepData(cdate: string | Date): Promise<SleepData | null> {
     return wellness.getSleepData(this, cdate);
+  }
+  /** Moves one night's bedtime and wake time; the night is filed under its wake-up date. */
+  setSleepWindow(cdate: string | Date, sleepStart: Date, sleepEnd: Date): Promise<SleepWindow | null> {
+    return wellness.setSleepWindow(this, cdate, sleepStart, sleepEnd);
   }
   /** Heart-rate variability (HRV) readings and status for one date. */
   getHrvData(cdate: string | Date): Promise<HrvData | null> {
