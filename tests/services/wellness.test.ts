@@ -3,6 +3,7 @@ import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import { GarminClient } from "../../src/client.js";
 import { Garmin } from "../../src/garmin.js";
+import { GarminError } from "../../src/errors.js";
 import type { Tokens } from "../../src/auth/tokens.js";
 
 const API = "https://connectapi.garmin.com";
@@ -444,5 +445,158 @@ describe("wellness: new endpoints", () => {
   it("getHrvDataRange builds a start/end path", async () => {
     await makeGarmin().getHrvDataRange("2026-09-01", "2026-09-22");
     expect(seen[0]!.url).toBe(`${API}/hrv-service/hrv/daily/2026-09-01/2026-09-22`);
+  });
+});
+
+// setSleepWindow: read the night with getSleepData, then PUT the new window to
+// /sleep-service/sleep/dailySleep/{id}. Request shape from Garmin's web client (2026-11-11);
+// every value below is synthetic.
+describe("wellness: setSleepWindow", () => {
+  const SLEEP_PATH = `${API}/wellness-service/wellness/dailySleepData/abc-display`;
+  const START = new Date("2026-03-09T22:00:00.000Z");
+  const END = new Date("2026-03-10T06:30:00.000Z");
+
+  // A stateful fake: the record's id is its start in epoch ms, and it changes on every PUT,
+  // as Garmin's does.
+  function useSleepRecord(initial: Record<string, unknown> | null): { stored: Record<string, unknown> | null } {
+    const state = { stored: initial };
+    server.use(
+      http.get(SLEEP_PATH, ({ request }) => {
+        record(request);
+        return state.stored === null
+          ? new HttpResponse(null, { status: 204 })
+          : HttpResponse.json({ dailySleepDTO: state.stored, sleepLevels: [] });
+      }),
+      http.put(`${API}/sleep-service/sleep/dailySleep/:id`, async ({ request }) => {
+        const body = (await request.clone().json()) as Record<string, unknown>;
+        record(request, body);
+        const next = {
+          ...state.stored,
+          ...body,
+          id: body["sleepStartTimestampGMT"],
+          sleepWindowConfirmationType: "manually_confirmed",
+        };
+        state.stored = next;
+        return HttpResponse.json(next);
+      }),
+    );
+    return state;
+  }
+
+  const RECORD = {
+    id: 1773093600000,
+    userProfilePK: 12345,
+    calendarDate: "2026-03-10",
+    sleepStartTimestampGMT: 1773093600000,
+    sleepEndTimestampGMT: 1773124200000,
+    napTimeSeconds: 600,
+  };
+
+  it("reads the night, then PUTs the new window to the record's current id", async () => {
+    useSleepRecord({ ...RECORD });
+    await makeGarmin().setSleepWindow("2026-03-10", START, END);
+    expect(seen).toHaveLength(2);
+    expect(seen[0]!.method).toBe("GET");
+    const read = new URL(seen[0]!.url);
+    expect(read.pathname).toBe("/wellness-service/wellness/dailySleepData/abc-display");
+    expect(read.searchParams.get("date")).toBe("2026-03-10");
+    expect(seen[1]!.method).toBe("PUT");
+    expect(seen[1]!.url).toBe(`${API}/sleep-service/sleep/dailySleep/1773093600000`);
+    expect(JSON.stringify(seen[1]!.body)).toBe(
+      JSON.stringify({
+        calendarDate: "2026-03-10",
+        sleepStartTimestampGMT: START.getTime(),
+        sleepEndTimestampGMT: END.getTime(),
+        sleepTimeSeconds: 30600,
+        napTimeSeconds: 600,
+        sleepWindowConfirmed: true,
+        userProfilePK: 12345,
+        id: 1773093600000,
+      }),
+    );
+  });
+
+  it("returns the stored record Garmin answers with", async () => {
+    useSleepRecord({ ...RECORD });
+    const result = await makeGarmin().setSleepWindow("2026-03-10", START, END);
+    expect(result?.id).toBe(START.getTime());
+    expect(result?.sleepStartTimestampGMT).toBe(START.getTime());
+    expect(result?.sleepEndTimestampGMT).toBe(END.getTime());
+    expect(result?.sleepWindowConfirmationType).toBe("manually_confirmed");
+  });
+
+  it("takes the id fresh from a read before every PUT, since each edit changes it", async () => {
+    useSleepRecord({ ...RECORD });
+    const garmin = makeGarmin();
+    await garmin.setSleepWindow("2026-03-10", START, END);
+    const later = new Date(START.getTime() - 60_000);
+    await garmin.setSleepWindow("2026-03-10", later, END);
+    const puts = seen.filter((s) => s.method === "PUT");
+    expect(puts.map((p) => new URL(p.url).pathname)).toEqual([
+      "/sleep-service/sleep/dailySleep/1773093600000",
+      `/sleep-service/sleep/dailySleep/${String(START.getTime())}`,
+    ]);
+    expect((puts[1]!.body as Record<string, unknown>)["id"]).toBe(START.getTime());
+    expect(seen.map((s) => s.method)).toEqual(["GET", "PUT", "GET", "PUT"]);
+  });
+
+  it("sends napTimeSeconds 0 when the record has none", async () => {
+    const { napTimeSeconds: _nap, ...withoutNap } = RECORD;
+    useSleepRecord(withoutNap);
+    await makeGarmin().setSleepWindow("2026-03-10", START, END);
+    expect((seen[1]!.body as Record<string, unknown>)["napTimeSeconds"]).toBe(0);
+  });
+
+  it("rounds sleepTimeSeconds to whole seconds", async () => {
+    useSleepRecord({ ...RECORD });
+    await makeGarmin().setSleepWindow("2026-03-10", START, new Date(END.getTime() + 400));
+    expect((seen[1]!.body as Record<string, unknown>)["sleepTimeSeconds"]).toBe(30600);
+  });
+
+  it.each([
+    ["an invalid sleepStart", new Date(Number.NaN), END],
+    ["an invalid sleepEnd", START, new Date("not a date")],
+    ["sleepStart after sleepEnd", END, START],
+    ["sleepStart equal to sleepEnd", START, new Date(START.getTime())],
+  ])("rejects %s with GarminError before any request", async (_label, start, end) => {
+    useSleepRecord({ ...RECORD });
+    await expect(makeGarmin().setSleepWindow("2026-03-10", start, end)).rejects.toThrow(
+      GarminError,
+    );
+    expect(seen).toHaveLength(0);
+  });
+
+  it.each([
+    ["Garmin returns nothing", null],
+    ["the record has no id", { userProfilePK: 12345, calendarDate: "2026-03-10" }],
+    ["the id is not a number", { ...RECORD, id: "abc" }],
+  ])("throws GarminError and sends no PUT when %s", async (_label, stored) => {
+    useSleepRecord(stored);
+    await expect(makeGarmin().setSleepWindow("2026-03-10", START, END)).rejects.toThrow(
+      /no sleep recorded on 2026-03-10/,
+    );
+    expect(seen.filter((s) => s.method === "PUT")).toHaveLength(0);
+  });
+
+  it("throws GarminError and sends no PUT when the record has no numeric userProfilePK", async () => {
+    const { userProfilePK: _pk, ...withoutPk } = RECORD;
+    useSleepRecord(withoutPk);
+    await expect(makeGarmin().setSleepWindow("2026-03-10", START, END)).rejects.toThrow(
+      /carries no userProfilePK/,
+    );
+    expect(seen.map((s) => s.method)).toEqual(["GET"]);
+  });
+
+  it("throws GarminError and sends no PUT when the response has no dailySleepDTO", async () => {
+    server.use(
+      http.get(SLEEP_PATH, ({ request }) => {
+        record(request);
+        return HttpResponse.json({ sleepLevels: [] });
+      }),
+    );
+    await expect(makeGarmin().setSleepWindow("2026-03-10", START, END)).rejects.toThrow(
+      GarminError,
+    );
+    expect(seen.filter((s) => s.method === "PUT")).toHaveLength(0);
   });
 });

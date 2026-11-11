@@ -14,7 +14,7 @@ if (!(await client.loadTokens())) throw new Error("not connected to Garmin");
 const garmin = new Garmin(client);
 ```
 
-**35 methods.** The verification column says what has been
+**36 methods.** The verification column says what has been
 confirmed against a live Garmin account, not merely unit-tested.
 [`AGENTS.md`](../../AGENTS.md) carries the full evidence per method.
 
@@ -55,6 +55,7 @@ confirmed against a live Garmin account, not merely unit-tested.
 | [`getWeeklySteps`](#getweeklysteps) | ✅ live-verified |
 | [`getWeeklyStress`](#getweeklystress) | ✅ live-verified |
 | [`setBloodPressure`](#setbloodpressure) | ✅ live-verified |
+| [`setSleepWindow`](#setsleepwindow) | ✅ live-verified |
 
 ---
 
@@ -577,7 +578,7 @@ const result = await garmin.getSleepData("2026-09-24");
 
 | Field | Type | Always present |
 |---|---|---|
-| `dailySleepDTO` | `Record<string, unknown>` | no |
+| `dailySleepDTO` | `SleepWindow` | no |
 | `sleepLevels` | `Record<string, unknown>[]` | no |
 
 Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
@@ -829,5 +830,51 @@ const result = await garmin.setBloodPressure(1, 1);
 `BloodPressureSetResult`, an object whose fields this library does not model. Garmin's response is passed through unparsed, so read one to see what you get, or use a `Record<string, unknown>` and narrow it yourself.
 
 validates systolic 70-260, diastolic 40-150, pulse (if given) 20-250, all integers; `when` defaults to `new Date()`
+
+Verification: ✅ live-verified
+
+## setSleepWindow
+
+```ts
+garmin.setSleepWindow(cdate: string | Date, sleepStart: Date, sleepEnd: Date): Promise<SleepWindow | null>
+```
+
+```ts
+const result = await garmin.setSleepWindow("2026-09-24", new Date("2026-09-23T22:30:00Z"), new Date("2026-09-24T06:30:00Z"));
+```
+
+**Returns**
+
+`SleepWindow`:
+
+| Field | Type | Always present |
+|---|---|---|
+| `id` | `number | null` | no |
+| `userProfilePK` | `number | null` | no |
+| `calendarDate` | `string | null` | no |
+| `sleepTimeSeconds` | `number | null` | no |
+| `napTimeSeconds` | `number | null` | no |
+| `sleepWindowConfirmed` | `boolean | null` | no |
+| `sleepWindowConfirmationType` | `string | null` | no |
+| `sleepStartTimestampGMT` | `number | null` | no |
+| `sleepEndTimestampGMT` | `number | null` | no |
+| `sleepStartTimestampLocal` | `number | null` | no |
+| `sleepEndTimestampLocal` | `number | null` | no |
+| `autoSleepStartTimestampGMT` | `number | null` | no |
+| `autoSleepEndTimestampGMT` | `number | null` | no |
+| `deepSleepSeconds` | `number | null` | no |
+| `lightSleepSeconds` | `number | null` | no |
+| `remSleepSeconds` | `number | null` | no |
+| `awakeSleepSeconds` | `number | null` | no |
+| `deviceRemCapable` | `boolean | null` | no |
+| `retro` | `boolean | null` | no |
+| `sleepFromDevice` | `boolean | null` | no |
+| `averageSpO2Value` | `number | null` | no |
+| `sleepScores` | `Record<string, unknown> | null` | no |
+| `sleepVersion` | `number | null` | no |
+
+Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
+
+Moves one night's bedtime and wake time, as Garmin Connect's edit-sleep-times dialog does. `cdate` is the date Garmin files the night under, the WAKE-UP day. Reads the night through `getSleepData` first, because the record's `id` is its current `sleepStartTimestampGMT` in epoch ms and CHANGES after every edit, then PUTs `/sleep-service/sleep/dailySleep/{id}` with `{calendarDate, sleepStartTimestampGMT, sleepEndTimestampGMT, sleepTimeSeconds, napTimeSeconds, sleepWindowConfirmed: true, userProfilePK, id}`, timestamps in epoch MILLISECONDS. Returns the stored record (`sleepWindowConfirmationType: "manually_confirmed"`, the new `id`). Garmin recomputes `sleepTimeSeconds` (it subtracts awake time) and the sleep score, but NOT the sleep stages: added time is counted as light sleep. Reversible: setting the old window back brought the window and duration back as before, though the night stays `manually_confirmed`. Throws `GarminError` before any request for an invalid `Date` or `sleepStart >= sleepEnd`, and before the PUT when the date has no sleep record or the record has no numeric `userProfilePK`.
 
 Verification: ✅ live-verified

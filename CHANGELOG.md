@@ -6,6 +6,17 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **`setSleepWindow(cdate, sleepStart, sleepEnd)`**: moves one night's bedtime and wake time,
+  as Garmin Connect's edit-sleep-times dialog does. The night is filed under its wake-up date.
+  Garmin recomputes the duration and sleep score but not the sleep stages: added time counts as
+  light sleep. Verified on a real account: moved, read back and restored.
+
+### Changed
+
+- `SleepData.dailySleepDTO` is now typed as `SleepWindow` (was `Record<string, unknown>`).
+
 ## [0.11.0] - 2026-10-31
 
 ### Added
