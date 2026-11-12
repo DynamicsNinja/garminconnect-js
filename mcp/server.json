@@ -9,12 +9,14 @@
     "source": "github",
     "subfolder": "mcp"
   },
-  "version": "0.11.0",
+  "version": "0.11.1",
   "icons": [
     {
       "src": "https://garmin.ficdev.xyz/mcp/icon.svg",
       "mimeType": "image/svg+xml",
-      "sizes": ["any"]
+      "sizes": [
+        "any"
+      ]
     }
   ],
   "remotes": [
