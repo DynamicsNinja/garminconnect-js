@@ -161,7 +161,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "setSleepWindow",
     "category": "wellness",
-    "description": "Moves one night's bedtime and wake time; the night is filed under its wake-up date. `cdate` is the date Garmin files the night under, the WAKE-UP day. Reads the night through `getSleepData` first, because the record's `id` is its current `sleepStartTimestampGMT` in epoch ms and CHANGES after every edit, then PUTs `/sleep-service/sleep/dailySleep/{id}` with `{calendarDate, sleepStartTimestampGMT, sleepEndTimestampGMT, sleepTimeSeconds, napTimeSeconds, sleepWindowConfirmed: true, userProfilePK, id}`, timestamps in epoch MILLISECONDS. Returns the stored record (`sleepWindowConfirmationType: \"man…",
+    "description": "Sets one night's bedtime and wake time, moving it or creating it; filed under the wake-up date. Sets one night's bedtime and wake time, as Garmin Connect's edit-sleep-times dialog does. `cdate` is the date Garmin files the night under, the WAKE-UP day. Reads the night through `getSleepData` first. A RECORDED night's `id` is its current `sleepStartTimestampGMT` in epoch ms and CHANGES after every edit, so it is read fresh, then PUT to `/sleep-service/sleep/dailySleep/{id}` with `{calendarDate, sleepStartTimestampGMT, sleepEndTimestampGMT, sleepTimeSeconds, napTimeSeconds, sleepWindowConfirmed:…",
     "params": [
       {
         "name": "cdate",

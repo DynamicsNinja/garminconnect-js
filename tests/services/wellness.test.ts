@@ -479,9 +479,32 @@ describe("wellness: setSleepWindow", () => {
         state.stored = next;
         return HttpResponse.json(next);
       }),
+      // Creating a window on an empty night: Garmin stores it with an id, but the POST's own
+      // response still says `id: null` (observed on the test account, 2026-11-12).
+      http.post(`${API}/sleep-service/sleep/dailySleep`, async ({ request }) => {
+        const body = (await request.clone().json()) as Record<string, unknown>;
+        record(request, body);
+        state.stored = {
+          ...state.stored,
+          ...body,
+          id: body["sleepStartTimestampGMT"],
+          sleepWindowConfirmationType: "manually_confirmed",
+        };
+        return HttpResponse.json({ ...state.stored, id: null, sleepWindowConfirmationType: null });
+      }),
     );
     return state;
   }
+
+  // What Garmin returns for a night no device recorded: a shell with a null id.
+  const EMPTY_NIGHT = {
+    id: null,
+    userProfilePK: 12345,
+    calendarDate: "2026-03-10",
+    sleepStartTimestampGMT: null,
+    sleepEndTimestampGMT: null,
+    napTimeSeconds: null,
+  };
 
   const RECORD = {
     id: 1773093600000,
@@ -566,16 +589,43 @@ describe("wellness: setSleepWindow", () => {
     expect(seen).toHaveLength(0);
   });
 
-  it.each([
-    ["Garmin returns nothing", null],
-    ["the record has no id", { userProfilePK: 12345, calendarDate: "2026-03-10" }],
-    ["the id is not a number", { ...RECORD, id: "abc" }],
-  ])("throws GarminError and sends no PUT when %s", async (_label, stored) => {
-    useSleepRecord(stored);
-    await expect(makeGarmin().setSleepWindow("2026-03-10", START, END)).rejects.toThrow(
-      /no sleep recorded on 2026-03-10/,
+  it("creates the window with a POST when the night has none, and returns the stored record", async () => {
+    useSleepRecord({ ...EMPTY_NIGHT });
+    const result = await makeGarmin().setSleepWindow("2026-03-10", START, END);
+    expect(seen.map((s) => s.method)).toEqual(["GET", "POST", "GET"]);
+    expect(seen[1]!.url).toBe(`${API}/sleep-service/sleep/dailySleep`);
+    expect(JSON.stringify(seen[1]!.body)).toBe(
+      JSON.stringify({
+        calendarDate: "2026-03-10",
+        sleepStartTimestampGMT: START.getTime(),
+        sleepEndTimestampGMT: END.getTime(),
+        sleepTimeSeconds: 30600,
+        napTimeSeconds: 0,
+        sleepWindowConfirmed: true,
+        userProfilePK: 12345,
+      }),
     );
-    expect(seen.filter((s) => s.method === "PUT")).toHaveLength(0);
+    // The read-back, not the POST's `id: null` echo.
+    expect(result?.id).toBe(START.getTime());
+    expect(result?.sleepWindowConfirmationType).toBe("manually_confirmed");
+  });
+
+  it("edits a window it just created with a PUT to the new id", async () => {
+    useSleepRecord({ ...EMPTY_NIGHT });
+    const garmin = makeGarmin();
+    await garmin.setSleepWindow("2026-03-10", START, END);
+    await garmin.setSleepWindow("2026-03-10", new Date(START.getTime() - 60_000), END);
+    expect(seen.map((s) => s.method)).toEqual(["GET", "POST", "GET", "GET", "PUT"]);
+    expect(seen[4]!.url).toBe(`${API}/sleep-service/sleep/dailySleep/${String(START.getTime())}`);
+  });
+
+  it.each([
+    ["Garmin returns nothing", null, /no sleep record for 2026-03-10/],
+    ["the id is not a number", { ...RECORD, id: "abc" }, /unusable id/],
+  ])("throws GarminError and writes nothing when %s", async (_label, stored, message) => {
+    useSleepRecord(stored);
+    await expect(makeGarmin().setSleepWindow("2026-03-10", START, END)).rejects.toThrow(message);
+    expect(seen.every((s) => s.method === "GET")).toBe(true);
   });
 
   it("throws GarminError and sends no PUT when the record has no numeric userProfilePK", async () => {

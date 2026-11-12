@@ -306,7 +306,7 @@ export class Garmin {
   getSleepData(cdate: string | Date): Promise<SleepData | null> {
     return wellness.getSleepData(this, cdate);
   }
-  /** Moves one night's bedtime and wake time; the night is filed under its wake-up date. */
+  /** Sets one night's bedtime and wake time, moving it or creating it; filed under the wake-up date. */
   setSleepWindow(cdate: string | Date, sleepStart: Date, sleepEnd: Date): Promise<SleepWindow | null> {
     return wellness.setSleepWindow(this, cdate, sleepStart, sleepEnd);
   }

@@ -8,10 +8,13 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
-- **`setSleepWindow(cdate, sleepStart, sleepEnd)`**: moves one night's bedtime and wake time,
+- **`setSleepWindow(cdate, sleepStart, sleepEnd)`**: sets one night's bedtime and wake time,
   as Garmin Connect's edit-sleep-times dialog does. The night is filed under its wake-up date.
-  Garmin recomputes the duration and sleep score but not the sleep stages: added time counts as
-  light sleep. Verified on a real account: moved, read back and restored.
+  A recorded night is moved; a night with no record gets a new window, which cannot be deleted
+  afterwards (Garmin has no delete). Garmin recomputes the duration and sleep score but not the
+  sleep stages: added time counts as light sleep, and both times must be within 6 days of the
+  date. Verified on a real account (move, read back, restore) and on the test account (create,
+  move, restore). Contributed by @bvic-dev in #3.
 
 ### Changed
 

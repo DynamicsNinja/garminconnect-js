@@ -608,4 +608,62 @@ console.log("\ndaily stats and schedule summaries");
   }
 }
 
+// =============================================================================================
+// setSleepWindow: create on an empty night, then move -> read back -> restore.
+// =============================================================================================
+// The test account has no device, so every night is a shell with `id: null`. The method POSTs a
+// window onto such a night. There is NO delete (DELETE is a 405), so the window on SLEEP_DAY is
+// permanent: the first run creates it, later runs find it and only move and restore it. Always
+// the same fixed night, so the account never collects more than one.
+console.log("\nsleep window");
+{
+  const SLEEP_DAY = "2026-10-16";
+  const START = Date.parse("2026-10-15T21:00:00Z");
+  const END = Date.parse("2026-10-16T05:00:00Z");
+  const read = async () => (await g.getSleepData(SLEEP_DAY))?.dailySleepDTO;
+  try {
+    let night = await read();
+    if (night?.id == null) {
+      const created = await g.setSleepWindow(SLEEP_DAY, new Date(START), new Date(END));
+      night = await read();
+      report(
+        created?.id === START && night?.sleepStartTimestampGMT === START && night.sleepEndTimestampGMT === END,
+        "setSleepWindow (create, empty night)",
+        `returned id ${String(created?.id)}, stored ${String(night?.sleepStartTimestampGMT)}..${String(night?.sleepEndTimestampGMT)}`,
+      );
+    } else {
+      console.log(`  NOTE  ${"setSleepWindow (create)".padEnd(38)} window already on ${SLEEP_DAY}, created by an earlier run`);
+    }
+    const s0 = night?.sleepStartTimestampGMT;
+    const e0 = night?.sleepEndTimestampGMT;
+    if (typeof s0 !== "number" || typeof e0 !== "number") throw new Error(`no window on ${SLEEP_DAY}`);
+    const moved = await g.setSleepWindow(SLEEP_DAY, new Date(s0 - 60_000), new Date(e0));
+    const back = await read();
+    report(
+      moved?.id === s0 - 60_000 && back?.id === s0 - 60_000 && back.sleepEndTimestampGMT === e0,
+      "setSleepWindow (move) -> getSleepData",
+      `id ${String(night?.id)} -> ${String(back?.id)}, end kept: ${String(back?.sleepEndTimestampGMT === e0)}`,
+    );
+    await g.setSleepWindow(SLEEP_DAY, new Date(s0), new Date(e0));
+    const restored = await read();
+    report(
+      restored?.sleepStartTimestampGMT === s0 && restored.sleepEndTimestampGMT === e0 && restored.id === s0,
+      "setSleepWindow (restore)",
+      `window back to the original: ${String(restored?.sleepStartTimestampGMT === s0)}`,
+    );
+    try {
+      await g.setSleepWindow(SLEEP_DAY, new Date(s0 - 7 * 86_400_000), new Date(e0 - 7 * 86_400_000));
+      report(false, "setSleepWindow (7 days off)", "accepted; Garmin used to refuse it");
+    } catch (e) {
+      report(
+        e instanceof GarminHttpError && e.status === 400,
+        "setSleepWindow (7 days off) refused",
+        describeError(e),
+      );
+    }
+  } catch (e) {
+    report(false, "sleep window round-trip", describeError(e));
+  }
+}
+
 console.log(`\n${String(pass)} passed, ${String(fail)} failed.`);
