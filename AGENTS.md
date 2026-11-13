@@ -281,6 +281,23 @@ Every identifier above (`GarminClient`, `Garmin`, `FileTokenStore`) is exported 
 | `queryGarminGraphql` | `(query: Record<string, unknown>): Promise<GraphqlResult \| null>` — POSTs the caller's GraphQL body verbatim to `/graphql-gateway/graphql`. **The leading slash is load-bearing**: `connectapi` composes the request URL by plain string concatenation (`` `https://connectapi.${domain}${path}` ``), not `URL`-relative joining, so omitting the leading slash here would silently glue onto the hostname (`connectapi.garmin.comgraphql-gateway/graphql`) rather than 404; the usual "a 404 means the URL is wrong" heuristic would not even catch it. The leading slash is therefore hardcoded and deliberate; `tests/services/misc.test.ts` pins the literal composed URL | yes: a minimal `{"query": "{ __typename }"}` POST against the live account returned an HTTP 200 (a GraphQL-shaped error body, not a 404), confirming the composed URL is reachable; the schema itself is undocumented and out of scope |
 | `logout` | `(): Promise<void>` — clears the configured `TokenStore` (`host.client.tokenStore.clear()`); makes **no HTTP call** (the token is never revoked server-side). Does NOT clear the in-memory tokens already held by the calling `GarminClient` instance: there is no public API to do that, and this method's host is deliberately scoped to `{ client }` only. **NEVER call this against a `FileTokenStore` pointed at `./tokens`**: that is the test harness's live session | n/a, and fully covered: it makes no HTTP call, so there is nothing to verify against Garmin, and that is not a gap. Unit-tested against `MemoryTokenStore` and a temp-dir `FileTokenStore` (on-disk files confirmed deleted), with the no-HTTP-call property ASSERTED against an intercepted client rather than assumed, plus the in-memory-tokens-survive trap below. Intentionally never run against `./tokens` |
 
+#### Diving
+
+Dive IDs and numeric Dive gear IDs are not Connect activity IDs or Connect gear UUIDs.
+
+| Method | Signature | Live-verified |
+| --- | --- | --- |
+| `getDiveLogs` | `(filters?: DiveLogFilters): Promise<DiveLogPage \| null>` — one page: `{totalCount, diveActivities?}`, with optional `pageSize`/`pageNumber`; an empty account returns only `{totalCount: 0}`, with or without paging params. Use `page?.diveActivities?.[0]`; no library-selected paging defaults | yes, Connect host 2026-11-12; empty-account envelope confirmed 2026-11-13 |
+| `getDiveLog` | `(diveActivityId: string \| number): Promise<DiveLog \| null>` — full detail by Dive ID; depth and bottom-time measurements are under `profile` | yes, Connect host 2026-11-12 |
+| `getDiveLogByConnectActivityId` | `(connectActivityId: string \| number): Promise<DiveLog \| null>` — explicit ID bridge | yes, Connect host 2026-11-12 |
+| `getDiveTags` | `(): Promise<Record<string, number> \| null>` — tag key to number map | yes, Connect host 2026-11-12 |
+| `getCurrentMaxDiveNumber` | `(): Promise<number \| null>` — reads, does not reserve the next number | yes |
+| `getDiverCertifications` | `(): Promise<DiveGear[] \| null>` — Gear wrappers, not bare cards | yes, nonempty list on 2026-11-12 |
+| `getDiverCertification` | `(gearId: string \| number, currentUserDate: string): Promise<DiveGear \| null>` — checks CERTIFICATION type; explicit local YYYY-MM-DD date | yes, read-only on 2026-11-12 |
+| `getDiveGearSummaries` | `(filters?: DiveGearFilters): Promise<DiveGearSummary[] \| null>` — numeric Dive gear, unrelated to Connect gear UUIDs | yes, nonempty list on 2026-11-12 |
+| `getDiveGear` | `(gearId: string \| number, currentUserDate: string): Promise<DiveGear \| null>` — explicit local YYYY-MM-DD date | yes, read-only on 2026-11-12 |
+| `getDiverPrivacy` | `(): Promise<DiverPrivacy \| null>` — profile and default activity settings | yes, Connect host 2026-11-12 |
+
 `Garmin` exposes the underlying client as `readonly client: GarminClient`.
 
 ### `GarminClient` (src/client.ts) — construct with `new GarminClient(options?: GarminClientOptions)`
@@ -531,7 +548,7 @@ reason.
 
 ## 4. These methods do NOT exist (mostly)
 
-`Garmin` has **202 methods**, every one listed in section 3. If a method is not in that table,
+`Garmin` has **212 methods**, every one listed in section 3. If a method is not in that table,
 it does not exist. **Do not invent methods on `Garmin` or `GarminClient` by analogy with Python
 snake_case names; check section 3 for the real camelCase
 name and signature.**

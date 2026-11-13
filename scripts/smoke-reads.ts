@@ -30,6 +30,8 @@ if (!(await client.loadTokens())) {
 const g = new Garmin(client);
 const day = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
 const weekAgo = new Date(Date.now() - 7 * 86_400_000).toISOString().slice(0, 10);
+const localNow = new Date();
+const localDate = `${localNow.getFullYear()}-${String(localNow.getMonth() + 1).padStart(2, "0")}-${String(localNow.getDate()).padStart(2, "0")}`;
 
 /**
  * The first training plan's id, or `undefined` when the account has none. Cached: two probes need
@@ -335,6 +337,30 @@ const services: Record<string, Probe[]> = {
     { name: "getGoals (active)", run: () => g.getGoals("active") },
     { name: "getGoals (future)", run: () => g.getGoals("future") },
     { name: "getGoals (past)", run: () => g.getGoals("past") },
+  ],
+  diving: [
+    { name: "getDiveLogs", run: () => g.getDiveLogs({ requestedPage: 0, resultsPerPage: 5 }) },
+    { name: "getDiveTags", run: () => g.getDiveTags() },
+    { name: "getCurrentMaxDiveNumber", run: () => g.getCurrentMaxDiveNumber() },
+    { name: "getDiverPrivacy", run: () => g.getDiverPrivacy() },
+    { name: "getDiverCertifications", run: () => g.getDiverCertifications() },
+    { name: "getDiveGearSummaries", run: () => g.getDiveGearSummaries() },
+    { name: "getDiveLog", run: async () => {
+      const row = (await g.getDiveLogs({ requestedPage: 0, resultsPerPage: 1 }))?.diveActivities?.[0];
+      return row ? g.getDiveLog(row.id) : skip("no dive on this account");
+    } },
+    { name: "getDiveLogByConnectActivityId", run: async () => {
+      const row = (await g.getDiveLogs({ requestedPage: 0, resultsPerPage: 1 }))?.diveActivities?.[0];
+      return row?.connectActivityId != null ? g.getDiveLogByConnectActivityId(row.connectActivityId) : skip("no dive with a Connect ID");
+    } },
+    { name: "getDiveGear", run: async () => {
+      const row = (await g.getDiveGearSummaries())?.[0];
+      return row ? g.getDiveGear(row.gearId, localDate) : skip("no Dive gear on this account");
+    } },
+    { name: "getDiverCertification", run: async () => {
+      const row = (await g.getDiverCertifications())?.[0];
+      return row ? g.getDiverCertification(row.gearId, localDate) : skip("no certification on this account");
+    } },
   ],
   golf: [
     // getGolfSummary is a LIST endpoint. Per service-task-procedure.md, a 404 here would be a

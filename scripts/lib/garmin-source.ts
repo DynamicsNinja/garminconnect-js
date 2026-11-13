@@ -81,6 +81,10 @@ export const CATEGORIES: Record<string, { slug: string; title: string; blurb: st
       "`src/services/womensHealth.ts` before calling one.",
   },
   golf: { slug: "golf", title: "Golf", blurb: "Scorecards, shot data, club and player stats." },
+  diving: {
+    slug: "diving", title: "Diving",
+    blurb: "Dive logs, certifications, equipment, images and privacy settings.",
+  },
   userProfile: { slug: "profile-and-misc", title: "Profile, goals, nutrition, plans & misc", blurb: "" },
   goals: { slug: "profile-and-misc", title: "Profile, goals, nutrition, plans & misc", blurb: "" },
   nutrition: { slug: "profile-and-misc", title: "Profile, goals, nutrition, plans & misc", blurb: "" },

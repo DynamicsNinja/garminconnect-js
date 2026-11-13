@@ -6,6 +6,7 @@ import * as bodyComposition from "./services/bodyComposition.js";
 import * as calendar from "./services/calendar.js";
 import * as courses from "./services/courses.js";
 import * as devices from "./services/devices.js";
+import * as diving from "./services/diving.js";
 import * as gear from "./services/gear.js";
 import * as goals from "./services/goals.js";
 import * as golf from "./services/golf.js";
@@ -64,6 +65,10 @@ import type {
   PrimaryTrainingDevice,
 } from "./types/devices.js";
 import type { Gear, GearDefaults, GearStats, GearUsageType } from "./types/gear.js";
+import type {
+  DiveLog, DiveLogPage, DiveLogFilters, DiveGear, DiveGearSummary,
+  DiveGearFilters, DiverPrivacy,
+} from "./types/diving.js";
 import type { Goal, GoalStatus } from "./types/goals.js";
 import type {
   GolfClubStats,
@@ -1369,4 +1374,57 @@ export class Garmin {
   logout(): Promise<void> {
     return misc.logout(this);
   }
+
+  // --- diving ---
+
+  /** One page of Dive summaries; no assumed paging defaults or automatic traversal. */
+  getDiveLogs(filters?: DiveLogFilters): Promise<DiveLogPage | null> {
+    return diving.getDiveLogs(this, filters);
+  }
+
+  /** Full Dive detail by Dive ID, not Connect activity ID. */
+  getDiveLog(diveActivityId: string | number): Promise<DiveLog | null> {
+    return diving.getDiveLog(this, diveActivityId);
+  }
+
+  /** Full Dive detail using the explicit Connect activity ID bridge. */
+  getDiveLogByConnectActivityId(connectActivityId: string | number): Promise<DiveLog | null> {
+    return diving.getDiveLogByConnectActivityId(this, connectActivityId);
+  }
+
+  /** Available Dive tag keys mapped to their numeric values. */
+  getDiveTags(): Promise<Record<string, number> | null> {
+    return diving.getDiveTags(this);
+  }
+
+  /** Current maximum Dive number; reading does not reserve the next number. */
+  getCurrentMaxDiveNumber(): Promise<number | null> {
+    return diving.getCurrentMaxDiveNumber(this);
+  }
+
+  /** Certification cards are Dive gear wrappers, not Connect gear UUID records. */
+  getDiverCertifications(): Promise<DiveGear[] | null> {
+    return diving.getDiverCertifications(this);
+  }
+
+  /** Numeric Dive gear ID and explicit local YYYY-MM-DD calendar date. */
+  getDiverCertification(gearId: string | number, currentUserDate: string): Promise<DiveGear | null> {
+    return diving.getDiverCertification(this, gearId, currentUserDate);
+  }
+
+  /** Dive equipment summaries, distinct from Connect shoes/bicycles. */
+  getDiveGearSummaries(filters?: DiveGearFilters): Promise<DiveGearSummary[] | null> {
+    return diving.getDiveGearSummaries(this, filters);
+  }
+
+  /** Numeric Dive gear ID and explicit local YYYY-MM-DD calendar date. */
+  getDiveGear(gearId: string | number, currentUserDate: string): Promise<DiveGear | null> {
+    return diving.getDiveGear(this, gearId, currentUserDate);
+  }
+
+  /** Diver profile/statistics and default activity visibility settings. */
+  getDiverPrivacy(): Promise<DiverPrivacy | null> {
+    return diving.getDiverPrivacy(this);
+  }
+
 }

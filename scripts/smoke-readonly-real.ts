@@ -203,6 +203,42 @@ if (scorecardId === undefined) {
   await probe("getGolfShotData", () => g.getGolfShotData(scorecardId));
 }
 
+// --- diving: resolve details from the account's own lists, like golf above ---------------------
+console.log("\ndiving");
+const diveLogs = await probe("getDiveLogs", () => g.getDiveLogs({ requestedPage: 0, resultsPerPage: 5 })) as Awaited<ReturnType<Garmin["getDiveLogs"]>>;
+await probe("getDiveTags", () => g.getDiveTags());
+await probe("getCurrentMaxDiveNumber", () => g.getCurrentMaxDiveNumber());
+await probe("getDiverPrivacy", () => g.getDiverPrivacy());
+const firstDive = diveLogs?.diveActivities?.[0];
+if (firstDive) {
+  const detail = await probe("getDiveLog", () => g.getDiveLog(firstDive.id)) as Awaited<ReturnType<Garmin["getDiveLog"]>>;
+  if (detail) {
+    for (const field of ["profile", "environment", "equipment", "location", "media", "gears"]) {
+      console.log(`        ${field}: ${shape(detail[field])}`);
+    }
+  }
+} else skipped("getDiveLog", "no dive on this account");
+if (firstDive?.connectActivityId != null) {
+  const connectId = firstDive.connectActivityId;
+  await probe("getDiveLogByConnectActivityId", () => g.getDiveLogByConnectActivityId(connectId));
+} else skipped("getDiveLogByConnectActivityId", "no dive with a Connect ID");
+const diveGear = await probe("getDiveGearSummaries", () => g.getDiveGearSummaries()) as Awaited<ReturnType<Garmin["getDiveGearSummaries"]>>;
+const certifications = await probe("getDiverCertifications", () => g.getDiverCertifications()) as Awaited<ReturnType<Garmin["getDiverCertifications"]>>;
+const localNow = new Date();
+const localDate = `${localNow.getFullYear()}-${String(localNow.getMonth() + 1).padStart(2, "0")}-${String(localNow.getDate()).padStart(2, "0")}`;
+const firstDiveGear = diveGear?.[0];
+if (firstDiveGear) {
+  const detail = await probe("getDiveGear", () => g.getDiveGear(firstDiveGear.gearId, localDate)) as Awaited<ReturnType<Garmin["getDiveGear"]>>;
+  if (detail) {
+    for (const field of ["gearField", "stats", "media"]) console.log(`        ${field}: ${shape(detail[field])}`);
+  }
+} else skipped("getDiveGear", "no Dive gear on this account");
+const firstCertification = certifications?.[0];
+if (firstCertification) {
+  const detail = await probe("getDiverCertification", () => g.getDiverCertification(firstCertification.gearId, localDate)) as Awaited<ReturnType<Garmin["getDiverCertification"]>>;
+  if (detail) console.log(`        gearField: ${shape(detail.gearField)}`);
+} else skipped("getDiverCertification", "no certification on this account");
+
 // --- training plans: getTrainingPlanById needs a PHASED plan -----------------------------------
 console.log("\ntraining plans");
 const plans = (await probe("getTrainingPlans", () => g.getTrainingPlans())) as {
