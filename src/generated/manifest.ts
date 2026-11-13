@@ -6006,5 +6006,212 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
     "params": [],
     "safety": "destructive",
     "io": "json"
+  },
+  {
+    "name": "getDiveLogs",
+    "category": "diving",
+    "description": "One page of Dive summaries; no assumed paging defaults or automatic traversal. One page: `{totalCount, diveActivities}`, with `pageSize`/`pageNumber` on paginated requests; no library-selected paging defaults.",
+    "params": [
+      {
+        "name": "filters",
+        "optional": true,
+        "schema": {
+          "type": "object",
+          "properties": {
+            "requestedPage": {
+              "type": "number"
+            },
+            "resultsPerPage": {
+              "type": "number"
+            },
+            "startDateTime": {
+              "type": "string"
+            },
+            "endDateTime": {
+              "type": "string"
+            },
+            "dlnEligible": {
+              "type": "boolean"
+            },
+            "gearIds": {
+              "type": "string",
+              "description": "Wire strings; no undocumented list encoding is inferred."
+            },
+            "connectActivityIds": {
+              "type": "string"
+            },
+            "filter": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    ],
+    "safety": "read",
+    "io": "json"
+  },
+  {
+    "name": "getDiveLog",
+    "category": "diving",
+    "description": "Full Dive detail by Dive ID, not Connect activity ID. Full detail by Dive ID; depth and bottom-time measurements are under `profile`.",
+    "params": [
+      {
+        "name": "diveActivityId",
+        "optional": false,
+        "schema": {
+          "type": [
+            "integer",
+            "string"
+          ],
+          "description": "Numeric id"
+        }
+      }
+    ],
+    "safety": "read",
+    "io": "json"
+  },
+  {
+    "name": "getDiveLogByConnectActivityId",
+    "category": "diving",
+    "description": "Full Dive detail using the explicit Connect activity ID bridge. Explicit ID bridge.",
+    "params": [
+      {
+        "name": "connectActivityId",
+        "optional": false,
+        "schema": {
+          "type": [
+            "integer",
+            "string"
+          ],
+          "description": "Numeric id"
+        }
+      }
+    ],
+    "safety": "read",
+    "io": "json"
+  },
+  {
+    "name": "getDiveTags",
+    "category": "diving",
+    "description": "Available Dive tag keys mapped to their numeric values. Tag key to number map.",
+    "params": [],
+    "safety": "read",
+    "io": "json"
+  },
+  {
+    "name": "getCurrentMaxDiveNumber",
+    "category": "diving",
+    "description": "Current maximum Dive number; reading does not reserve the next number. Reads, does not reserve the next number.",
+    "params": [],
+    "safety": "read",
+    "io": "json"
+  },
+  {
+    "name": "getDiverCertifications",
+    "category": "diving",
+    "description": "Certification cards are Dive gear wrappers, not Connect gear UUID records. Gear wrappers, not bare cards.",
+    "params": [],
+    "safety": "read",
+    "io": "json"
+  },
+  {
+    "name": "getDiverCertification",
+    "category": "diving",
+    "description": "Numeric Dive gear ID and explicit local YYYY-MM-DD calendar date. Checks CERTIFICATION type; explicit local YYYY-MM-DD date.",
+    "params": [
+      {
+        "name": "gearId",
+        "optional": false,
+        "schema": {
+          "type": [
+            "integer",
+            "string"
+          ],
+          "description": "Numeric id"
+        }
+      },
+      {
+        "name": "currentUserDate",
+        "optional": false,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "safety": "read",
+    "io": "json"
+  },
+  {
+    "name": "getDiveGearSummaries",
+    "category": "diving",
+    "description": "Dive equipment summaries, distinct from Connect shoes/bicycles. Numeric Dive gear, unrelated to Connect gear UUIDs.",
+    "params": [
+      {
+        "name": "filters",
+        "optional": true,
+        "schema": {
+          "type": "object",
+          "properties": {
+            "gearTypes": {
+              "type": "string"
+            },
+            "gearStatus": {
+              "type": "string"
+            },
+            "currentUserDate": {
+              "type": "string"
+            },
+            "filter": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    ],
+    "safety": "read",
+    "io": "json"
+  },
+  {
+    "name": "getDiveGear",
+    "category": "diving",
+    "description": "Numeric Dive gear ID and explicit local YYYY-MM-DD calendar date. Explicit local YYYY-MM-DD date.",
+    "params": [
+      {
+        "name": "gearId",
+        "optional": false,
+        "schema": {
+          "type": [
+            "integer",
+            "string"
+          ],
+          "description": "Numeric id"
+        }
+      },
+      {
+        "name": "currentUserDate",
+        "optional": false,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "safety": "read",
+    "io": "json"
+  },
+  {
+    "name": "getDiverPrivacy",
+    "category": "diving",
+    "description": "Diver profile/statistics and default activity visibility settings. Profile and default activity settings.",
+    "params": [],
+    "safety": "read",
+    "io": "json"
   }
 ];
