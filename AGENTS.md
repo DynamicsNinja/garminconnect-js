@@ -287,7 +287,7 @@ Dive IDs and numeric Dive gear IDs are not Connect activity IDs or Connect gear 
 
 | Method | Signature | Live-verified |
 | --- | --- | --- |
-| `getDiveLogs` | `(filters?: DiveLogFilters): Promise<DiveLogPage \| null>` — one page: `{totalCount, diveActivities}`, with `pageSize`/`pageNumber` on paginated requests; no library-selected paging defaults | yes, Connect host 2026-11-12 |
+| `getDiveLogs` | `(filters?: DiveLogFilters): Promise<DiveLogPage \| null>` — one page: `{totalCount, diveActivities?}`, with optional `pageSize`/`pageNumber`; an empty account returns only `{totalCount: 0}`, with or without paging params. Use `page?.diveActivities?.[0]`; no library-selected paging defaults | yes, Connect host 2026-11-12; empty-account envelope confirmed 2026-11-13 |
 | `getDiveLog` | `(diveActivityId: string \| number): Promise<DiveLog \| null>` — full detail by Dive ID; depth and bottom-time measurements are under `profile` | yes, Connect host 2026-11-12 |
 | `getDiveLogByConnectActivityId` | `(connectActivityId: string \| number): Promise<DiveLog \| null>` — explicit ID bridge | yes, Connect host 2026-11-12 |
 | `getDiveTags` | `(): Promise<Record<string, number> \| null>` — tag key to number map | yes, Connect host 2026-11-12 |

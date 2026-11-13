@@ -209,7 +209,7 @@ const diveLogs = await probe("getDiveLogs", () => g.getDiveLogs({ requestedPage:
 await probe("getDiveTags", () => g.getDiveTags());
 await probe("getCurrentMaxDiveNumber", () => g.getCurrentMaxDiveNumber());
 await probe("getDiverPrivacy", () => g.getDiverPrivacy());
-const firstDive = diveLogs?.diveActivities[0];
+const firstDive = diveLogs?.diveActivities?.[0];
 if (firstDive) {
   const detail = await probe("getDiveLog", () => g.getDiveLog(firstDive.id)) as Awaited<ReturnType<Garmin["getDiveLog"]>>;
   if (detail) {

@@ -154,6 +154,19 @@ describe("Dive reads", () => {
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
+  it("preserves the empty-account envelope with and without paging parameters", async () => {
+    const { dive, fetchImpl } = setup();
+    fetchImpl.mockImplementation(async () => Response.json({ totalCount: 0 }));
+    for (const filters of [undefined, { requestedPage: 0, resultsPerPage: 1 }]) {
+      const result = await dive.getDiveLogs(filters);
+      expect(result).toEqual({ totalCount: 0 });
+      expect(result?.diveActivities?.[0]).toBeUndefined();
+      expect(result?.pageSize).toBeUndefined();
+      expect(result?.pageNumber).toBeUndefined();
+    }
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
   it("preserves empty responses and existing auth/error handling", async () => {
     const { dive, fetchImpl } = setup();
     fetchImpl.mockResolvedValueOnce(new Response(null, { status: 204 }));

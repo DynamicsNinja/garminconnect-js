@@ -215,11 +215,11 @@ const result = await garmin.getDiveLogs();
 | `totalCount` | `number` | yes |
 | `pageSize` | `number` | no |
 | `pageNumber` | `number` | no |
-| `diveActivities` | `DiveLogSummary[]` | yes |
+| `diveActivities` | `DiveLogSummary[]` | no |
 
 Plus every other field Garmin sends: this type carries an index signature because the real response is wider than the fields above, which are the ones this library relies on or has observed. Read an actual response before depending on a field that is not listed.
 
-one page: `{totalCount, diveActivities}`, with `pageSize`/`pageNumber` on paginated requests; no library-selected paging defaults
+one page: `{totalCount, diveActivities?}`, with optional `pageSize`/`pageNumber`; an empty account returns only `{totalCount: 0}`, with or without paging params. Use `page?.diveActivities?.[0]`; no library-selected paging defaults
 
 Verification: ✅ live-verified
 

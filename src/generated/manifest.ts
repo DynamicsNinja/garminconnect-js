@@ -6010,7 +6010,7 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
   {
     "name": "getDiveLogs",
     "category": "diving",
-    "description": "One page of Dive summaries; no assumed paging defaults or automatic traversal. One page: `{totalCount, diveActivities}`, with `pageSize`/`pageNumber` on paginated requests; no library-selected paging defaults.",
+    "description": "One page of Dive summaries; no assumed paging defaults or automatic traversal. One page: `{totalCount, diveActivities?}`, with optional `pageSize`/`pageNumber`; an empty account returns only `{totalCount: 0}`, with or without paging params. Use `page?.diveActivities?.[0]`; no library-selected paging defaults.",
     "params": [
       {
         "name": "filters",

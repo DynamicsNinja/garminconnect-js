@@ -346,11 +346,11 @@ const services: Record<string, Probe[]> = {
     { name: "getDiverCertifications", run: () => g.getDiverCertifications() },
     { name: "getDiveGearSummaries", run: () => g.getDiveGearSummaries() },
     { name: "getDiveLog", run: async () => {
-      const row = (await g.getDiveLogs({ requestedPage: 0, resultsPerPage: 1 }))?.diveActivities[0];
+      const row = (await g.getDiveLogs({ requestedPage: 0, resultsPerPage: 1 }))?.diveActivities?.[0];
       return row ? g.getDiveLog(row.id) : skip("no dive on this account");
     } },
     { name: "getDiveLogByConnectActivityId", run: async () => {
-      const row = (await g.getDiveLogs({ requestedPage: 0, resultsPerPage: 1 }))?.diveActivities[0];
+      const row = (await g.getDiveLogs({ requestedPage: 0, resultsPerPage: 1 }))?.diveActivities?.[0];
       return row?.connectActivityId != null ? g.getDiveLogByConnectActivityId(row.connectActivityId) : skip("no dive with a Connect ID");
     } },
     { name: "getDiveGear", run: async () => {
