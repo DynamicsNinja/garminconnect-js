@@ -30,7 +30,8 @@ export interface DiveLogPage {
   totalCount: number;
   pageSize?: number;
   pageNumber?: number;
-  diveActivities: DiveLogSummary[];
+  /** Omitted, along with paging metadata, when the account has no dives. */
+  diveActivities?: DiveLogSummary[];
   [key: string]: unknown;
 }
 export interface DiveLog extends DiveLogSummary {
