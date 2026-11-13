@@ -55,6 +55,10 @@ export const SAFETY_OVERRIDES: Readonly<Record<string, Safety>> = {
   // Food logging: two writes that add an entry to the day's log.
   logFood: "write",
   quickAddFood: "write",
+  // Creates multiple Dive gear records and can associate them with another record.
+  bulkCreateDiveGear: "write",
+  // Replaces the entire card ordering rather than appending an entry.
+  reorderDiverCertifications: "destructive",
 };
 
 export function classify(name: string): Safety {

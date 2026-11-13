@@ -59,14 +59,14 @@ describe("README test-count claim", () => {
    *
    * The FILE count is asserted exactly, because it is countable here — and it must mirror
    * vitest's own exclude, or it reports 45 where the suite runs 44 and fails on a correct README.
-   * The TEST count gets a band instead: counting `it(` blocks is a proxy that misses `it.each`,
+    * The TEST count gets a band instead: counting declarations misses expanded `it.each` rows,
    * so demanding equality would fail on prose that is right. Overstating is the failure that
    * actually misleads a reader, so the upper bound is tight and the lower bound catches staleness.
    */
   it("states the real number of test files, and a test count neither inflated nor stale", () => {
     const files = countedTestFiles(fileURLToPath(new URL(".", import.meta.url)));
     const its = files.reduce(
-      (n, f) => n + (readFileSync(f, "utf8").match(/^\s*it\(/gm) ?? []).length,
+      (n, f) => n + (readFileSync(f, "utf8").match(/^\s*it(?:\(|\.each\b)/gm) ?? []).length,
       0,
     );
 

@@ -1,4 +1,5 @@
 import "./load-env.js";
+import assert from "node:assert/strict";
 import {
   GarminClient,
   Garmin,
@@ -1071,6 +1072,88 @@ function gearProbes(): WriteProbe[] {
 
 // Each subsequent task appends its service's WRITE probes here.
 const services: Record<string, WriteProbe[]> = {
+  diving: [{
+    name: "Dive log, gear and certification round-trip",
+    run: async () => {
+      const before = await g.getDiveLogs();
+      const gearBefore = await g.getDiveGearSummaries();
+      const cardsBefore = await g.getDiverCertifications();
+      if (!before || before.totalCount !== 0 || !gearBefore || gearBefore.length || !cardsBefore || cardsBefore.length) {
+        return { ok: false, detail: "requires an empty Dive test account; no Dive writes issued" };
+      }
+      const stamp = `dive-probe-${Date.now()}`;
+      const now = new Date();
+      const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+      let diveId: number | undefined;
+      const gearIds = new Set<number>();
+      try {
+        const created = await g.createDiveLog({ name: stamp, startTime: now.toISOString(), timezone: "UTC", diveType: "SINGLE_GAS",
+          diveNumber: 1, bottomTime: 600, profile: { maxDepth: 10, averageDepth: 5, bottomTime: 600 }, notes: "synthetic fixture" },
+        { renumberSubsequentDives: false });
+        assert(created && Number.isSafeInteger(created.id), "no Dive ID returned");
+        diveId = created.id;
+        const stored = await g.getDiveLog(diveId);
+        assert.equal(stored?.name, stamp);
+        assert.equal(stored?.number, 1);
+        assert.equal(stored?.profile?.["maxDepth"], 10);
+        await g.updateDiveLog(diveId, { notes: "updated fixture", privateNotes: "private fixture" },
+          { renumberThisDive: false, renumberSubsequentDives: false });
+        const edited = await g.getDiveLog(diveId);
+        assert.equal(edited?.notes, "updated fixture");
+        assert.equal(edited?.privateNotes, "private fixture");
+        assert.equal(edited?.name, stamp);
+
+        const mask = await g.createDiveGear({ name: `${stamp}-mask`, type: "MASK", notes: "fixture gear" }, date);
+        assert(mask && Number.isSafeInteger(mask.gearId), "no gear ID returned");
+        gearIds.add(mask.gearId);
+        await g.updateDiveGear(mask.gearId, { notes: "updated gear" }, date);
+        assert.equal((await g.getDiveGear(mask.gearId, date))?.notes, "updated gear");
+        const bulk = await g.bulkCreateDiveGear([{ name: `${stamp}-bulk`, type: "OTHER" }], diveId, date);
+        assert(bulk?.length);
+        for (const item of bulk) gearIds.add(item.gearId);
+        assert((await g.getDiveLog(diveId))?.gears?.some((item) => item.gearId === bulk[0]?.gearId));
+
+        const cards: number[] = [];
+        for (let i = 0; i < 2; i++) {
+          const card = await g.createDiverCertification({ name: `${stamp}-card${i}`, notes: "fixture card",
+            certification: { category: "OTHER", addToAllDives: false, certificationId: "fixture-1" } }, date);
+          assert(card && Number.isSafeInteger(card.gearId), "no certification ID returned");
+          gearIds.add(card.gearId);
+          cards.push(card.gearId);
+        }
+        await g.updateDiverCertification(cards[0]!, { certification: { certificationId: "fixture-2" } }, date);
+        const savedCard = await g.getDiverCertification(cards[0]!, date);
+        assert.equal(savedCard?.gearField?.fields.certificationId, "fixture-2");
+        assert.equal(savedCard?.notes, "fixture card");
+        await g.reorderDiverCertifications([...cards].reverse());
+        assert.deepEqual((await g.getDiverCertifications())?.map((item) => item.gearId), [...cards].reverse());
+
+        for (const gearId of gearIds) await g.deleteDiveGear(gearId);
+        assert(await pollUntil(async () => (await g.getDiveGearSummaries())?.length === 0));
+        gearIds.clear();
+        await g.deleteDiveLog(diveId, { renumberSubsequentDives: false });
+        assert(await pollUntil(async () => (await g.getDiveLogs())?.totalCount === 0));
+        diveId = undefined;
+        return { ok: true, detail: "created, read back, edited, associated/reordered and deleted fixture records; stored values confirmed" };
+      } finally {
+        // Recover IDs after incomplete responses; never clean up records without this run's name.
+        try {
+          for (const item of await g.getDiveGearSummaries() ?? []) if (item.name?.startsWith(stamp)) gearIds.add(item.gearId);
+        } catch { /* known fixture IDs are still cleaned up below */ }
+        try {
+          for (const item of (await g.getDiveLogs())?.diveActivities ?? []) if (item.name === stamp) diveId = item.id;
+        } catch { /* keep any known fixture ID */ }
+        for (const gearId of gearIds) {
+          try { await g.deleteDiveGear(gearId); }
+          catch { console.error("WARNING: could not clean up probe Dive gear", gearId); }
+        }
+        if (diveId !== undefined) {
+          try { await g.deleteDiveLog(diveId, { renumberSubsequentDives: false }); }
+          catch { console.error("WARNING: could not clean up probe Dive log", diveId); }
+        }
+      }
+    },
+  }],
   weight: [
     {
       name: "addWeighIn/deleteWeighIn round-trip",

@@ -67,8 +67,10 @@ import type {
 } from "./types/devices.js";
 import type { Gear, GearDefaults, GearStats, GearUsageType } from "./types/gear.js";
 import type {
-  DiveLog, DiveLogPage, DiveLogFilters, DiveGear, DiveGearSummary,
-  DiveGearFilters, DiverPrivacy,
+  DiveId, DiveLog, DiveLogPage, DiveLogFilters, DiveNumberingOptions, DiveUpdateOptions,
+  CreateDiveLogInput, DiveLogChanges, DiveGear, DiveGearSummary, DiveGearInput,
+  DiveGearFilters, DiverCertificationInput,
+  DiverPrivacy, DiverPrivacyChanges, DiveImage, DiveImageUploadOptions, DiveImageUploadResult,
 } from "./types/diving.js";
 import type { Dog, DogBreed, DogInput, DogStats, DogStatsMetric, DogStatus, DogUpdate } from "./types/dogs.js";
 import type { Goal, GoalStatus } from "./types/goals.js";
@@ -1429,6 +1431,90 @@ export class Garmin {
     return diving.getDiverPrivacy(this);
   }
 
+  /** Creates a manual Dive log using native wire units. POST is not replayed. */
+  createDiveLog(input: CreateDiveLogInput, options?: DiveNumberingOptions): Promise<DiveLog | null> {
+    return diving.createDiveLog(this, input, options);
+  }
+
+  /** Reads then patches a Dive log. Omitted fields remain untouched; null clearing is refused. */
+  updateDiveLog(diveActivityId: string | number, changes: DiveLogChanges, options?: DiveUpdateOptions): Promise<DiveLog | null> {
+    return diving.updateDiveLog(this, diveActivityId, changes, options);
+  }
+
+  /** Deletes a Dive log. Irreversible; renumbering effects remain unverified. */
+  deleteDiveLog(diveActivityId: string | number, options?: DiveNumberingOptions): Promise<unknown> {
+    return diving.deleteDiveLog(this, diveActivityId, options);
+  }
+
+  /** Sets individual log visibility using Connect typeKey, not diver visibility enums. */
+  setDiveLogPrivacy(diveActivityId: string | number, typeKey: string): Promise<unknown> {
+    return diving.setDiveLogPrivacy(this, diveActivityId, typeKey);
+  }
+
+  /** Creates Dive equipment, addressed by numeric IDs. */
+  createDiveGear(input: DiveGearInput, currentUserDate: string): Promise<DiveGear | null> {
+    return diving.createDiveGear(this, input, currentUserDate);
+  }
+
+  /** Patches Dive equipment, preserving unrelated metadata/media. */
+  updateDiveGear(gearId: string | number, changes: Partial<DiveGearInput>, currentUserDate: string): Promise<DiveGear | null> {
+    return diving.updateDiveGear(this, gearId, changes, currentUserDate);
+  }
+
+  /** Deletes Dive equipment. Irreversible; association effects remain unverified. */
+  deleteDiveGear(gearId: string | number): Promise<unknown> {
+    return diving.deleteDiveGear(this, gearId);
+  }
+
+  /** Creates multiple equipment records and associates them with a Dive ID, not a Connect ID. */
+  bulkCreateDiveGear(inputs: DiveGearInput[], associateDiveActivityId: string | number, currentUserDate: string): Promise<DiveGear[] | null> {
+    return diving.bulkCreateDiveGear(this, inputs, associateDiveActivityId, currentUserDate);
+  }
+
+  /** Creates a certification card inside the CERTIFICATION gear wrapper. */
+  createDiverCertification(input: DiverCertificationInput, currentUserDate: string): Promise<DiveGear | null> {
+    return diving.createDiverCertification(this, input, currentUserDate);
+  }
+
+  /** Updates a certification, preserving unrelated gear fields and existing images. */
+  updateDiverCertification(gearId: string | number, changes: Partial<DiverCertificationInput>, currentUserDate: string): Promise<DiveGear | null> {
+    return diving.updateDiverCertification(this, gearId, changes, currentUserDate);
+  }
+
+  /** Irreversible card removal; verifies the gear type before deleting. */
+  deleteDiverCertification(gearId: string | number, currentUserDate: string): Promise<unknown> {
+    return diving.deleteDiverCertification(this, gearId, currentUserDate);
+  }
+
+  /** Replaces certification order with an explicit numeric ID list. */
+  reorderDiverCertifications(orderedGearIds: DiveId[]): Promise<unknown> {
+    return diving.reorderDiverCertifications(this, orderedGearIds);
+  }
+
+  /** Uploads an image. Association is separate; no standalone image-delete API is known. */
+  uploadDiveImage(file: Blob, filename: string, options: DiveImageUploadOptions): Promise<DiveImageUploadResult | null> {
+    return diving.uploadDiveImage(this, file, filename, options);
+  }
+
+  /** Adds a log image, preserving existing images/videos. */
+  addDiveLogImage(diveActivityId: string | number, image: DiveImage): Promise<DiveLog | null> {
+    return diving.addDiveLogImage(this, diveActivityId, image);
+  }
+
+  /** Adds an equipment image, preserving existing images. */
+  addDiveGearImage(gearId: string | number, image: DiveImage, currentUserDate: string): Promise<DiveGear | null> {
+    return diving.addDiveGearImage(this, gearId, image, currentUserDate);
+  }
+
+  /** Adds a card image inside the certification fields. */
+  addDiverCertificationImage(gearId: string | number, image: DiveImage, currentUserDate: string): Promise<DiveGear | null> {
+    return diving.addDiverCertificationImage(this, gearId, image, currentUserDate);
+  }
+
+  /** Updates diver privacy, preserving omitted settings; concurrent writers can race. */
+  updateDiverPrivacy(changes: DiverPrivacyChanges): Promise<unknown> {
+    return diving.updateDiverPrivacy(this, changes);
+  }
   // --- dogs ---
 
   /** The account's dog profiles; `status` narrows to active or retired dogs. Served from `gcx.garmin.com`. */
@@ -1471,5 +1557,4 @@ export class Garmin {
   setActivityDogs(activityId: number | string, dogIds: number[]): Promise<unknown> {
     return dogs.setActivityDogs(this, activityId, dogIds);
   }
-
 }

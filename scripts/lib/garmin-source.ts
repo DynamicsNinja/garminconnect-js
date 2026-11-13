@@ -83,7 +83,7 @@ export const CATEGORIES: Record<string, { slug: string; title: string; blurb: st
   golf: { slug: "golf", title: "Golf", blurb: "Scorecards, shot data, club and player stats." },
   diving: {
     slug: "diving", title: "Diving",
-    blurb: "Dive logs, certifications, equipment, images and privacy settings.",
+    blurb: "Dive logs, certifications, equipment, media and privacy settings.",
   },
   dogs: {
     slug: "dogs", title: "Dogs",

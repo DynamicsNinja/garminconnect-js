@@ -6223,6 +6223,4009 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
     "io": "json"
   },
   {
+    "name": "createDiveLog",
+    "category": "diving",
+    "description": "Creates a manual Dive log using native wire units. POST is not replayed. No conversions; `profile` required (Garmin 400s without it).",
+    "params": [
+      {
+        "name": "input",
+        "optional": false,
+        "schema": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "startTime": {
+              "type": "string"
+            },
+            "timezone": {
+              "type": "string"
+            },
+            "diveType": {
+              "type": "string"
+            },
+            "diveNumber": {
+              "type": "number"
+            },
+            "bottomTime": {
+              "type": "number"
+            },
+            "buddy": {
+              "type": "string"
+            },
+            "notes": {
+              "type": "string"
+            },
+            "privateNotes": {
+              "type": "string"
+            },
+            "excludedFromDLN": {
+              "type": "boolean"
+            },
+            "diveTags": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "poiUUID": {
+              "type": "string"
+            },
+            "connectPrivacy": {
+              "type": "object",
+              "properties": {
+                "typeKey": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "typeKey"
+              ],
+              "additionalProperties": false
+            },
+            "profile": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "config": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "environment": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "equipment": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "location": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "apnea": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "social": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "eventType": {
+              "type": "string"
+            },
+            "freeDiveType": {
+              "type": "string"
+            },
+            "gear": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "gearId": {
+                    "type": "number"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "BOOTS",
+                      "BCD",
+                      "CAMERA",
+                      "DIVE_COMPUTER",
+                      "EXPOSURE_SUIT",
+                      "FIN",
+                      "GLOVE",
+                      "HOOD",
+                      "LIGHT",
+                      "MASK",
+                      "REBREATHER",
+                      "REGULATOR",
+                      "SNORKEL",
+                      "SPEAR",
+                      "TANK",
+                      "TRANSMITTER",
+                      "UNDERGARMENT",
+                      "WEIGHT",
+                      "SCOOTER",
+                      "CUTTING_TOOL",
+                      "BUOY",
+                      "SPOOL",
+                      "SLATE",
+                      "CERTIFICATION",
+                      "OTHER"
+                    ]
+                  },
+                  "status": {
+                    "type": "string"
+                  },
+                  "creationTs": {
+                    "type": "string"
+                  },
+                  "serialNumber": {
+                    "type": "string"
+                  },
+                  "stats": {
+                    "type": "object",
+                    "properties": {
+                      "numAssociatedDives": {
+                        "type": "number"
+                      },
+                      "totalAssociatedDiveTime": {
+                        "type": "number"
+                      }
+                    },
+                    "additionalProperties": true
+                  }
+                },
+                "required": [
+                  "gearId"
+                ],
+                "additionalProperties": true
+              }
+            },
+            "media": {
+              "type": "object",
+              "properties": {
+                "images": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "imageUUID": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "imageUUID"
+                    ],
+                    "additionalProperties": true
+                  }
+                },
+                "videos": {
+                  "type": "array",
+                  "items": {
+                    "description": "Any JSON value"
+                  }
+                }
+              },
+              "additionalProperties": true
+            }
+          },
+          "required": [
+            "name",
+            "startTime",
+            "timezone",
+            "diveType",
+            "profile"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "options",
+        "optional": true,
+        "schema": {
+          "type": "object",
+          "properties": {
+            "renumberSubsequentDives": {
+              "type": "boolean",
+              "description": "Omitted means Garmin's default, not a library-selected true or false."
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    ],
+    "safety": "write",
+    "io": "json"
+  },
+  {
+    "name": "updateDiveLog",
+    "category": "diving",
+    "description": "Reads then patches a Dive log. Omitted fields remain untouched; null clearing is refused. Read then JSON Patch leaves; omitted fields untouched, null refused.",
+    "params": [
+      {
+        "name": "diveActivityId",
+        "optional": false,
+        "schema": {
+          "type": [
+            "integer",
+            "string"
+          ],
+          "description": "Numeric id"
+        }
+      },
+      {
+        "name": "changes",
+        "optional": false,
+        "schema": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "notes": {
+              "type": "string"
+            },
+            "privateNotes": {
+              "type": "string"
+            },
+            "buddy": {
+              "type": "string"
+            },
+            "diveTags": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "excludedFromDLN": {
+              "type": "boolean"
+            },
+            "number": {
+              "type": "number",
+              "description": "Detail/patch wire name is `number`, unlike creation's `diveNumber`."
+            },
+            "startTime": {
+              "type": "string"
+            },
+            "timezone": {
+              "type": "string"
+            },
+            "profile": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "environment": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "equipment": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "location": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "media": {
+              "type": "object",
+              "properties": {
+                "images": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "imageUUID": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "imageUUID"
+                    ],
+                    "additionalProperties": true
+                  }
+                },
+                "videos": {
+                  "type": "array",
+                  "items": {
+                    "description": "Any JSON value"
+                  }
+                }
+              },
+              "additionalProperties": true
+            },
+            "gears": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "gearId": {
+                    "type": "number"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "BOOTS",
+                      "BCD",
+                      "CAMERA",
+                      "DIVE_COMPUTER",
+                      "EXPOSURE_SUIT",
+                      "FIN",
+                      "GLOVE",
+                      "HOOD",
+                      "LIGHT",
+                      "MASK",
+                      "REBREATHER",
+                      "REGULATOR",
+                      "SNORKEL",
+                      "SPEAR",
+                      "TANK",
+                      "TRANSMITTER",
+                      "UNDERGARMENT",
+                      "WEIGHT",
+                      "SCOOTER",
+                      "CUTTING_TOOL",
+                      "BUOY",
+                      "SPOOL",
+                      "SLATE",
+                      "CERTIFICATION",
+                      "OTHER"
+                    ]
+                  },
+                  "status": {
+                    "type": "string"
+                  },
+                  "creationTs": {
+                    "type": "string"
+                  },
+                  "serialNumber": {
+                    "type": "string"
+                  },
+                  "stats": {
+                    "type": "object",
+                    "properties": {
+                      "numAssociatedDives": {
+                        "type": "number"
+                      },
+                      "totalAssociatedDiveTime": {
+                        "type": "number"
+                      }
+                    },
+                    "additionalProperties": true
+                  }
+                },
+                "required": [
+                  "gearId"
+                ],
+                "additionalProperties": true
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "options",
+        "optional": true,
+        "schema": {
+          "type": "object",
+          "properties": {
+            "renumberThisDive": {
+              "type": "boolean"
+            },
+            "renumberSubsequentDives": {
+              "type": "boolean",
+              "description": "Omitted means Garmin's default, not a library-selected true or false."
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    ],
+    "safety": "write",
+    "io": "json"
+  },
+  {
+    "name": "deleteDiveLog",
+    "category": "diving",
+    "description": "Deletes a Dive log. Irreversible; renumbering effects remain unverified. Renumbering effects unverified.",
+    "params": [
+      {
+        "name": "diveActivityId",
+        "optional": false,
+        "schema": {
+          "type": [
+            "integer",
+            "string"
+          ],
+          "description": "Numeric id"
+        }
+      },
+      {
+        "name": "options",
+        "optional": true,
+        "schema": {
+          "type": "object",
+          "properties": {
+            "renumberSubsequentDives": {
+              "type": "boolean",
+              "description": "Omitted means Garmin's default, not a library-selected true or false."
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    ],
+    "safety": "destructive",
+    "io": "json"
+  },
+  {
+    "name": "setDiveLogPrivacy",
+    "category": "diving",
+    "description": "Sets individual log visibility using Connect typeKey, not diver visibility enums. Connect privacy vocabulary, not profile visibility enum.",
+    "params": [
+      {
+        "name": "diveActivityId",
+        "optional": false,
+        "schema": {
+          "type": [
+            "integer",
+            "string"
+          ],
+          "description": "Numeric id"
+        }
+      },
+      {
+        "name": "typeKey",
+        "optional": false,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "safety": "write",
+    "io": "json"
+  },
+  {
+    "name": "createDiveGear",
+    "category": "diving",
+    "description": "Creates Dive equipment, addressed by numeric IDs. Numeric-ID equipment creation.",
+    "params": [
+      {
+        "name": "input",
+        "optional": false,
+        "schema": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "BOOTS",
+                "BCD",
+                "CAMERA",
+                "DIVE_COMPUTER",
+                "EXPOSURE_SUIT",
+                "FIN",
+                "GLOVE",
+                "HOOD",
+                "LIGHT",
+                "MASK",
+                "REBREATHER",
+                "REGULATOR",
+                "SNORKEL",
+                "SPEAR",
+                "TANK",
+                "TRANSMITTER",
+                "UNDERGARMENT",
+                "WEIGHT",
+                "SCOOTER",
+                "CUTTING_TOOL",
+                "BUOY",
+                "SPOOL",
+                "SLATE",
+                "CERTIFICATION",
+                "OTHER"
+              ]
+            },
+            "brand": {
+              "type": "string"
+            },
+            "model": {
+              "type": "string"
+            },
+            "desc": {
+              "type": "string"
+            },
+            "notes": {
+              "type": "string"
+            },
+            "size": {
+              "type": "string"
+            },
+            "serialNumber": {
+              "type": "string"
+            },
+            "dateOfFirstUse": {
+              "type": "string"
+            },
+            "status": {
+              "type": "string"
+            },
+            "lastServiceDate": {
+              "type": "string"
+            },
+            "serviceIntervalDays": {
+              "type": "number"
+            },
+            "lastServicedBy": {
+              "type": "string"
+            },
+            "purchaseDate": {
+              "type": "string"
+            },
+            "purchasePrice": {
+              "type": "number"
+            },
+            "purchaseCurrency": {
+              "type": "string"
+            },
+            "purchasedFrom": {
+              "type": "string"
+            },
+            "warrantyEndDate": {
+              "type": "string"
+            },
+            "surfaceWeight": {
+              "type": "number"
+            },
+            "surfaceWeightUnit": {
+              "type": "string"
+            },
+            "buoyancy": {
+              "type": "number"
+            },
+            "buoyancyUnit": {
+              "type": "string"
+            },
+            "havingProblem": {
+              "type": "boolean"
+            },
+            "stats": {
+              "type": "object",
+              "properties": {
+                "previousDiveCount": {
+                  "type": "number"
+                },
+                "previousDiveTime": {
+                  "type": "number"
+                }
+              },
+              "additionalProperties": false
+            },
+            "gearField": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "BOOTS"
+                      ]
+                    },
+                    "fields": {
+                      "type": "object",
+                      "properties": {
+                        "thicknessInMM": {
+                          "type": "number"
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "fields"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "BCD"
+                      ]
+                    },
+                    "fields": {
+                      "type": "object",
+                      "properties": {
+                        "design": {
+                          "type": "string"
+                        },
+                        "type": {
+                          "type": "string"
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "fields"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "CAMERA"
+                      ]
+                    },
+                    "fields": {
+                      "type": "object",
+                      "additionalProperties": true
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "fields"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "DIVE_COMPUTER"
+                      ]
+                    },
+                    "fields": {
+                      "type": "object",
+                      "properties": {
+                        "airIntegrated": {
+                          "type": "boolean"
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "fields"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "EXPOSURE_SUIT"
+                      ]
+                    },
+                    "fields": {
+                      "type": "object",
+                      "properties": {
+                        "suitType": {
+                          "type": "string"
+                        },
+                        "customSuitType": {
+                          "type": "string"
+                        },
+                        "length": {
+                          "type": "string"
+                        },
+                        "thicknessInMM": {
+                          "type": "number"
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "fields"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "FIN"
+                      ]
+                    },
+                    "fields": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string"
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "fields"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "GLOVE"
+                      ]
+                    },
+                    "fields": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string"
+                        },
+                        "thicknessInMM": {
+                          "type": "number"
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "fields"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "HOOD"
+                      ]
+                    },
+                    "fields": {
+                      "type": "object",
+                      "properties": {
+                        "thicknessInMM": {
+                          "type": "number"
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "fields"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "LIGHT"
+                      ]
+                    },
+                    "fields": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string"
+                        },
+                        "format": {
+                          "type": "string"
+                        },
+                        "bulb": {
+                          "type": "string"
+                        },
+                        "rechargeable": {
+                          "type": "boolean"
+                        },
+                        "lumenOutput": {
+                          "type": "number"
+                        },
+                        "burnTimeMins": {
+                          "type": "number"
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "fields"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "MASK"
+                      ]
+                    },
+                    "fields": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string"
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "fields"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "REBREATHER"
+                      ]
+                    },
+                    "fields": {
+                      "type": "object",
+                      "properties": {
+                        "o2SensorModel": {
+                          "type": "string"
+                        },
+                        "o2SensorInstallationDate": {
+                          "type": "string"
+                        },
+                        "o2SensorReplacementDate": {
+                          "type": "string"
+                        },
+                        "notes": {
+                          "type": "string"
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "fields"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "REGULATOR"
+                      ]
+                    },
+                    "fields": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string"
+                        },
+                        "connectorType": {
+                          "type": "string"
+                        },
+                        "o2ServiceFlag": {
+                          "type": "boolean"
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "fields"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "SNORKEL"
+                      ]
+                    },
+                    "fields": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string"
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "fields"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "SPEAR"
+                      ]
+                    },
+                    "fields": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string"
+                        },
+                        "length": {
+                          "type": "number"
+                        },
+                        "lengthUnit": {
+                          "type": "string"
+                        },
+                        "style": {
+                          "type": "string"
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "fields"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "TANK"
+                      ]
+                    },
+                    "fields": {
+                      "type": "object",
+                      "properties": {
+                        "material": {
+                          "type": "string"
+                        },
+                        "materialNotes": {
+                          "type": "string"
+                        },
+                        "tankSize": {
+                          "type": "number"
+                        },
+                        "tankSizeUnit": {
+                          "type": "string"
+                        },
+                        "operationPressure": {
+                          "type": "number"
+                        },
+                        "pressureUnit": {
+                          "type": "string"
+                        },
+                        "o2ServiceFlag": {
+                          "type": "boolean"
+                        },
+                        "lastVisualInspectionDate": {
+                          "type": "string"
+                        },
+                        "nextVisualInspectionDate": {
+                          "type": "string"
+                        },
+                        "lastHydroServiceDate": {
+                          "type": "string"
+                        },
+                        "nextHydroServiceDate": {
+                          "type": "string"
+                        },
+                        "minBuoyancy": {
+                          "type": "number"
+                        },
+                        "maxBuoyancy": {
+                          "type": "number"
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "fields"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "TRANSMITTER"
+                      ]
+                    },
+                    "fields": {
+                      "type": "object",
+                      "additionalProperties": true
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "fields"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "UNDERGARMENT"
+                      ]
+                    },
+                    "fields": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string"
+                        },
+                        "notes": {
+                          "type": "string"
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "fields"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "WEIGHT"
+                      ]
+                    },
+                    "fields": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string"
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "fields"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "SCOOTER"
+                      ]
+                    },
+                    "fields": {
+                      "type": "object",
+                      "properties": {
+                        "speed": {
+                          "type": "number"
+                        },
+                        "speedUnit": {
+                          "type": "string"
+                        },
+                        "depth": {
+                          "type": "number"
+                        },
+                        "depthUnit": {
+                          "type": "string"
+                        },
+                        "runTimeMins": {
+                          "type": "number"
+                        },
+                        "type": {
+                          "type": "string"
+                        },
+                        "batteryNotes": {
+                          "type": "string"
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "fields"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "CUTTING_TOOL"
+                      ]
+                    },
+                    "fields": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string"
+                        },
+                        "edgeTypes": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "material": {
+                          "type": "string"
+                        },
+                        "tip": {
+                          "type": "string"
+                        },
+                        "foldingKnife": {
+                          "type": "boolean"
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "fields"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "BUOY"
+                      ]
+                    },
+                    "fields": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string"
+                        },
+                        "color": {
+                          "type": "string"
+                        },
+                        "reflective": {
+                          "type": "boolean"
+                        },
+                        "flagType": {
+                          "type": "string"
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "fields"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "SPOOL"
+                      ]
+                    },
+                    "fields": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string"
+                        },
+                        "length": {
+                          "type": "number"
+                        },
+                        "lengthUnit": {
+                          "type": "string"
+                        },
+                        "lineColor": {
+                          "type": "string"
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "fields"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "SLATE"
+                      ]
+                    },
+                    "fields": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string"
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "fields"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "CERTIFICATION"
+                      ]
+                    },
+                    "fields": {
+                      "type": "object",
+                      "properties": {
+                        "diverName": {
+                          "type": "string"
+                        },
+                        "diverId": {
+                          "type": "string"
+                        },
+                        "certificationDate": {
+                          "type": "string"
+                        },
+                        "certificationType": {
+                          "type": "string"
+                        },
+                        "certificationId": {
+                          "type": "string"
+                        },
+                        "certificationAgency": {
+                          "type": "string"
+                        },
+                        "category": {
+                          "type": "string",
+                          "enum": [
+                            "OTHER",
+                            "RECREATIONAL",
+                            "APNEA",
+                            "TECHNICAL",
+                            "PROFESSIONAL"
+                          ]
+                        },
+                        "instructorName": {
+                          "type": "string"
+                        },
+                        "instructorId": {
+                          "type": "string"
+                        },
+                        "diveShopName": {
+                          "type": "string"
+                        },
+                        "diveShopAddress": {
+                          "type": "string"
+                        },
+                        "diveShopWebsite": {
+                          "type": "string"
+                        },
+                        "certificationQRCode": {
+                          "type": "string"
+                        },
+                        "addToAllDives": {
+                          "type": "boolean"
+                        },
+                        "sortOrder": {
+                          "type": "number"
+                        },
+                        "images": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "imageUUID": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "imageUUID"
+                            ],
+                            "additionalProperties": true
+                          }
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "fields"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "OTHER"
+                      ]
+                    },
+                    "fields": {
+                      "type": "object",
+                      "additionalProperties": true
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "fields"
+                  ],
+                  "additionalProperties": false
+                }
+              ],
+              "description": "Wire shape: `{type, fields}`. Values use native Garmin units/enums."
+            },
+            "media": {
+              "type": "object",
+              "properties": {
+                "images": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "imageUUID": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "imageUUID"
+                    ],
+                    "additionalProperties": true
+                  }
+                },
+                "videos": {
+                  "type": "array",
+                  "items": {
+                    "description": "Any JSON value"
+                  }
+                }
+              },
+              "additionalProperties": true
+            }
+          },
+          "required": [
+            "name",
+            "type"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "currentUserDate",
+        "optional": false,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "safety": "write",
+    "io": "json"
+  },
+  {
+    "name": "updateDiveGear",
+    "category": "diving",
+    "description": "Patches Dive equipment, preserving unrelated metadata/media. Read/leaf-patch preserving other metadata/media.",
+    "params": [
+      {
+        "name": "gearId",
+        "optional": false,
+        "schema": {
+          "type": [
+            "integer",
+            "string"
+          ],
+          "description": "Numeric id"
+        }
+      },
+      {
+        "name": "changes",
+        "optional": false,
+        "schema": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "BOOTS",
+                "BCD",
+                "CAMERA",
+                "DIVE_COMPUTER",
+                "EXPOSURE_SUIT",
+                "FIN",
+                "GLOVE",
+                "HOOD",
+                "LIGHT",
+                "MASK",
+                "REBREATHER",
+                "REGULATOR",
+                "SNORKEL",
+                "SPEAR",
+                "TANK",
+                "TRANSMITTER",
+                "UNDERGARMENT",
+                "WEIGHT",
+                "SCOOTER",
+                "CUTTING_TOOL",
+                "BUOY",
+                "SPOOL",
+                "SLATE",
+                "CERTIFICATION",
+                "OTHER"
+              ]
+            },
+            "brand": {
+              "type": "string"
+            },
+            "model": {
+              "type": "string"
+            },
+            "desc": {
+              "type": "string"
+            },
+            "notes": {
+              "type": "string"
+            },
+            "size": {
+              "type": "string"
+            },
+            "serialNumber": {
+              "type": "string"
+            },
+            "dateOfFirstUse": {
+              "type": "string"
+            },
+            "status": {
+              "type": "string"
+            },
+            "lastServiceDate": {
+              "type": "string"
+            },
+            "serviceIntervalDays": {
+              "type": "number"
+            },
+            "lastServicedBy": {
+              "type": "string"
+            },
+            "purchaseDate": {
+              "type": "string"
+            },
+            "purchasePrice": {
+              "type": "number"
+            },
+            "purchaseCurrency": {
+              "type": "string"
+            },
+            "purchasedFrom": {
+              "type": "string"
+            },
+            "warrantyEndDate": {
+              "type": "string"
+            },
+            "surfaceWeight": {
+              "type": "number"
+            },
+            "surfaceWeightUnit": {
+              "type": "string"
+            },
+            "buoyancy": {
+              "type": "number"
+            },
+            "buoyancyUnit": {
+              "type": "string"
+            },
+            "havingProblem": {
+              "type": "boolean"
+            },
+            "stats": {
+              "type": "object",
+              "properties": {
+                "previousDiveCount": {
+                  "type": "number"
+                },
+                "previousDiveTime": {
+                  "type": "number"
+                }
+              },
+              "additionalProperties": false
+            },
+            "gearField": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "BOOTS"
+                      ]
+                    },
+                    "fields": {
+                      "type": "object",
+                      "properties": {
+                        "thicknessInMM": {
+                          "type": "number"
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "fields"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "BCD"
+                      ]
+                    },
+                    "fields": {
+                      "type": "object",
+                      "properties": {
+                        "design": {
+                          "type": "string"
+                        },
+                        "type": {
+                          "type": "string"
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "fields"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "CAMERA"
+                      ]
+                    },
+                    "fields": {
+                      "type": "object",
+                      "additionalProperties": true
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "fields"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "DIVE_COMPUTER"
+                      ]
+                    },
+                    "fields": {
+                      "type": "object",
+                      "properties": {
+                        "airIntegrated": {
+                          "type": "boolean"
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "fields"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "EXPOSURE_SUIT"
+                      ]
+                    },
+                    "fields": {
+                      "type": "object",
+                      "properties": {
+                        "suitType": {
+                          "type": "string"
+                        },
+                        "customSuitType": {
+                          "type": "string"
+                        },
+                        "length": {
+                          "type": "string"
+                        },
+                        "thicknessInMM": {
+                          "type": "number"
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "fields"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "FIN"
+                      ]
+                    },
+                    "fields": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string"
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "fields"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "GLOVE"
+                      ]
+                    },
+                    "fields": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string"
+                        },
+                        "thicknessInMM": {
+                          "type": "number"
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "fields"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "HOOD"
+                      ]
+                    },
+                    "fields": {
+                      "type": "object",
+                      "properties": {
+                        "thicknessInMM": {
+                          "type": "number"
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "fields"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "LIGHT"
+                      ]
+                    },
+                    "fields": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string"
+                        },
+                        "format": {
+                          "type": "string"
+                        },
+                        "bulb": {
+                          "type": "string"
+                        },
+                        "rechargeable": {
+                          "type": "boolean"
+                        },
+                        "lumenOutput": {
+                          "type": "number"
+                        },
+                        "burnTimeMins": {
+                          "type": "number"
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "fields"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "MASK"
+                      ]
+                    },
+                    "fields": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string"
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "fields"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "REBREATHER"
+                      ]
+                    },
+                    "fields": {
+                      "type": "object",
+                      "properties": {
+                        "o2SensorModel": {
+                          "type": "string"
+                        },
+                        "o2SensorInstallationDate": {
+                          "type": "string"
+                        },
+                        "o2SensorReplacementDate": {
+                          "type": "string"
+                        },
+                        "notes": {
+                          "type": "string"
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "fields"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "REGULATOR"
+                      ]
+                    },
+                    "fields": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string"
+                        },
+                        "connectorType": {
+                          "type": "string"
+                        },
+                        "o2ServiceFlag": {
+                          "type": "boolean"
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "fields"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "SNORKEL"
+                      ]
+                    },
+                    "fields": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string"
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "fields"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "SPEAR"
+                      ]
+                    },
+                    "fields": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string"
+                        },
+                        "length": {
+                          "type": "number"
+                        },
+                        "lengthUnit": {
+                          "type": "string"
+                        },
+                        "style": {
+                          "type": "string"
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "fields"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "TANK"
+                      ]
+                    },
+                    "fields": {
+                      "type": "object",
+                      "properties": {
+                        "material": {
+                          "type": "string"
+                        },
+                        "materialNotes": {
+                          "type": "string"
+                        },
+                        "tankSize": {
+                          "type": "number"
+                        },
+                        "tankSizeUnit": {
+                          "type": "string"
+                        },
+                        "operationPressure": {
+                          "type": "number"
+                        },
+                        "pressureUnit": {
+                          "type": "string"
+                        },
+                        "o2ServiceFlag": {
+                          "type": "boolean"
+                        },
+                        "lastVisualInspectionDate": {
+                          "type": "string"
+                        },
+                        "nextVisualInspectionDate": {
+                          "type": "string"
+                        },
+                        "lastHydroServiceDate": {
+                          "type": "string"
+                        },
+                        "nextHydroServiceDate": {
+                          "type": "string"
+                        },
+                        "minBuoyancy": {
+                          "type": "number"
+                        },
+                        "maxBuoyancy": {
+                          "type": "number"
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "fields"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "TRANSMITTER"
+                      ]
+                    },
+                    "fields": {
+                      "type": "object",
+                      "additionalProperties": true
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "fields"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "UNDERGARMENT"
+                      ]
+                    },
+                    "fields": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string"
+                        },
+                        "notes": {
+                          "type": "string"
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "fields"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "WEIGHT"
+                      ]
+                    },
+                    "fields": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string"
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "fields"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "SCOOTER"
+                      ]
+                    },
+                    "fields": {
+                      "type": "object",
+                      "properties": {
+                        "speed": {
+                          "type": "number"
+                        },
+                        "speedUnit": {
+                          "type": "string"
+                        },
+                        "depth": {
+                          "type": "number"
+                        },
+                        "depthUnit": {
+                          "type": "string"
+                        },
+                        "runTimeMins": {
+                          "type": "number"
+                        },
+                        "type": {
+                          "type": "string"
+                        },
+                        "batteryNotes": {
+                          "type": "string"
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "fields"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "CUTTING_TOOL"
+                      ]
+                    },
+                    "fields": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string"
+                        },
+                        "edgeTypes": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "material": {
+                          "type": "string"
+                        },
+                        "tip": {
+                          "type": "string"
+                        },
+                        "foldingKnife": {
+                          "type": "boolean"
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "fields"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "BUOY"
+                      ]
+                    },
+                    "fields": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string"
+                        },
+                        "color": {
+                          "type": "string"
+                        },
+                        "reflective": {
+                          "type": "boolean"
+                        },
+                        "flagType": {
+                          "type": "string"
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "fields"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "SPOOL"
+                      ]
+                    },
+                    "fields": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string"
+                        },
+                        "length": {
+                          "type": "number"
+                        },
+                        "lengthUnit": {
+                          "type": "string"
+                        },
+                        "lineColor": {
+                          "type": "string"
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "fields"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "SLATE"
+                      ]
+                    },
+                    "fields": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string"
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "fields"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "CERTIFICATION"
+                      ]
+                    },
+                    "fields": {
+                      "type": "object",
+                      "properties": {
+                        "diverName": {
+                          "type": "string"
+                        },
+                        "diverId": {
+                          "type": "string"
+                        },
+                        "certificationDate": {
+                          "type": "string"
+                        },
+                        "certificationType": {
+                          "type": "string"
+                        },
+                        "certificationId": {
+                          "type": "string"
+                        },
+                        "certificationAgency": {
+                          "type": "string"
+                        },
+                        "category": {
+                          "type": "string",
+                          "enum": [
+                            "OTHER",
+                            "RECREATIONAL",
+                            "APNEA",
+                            "TECHNICAL",
+                            "PROFESSIONAL"
+                          ]
+                        },
+                        "instructorName": {
+                          "type": "string"
+                        },
+                        "instructorId": {
+                          "type": "string"
+                        },
+                        "diveShopName": {
+                          "type": "string"
+                        },
+                        "diveShopAddress": {
+                          "type": "string"
+                        },
+                        "diveShopWebsite": {
+                          "type": "string"
+                        },
+                        "certificationQRCode": {
+                          "type": "string"
+                        },
+                        "addToAllDives": {
+                          "type": "boolean"
+                        },
+                        "sortOrder": {
+                          "type": "number"
+                        },
+                        "images": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "imageUUID": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "imageUUID"
+                            ],
+                            "additionalProperties": true
+                          }
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "fields"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "OTHER"
+                      ]
+                    },
+                    "fields": {
+                      "type": "object",
+                      "additionalProperties": true
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "fields"
+                  ],
+                  "additionalProperties": false
+                }
+              ],
+              "description": "Wire shape: `{type, fields}`. Values use native Garmin units/enums."
+            },
+            "media": {
+              "type": "object",
+              "properties": {
+                "images": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "imageUUID": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "imageUUID"
+                    ],
+                    "additionalProperties": true
+                  }
+                },
+                "videos": {
+                  "type": "array",
+                  "items": {
+                    "description": "Any JSON value"
+                  }
+                }
+              },
+              "additionalProperties": true
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "currentUserDate",
+        "optional": false,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "safety": "write",
+    "io": "json"
+  },
+  {
+    "name": "deleteDiveGear",
+    "category": "diving",
+    "description": "Deletes Dive equipment. Irreversible; association effects remain unverified. Association effects unverified.",
+    "params": [
+      {
+        "name": "gearId",
+        "optional": false,
+        "schema": {
+          "type": [
+            "integer",
+            "string"
+          ],
+          "description": "Numeric id"
+        }
+      }
+    ],
+    "safety": "destructive",
+    "io": "json"
+  },
+  {
+    "name": "bulkCreateDiveGear",
+    "category": "diving",
+    "description": "Creates multiple equipment records and associates them with a Dive ID, not a Connect ID. Association uses a Dive ID; no assumed atomicity.",
+    "params": [
+      {
+        "name": "inputs",
+        "optional": false,
+        "schema": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "BOOTS",
+                  "BCD",
+                  "CAMERA",
+                  "DIVE_COMPUTER",
+                  "EXPOSURE_SUIT",
+                  "FIN",
+                  "GLOVE",
+                  "HOOD",
+                  "LIGHT",
+                  "MASK",
+                  "REBREATHER",
+                  "REGULATOR",
+                  "SNORKEL",
+                  "SPEAR",
+                  "TANK",
+                  "TRANSMITTER",
+                  "UNDERGARMENT",
+                  "WEIGHT",
+                  "SCOOTER",
+                  "CUTTING_TOOL",
+                  "BUOY",
+                  "SPOOL",
+                  "SLATE",
+                  "CERTIFICATION",
+                  "OTHER"
+                ]
+              },
+              "brand": {
+                "type": "string"
+              },
+              "model": {
+                "type": "string"
+              },
+              "desc": {
+                "type": "string"
+              },
+              "notes": {
+                "type": "string"
+              },
+              "size": {
+                "type": "string"
+              },
+              "serialNumber": {
+                "type": "string"
+              },
+              "dateOfFirstUse": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              },
+              "lastServiceDate": {
+                "type": "string"
+              },
+              "serviceIntervalDays": {
+                "type": "number"
+              },
+              "lastServicedBy": {
+                "type": "string"
+              },
+              "purchaseDate": {
+                "type": "string"
+              },
+              "purchasePrice": {
+                "type": "number"
+              },
+              "purchaseCurrency": {
+                "type": "string"
+              },
+              "purchasedFrom": {
+                "type": "string"
+              },
+              "warrantyEndDate": {
+                "type": "string"
+              },
+              "surfaceWeight": {
+                "type": "number"
+              },
+              "surfaceWeightUnit": {
+                "type": "string"
+              },
+              "buoyancy": {
+                "type": "number"
+              },
+              "buoyancyUnit": {
+                "type": "string"
+              },
+              "havingProblem": {
+                "type": "boolean"
+              },
+              "stats": {
+                "type": "object",
+                "properties": {
+                  "previousDiveCount": {
+                    "type": "number"
+                  },
+                  "previousDiveTime": {
+                    "type": "number"
+                  }
+                },
+                "additionalProperties": false
+              },
+              "gearField": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "BOOTS"
+                        ]
+                      },
+                      "fields": {
+                        "type": "object",
+                        "properties": {
+                          "thicknessInMM": {
+                            "type": "number"
+                          }
+                        },
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "type",
+                      "fields"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "BCD"
+                        ]
+                      },
+                      "fields": {
+                        "type": "object",
+                        "properties": {
+                          "design": {
+                            "type": "string"
+                          },
+                          "type": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "type",
+                      "fields"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "CAMERA"
+                        ]
+                      },
+                      "fields": {
+                        "type": "object",
+                        "additionalProperties": true
+                      }
+                    },
+                    "required": [
+                      "type",
+                      "fields"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "DIVE_COMPUTER"
+                        ]
+                      },
+                      "fields": {
+                        "type": "object",
+                        "properties": {
+                          "airIntegrated": {
+                            "type": "boolean"
+                          }
+                        },
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "type",
+                      "fields"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "EXPOSURE_SUIT"
+                        ]
+                      },
+                      "fields": {
+                        "type": "object",
+                        "properties": {
+                          "suitType": {
+                            "type": "string"
+                          },
+                          "customSuitType": {
+                            "type": "string"
+                          },
+                          "length": {
+                            "type": "string"
+                          },
+                          "thicknessInMM": {
+                            "type": "number"
+                          }
+                        },
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "type",
+                      "fields"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "FIN"
+                        ]
+                      },
+                      "fields": {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "type",
+                      "fields"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "GLOVE"
+                        ]
+                      },
+                      "fields": {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string"
+                          },
+                          "thicknessInMM": {
+                            "type": "number"
+                          }
+                        },
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "type",
+                      "fields"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "HOOD"
+                        ]
+                      },
+                      "fields": {
+                        "type": "object",
+                        "properties": {
+                          "thicknessInMM": {
+                            "type": "number"
+                          }
+                        },
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "type",
+                      "fields"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "LIGHT"
+                        ]
+                      },
+                      "fields": {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string"
+                          },
+                          "format": {
+                            "type": "string"
+                          },
+                          "bulb": {
+                            "type": "string"
+                          },
+                          "rechargeable": {
+                            "type": "boolean"
+                          },
+                          "lumenOutput": {
+                            "type": "number"
+                          },
+                          "burnTimeMins": {
+                            "type": "number"
+                          }
+                        },
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "type",
+                      "fields"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "MASK"
+                        ]
+                      },
+                      "fields": {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "type",
+                      "fields"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "REBREATHER"
+                        ]
+                      },
+                      "fields": {
+                        "type": "object",
+                        "properties": {
+                          "o2SensorModel": {
+                            "type": "string"
+                          },
+                          "o2SensorInstallationDate": {
+                            "type": "string"
+                          },
+                          "o2SensorReplacementDate": {
+                            "type": "string"
+                          },
+                          "notes": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "type",
+                      "fields"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "REGULATOR"
+                        ]
+                      },
+                      "fields": {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string"
+                          },
+                          "connectorType": {
+                            "type": "string"
+                          },
+                          "o2ServiceFlag": {
+                            "type": "boolean"
+                          }
+                        },
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "type",
+                      "fields"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "SNORKEL"
+                        ]
+                      },
+                      "fields": {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "type",
+                      "fields"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "SPEAR"
+                        ]
+                      },
+                      "fields": {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string"
+                          },
+                          "length": {
+                            "type": "number"
+                          },
+                          "lengthUnit": {
+                            "type": "string"
+                          },
+                          "style": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "type",
+                      "fields"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "TANK"
+                        ]
+                      },
+                      "fields": {
+                        "type": "object",
+                        "properties": {
+                          "material": {
+                            "type": "string"
+                          },
+                          "materialNotes": {
+                            "type": "string"
+                          },
+                          "tankSize": {
+                            "type": "number"
+                          },
+                          "tankSizeUnit": {
+                            "type": "string"
+                          },
+                          "operationPressure": {
+                            "type": "number"
+                          },
+                          "pressureUnit": {
+                            "type": "string"
+                          },
+                          "o2ServiceFlag": {
+                            "type": "boolean"
+                          },
+                          "lastVisualInspectionDate": {
+                            "type": "string"
+                          },
+                          "nextVisualInspectionDate": {
+                            "type": "string"
+                          },
+                          "lastHydroServiceDate": {
+                            "type": "string"
+                          },
+                          "nextHydroServiceDate": {
+                            "type": "string"
+                          },
+                          "minBuoyancy": {
+                            "type": "number"
+                          },
+                          "maxBuoyancy": {
+                            "type": "number"
+                          }
+                        },
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "type",
+                      "fields"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "TRANSMITTER"
+                        ]
+                      },
+                      "fields": {
+                        "type": "object",
+                        "additionalProperties": true
+                      }
+                    },
+                    "required": [
+                      "type",
+                      "fields"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "UNDERGARMENT"
+                        ]
+                      },
+                      "fields": {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string"
+                          },
+                          "notes": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "type",
+                      "fields"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "WEIGHT"
+                        ]
+                      },
+                      "fields": {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "type",
+                      "fields"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "SCOOTER"
+                        ]
+                      },
+                      "fields": {
+                        "type": "object",
+                        "properties": {
+                          "speed": {
+                            "type": "number"
+                          },
+                          "speedUnit": {
+                            "type": "string"
+                          },
+                          "depth": {
+                            "type": "number"
+                          },
+                          "depthUnit": {
+                            "type": "string"
+                          },
+                          "runTimeMins": {
+                            "type": "number"
+                          },
+                          "type": {
+                            "type": "string"
+                          },
+                          "batteryNotes": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "type",
+                      "fields"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "CUTTING_TOOL"
+                        ]
+                      },
+                      "fields": {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string"
+                          },
+                          "edgeTypes": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "material": {
+                            "type": "string"
+                          },
+                          "tip": {
+                            "type": "string"
+                          },
+                          "foldingKnife": {
+                            "type": "boolean"
+                          }
+                        },
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "type",
+                      "fields"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "BUOY"
+                        ]
+                      },
+                      "fields": {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string"
+                          },
+                          "color": {
+                            "type": "string"
+                          },
+                          "reflective": {
+                            "type": "boolean"
+                          },
+                          "flagType": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "type",
+                      "fields"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "SPOOL"
+                        ]
+                      },
+                      "fields": {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string"
+                          },
+                          "length": {
+                            "type": "number"
+                          },
+                          "lengthUnit": {
+                            "type": "string"
+                          },
+                          "lineColor": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "type",
+                      "fields"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "SLATE"
+                        ]
+                      },
+                      "fields": {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "type",
+                      "fields"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "CERTIFICATION"
+                        ]
+                      },
+                      "fields": {
+                        "type": "object",
+                        "properties": {
+                          "diverName": {
+                            "type": "string"
+                          },
+                          "diverId": {
+                            "type": "string"
+                          },
+                          "certificationDate": {
+                            "type": "string"
+                          },
+                          "certificationType": {
+                            "type": "string"
+                          },
+                          "certificationId": {
+                            "type": "string"
+                          },
+                          "certificationAgency": {
+                            "type": "string"
+                          },
+                          "category": {
+                            "type": "string",
+                            "enum": [
+                              "OTHER",
+                              "RECREATIONAL",
+                              "APNEA",
+                              "TECHNICAL",
+                              "PROFESSIONAL"
+                            ]
+                          },
+                          "instructorName": {
+                            "type": "string"
+                          },
+                          "instructorId": {
+                            "type": "string"
+                          },
+                          "diveShopName": {
+                            "type": "string"
+                          },
+                          "diveShopAddress": {
+                            "type": "string"
+                          },
+                          "diveShopWebsite": {
+                            "type": "string"
+                          },
+                          "certificationQRCode": {
+                            "type": "string"
+                          },
+                          "addToAllDives": {
+                            "type": "boolean"
+                          },
+                          "sortOrder": {
+                            "type": "number"
+                          },
+                          "images": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "imageUUID": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "imageUUID"
+                              ],
+                              "additionalProperties": true
+                            }
+                          }
+                        },
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "type",
+                      "fields"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "OTHER"
+                        ]
+                      },
+                      "fields": {
+                        "type": "object",
+                        "additionalProperties": true
+                      }
+                    },
+                    "required": [
+                      "type",
+                      "fields"
+                    ],
+                    "additionalProperties": false
+                  }
+                ],
+                "description": "Wire shape: `{type, fields}`. Values use native Garmin units/enums."
+              },
+              "media": {
+                "type": "object",
+                "properties": {
+                  "images": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "imageUUID": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "imageUUID"
+                      ],
+                      "additionalProperties": true
+                    }
+                  },
+                  "videos": {
+                    "type": "array",
+                    "items": {
+                      "description": "Any JSON value"
+                    }
+                  }
+                },
+                "additionalProperties": true
+              }
+            },
+            "required": [
+              "name",
+              "type"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "name": "associateDiveActivityId",
+        "optional": false,
+        "schema": {
+          "type": [
+            "integer",
+            "string"
+          ],
+          "description": "Numeric id"
+        }
+      },
+      {
+        "name": "currentUserDate",
+        "optional": false,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "safety": "write",
+    "io": "json"
+  },
+  {
+    "name": "createDiverCertification",
+    "category": "diving",
+    "description": "Creates a certification card inside the CERTIFICATION gear wrapper. Wraps nested card fields in CERTIFICATION gear.",
+    "params": [
+      {
+        "name": "input",
+        "optional": false,
+        "schema": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "notes": {
+              "type": "string"
+            },
+            "certification": {
+              "type": "object",
+              "properties": {
+                "diverName": {
+                  "type": "string"
+                },
+                "diverId": {
+                  "type": "string"
+                },
+                "certificationDate": {
+                  "type": "string"
+                },
+                "certificationType": {
+                  "type": "string"
+                },
+                "certificationId": {
+                  "type": "string"
+                },
+                "certificationAgency": {
+                  "type": "string"
+                },
+                "category": {
+                  "type": "string",
+                  "enum": [
+                    "OTHER",
+                    "RECREATIONAL",
+                    "APNEA",
+                    "TECHNICAL",
+                    "PROFESSIONAL"
+                  ]
+                },
+                "instructorName": {
+                  "type": "string"
+                },
+                "instructorId": {
+                  "type": "string"
+                },
+                "diveShopName": {
+                  "type": "string"
+                },
+                "diveShopAddress": {
+                  "type": "string"
+                },
+                "diveShopWebsite": {
+                  "type": "string"
+                },
+                "certificationQRCode": {
+                  "type": "string"
+                },
+                "addToAllDives": {
+                  "type": "boolean"
+                },
+                "sortOrder": {
+                  "type": "number"
+                },
+                "images": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "imageUUID": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "imageUUID"
+                    ],
+                    "additionalProperties": true
+                  }
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "name",
+            "certification"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "currentUserDate",
+        "optional": false,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "safety": "write",
+    "io": "json"
+  },
+  {
+    "name": "updateDiverCertification",
+    "category": "diving",
+    "description": "Updates a certification, preserving unrelated gear fields and existing images. Nested leaf patches preserve unrelated card/gear/image fields.",
+    "params": [
+      {
+        "name": "gearId",
+        "optional": false,
+        "schema": {
+          "type": [
+            "integer",
+            "string"
+          ],
+          "description": "Numeric id"
+        }
+      },
+      {
+        "name": "changes",
+        "optional": false,
+        "schema": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "notes": {
+              "type": "string"
+            },
+            "certification": {
+              "type": "object",
+              "properties": {
+                "diverName": {
+                  "type": "string"
+                },
+                "diverId": {
+                  "type": "string"
+                },
+                "certificationDate": {
+                  "type": "string"
+                },
+                "certificationType": {
+                  "type": "string"
+                },
+                "certificationId": {
+                  "type": "string"
+                },
+                "certificationAgency": {
+                  "type": "string"
+                },
+                "category": {
+                  "type": "string",
+                  "enum": [
+                    "OTHER",
+                    "RECREATIONAL",
+                    "APNEA",
+                    "TECHNICAL",
+                    "PROFESSIONAL"
+                  ]
+                },
+                "instructorName": {
+                  "type": "string"
+                },
+                "instructorId": {
+                  "type": "string"
+                },
+                "diveShopName": {
+                  "type": "string"
+                },
+                "diveShopAddress": {
+                  "type": "string"
+                },
+                "diveShopWebsite": {
+                  "type": "string"
+                },
+                "certificationQRCode": {
+                  "type": "string"
+                },
+                "addToAllDives": {
+                  "type": "boolean"
+                },
+                "sortOrder": {
+                  "type": "number"
+                },
+                "images": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "imageUUID": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "imageUUID"
+                    ],
+                    "additionalProperties": true
+                  }
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "currentUserDate",
+        "optional": false,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "safety": "write",
+    "io": "json"
+  },
+  {
+    "name": "deleteDiverCertification",
+    "category": "diving",
+    "description": "Irreversible card removal; verifies the gear type before deleting. Checks the gear type before irreversible deletion.",
+    "params": [
+      {
+        "name": "gearId",
+        "optional": false,
+        "schema": {
+          "type": [
+            "integer",
+            "string"
+          ],
+          "description": "Numeric id"
+        }
+      },
+      {
+        "name": "currentUserDate",
+        "optional": false,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "safety": "destructive",
+    "io": "json"
+  },
+  {
+    "name": "reorderDiverCertifications",
+    "category": "diving",
+    "description": "Replaces certification order with an explicit numeric ID list. Replaces card order with an explicit numeric-ID sequence.",
+    "params": [
+      {
+        "name": "orderedGearIds",
+        "optional": false,
+        "schema": {
+          "type": "array",
+          "items": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Numeric id"
+          }
+        }
+      }
+    ],
+    "safety": "destructive",
+    "io": "json"
+  },
+  {
+    "name": "uploadDiveImage",
+    "category": "diving",
+    "description": "Uploads an image. Association is separate; no standalone image-delete API is known. Upload only; association separate, media deletion unknown.",
+    "params": [
+      {
+        "name": "file",
+        "optional": false,
+        "role": "file",
+        "schema": {
+          "description": "File contents"
+        }
+      },
+      {
+        "name": "filename",
+        "optional": false,
+        "role": "filename",
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "options",
+        "optional": false,
+        "schema": {
+          "type": "object",
+          "properties": {
+            "category": {
+              "type": "string",
+              "enum": [
+                "DIVE_ACTIVITY",
+                "DIVE_GEAR"
+              ]
+            },
+            "sourcePlatform": {
+              "type": "string",
+              "description": "Optional source-platform wire value override."
+            },
+            "timeoutMs": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "category"
+          ],
+          "additionalProperties": false
+        }
+      }
+    ],
+    "safety": "write",
+    "io": "binary-in"
+  },
+  {
+    "name": "addDiveLogImage",
+    "category": "diving",
+    "description": "Adds a log image, preserving existing images/videos. Read/append/patch; concurrent appends can race.",
+    "params": [
+      {
+        "name": "diveActivityId",
+        "optional": false,
+        "schema": {
+          "type": [
+            "integer",
+            "string"
+          ],
+          "description": "Numeric id"
+        }
+      },
+      {
+        "name": "image",
+        "optional": false,
+        "schema": {
+          "type": "object",
+          "properties": {
+            "imageUUID": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "imageUUID"
+          ],
+          "additionalProperties": true
+        }
+      }
+    ],
+    "safety": "write",
+    "io": "json"
+  },
+  {
+    "name": "addDiveGearImage",
+    "category": "diving",
+    "description": "Adds an equipment image, preserving existing images. Preserves existing images and other fields.",
+    "params": [
+      {
+        "name": "gearId",
+        "optional": false,
+        "schema": {
+          "type": [
+            "integer",
+            "string"
+          ],
+          "description": "Numeric id"
+        }
+      },
+      {
+        "name": "image",
+        "optional": false,
+        "schema": {
+          "type": "object",
+          "properties": {
+            "imageUUID": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "imageUUID"
+          ],
+          "additionalProperties": true
+        }
+      },
+      {
+        "name": "currentUserDate",
+        "optional": false,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "safety": "write",
+    "io": "json"
+  },
+  {
+    "name": "addDiverCertificationImage",
+    "category": "diving",
+    "description": "Adds a card image inside the certification fields. Card images nested inside certification fields.",
+    "params": [
+      {
+        "name": "gearId",
+        "optional": false,
+        "schema": {
+          "type": [
+            "integer",
+            "string"
+          ],
+          "description": "Numeric id"
+        }
+      },
+      {
+        "name": "image",
+        "optional": false,
+        "schema": {
+          "type": "object",
+          "properties": {
+            "imageUUID": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "imageUUID"
+          ],
+          "additionalProperties": true
+        }
+      },
+      {
+        "name": "currentUserDate",
+        "optional": false,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "safety": "write",
+    "io": "json"
+  },
+  {
+    "name": "updateDiverPrivacy",
+    "category": "diving",
+    "description": "Updates diver privacy, preserving omitted settings; concurrent writers can race. Read/merge/POST; concurrent writes can clobber one another.",
+    "params": [
+      {
+        "name": "changes",
+        "optional": false,
+        "schema": {
+          "type": "object",
+          "properties": {
+            "profile": {
+              "type": "object",
+              "properties": {
+                "badgeVisibility": {
+                  "type": "string",
+                  "enum": [
+                    "ONLY_ME",
+                    "FRIENDS",
+                    "EVERYONE"
+                  ]
+                },
+                "showBottomTime": {
+                  "type": "boolean"
+                },
+                "showDiveNumber": {
+                  "type": "boolean"
+                },
+                "visibility": {
+                  "type": "string",
+                  "enum": [
+                    "ONLY_ME",
+                    "FRIENDS",
+                    "EVERYONE"
+                  ]
+                }
+              },
+              "additionalProperties": false
+            },
+            "activity": {
+              "type": "object",
+              "properties": {
+                "advFieldsVisibility": {
+                  "type": "string",
+                  "enum": [
+                    "ONLY_ME",
+                    "FRIENDS",
+                    "EVERYONE"
+                  ]
+                },
+                "locationVisibility": {
+                  "type": "string",
+                  "enum": [
+                    "ONLY_ME",
+                    "FRIENDS",
+                    "EVERYONE"
+                  ]
+                },
+                "visibility": {
+                  "type": "string",
+                  "enum": [
+                    "ONLY_ME",
+                    "FRIENDS",
+                    "EVERYONE"
+                  ]
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    ],
+    "safety": "write",
+    "io": "json"
+  },
+  {
     "name": "getDogs",
     "category": "dogs",
     "description": "The account's dog profiles; `status` narrows to active or retired dogs. Served from `gcx.garmin.com`. GETs `…/profile/pets`, `?status=active|retired` when given; `[]` when Garmin answers `null`. `weight` is GRAMS.",

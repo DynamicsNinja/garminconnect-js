@@ -17,6 +17,14 @@ garmin.ficdev.xyz ── Traefik (Dokploy)
 The server needs Node 22.13 or newer (`node:sqlite`). The image provides it. To run the hosted
 server on your own machine, use the same Node version.
 
+Connect and Dive tokens stay sealed inside the OAuth credentials the MCP client holds, never
+in the grant database or on disk. Sign-in attempts to obtain the separate Dive token before sealing;
+OAuth refresh renews either token within two hours of expiry. HTTP tool requests unseal and
+reuse the same Dive token rather than exchanging on every write. Existing connectors acquire
+the optional Dive token on their next OAuth refresh; no reconnect or database migration needed.
+If Dive preparation fails, the server logs a credential-free warning and still issues the valid
+Connect credentials. A later Dive write retries the exchange; failures then affect that tool call.
+
 ## Dokploy setup
 
 1. Create a new Application. Source is this GitHub repo, branch `main`, build type Dockerfile,

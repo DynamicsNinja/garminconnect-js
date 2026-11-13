@@ -8,6 +8,7 @@ import { TOKENS } from "../helpers.js";
 export const SECRET_TOKENS: Tokens = {
   oauth1: { oauth_token: "OAUTH1-TOKEN-SECRET", oauth_token_secret: "OAUTH1-SECRET-SECRET", domain: "garmin.com" },
   oauth2: { ...TOKENS.oauth2, access_token: "OAUTH2-ACCESS-SECRET", refresh_token: "OAUTH2-REFRESH-SECRET" },
+  dive: { ...TOKENS.oauth2, access_token: "DIVE-ACCESS-SECRET", refresh_token: "DIVE-REFRESH-SECRET", scope: "DIVE_API_WRITE" },
 };
 export const PASSWORD = "right-password";
 export const MFA_CODE = "123456";

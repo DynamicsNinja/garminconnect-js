@@ -58,6 +58,45 @@ describe("FileTokenStore", () => {
     await expect(store.load()).resolves.toEqual(tokens);
   });
 
+  it("round-trips Dive credentials separately with owner-only permissions", async () => {
+    const withDive = { ...tokens, dive: { ...tokens.oauth2, scope: "DIVE_API_WRITE", access_token: "dive" } };
+    await new FileTokenStore(dir).save(withDive);
+    await expect(new FileTokenStore(dir).load()).resolves.toEqual(withDive);
+    expect((await stat(join(dir, "dive_token.json"))).mode & 0o777).toBe(0o600);
+    expect(JSON.parse(await readFile(join(dir, "oauth2_token.json"), "utf8"))).toEqual(tokens.oauth2);
+    await new FileTokenStore(dir).clear();
+    await expect(readFile(join(dir, "dive_token.json"))).rejects.toThrow();
+  });
+
+  it("removes old Dive credentials on a save without them", async () => {
+    const store = new FileTokenStore(dir);
+    await store.save({ ...tokens, dive: { ...tokens.oauth2, scope: "DIVE_API_WRITE" } });
+    await store.save(tokens);
+    await expect(store.load()).resolves.toEqual(tokens);
+    await expect(readFile(join(dir, "dive_token.json"))).rejects.toThrow();
+  });
+
+  it("ignores malformed Dive sidecars without losing the Connect login", async () => {
+    const store = new FileTokenStore(dir);
+    await store.save({ ...tokens, dive: { ...tokens.oauth2, scope: "DIVE_API_WRITE" } });
+    const raw = JSON.parse(await readFile(join(dir, "dive_token.json"), "utf8")) as { token: Record<string, unknown> };
+    for (const field of ["access_token", "token_type", "scope", "expires_at"]) {
+      await writeFile(join(dir, "dive_token.json"), JSON.stringify({ ...raw, token: { ...raw.token, [field]: null } }));
+      await expect(store.load()).resolves.toEqual(tokens);
+    }
+    await writeFile(join(dir, "dive_token.json"), "{broken");
+    await expect(store.load()).resolves.toEqual(tokens);
+  });
+
+  it("ignores a stale Dive sidecar when another login replaces the garth files", async () => {
+    const store = new FileTokenStore(dir);
+    await store.save({ ...tokens, dive: { ...tokens.oauth2, scope: "DIVE_API_WRITE" } });
+    await writeFile(join(dir, "oauth1_token.json"), JSON.stringify({ ...tokens.oauth1, oauth_token: "other-login" }));
+    const loaded = await store.load();
+    expect(loaded?.oauth1.oauth_token).toBe("other-login");
+    expect(loaded?.dive).toBeUndefined();
+  });
+
   it("writes garth's two-file layout", async () => {
     await new FileTokenStore(dir).save(tokens);
     const o1 = JSON.parse(await readFile(join(dir, "oauth1_token.json"), "utf8"));
