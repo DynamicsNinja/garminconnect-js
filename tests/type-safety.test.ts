@@ -12,6 +12,7 @@ import type { ExerciseCategory } from "../src/types/workouts.js";
 import type { FtpAggregation, RunningToleranceAggregation } from "../src/types/metrics.js";
 import type { GearUsageType } from "../src/types/gear.js";
 import type { Garmin } from "../src/garmin.js";
+import type { DiveGearField, DiverCertificationFields } from "../src/index.js";
 
 describe("builder exercise names", () => {
   it("accepts a real name for its own category", () => {
@@ -49,6 +50,15 @@ describe("builder exercise names", () => {
 });
 
 describe("fixed-value parameters", () => {
+  it("exports constrained Dive types from the package root", () => {
+    const mask: DiveGearField = { type: "MASK", fields: { type: "SINGLE_LENS" } };
+    const card: DiverCertificationFields = { category: "APNEA", addToAllDives: false };
+    // @ts-expect-error Certification categories use a fixed vocabulary.
+    const invalidCard: DiverCertificationFields = { category: "INVENTED" };
+    // @ts-expect-error A mask cannot carry tank-specific fields.
+    const invalidGear: DiveGearField = { type: "MASK", fields: { operationPressure: 200 } };
+    expect([mask, card, invalidCard, invalidGear]).toHaveLength(4);
+  });
   it("narrows aggregation and usage type", () => {
     const ftp: FtpAggregation[] = ["daily", "weekly", "monthly", "yearly"];
     const tolerance: RunningToleranceAggregation[] = ["daily", "weekly"];
