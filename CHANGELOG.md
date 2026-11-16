@@ -6,6 +6,20 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-11-16
+
+### Added
+
+- **Diving (read-only), ten methods**: the dive logs, gear, certifications and diver privacy
+  settings that Garmin's Dive app shows, read with the ordinary Connect sign-in:
+  `getDiveLogs`, `getDiveLog`, `getDiveLogByConnectActivityId`, `getDiveTags`,
+  `getCurrentMaxDiveNumber`, `getDiverCertifications`, `getDiverCertification`,
+  `getDiveGearSummaries`, `getDiveGear` and `getDiverPrivacy`. Dive IDs and dive gear IDs are
+  numeric and are not Connect activity IDs or Connect gear UUIDs. An account with no dives
+  returns `{totalCount: 0}` with no `diveActivities`. Writes are not included: the Connect token
+  carries `DIVE_API_READ` only, and Garmin answers every diving write with a 403. Contributed by
+  @fstanis in #4.
+
 ## [0.11.1] - 2026-11-12
 
 ### Added
@@ -413,7 +427,8 @@ a broken result. Each is recorded with its reason in `tests/parity.test.ts`.
 - `@types/node` is an optional peer dependency: needed only for type-checking against the
   `Buffer` return types, and not installed into consumers' projects automatically.
 
-[Unreleased]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.11.1...HEAD
+[Unreleased]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.12.0...HEAD
+[0.12.0]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.11.1...v0.12.0
 [0.11.1]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.11.0...v0.11.1
 [0.11.0]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.9.4...v0.10.0
