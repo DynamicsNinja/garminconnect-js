@@ -6,6 +6,23 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-11-24
+
+### Added
+
+- **Dogs, ten methods**: the dog profiles from Garmin Connect's Settings > Dogs, their activity
+  stats, and which dogs joined an activity: `getDogs`, `getDog`, `getDogBreeds`, `createDog`,
+  `updateDog`, `setDogRetired`, `deleteDog`, `getDogLifetimeStats`, `getDogStats` and
+  `setActivityDogs` (the mobile app's "Include dog"). The profiles are served from
+  `gcx.garmin.com`, with the same sign-in. Dog weight is taken as `weightKg` and stored by Garmin
+  in grams; dog stats are in centimeters and milliseconds. `updateDog` merges, and `null` clears
+  a field. The library refuses what Garmin would store without checking: an unknown gender, a
+  non-positive weight, and dog ids that are not active dogs of the account.
+- **`searchActivities` filters `hasDog` and `dogProfileId`.** `hasDog: false` is not a filter;
+  Garmin ignores it.
+- **`ApiOptions.host`** (`"connectapi"`, the default, or `"gcx"`) for `client.connectapi`. Any
+  other value throws before a request.
+
 ## [0.12.0] - 2026-11-16
 
 ### Added
@@ -427,7 +444,8 @@ a broken result. Each is recorded with its reason in `tests/parity.test.ts`.
 - `@types/node` is an optional peer dependency: needed only for type-checking against the
   `Buffer` return types, and not installed into consumers' projects automatically.
 
-[Unreleased]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.12.0...HEAD
+[Unreleased]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.13.0...HEAD
+[0.13.0]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.11.1...v0.12.0
 [0.11.1]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.11.0...v0.11.1
 [0.11.0]: https://github.com/DynamicsNinja/garminconnect-js/compare/v0.10.0...v0.11.0
