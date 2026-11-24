@@ -7,6 +7,7 @@ import * as calendar from "./services/calendar.js";
 import * as courses from "./services/courses.js";
 import * as devices from "./services/devices.js";
 import * as diving from "./services/diving.js";
+import * as dogs from "./services/dogs.js";
 import * as gear from "./services/gear.js";
 import * as goals from "./services/goals.js";
 import * as golf from "./services/golf.js";
@@ -69,6 +70,7 @@ import type {
   DiveLog, DiveLogPage, DiveLogFilters, DiveGear, DiveGearSummary,
   DiveGearFilters, DiverPrivacy,
 } from "./types/diving.js";
+import type { Dog, DogBreed, DogInput, DogStats, DogStatsMetric, DogStatus, DogUpdate } from "./types/dogs.js";
 import type { Goal, GoalStatus } from "./types/goals.js";
 import type {
   GolfClubStats,
@@ -1425,6 +1427,49 @@ export class Garmin {
   /** Diver profile/statistics and default activity visibility settings. */
   getDiverPrivacy(): Promise<DiverPrivacy | null> {
     return diving.getDiverPrivacy(this);
+  }
+
+  // --- dogs ---
+
+  /** The account's dog profiles; `status` narrows to active or retired dogs. Served from `gcx.garmin.com`. */
+  getDogs(status?: DogStatus): Promise<Dog[]> {
+    return dogs.getDogs(this, status);
+  }
+  /** One dog profile by id; weight in grams. */
+  getDog(dogId: number | string): Promise<Dog | null> {
+    return dogs.getDog(this, dogId);
+  }
+  /** Garmin's dog breeds as `[{ id, key }]`, for `primaryBreedId`/`secondaryBreedIds`. */
+  getDogBreeds(): Promise<DogBreed[]> {
+    return dogs.getDogBreeds(this);
+  }
+  /** Creates a dog profile; `weightKg` is converted to grams, dates are `YYYY-MM` or `YYYY-MM-DD`. */
+  createDog(input: DogInput): Promise<Dog | null> {
+    return dogs.createDog(this, input);
+  }
+  /** Changes a dog profile: only the fields given change, `null` clears one. */
+  updateDog(dogId: number | string, changes: DogUpdate): Promise<Dog | null> {
+    return dogs.updateDog(this, dogId, changes);
+  }
+  /** Retires (`true`) or unretires (`false`) a dog. */
+  setDogRetired(dogId: number | string, retired: boolean): Promise<unknown> {
+    return dogs.setDogRetired(this, dogId, retired);
+  }
+  /** Deletes a dog profile. Irreversible; activities keep its id. */
+  deleteDog(dogId: number | string): Promise<unknown> {
+    return dogs.deleteDog(this, dogId);
+  }
+  /** Lifetime totals across activities with dogs; distance in centimeters, duration in milliseconds. */
+  getDogLifetimeStats(metrics?: DogStatsMetric[]): Promise<DogStats | null> {
+    return dogs.getDogLifetimeStats(this, metrics);
+  }
+  /** Per-dog activity stats, all time or over a date range; distance in centimeters, duration in milliseconds. */
+  getDogStats(dogIds: number[], startdate?: string | Date, enddate?: string | Date): Promise<DogStats[] | null> {
+    return dogs.getDogStats(this, dogIds, startdate, enddate);
+  }
+  /** Sets which of the account's active dogs joined an activity; `[]` removes them all. */
+  setActivityDogs(activityId: number | string, dogIds: number[]): Promise<unknown> {
+    return dogs.setActivityDogs(this, activityId, dogIds);
   }
 
 }

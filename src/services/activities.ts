@@ -138,6 +138,8 @@ export async function searchActivities(
         lowerMaxDepth: f.minMaxDepth,
         upperMaxDepth: f.maxMaxDepth,
         decoDive: bool(f.decoDive),
+        hasDog: f.hasDog === true ? "true" : undefined,
+        dogProfileId: f.dogProfileId,
         minBottomTime: f.minBottomTime,
         maxBottomTime: f.maxBottomTime,
       },

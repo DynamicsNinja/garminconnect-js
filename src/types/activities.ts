@@ -77,6 +77,14 @@ export interface ActivitySearchFilters {
   minBottomTime?: number;
   /** Dives: maximum bottom time in seconds, inclusive. */
   maxBottomTime?: number;
+  /**
+   * `true`: only activities a dog joined. There is no "without a dog" filter: Garmin ignores
+   * `hasDog=false`, so `false` is the same as leaving it out. Lags a `setActivityDogs` change by
+   * several seconds.
+   */
+  hasDog?: boolean;
+  /** Only activities this dog joined (an id from `getDogs`). */
+  dogProfileId?: number;
 }
 
 /**
@@ -98,6 +106,10 @@ export interface Activity extends SummarizedActivityDTO {
   startTimeLocal?: string;
   distance?: number;
   duration?: number;
+  /** `true` when a dog joined the activity (`setActivityDogs`). Absent otherwise. */
+  hasDog?: boolean;
+  /** The dogs that joined (ids from `getDogs`); absent when none did. */
+  dogProfileIds?: number[];
 }
 
 /**
@@ -107,6 +119,10 @@ export interface Activity extends SummarizedActivityDTO {
  */
 export interface ActivitySummary extends ActivitySummaryDTO {
   activityId: number;
+  /** Includes which dogs joined: `hasDog` and `dogProfileIds` (set with `setActivityDogs`). */
+  metadataDTO?:
+    | (NonNullable<ActivitySummaryDTO["metadataDTO"]> & { hasDog?: boolean; dogProfileIds?: number[] | null })
+    | null;
 }
 
 /** A file format `downloadActivity` can produce. `ORIGINAL` is the file the device uploaded. */

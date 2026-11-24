@@ -85,6 +85,12 @@ export const CATEGORIES: Record<string, { slug: string; title: string; blurb: st
     slug: "diving", title: "Diving",
     blurb: "Dive logs, certifications, equipment, images and privacy settings.",
   },
+  dogs: {
+    slug: "dogs", title: "Dogs",
+    blurb:
+      "Dog profiles (served from `gcx.garmin.com`), their activity stats, and which dogs joined " +
+      "an activity.",
+  },
   userProfile: { slug: "profile-and-misc", title: "Profile, goals, nutrition, plans & misc", blurb: "" },
   goals: { slug: "profile-and-misc", title: "Profile, goals, nutrition, plans & misc", blurb: "" },
   nutrition: { slug: "profile-and-misc", title: "Profile, goals, nutrition, plans & misc", blurb: "" },

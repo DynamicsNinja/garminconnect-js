@@ -21,7 +21,7 @@ A zero-dependency TypeScript client for Garmin Connect, for **Node and Next.js s
 It talks to the same undocumented endpoints the mobile app uses, with a fully typed,
 promise-based API.
 
-It handles Garmin's undocumented SSO/OAuth flow, refreshes tokens for you, and gives you 212
+It handles Garmin's undocumented SSO/OAuth flow, refreshes tokens for you, and gives you 222
 typed methods over the endpoints the mobile app uses, plus two things that exist because Garmin's
 API is quietly hostile in specific places:
 
@@ -449,6 +449,7 @@ its live-verification status (confirmed against a real Garmin account, not merel
 | [Women's health](docs/api/womens-health.md) | 11 | all | menstrual cycle, pregnancy |
 | [Golf](docs/api/golf.md) | 5 | 3 of 5 | summary, scorecards, shots, clubs, stats |
 | [Diving](docs/api/diving.md) | 10 | all | read-only logs, tags, numbering, certifications, equipment and privacy settings |
+| [Dogs](docs/api/dogs.md) | 10 | all | dog profiles, breeds, retiring, dog activity stats, which dogs joined an activity |
 | [Profile, goals, nutrition, plans & misc](docs/api/profile-and-misc.md) | 30 | all¹ | profile, settings, goals, nutrition and food logging², training plans, GraphQL, logout |
 
 ¹ `logout()` makes no HTTP call, so there is nothing to verify against Garmin.
@@ -612,7 +613,7 @@ Goodbye.
 npm test
 ```
 
-911 tests across 61 files, all against mocked HTTP (via `msw`): no network access and no
+926 tests across 62 files, all against mocked HTTP (via `msw`): no network access and no
 credentials required. Covers auth/SSO/MFA, token storage and refresh, the HTTP fetcher's retry
 and error handling, every service method, and the public build output.
 

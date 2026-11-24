@@ -53,6 +53,13 @@ export interface ApiOptions {
   headers?: Record<string, string>;
   /** Per-request timeout, overriding the client's default (10s). */
   timeoutMs?: number;
+  /**
+   * Which Garmin API host to call. Default `"connectapi"` (`connectapi.garmin.com`). `"gcx"` is
+   * `gcx.garmin.com`, the gateway some newer Garmin services sit behind (the dog profiles'
+   * `/family-api/...`); it takes the same OAuth2 bearer token. Only `gcx.garmin.com` has been
+   * verified, not a `garmin.cn` counterpart.
+   */
+  host?: "connectapi" | "gcx";
 }
 
 /**
@@ -229,8 +236,14 @@ export class GarminClient {
   }
 
   async #apiRequest(path: string, options: ApiOptions = {}): Promise<Response> {
+    // Checked at runtime, not only by the type: the host is spliced into the URL that carries the
+    // bearer token, so a JavaScript caller's `"evil.example/#"` must never get that far.
+    const host = options.host ?? "connectapi";
+    if (host !== "connectapi" && host !== "gcx") {
+      throw new GarminError(`Unknown API host: ${String(host)}`);
+    }
     const tokens = await this.#ensureFresh();
-    return this.#fetcher.request(`https://connectapi.${this.domain}${path}`, {
+    return this.#fetcher.request(`https://${host}.${this.domain}${path}`, {
       method: options.method,
       params: options.params,
       json: options.json,

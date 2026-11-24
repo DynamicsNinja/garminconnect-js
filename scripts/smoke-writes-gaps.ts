@@ -19,7 +19,7 @@
  *     the multi-step resolution chain gets before it does.
  */
 import "./load-env.js";
-import { GarminClient, Garmin, FileTokenStore, GarminHttpError } from "../src/index.js";
+import { GarminClient, Garmin, FileTokenStore, GarminError, GarminHttpError } from "../src/index.js";
 
 const client = new GarminClient({ tokenStore: new FileTokenStore("./tokens") });
 if (!(await client.loadTokens())) {
@@ -663,6 +663,105 @@ console.log("\nsleep window");
     }
   } catch (e) {
     report(false, "sleep window round-trip", describeError(e));
+  }
+}
+
+// =============================================================================================
+// Dogs: create -> update -> retire/unretire -> attach to an activity -> search/stats -> detach
+// -> delete. The profiles live on gcx.garmin.com, the rest on connectapi.
+// =============================================================================================
+// Everything it creates is deleted. The activity link is cleared before the dog is deleted,
+// because deleting a dog leaves its id on the activity.
+console.log("\ndogs");
+{
+  let dogId: number | undefined;
+  let activityId: number | undefined;
+  const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+  try {
+    const breeds = await g.getDogBreeds();
+    const airedale = breeds.find((b) => b.key === "DOG_BREED_AIREDALE_TERRIER");
+    report(breeds.length > 100 && airedale?.id === 8, "getDogBreeds", `${String(breeds.length)} breeds, Airedale id ${String(airedale?.id)}`);
+    const created = await g.createDog({
+      name: "Probe Dog", primaryBreedId: 8, gender: "female", isNeutered: true, weightKg: 21.5, birthdate: "2022-03",
+    });
+    dogId = created?.id;
+    if (typeof dogId !== "number") throw new Error("createDog returned no id");
+    const read = await g.getDog(dogId);
+    report(
+      read?.weight === 21500 && read.birthdate === "2022-03-01" && read.birthdatePrecision === "month" &&
+        read.primaryBreed?.id === 8 && read.gender === "female" && read.isNeutered === true,
+      "createDog -> getDog",
+      `weight ${String(read?.weight)} g, birthdate ${String(read?.birthdate)}/${String(read?.birthdatePrecision)}`,
+    );
+    await g.updateDog(dogId, { weightKg: 22, primaryBreedId: null, adoptionDate: "2023-01-15" });
+    const upd = await g.getDog(dogId);
+    report(
+      upd?.weight === 22000 && upd.primaryBreed === null && upd.gender === "female" &&
+        upd.adoptionDate === "2023-01-15" && upd.adoptionDatePrecision === "day",
+      "updateDog (merge, null clears)",
+      `weight ${String(upd?.weight)}, breed ${JSON.stringify(upd?.primaryBreed)}, gender kept ${String(upd?.gender)}`,
+    );
+    await g.setDogRetired(dogId, true);
+    const retired = (await g.getDogs("retired")).some((d) => d.id === dogId);
+    const activeWhileRetired = (await g.getDogs("active")).some((d) => d.id === dogId);
+    await g.setDogRetired(dogId, false);
+    const back = await g.getDog(dogId);
+    report(retired && !activeWhileRetired && back?.status === "active", "setDogRetired both ways", `retired listed ${String(retired)}, back ${String(back?.status)}`);
+
+    activityId = (await g.getActivities(0, 1))[0]?.activityId;
+    if (typeof activityId !== "number") throw new Error("the test account has no activity");
+    await g.setActivityDogs(activityId, [dogId]);
+    const linked = (await g.getActivity(activityId)).metadataDTO;
+    report(linked?.hasDog === true && linked.dogProfileIds?.[0] === dogId, "setActivityDogs -> getActivity", JSON.stringify(linked?.dogProfileIds));
+    try {
+      await g.setActivityDogs(activityId, [1]);
+      report(false, "setActivityDogs (foreign id) refused", "accepted");
+    } catch (e) {
+      report(e instanceof GarminError && !(e instanceof GarminHttpError), "setActivityDogs (foreign id) refused", describeError(e));
+    }
+    const byDog = await g.searchActivities({ dogProfileId: dogId });
+    report(byDog.some((a) => a.activityId === activityId && a.hasDog === true), "searchActivities dogProfileId", `${String(byDog.length)} row(s)`);
+    let withDog: number[] = [];
+    for (let i = 0; i < 6 && !withDog.includes(activityId); i++) {
+      await sleep(5000);
+      withDog = (await g.searchActivities({ hasDog: true })).map((a) => a.activityId);
+    }
+    report(withDog.includes(activityId), "searchActivities hasDog", `${String(withDog.length)} row(s)`);
+    const stats = await g.getDogStats([dogId]);
+    const group = stats?.[0]?.stats.all.animals.animalProfileGroups.find((x) => x.animalProfileId === dogId);
+    const outside = await g.getDogStats([dogId], "2020-01-01", "2020-01-31");
+    report(
+      group?.numberOfActivities === 1 && typeof group.distance?.sum === "number" &&
+        outside?.[0]?.stats.all.animals.animalProfileGroups.length === 0,
+      "getDogStats (all time, range)",
+      `${String(group?.numberOfActivities)} activity, distance ${String(group?.distance?.sum)} cm`,
+    );
+    const lifetime = await g.getDogLifetimeStats();
+    report(
+      (lifetime?.countOfActivities ?? 0) >= 1 && typeof lifetime?.stats.all.duration?.sum === "number",
+      "getDogLifetimeStats",
+      `${String(lifetime?.countOfActivities)} activities, ${String(lifetime?.stats.all.duration?.sum)} ms`,
+    );
+    await g.setActivityDogs(activityId, []);
+    const cleared = (await g.getActivity(activityId)).metadataDTO;
+    report(cleared?.hasDog === false && !cleared.dogProfileIds?.length, "setActivityDogs [] -> getActivity", String(cleared?.hasDog));
+    activityId = undefined;
+    await g.deleteDog(dogId);
+    try {
+      await g.getDog(dogId);
+      report(false, "deleteDog -> getDog 404", "still there");
+    } catch (e) {
+      report(e instanceof GarminHttpError && e.status === 404, "deleteDog -> getDog 404", describeError(e));
+    }
+    dogId = undefined;
+  } catch (e) {
+    report(false, "dogs round-trip", describeError(e));
+  } finally {
+    if (activityId !== undefined) await g.setActivityDogs(activityId, []).catch(() => undefined);
+    if (dogId !== undefined) {
+      await g.deleteDog(dogId).catch(() => undefined);
+      console.log(`  clean  deleted probe dog ${String(dogId)}`);
+    }
   }
 }
 

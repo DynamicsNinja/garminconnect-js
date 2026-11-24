@@ -1221,6 +1221,14 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
             "maxBottomTime": {
               "type": "number",
               "description": "Dives: maximum bottom time in seconds, inclusive."
+            },
+            "hasDog": {
+              "type": "boolean",
+              "description": "`true`: only activities a dog joined. There is no \"without a dog\" filter: Garmin ignores\n`hasDog=false`, so `false` is the same as leaving it out. Lags a `setActivityDogs` change by\nseveral seconds."
+            },
+            "dogProfileId": {
+              "type": "number",
+              "description": "Only activities this dog joined (an id from `getDogs`)."
             }
           },
           "additionalProperties": false
@@ -6212,6 +6220,317 @@ export const GARMIN_METHODS: readonly ManifestMethod[] = [
     "description": "Diver profile/statistics and default activity visibility settings. Profile and default activity settings.",
     "params": [],
     "safety": "read",
+    "io": "json"
+  },
+  {
+    "name": "getDogs",
+    "category": "dogs",
+    "description": "The account's dog profiles; `status` narrows to active or retired dogs. Served from `gcx.garmin.com`. GETs `…/profile/pets`, `?status=active|retired` when given; `[]` when Garmin answers `null`. `weight` is GRAMS.",
+    "params": [
+      {
+        "name": "status",
+        "optional": true,
+        "schema": {
+          "type": "string",
+          "enum": [
+            "active",
+            "retired"
+          ]
+        }
+      }
+    ],
+    "safety": "read",
+    "io": "json"
+  },
+  {
+    "name": "getDog",
+    "category": "dogs",
+    "description": "One dog profile by id; weight in grams. GETs `…/pets/{id}`; a missing id is a 404 `GarminHttpError` (\"pet profile not found with id: …\"). Retired dogs carry `retiredAt`.",
+    "params": [
+      {
+        "name": "dogId",
+        "optional": false,
+        "schema": {
+          "type": [
+            "integer",
+            "string"
+          ],
+          "description": "Numeric id"
+        }
+      }
+    ],
+    "safety": "read",
+    "io": "json"
+  },
+  {
+    "name": "getDogBreeds",
+    "category": "dogs",
+    "description": "Garmin's dog breeds as `[{ id, key }]`, for `primaryBreedId`/`secondaryBreedIds`. GETs `…/pets/dog/breeds`, which answers a MAP `{\"1\": \"DOG_BREED_OTHER\", …}`; returned as `[{id, key}]` sorted by id (463 breeds).",
+    "params": [],
+    "safety": "read",
+    "io": "json"
+  },
+  {
+    "name": "createDog",
+    "category": "dogs",
+    "description": "Creates a dog profile; `weightKg` is converted to grams, dates are `YYYY-MM` or `YYYY-MM-DD`. POSTs `…/pets`. `DogInput` = `{name, nickname?, primaryBreedId?, secondaryBreedIds?, gender?: \"female\"|\"male\", isNeutered?, weightKg?, birthdate?, adoptionDate?}`. **`weightKg` is converted to grams** (Garmin's `weight`). A date is `\"YYYY-MM\"` (sent as `-01` with precision `month`, as the \"Day is optional\" form does) or `\"YYYY-MM-DD\"` (`day`); Garmin 400s a `year` precision. Refused before any request: a blank name (Garmin 400s too), a gender other than female/male and a non-positive weight (**Garmin…",
+    "params": [
+      {
+        "name": "input",
+        "optional": false,
+        "schema": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "nickname": {
+              "type": "string"
+            },
+            "primaryBreedId": {
+              "type": "number",
+              "description": "An id from `getDogBreeds`."
+            },
+            "secondaryBreedIds": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              },
+              "description": "Ids from `getDogBreeds`."
+            },
+            "gender": {
+              "type": "string",
+              "enum": [
+                "female",
+                "male"
+              ]
+            },
+            "isNeutered": {
+              "type": "boolean",
+              "description": "Spayed or neutered (\"Fixed\" in Garmin's form)."
+            },
+            "weightKg": {
+              "type": "number"
+            },
+            "birthdate": {
+              "type": "string"
+            },
+            "adoptionDate": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "name"
+          ],
+          "additionalProperties": false
+        }
+      }
+    ],
+    "safety": "write",
+    "io": "json"
+  },
+  {
+    "name": "updateDog",
+    "category": "dogs",
+    "description": "Changes a dog profile: only the fields given change, `null` clears one. PUTs `…/pets/{id}` with only the given fields. **Garmin MERGES** (a weight-only PUT kept everything else) and `null` CLEARS a field; same validation as `createDog`. An unknown breed id is a Garmin 400.",
+    "params": [
+      {
+        "name": "dogId",
+        "optional": false,
+        "schema": {
+          "type": [
+            "integer",
+            "string"
+          ],
+          "description": "Numeric id"
+        }
+      },
+      {
+        "name": "changes",
+        "optional": false,
+        "schema": {
+          "type": "object",
+          "properties": {
+            "nickname": {
+              "type": "string"
+            },
+            "primaryBreedId": {
+              "type": "number",
+              "description": "An id from `getDogBreeds`."
+            },
+            "secondaryBreedIds": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              },
+              "description": "Ids from `getDogBreeds`."
+            },
+            "gender": {
+              "type": "string",
+              "enum": [
+                "female",
+                "male"
+              ]
+            },
+            "isNeutered": {
+              "type": "boolean",
+              "description": "Spayed or neutered (\"Fixed\" in Garmin's form)."
+            },
+            "weightKg": {
+              "type": "number"
+            },
+            "birthdate": {
+              "type": "string"
+            },
+            "adoptionDate": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    ],
+    "safety": "write",
+    "io": "json"
+  },
+  {
+    "name": "setDogRetired",
+    "category": "dogs",
+    "description": "Retires (`true`) or unretires (`false`) a dog. PUTs `…/pets/{id}/status` with `{status: \"retired\"|\"active\"}`, 204. Garmin's apps stop offering a retired dog for new activities and refuse to edit it until unretired.",
+    "params": [
+      {
+        "name": "dogId",
+        "optional": false,
+        "schema": {
+          "type": [
+            "integer",
+            "string"
+          ],
+          "description": "Numeric id"
+        }
+      },
+      {
+        "name": "retired",
+        "optional": false,
+        "schema": {
+          "type": "boolean"
+        }
+      }
+    ],
+    "safety": "write",
+    "io": "json"
+  },
+  {
+    "name": "deleteDog",
+    "category": "dogs",
+    "description": "Deletes a dog profile. Irreversible; activities keep its id. DELETEs `…/pets/{id}`, 204. **Activities keep the deleted dog's id** in `metadataDTO.dogProfileIds` with `hasDog: true`; clear them with `setActivityDogs` first.",
+    "params": [
+      {
+        "name": "dogId",
+        "optional": false,
+        "schema": {
+          "type": [
+            "integer",
+            "string"
+          ],
+          "description": "Numeric id"
+        }
+      }
+    ],
+    "safety": "destructive",
+    "io": "json"
+  },
+  {
+    "name": "getDogLifetimeStats",
+    "category": "dogs",
+    "description": "Lifetime totals across activities with dogs; distance in centimeters, duration in milliseconds. GETs `/fitnessstats-service/activity-animal/dog/stats/lifetime?metric=distance&metric=duration` (the default; Garmin 400s \"Add some metrics\" with none). Totals across every dog activity plus one `animalProfileGroups` row per dog.",
+    "params": [
+      {
+        "name": "metrics",
+        "optional": true,
+        "schema": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "distance",
+              "duration"
+            ]
+          }
+        }
+      }
+    ],
+    "safety": "read",
+    "io": "json"
+  },
+  {
+    "name": "getDogStats",
+    "category": "dogs",
+    "description": "Per-dog activity stats, all time or over a date range; distance in centimeters, duration in milliseconds. POSTs the ids to `…/dog/stats/bulk` (a read), `?startDate&endDate` by activity start date. Figures sit on each `animalProfileGroups` entry; same units. Both dates or neither (a start date alone returned nothing). **Lags writes**: right after linking, a run returned no group.",
+    "params": [
+      {
+        "name": "dogIds",
+        "optional": false,
+        "schema": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
+        }
+      },
+      {
+        "name": "startdate",
+        "optional": true,
+        "schema": {
+          "type": "string",
+          "format": "date",
+          "description": "Calendar date, YYYY-MM-DD (UTC)"
+        }
+      },
+      {
+        "name": "enddate",
+        "optional": true,
+        "schema": {
+          "type": "string",
+          "format": "date",
+          "description": "Calendar date, YYYY-MM-DD (UTC)"
+        }
+      }
+    ],
+    "safety": "read",
+    "io": "json"
+  },
+  {
+    "name": "setActivityDogs",
+    "category": "dogs",
+    "description": "Sets which of the account's active dogs joined an activity; `[]` removes them all. The mobile app's \"Include dog\" (Garmin's web client has no control for it): a partial `PUT /activity-service/activity/{id}` of `metadataDTO`. **Garmin needs `hasDog: true` WITH `dogProfileIds`** (the ids alone are ignored); `[]` sends `{hasDog: false}`, which removes them. Garmin stores ANY id, even another account's or a deleted dog's, so the ids are checked against `getDogs(\"active\")` first (one extra request), matching the apps, which do not offer retired dogs. Read back on `getActivity(...).metadataDTO` and…",
+    "params": [
+      {
+        "name": "activityId",
+        "optional": false,
+        "schema": {
+          "type": [
+            "integer",
+            "string"
+          ],
+          "description": "Numeric id"
+        }
+      },
+      {
+        "name": "dogIds",
+        "optional": false,
+        "schema": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
+        }
+      }
+    ],
+    "safety": "write",
     "io": "json"
   }
 ];
