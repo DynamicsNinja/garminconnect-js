@@ -360,7 +360,8 @@ seconds.
 | Error | Meaning |
 |---|---|
 | `GarminError` | Base class for everything below; also thrown directly for malformed responses. |
-| `GarminAuthError` | 401/403, failed SSO, or expired tokens. Log in again. |
+| `GarminAuthError` | 401/403, failed SSO, or expired tokens. Except for Dive-only failures below, log in again. |
+| `GarminDiveAuthError` | Dive exchange or scoped authentication failed. Extends `GarminAuthError`; preserves the Connect session. |
 | `GarminRateLimitError` | 429. Carries `retryAfter` seconds when Garmin sends it. |
 | `GarminConnectionError` | Network failure or timeout (after retries), **and** a few semantic HTTP statuses that some services deliberately re-raise as this class: **every** HTTP error from `importActivity` (not just its 409 "Activity already exists": a 400 or 413 is wrapped the same way), the 404 ("gear not found (likely retired/removed)") from `addGearToActivity` and `removeGearFromActivity`, and a missing `deviceSolarInput` from `getDeviceSolarData`. Those are permanent, not transient. Do not blanket-retry on this class; check the message or the `cause`. |
 | `GarminHttpError` | Any other non-2xx. Carries `status`, `url`, `body`. |
@@ -635,7 +636,7 @@ Goodbye.
 npm test
 ```
 
-965 tests across 64 files, all against mocked HTTP (via `msw`): no network access and no
+969 tests across 64 files, all against mocked HTTP (via `msw`): no network access and no
 credentials required. Covers auth/SSO/MFA, token storage and refresh, the HTTP fetcher's retry
 and error handling, every service method, and the public build output.
 

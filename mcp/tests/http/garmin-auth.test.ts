@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { GarminAuthError, GarminClient, type MfaState } from "garminconnect-js";
+import { GarminAuthError, GarminDiveAuthError, GarminClient, type MfaState } from "garminconnect-js";
 // eslint-disable-next-line no-restricted-imports
 import { garminAuth, isDeadSession } from "../../src/http/garmin-auth.js";
 import { fakeFetch, PROFILE_ROUTE, TOKENS } from "../helpers.js";
@@ -96,6 +96,8 @@ describe("garminAuth", () => {
 describe("isDeadSession", () => {
   it("is true only for a 401 or a 'log in again' auth error", () => {
     expect(isDeadSession(new GarminAuthError("Not authorized for x (401)"))).toBe(true);
+    expect(isDeadSession(new GarminDiveAuthError("Not authorized for x (401)"))).toBe(false);
+    expect(isDeadSession(new GarminDiveAuthError("log in again"))).toBe(false);
     expect(isDeadSession(new GarminAuthError("Refresh token expired; log in again"))).toBe(true);
     expect(isDeadSession(new GarminAuthError("Not authorized for x (403)"))).toBe(false);
     expect(isDeadSession(new Error("Not authorized for x (401)"))).toBe(false);

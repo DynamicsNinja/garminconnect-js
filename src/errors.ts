@@ -11,8 +11,11 @@ export class GarminError extends Error {
   }
 }
 
-/** 401/403, failed SSO, or an expired OAuth1 token. Re-login is required. */
+/** Authentication failure; Dive-only failures do not imply the Connect session expired. */
 export class GarminAuthError extends GarminError {}
+
+/** Dive authentication failed; preserve the independent Connect session. */
+export class GarminDiveAuthError extends GarminAuthError {}
 
 /**
  * Network failure or timeout, after retries — PLUS a small set of semantic HTTP statuses that a

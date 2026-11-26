@@ -28,7 +28,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-async function start(o: { grants?: GrantStore; routes?: Parameters<typeof fakeFetch>[0]; trustProxy?: boolean; clientIpHeader?: string } = {}) {
+async function start(o: { auth?: ReturnType<typeof fakeAuth>; grants?: GrantStore; routes?: Parameters<typeof fakeFetch>[0]; trustProxy?: boolean; clientIpHeader?: string } = {}) {
   const server = http.createServer();
   servers.push(server);
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
@@ -37,7 +37,7 @@ async function start(o: { grants?: GrantStore; routes?: Parameters<typeof fakeFe
   const { fetchImpl } = fakeFetch(o.routes ?? PROFILE_ROUTE);
   const logged: Record<string, unknown>[] = [];
   server.on("request", createHttpApp({
-    publicUrl: new URL(base), sealer: new Sealer([randomBytes(32)]), grants, auth: fakeAuth(), mcp: testConfig(),
+    publicUrl: new URL(base), sealer: new Sealer([randomBytes(32)]), grants, auth: o.auth ?? fakeAuth(), mcp: testConfig(),
     version: "test", trustProxy: o.trustProxy, clientIpHeader: o.clientIpHeader, garminClient: { fetchImpl, retries: 0 }, log: (l) => logged.push(l),
   }));
   return { base, grants, logged };
@@ -146,6 +146,29 @@ describe.skipIf(NODE_MAJOR < 20)("hosted MCP over HTTP", () => {
     expect(textOf(result)).toMatch(/reconnect the Garmin connector/);
     const res = await fetch(`${base}/mcp`, { method: "POST", headers: { authorization: `Bearer ${accessToken}`, "content-type": "application/json" }, body: "{}" });
     expect(res.status).toBe(401);
+  });
+
+  it.each([
+    { status: 401, hasDive: false }, { status: 403, hasDive: false },
+    { status: 401, hasDive: true }, { status: 403, hasDive: true },
+  ])("keeps the grant after Dive authentication failure: %j", async ({ status, hasDive }) => {
+    const reject = vi.fn(() => json({}, status));
+    const tokens = hasDive ? SECRET_TOKENS : { oauth1: SECRET_TOKENS.oauth1, oauth2: SECRET_TOKENS.oauth2 };
+    const { base } = await start({ auth: fakeAuth(tokens), routes: {
+      ...PROFILE_ROUTE,
+      "POST /di-oauth2-service/oauth/token": reject,
+      "POST /diving/v1/dive": reject,
+    } });
+    const { accessToken } = await signIn(base, { email: "a@b.c", password: PASSWORD });
+    const client = await mcpClient(base, accessToken);
+    const result = await client.callTool({ name: "create_dive_log", arguments: {
+      input: { name: "fixture", startTime: "2026-11-25T10:00:00Z", timezone: "UTC", diveType: "SINGLE_GAS", profile: { maxDepth: 2 } },
+    } });
+    expect(reject, textOf(result)).toHaveBeenCalledTimes(1);
+    expect(result.isError).toBe(true);
+    expect(textOf(result)).not.toContain("reconnect the Garmin connector");
+    expect(textOf(await client.callTool({ name: "get_user_profile", arguments: {} }))).toContain("abc-display");
+    await client.close();
   });
 
   it("caps OAuth endpoint bodies at 16 KB", async () => {

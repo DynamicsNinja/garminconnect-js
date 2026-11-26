@@ -303,6 +303,8 @@ the separate Dive token. Replacing the entire `Tokens` object replaces its Dive 
 `refreshTokens({includeDive: true, withinMs})` prepares both tokens before hosted OAuth sealing.
 The hosted server treats Dive preparation as best-effort: a failure logs a credential-free warning
 and preserves valid Connect credentials. Dive writes retry authentication when needed.
+Dive-only authentication failures throw `GarminDiveAuthError`, a `GarminAuthError` subclass.
+Hosted grants and stdio sessions survive these errors, including lazy exchanges and rejected Dive requests.
 No separate login or APK credentials needed;
 the Basic auth password is empty. China routing is unit-tested, not live-verified.
 

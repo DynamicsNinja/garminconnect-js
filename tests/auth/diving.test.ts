@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { GarminClient } from "../../src/client.js";
+import { GarminAuthError, GarminDiveAuthError } from "../../src/errors.js";
 import { MemoryTokenStore } from "../../src/auth/token-store.js";
 import type { Tokens } from "../../src/auth/tokens.js";
 import { resetConsumerCache } from "../../src/auth/consumer.js";
@@ -31,6 +32,26 @@ const auth = (init: RequestInit | undefined) => new Headers(init?.headers).get("
 afterEach(() => vi.restoreAllMocks());
 
 describe("Dive write authentication", () => {
+  it.each([401, 403])("isolates exchange authentication failure %s from Connect", async (status) => {
+    const { client, exchange } = setup();
+    exchange.mockResolvedValueOnce(new Response("", { status }));
+    await expect(client.connectapi("/diving/v1/dive", { method: "POST" })).rejects.toBeInstanceOf(GarminDiveAuthError);
+    await expect(client.connectapi("/userprofile-service/socialProfile")).resolves.toEqual({ ok: true });
+  });
+
+  it.each([401, 403])("isolates rejected Dive API and upload credentials (%s)", async (status) => {
+    const { client, fetchImpl } = setup();
+    await client.refreshTokens({ includeDive: true });
+    fetchImpl.mockResolvedValueOnce(new Response("", { status }));
+    await expect(client.connectapi("/diving/v1/dive", { method: "POST" })).rejects.toBeInstanceOf(GarminDiveAuthError);
+    fetchImpl.mockResolvedValueOnce(new Response("", { status }));
+    await expect(client.upload(new Blob(["x"]), "x.png", "/diving/proxy/media/v2/images")).rejects.toBeInstanceOf(GarminDiveAuthError);
+    fetchImpl.mockResolvedValueOnce(new Response("", { status }));
+    const failure = await client.connectapi("/userprofile-service/socialProfile").catch((error: unknown) => error);
+    expect(failure).toBeInstanceOf(GarminAuthError);
+    expect(failure).not.toBeInstanceOf(GarminDiveAuthError);
+  });
+
   it.each([
     { access_token: "" },
     { token_type: "" },

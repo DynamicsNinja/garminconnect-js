@@ -1,5 +1,5 @@
 /** Every Garmin call the OAuth server makes, behind one interface so tests can fake Garmin's SSO. */
-import { Garmin, GarminAuthError, GarminClient, type GarminClientOptions, type MfaState, type Tokens } from "garminconnect-js";
+import { Garmin, GarminAuthError, GarminDiveAuthError, GarminClient, type GarminClientOptions, type MfaState, type Tokens } from "garminconnect-js";
 
 export type SignInResult = { state: "success"; tokens: Tokens } | { state: "mfa_required"; mfaState: MfaState };
 
@@ -51,5 +51,6 @@ async function prepareTokens(client: GarminClient, withinMs = 0): Promise<Tokens
  * or its "log in again" refresh errors. A 403 is usually Cloudflare and passes; never revoke on it.
  */
 export function isDeadSession(error: unknown): boolean {
-  return error instanceof GarminAuthError && (error.message.endsWith("(401)") || /log in again/i.test(error.message));
+  return error instanceof GarminAuthError && !(error instanceof GarminDiveAuthError) &&
+    (error.message.endsWith("(401)") || /log in again/i.test(error.message));
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { GarminAuthError, GarminHttpError } from "garminconnect-js";
+import { GarminAuthError, GarminDiveAuthError, GarminHttpError } from "garminconnect-js";
 import { buildTools, createServer, serverForTools, type ToolFactory } from "../src/server.js";
 import { HOSTED_TOOL_FACTORIES, TOOL_FACTORIES } from "../src/tools.js";
 import { textResult } from "../src/results.js";
@@ -87,5 +87,15 @@ describe("createServer", () => {
     expect(() => createServer(deps(), [tool("a", () => textResult("")), tool("a", () => textResult(""))])).toThrow(
       /Duplicate tool name a/,
     );
+  });
+
+  it("preserves the session and automatic login budget after a Dive authentication failure", async () => {
+    const d = deps();
+    const client = await connect(d, [tool("dive", () => Promise.reject(new GarminDiveAuthError("Not authorized (401)")))]);
+    const result = await client.callTool({ name: "dive", arguments: {} });
+    expect(result.isError).toBe(true);
+    expect(textOf(result)).not.toContain("sign_in_to_garmin");
+    expect(d.session.resets).toBe(0);
+    expect(d.session.rejectedResets).toBe(0);
   });
 });

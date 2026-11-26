@@ -1,4 +1,4 @@
-import { GarminAuthError } from "../errors.js";
+import { GarminAuthError, GarminDiveAuthError } from "../errors.js";
 import type { Fetcher } from "../http/fetcher.js";
 import { isExpired, isValidDiveToken, setExpirations, type OAuth2Token, type RawOAuth2Token, type Tokens } from "./tokens.js";
 
@@ -21,19 +21,24 @@ export async function exchangeDiveToken(fetcher: Fetcher, domain: string, tokens
       "User-Agent": "com.garmin.android.apps.dive",
     },
     body: body.toString(),
+  }).catch((cause: unknown) => {
+    if (cause instanceof GarminAuthError) {
+      throw new GarminDiveAuthError(cause.message, { cause });
+    }
+    throw cause;
   });
   let raw: RawOAuth2Token;
   try {
     raw = await res.json() as RawOAuth2Token;
   } catch {
-    throw new GarminAuthError("Dive token exchange returned a non-JSON response");
+    throw new GarminDiveAuthError("Dive token exchange returned a non-JSON response");
   }
   if (!raw || !Number.isFinite(raw.expires_in) || raw.expires_in <= 60) {
-    throw new GarminAuthError("Dive token exchange returned no usable DIVE_API_WRITE token");
+    throw new GarminDiveAuthError("Dive token exchange returned no usable DIVE_API_WRITE token");
   }
   const token = setExpirations(raw);
   if (!isValidDiveToken(token) || isExpired(token)) {
-    throw new GarminAuthError("Dive token exchange returned no usable DIVE_API_WRITE token");
+    throw new GarminDiveAuthError("Dive token exchange returned no usable DIVE_API_WRITE token");
   }
   return token;
 }

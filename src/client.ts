@@ -1,5 +1,5 @@
-import { GarminAuthError, GarminError } from "./errors.js";
-import { Fetcher, type QueryParams } from "./http/fetcher.js";
+import { GarminAuthError, GarminDiveAuthError, GarminError } from "./errors.js";
+import { Fetcher, type QueryParams, type RequestOptions } from "./http/fetcher.js";
 import { API_USER_AGENT } from "./auth/constants.js";
 import { exchangeDiveToken } from "./auth/diving.js";
 import {
@@ -249,10 +249,10 @@ export class GarminClient {
     if (pending?.source !== tokens) {
       const promise = (async () => {
         const dive = await exchangeDiveToken(this.#fetcher, this.domain, tokens);
-        if (this.#tokens !== tokens) throw new GarminAuthError("Authentication changed during Dive token exchange; retry the request");
+        if (this.#tokens !== tokens) throw new GarminDiveAuthError("Authentication changed during Dive token exchange; retry the request");
         const updated = { ...tokens, dive };
         await this.tokenStore.save(updated);
-        if (this.#tokens !== tokens) throw new GarminAuthError("Authentication changed during Dive token exchange; retry the request");
+        if (this.#tokens !== tokens) throw new GarminDiveAuthError("Authentication changed during Dive token exchange; retry the request");
         this.#tokens = updated;
         return updated;
       })();
@@ -282,7 +282,7 @@ export class GarminClient {
       throw new GarminError(`Unknown API host: ${String(host)}`);
     }
     const tokens = await this.#requestTokens(path, options.method);
-    return this.#fetcher.request(`https://${host}.${this.domain}${path}`, {
+    return this.#requestWithTokens(tokens, `https://${host}.${this.domain}${path}`, {
       method: options.method,
       params: options.params,
       json: options.json,
@@ -296,6 +296,17 @@ export class GarminClient {
       // combines the duplicates with `", "` instead of dropping one.
       headers: this.#withTransportHeaders(options.headers, tokens),
     });
+  }
+
+  async #requestWithTokens(tokens: Tokens, url: string, options: RequestOptions): Promise<Response> {
+    try {
+      return await this.#fetcher.request(url, options);
+    } catch (cause) {
+      if (cause instanceof GarminAuthError && tokens.oauth2.scope.split(/\s+/).includes("DIVE_API_WRITE")) {
+        throw new GarminDiveAuthError(cause.message, { cause });
+      }
+      throw cause;
+    }
   }
 
   /**
@@ -351,7 +362,7 @@ export class GarminClient {
       uploadHeaders.set(key, value);
     }
     uploadHeaders.set("authorization", authorizationHeader(tokens.oauth2));
-    const res = await this.#fetcher.request(`https://connectapi.${this.domain}${path}`, {
+    const res = await this.#requestWithTokens(tokens, `https://connectapi.${this.domain}${path}`, {
       method: "POST",
       body: form,
       timeoutMs: options.timeoutMs ?? TRANSFER_DEFAULT_TIMEOUT_MS,

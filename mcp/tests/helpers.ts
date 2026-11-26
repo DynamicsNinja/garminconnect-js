@@ -35,7 +35,11 @@ export function fakeFetch(routes: Record<string, (call: FetchCall) => Response>)
   const fetchImpl = (async (input: string | URL | Request, init?: RequestInit) => {
     const url = input instanceof Request ? input.url : String(input);
     const method = (init?.method ?? (input instanceof Request ? input.method : "GET")).toUpperCase();
-    const body = typeof init?.body === "string" ? (JSON.parse(init.body) as unknown) : init?.body;
+    let body: unknown = init?.body;
+    if (typeof body === "string") {
+      const isForm = new Headers(init?.headers).get("content-type")?.includes("application/x-www-form-urlencoded");
+      body = isForm ? Object.fromEntries(new URLSearchParams(body)) : JSON.parse(body) as unknown;
+    }
     const call = { url, method, body };
     calls.push(call);
     for (const [key, respond] of Object.entries(routes)) {
