@@ -1,5 +1,5 @@
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
-import { GarminAuthError, GarminHttpError, GarminRateLimitError } from "garminconnect-js";
+import { GarminAuthError, GarminDiveAuthError, GarminHttpError, GarminRateLimitError } from "garminconnect-js";
 import { NotLoggedInError } from "./session.js";
 
 // A Desktop Extension user has no terminal and no `garminconnect-mcp` command; the npm-install
@@ -11,6 +11,9 @@ export const LOGIN_HINT = "call the `sign_in_to_garmin` tool to sign in, then tr
 export function describeError(error: unknown, hint: string = LOGIN_HINT): string {
   if (error instanceof NotLoggedInError) {
     return error.reason ? `Not logged in to Garmin (${error.reason}): ${hint}.` : `Not logged in to Garmin: ${hint}.`;
+  }
+  if (error instanceof GarminDiveAuthError) {
+    return `Garmin Dive authentication failed (${error.message}). The Connect session was preserved; retry the Dive request.`;
   }
   if (error instanceof GarminAuthError) {
     return `Garmin session expired or was rejected (${error.message}): ${hint}.`;

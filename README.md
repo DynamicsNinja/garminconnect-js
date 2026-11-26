@@ -21,7 +21,7 @@ A zero-dependency TypeScript client for Garmin Connect, for **Node and Next.js s
 It talks to the same undocumented endpoints the mobile app uses, with a fully typed,
 promise-based API.
 
-It handles Garmin's undocumented SSO/OAuth flow, refreshes tokens for you, and gives you 222
+It handles Garmin's undocumented SSO/OAuth flow, refreshes tokens for you, and gives you 239
 typed methods over the endpoints the mobile app uses, plus two things that exist because Garmin's
 API is quietly hostile in specific places:
 
@@ -360,7 +360,8 @@ seconds.
 | Error | Meaning |
 |---|---|
 | `GarminError` | Base class for everything below; also thrown directly for malformed responses. |
-| `GarminAuthError` | 401/403, failed SSO, or expired tokens. Log in again. |
+| `GarminAuthError` | 401/403, failed SSO, or expired tokens. Except for Dive-only failures below, log in again. |
+| `GarminDiveAuthError` | Dive exchange or scoped authentication failed. Extends `GarminAuthError`; preserves the Connect session. |
 | `GarminRateLimitError` | 429. Carries `retryAfter` seconds when Garmin sends it. |
 | `GarminConnectionError` | Network failure or timeout (after retries), **and** a few semantic HTTP statuses that some services deliberately re-raise as this class: **every** HTTP error from `importActivity` (not just its 409 "Activity already exists": a 400 or 413 is wrapped the same way), the 404 ("gear not found (likely retired/removed)") from `addGearToActivity` and `removeGearFromActivity`, and a missing `deviceSolarInput` from `getDeviceSolarData`. Those are permanent, not transient. Do not blanket-retry on this class; check the message or the `cause`. |
 | `GarminHttpError` | Any other non-2xx. Carries `status`, `url`, `body`. |
@@ -448,11 +449,33 @@ its live-verification status (confirmed against a real Garmin account, not merel
 | [Body composition & weight](docs/api/body-composition-weight.md) | 9 | 8 of 9 | weigh-ins, weight goals, body composition (FIT upload) |
 | [Women's health](docs/api/womens-health.md) | 11 | all | menstrual cycle, pregnancy |
 | [Golf](docs/api/golf.md) | 5 | 3 of 5 | summary, scorecards, shots, clubs, stats |
-| [Diving](docs/api/diving.md) | 10 | all | read-only logs, tags, numbering, certifications, equipment and privacy settings |
+| [Diving](docs/api/diving.md) | 27 | 12 of 27 | logs, tags, numbering, certifications, equipment, media and privacy settings |
 | [Dogs](docs/api/dogs.md) | 10 | all | dog profiles, breeds, retiring, dog activity stats, which dogs joined an activity |
 | [Profile, goals, nutrition, plans & misc](docs/api/profile-and-misc.md) | 30 | all¹ | profile, settings, goals, nutrition and food logging², training plans, GraphQL, logout |
 
 ¹ `logout()` makes no HTTP call, so there is nothing to verify against Garmin.
+
+**Dive authentication:** reads use your existing Connect credentials. Writes under `/diving/`
+automatically exchange the Connect access token for a separate `DIVE_API_WRITE` token on first
+use. `Tokens.dive` holds that token separately from the normal `oauth2` token, and both
+`getTokens()` and `TokenStore.save()` include it. `FileTokenStore` saves it in an owner-only
+`dive_token.json` sidecar; old two-file stores still load. Custom stores should round-trip the
+optional `dive` object, including its numeric `expires_at`. Concurrent writes share one exchange,
+and a new client reuses the saved token. A live exchange returned an access-token lifetime of
+86,399 seconds (just under 24 hours) and took 566 ms. The next write re-exchanges within
+60 seconds of expiry. The returned refresh lifetime was about 30 days, but the library renews
+Dive tokens by exchange, not a separate refresh-token flow. Normal Connect refresh preserves
+the Dive token.
+
+The hosted MCP attempts to prepare the Dive token at sign-in and OAuth refresh, then seals it alongside
+the Connect credentials in the client's access and refresh tokens. OAuth refresh renews either
+token within two hours of expiry, so separate HTTP tool requests reuse the Dive token without
+server-side token storage. Existing connectors gain the token on their next OAuth refresh.
+If Dive preparation fails, Connect sign-in and refresh still succeed, and the server logs a
+credential-free warning. A Dive write retries authentication when needed.
+`client.refreshTokens({ includeDive: true, withinMs })` supports the same pattern in other servers.
+The exchange and manual-dive create/read/delete were verified live on 2026-11-13. Other Dive writes
+remain unverified as noted in the API reference; China routing is unit-tested only.
 ² Food logging (search, custom foods, logging, deleting) needs Garmin Connect+, which needs a paired Garmin device; verified on such an account. `garmin.hasConnectPlus()` tells you up front, `CONNECT_PLUS_METHODS` lists the methods, and without it they throw `GarminConnectPlusRequiredError`.
 
 **Still unverified:** `getGolfScorecard` and `getGolfShotData`, because no available account has a
@@ -613,7 +636,7 @@ Goodbye.
 npm test
 ```
 
-926 tests across 62 files, all against mocked HTTP (via `msw`): no network access and no
+969 tests across 64 files, all against mocked HTTP (via `msw`): no network access and no
 credentials required. Covers auth/SSO/MFA, token storage and refresh, the HTTP fetcher's retry
 and error handling, every service method, and the public build output.
 

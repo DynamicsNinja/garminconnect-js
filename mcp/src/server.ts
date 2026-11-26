@@ -5,7 +5,7 @@ import {
   type CallToolResult,
   type Tool,
 } from "@modelcontextprotocol/sdk/types.js";
-import { GarminAuthError } from "garminconnect-js";
+import { GarminAuthError, GarminDiveAuthError } from "garminconnect-js";
 import { errorResult } from "./errors.js";
 import type { FilesStrategy } from "./files.js";
 import { SERVER_ICON } from "./icon.js";
@@ -60,7 +60,9 @@ export function serverForTools(tools: readonly ToolDef[], deps: ServerDeps): Ser
     } catch (error) {
       // After `login` in a terminal, the next call must use the NEW tokens, not the cached client;
       // and with configured credentials, a rejected session signs in again.
-      if (error instanceof GarminAuthError) deps.session.reset({ rejected: true, error });
+      if (error instanceof GarminAuthError && !(error instanceof GarminDiveAuthError)) {
+        deps.session.reset({ rejected: true, error });
+      }
       return errorResult(error, deps.session.loginHint);
     }
   });

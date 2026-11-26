@@ -12,7 +12,7 @@ One page per category, with every method's signature and a call you can paste. F
 | [Calendar events](calendar-events.md) | 6 |
 | [Courses](courses.md) | 8 |
 | [Devices](devices.md) | 6 |
-| [Diving](diving.md) | 10 |
+| [Diving](diving.md) | 27 |
 | [Dogs](dogs.md) | 10 |
 | [Gear](gear.md) | 6 |
 | [Golf](golf.md) | 5 |
@@ -21,4 +21,4 @@ One page per category, with every method's signature and a call you can paste. F
 | [Wellness](wellness.md) | 36 |
 | [Women's health](womens-health.md) | 11 |
 | [Workouts](workouts.md) | 19 |
-| **Total** | **222** |
+| **Total** | **239** |

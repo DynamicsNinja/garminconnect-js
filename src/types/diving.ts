@@ -67,6 +67,59 @@ export interface DiveLogFilters {
   connectActivityIds?: string;
   filter?: Record<string, string>;
 }
+export interface DiveNumberingOptions {
+  /** Omitted means Garmin's default, not a library-selected true or false. */
+  renumberSubsequentDives?: boolean;
+}
+export interface DiveUpdateOptions extends DiveNumberingOptions {
+  renumberThisDive?: boolean;
+}
+/** Manual creation body; native Garmin wire units. A profile object is required. */
+export interface CreateDiveLogInput {
+  name: string;
+  startTime: string;
+  timezone: string;
+  diveType: string;
+  diveNumber?: number;
+  bottomTime?: number;
+  buddy?: string;
+  notes?: string;
+  privateNotes?: string;
+  excludedFromDLN?: boolean;
+  diveTags?: string[];
+  poiUUID?: string;
+  connectPrivacy?: { typeKey: string };
+  profile: DiveObject;
+  config?: DiveObject;
+  environment?: DiveObject;
+  equipment?: DiveObject;
+  location?: DiveObject;
+  apnea?: DiveObject;
+  social?: DiveObject;
+  eventType?: string;
+  freeDiveType?: string;
+  gear?: DiveGearSummary[];
+  media?: DiveMedia;
+}
+/** Undefined is untouched. Null clearing is intentionally not accepted until verified. */
+export interface DiveLogChanges {
+  name?: string;
+  notes?: string;
+  privateNotes?: string;
+  buddy?: string;
+  diveTags?: string[];
+  excludedFromDLN?: boolean;
+  /** Detail/patch wire name is `number`, unlike creation's `diveNumber`. */
+  number?: number;
+  startTime?: string;
+  timezone?: string;
+  profile?: DiveObject;
+  environment?: DiveObject;
+  equipment?: DiveObject;
+  location?: DiveObject;
+  media?: DiveMedia;
+  gears?: DiveGearSummary[];
+}
 export type DiveGearType =
   | "BOOTS"
   | "BCD"
@@ -105,6 +158,35 @@ export interface DiveGearSummary {
     totalAssociatedDiveTime?: number | null;
   }) | null;
   [key: string]: unknown;
+}
+export interface DiveGearInput {
+  name: string;
+  type: DiveGearType;
+  brand?: string;
+  model?: string;
+  desc?: string;
+  notes?: string;
+  size?: string;
+  serialNumber?: string;
+  dateOfFirstUse?: string;
+  status?: string;
+  lastServiceDate?: string;
+  serviceIntervalDays?: number;
+  lastServicedBy?: string;
+  purchaseDate?: string;
+  purchasePrice?: number;
+  purchaseCurrency?: string;
+  purchasedFrom?: string;
+  warrantyEndDate?: string;
+  surfaceWeight?: number;
+  surfaceWeightUnit?: string;
+  buoyancy?: number;
+  buoyancyUnit?: string;
+  havingProblem?: boolean;
+  stats?: { previousDiveCount?: number; previousDiveTime?: number };
+  /** Wire shape: `{type, fields}`. Values use native Garmin units/enums. */
+  gearField?: DiveGearField;
+  media?: DiveMedia;
 }
 /** Numeric values are native wire units unless a field name includes units. */
 export interface DiveGearFieldMap {
@@ -232,6 +314,11 @@ export interface DiverCertificationFields {
   sortOrder?: number;
   images?: DiveImage[];
 }
+export interface DiverCertificationInput {
+  name: string;
+  notes?: string;
+  certification: DiverCertificationFields;
+}
 export interface DiverPrivacy {
   profile: {
     badgeVisibility: DiveVisibility;
@@ -244,4 +331,28 @@ export interface DiverPrivacy {
     locationVisibility: DiveVisibility;
     visibility: DiveVisibility;
   };
+}
+export interface DiveImageUploadOptions {
+  category: "DIVE_ACTIVITY" | "DIVE_GEAR";
+  /** Optional source-platform wire value override. */
+  sourcePlatform?: string;
+  timeoutMs?: number;
+}
+export interface DiverPrivacyChanges {
+  profile?: Partial<DiverPrivacy["profile"]>;
+  activity?: Partial<DiverPrivacy["activity"]>;
+}
+/** Upload result. `mediaUuid` becomes the owning record's `imageUUID` reference. */
+export interface DiveImageUploadResult {
+  uploadedMedia: {
+    mediaUuid?: string | null;
+    imageVersion?: string | null;
+    key?: string | null;
+    md5?: string | null;
+    sizeInBytes?: number | null;
+    status?: string | null;
+    url?: string | null;
+    [key: string]: unknown;
+  }[];
+  [key: string]: unknown;
 }

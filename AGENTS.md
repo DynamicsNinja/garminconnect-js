@@ -289,6 +289,25 @@ Every identifier above (`GarminClient`, `Garmin`, `FileTokenStore`) is exported 
 
 Dive IDs and numeric Dive gear IDs are not Connect activity IDs or Connect gear UUIDs.
 
+Reads use the normal Connect token. Writes to `/diving/` (including media uploads) lazily
+exchange it at `/di-oauth2-service/oauth/token` with client ID `DIVE_MOBILE_ANDROID_DI` and
+the cross-app token-exchange grant. The separate token carries `DIVE_API_WRITE` but loses
+31 Connect scopes (9 scopes versus 39 observed on 2026-11-13), so NEVER replace the normal
+token with it. `Tokens.dive` is optional and persisted through `TokenStore`/`getTokens()`;
+`FileTokenStore` uses an owner-only `dive_token.json` sidecar bound to the OAuth1 login.
+Old two-file stores still load; malformed or mismatched sidecars are ignored. Custom stores
+should round-trip `dive`, including numeric `expires_at`. Concurrent exchanges coalesce.
+The observed access lifetime is 86399 seconds (about 24 h); re-exchange within 60 s of expiry,
+never refresh the Dive token through Connect's identity. Normal Connect refresh preserves
+the separate Dive token. Replacing the entire `Tokens` object replaces its Dive credentials too.
+`refreshTokens({includeDive: true, withinMs})` prepares both tokens before hosted OAuth sealing.
+The hosted server treats Dive preparation as best-effort: a failure logs a credential-free warning
+and preserves valid Connect credentials. Dive writes retry authentication when needed.
+Dive-only authentication failures throw `GarminDiveAuthError`, a `GarminAuthError` subclass.
+Hosted grants and stdio sessions survive these errors, including lazy exchanges and rejected Dive requests.
+No separate login or APK credentials needed;
+the Basic auth password is empty. China routing is unit-tested, not live-verified.
+
 | Method | Signature | Live-verified |
 | --- | --- | --- |
 | `getDiveLogs` | `(filters?: DiveLogFilters): Promise<DiveLogPage \| null>` — one page: `{totalCount, diveActivities?}`, with optional `pageSize`/`pageNumber`; an empty account returns only `{totalCount: 0}`, with or without paging params. Use `page?.diveActivities?.[0]`; no library-selected paging defaults | yes, Connect host 2026-11-12; empty-account envelope confirmed 2026-11-13 |
@@ -301,6 +320,23 @@ Dive IDs and numeric Dive gear IDs are not Connect activity IDs or Connect gear 
 | `getDiveGearSummaries` | `(filters?: DiveGearFilters): Promise<DiveGearSummary[] \| null>` — numeric Dive gear, unrelated to Connect gear UUIDs | yes, nonempty list on 2026-11-12 |
 | `getDiveGear` | `(gearId: string \| number, currentUserDate: string): Promise<DiveGear \| null>` — explicit local YYYY-MM-DD date | yes, read-only on 2026-11-12 |
 | `getDiverPrivacy` | `(): Promise<DiverPrivacy \| null>` — profile and default activity settings | yes, Connect host 2026-11-12 |
+| `createDiveLog` | `(input: CreateDiveLogInput, options?: DiveNumberingOptions): Promise<DiveLog \| null>` — native wire units; no conversions; `profile` required (Garmin 400s without it) | yes, authorized synthetic fixture 2026-11-13: create, read back name/excludedFromDLN, delete |
+| `updateDiveLog` | `(diveActivityId: string \| number, changes: DiveLogChanges, options?: DiveUpdateOptions): Promise<DiveLog \| null>` — read then JSON Patch leaves; omitted fields untouched, null refused | no: test-account read-back required |
+| `deleteDiveLog` | `(diveActivityId: string \| number, options?: DiveNumberingOptions): Promise<unknown>` — irreversible; renumbering effects unverified | yes, authorized synthetic fixture 2026-11-13: absent from log and detail 404 after deletion; renumberSubsequentDives false |
+| `setDiveLogPrivacy` | `(diveActivityId: string \| number, typeKey: string): Promise<unknown>` — Connect privacy vocabulary, not profile visibility enum | no: ID mapping/stored effects require fixture verification |
+| `createDiveGear` | `(input: DiveGearInput, currentUserDate: string): Promise<DiveGear \| null>` — numeric-ID equipment creation | no: test-account read-back required |
+| `updateDiveGear` | `(gearId: string \| number, changes: Partial<DiveGearInput>, currentUserDate: string): Promise<DiveGear \| null>` — read/leaf-patch preserving other metadata/media | no: test-account read-back required |
+| `deleteDiveGear` | `(gearId: string \| number): Promise<unknown>` — irreversible; association effects unverified | no: test-account read-back required |
+| `bulkCreateDiveGear` | `(inputs: DiveGearInput[], associateDiveActivityId: string \| number, currentUserDate: string): Promise<DiveGear[] \| null>` — association uses a Dive ID; no assumed atomicity | no: test-account read-back required |
+| `createDiverCertification` | `(input: DiverCertificationInput, currentUserDate: string): Promise<DiveGear \| null>` — wraps nested card fields in CERTIFICATION gear | no: test-account read-back required |
+| `updateDiverCertification` | `(gearId: string \| number, changes: Partial<DiverCertificationInput>, currentUserDate: string): Promise<DiveGear \| null>` — nested leaf patches preserve unrelated card/gear/image fields | no: test-account read-back required |
+| `deleteDiverCertification` | `(gearId: string \| number, currentUserDate: string): Promise<unknown>` — checks the gear type before irreversible deletion | no: test-account read-back required |
+| `reorderDiverCertifications` | `(orderedGearIds: DiveId[]): Promise<unknown>` — replaces card order with an explicit numeric-ID sequence | no: test-account read-back required |
+| `uploadDiveImage` | `(file: Blob, filename: string, options: DiveImageUploadOptions): Promise<DiveImageUploadResult \| null>` — upload only; association separate, media deletion unknown | no: explicit persistent-artifact acknowledgement required |
+| `addDiveLogImage` | `(diveActivityId: string \| number, image: DiveImage): Promise<DiveLog \| null>` — read/append/patch; concurrent appends can race | no: test-account read-back required |
+| `addDiveGearImage` | `(gearId: string \| number, image: DiveImage, currentUserDate: string): Promise<DiveGear \| null>` — preserves existing images and other fields | no: test-account read-back required |
+| `addDiverCertificationImage` | `(gearId: string \| number, image: DiveImage, currentUserDate: string): Promise<DiveGear \| null>` — card images nested inside certification fields | no: test-account read-back required |
+| `updateDiverPrivacy` | `(changes: DiverPrivacyChanges): Promise<unknown>` — read/merge/POST; concurrent writes can clobber one another | no: test-account read-back/restoration required |
 
 #### Dogs
 
@@ -345,7 +381,7 @@ interface GarminClientOptions {
 | `loadTokens`    | `(): Promise<boolean>`                                                                                                 | Returns `false`, does not throw, when the store is empty.                                                                                                                                                                                                                                                                                                                                                                                          |
 | `setTokens`     | `(tokens: Tokens): void`                                                                                               | Synchronous, in-memory only; does not call `tokenStore.save`.                                                                                                                                                                                                                                                                                                                                                                                      |
 | `getTokens`     | `(): Tokens \| null`                                                                                                   |                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| `refreshTokens` | `(options?: { withinMs?: number }): Promise<Tokens>` | Refreshes the OAuth2 token if it expires within `withinMs` (min 60 s) and returns the current tokens, persisting through the `TokenStore`; shares an in-flight refresh. For servers that carry tokens outside a store (the hosted MCP server seals them into OAuth tokens). Ordinary calls never need it. |
+| `refreshTokens` | `(options?: { withinMs?: number; includeDive?: boolean }): Promise<Tokens>` | Refreshes the Connect OAuth2 token if it expires within `withinMs` (min 60 s) and returns the current tokens, persisting through the `TokenStore`; shares an in-flight refresh. `includeDive: true` also obtains or renews the separate `Tokens.dive` within the same margin. For servers that carry tokens outside a store (the hosted MCP server seals both tokens at sign-in and refresh, with a two-hour margin). Ordinary calls never need it. |
 | `connectapi<T>` | `(path: string, options?: ApiOptions): Promise<T \| null>`                                                             | The escape hatch (see section 4). Returns `null` on a 204 or empty body.                                                                                                                                                                                                                                                                                                                                                                           |
 | `download`      | `(path: string, options?: ApiOptions): Promise<Buffer>`                                                                | Default timeout 60s, not 10s. Live-verified via `downloadActivity` (all five formats).                                                                                                                                                                                                                                                                                                                                                                                               |
 | `upload`        | `(file: Blob, filename: string, path?: string, options?: Pick<ApiOptions,"timeoutMs" \| "headers">): Promise<unknown>` | `path` defaults to `/upload-service/upload`. Multipart, field name `file`; `Content-Type` is left unset so `fetch` sets the boundary. Default timeout 60s. `options.headers` (added for `importActivity`) seeds a `Headers` on top of the default `User-Agent`, then the transport `.set()`s its own `authorization` last: a caller can override `User-Agent` but never the injected bearer token. This used to be object spread, which only overwrote on an EXACT key match: a caller-supplied capital-A `Authorization` survived and `new Headers()` combined the two into `Bearer CALLER, Bearer REAL`. `Headers.set` is case-insensitive, so the invariant now genuinely holds (tested in `tests/path-safety.test.ts`). Live-verified via `importActivity` (a synthetic GPX upload). |
@@ -573,7 +609,7 @@ reason.
 
 ## 4. These methods do NOT exist (mostly)
 
-`Garmin` has **222 methods**, every one listed in section 3. If a method is not in that table,
+`Garmin` has **239 methods**, every one listed in section 3. If a method is not in that table,
 it does not exist. **Do not invent methods on `Garmin` or `GarminClient` by analogy with Python
 snake_case names; check section 3 for the real camelCase
 name and signature.**

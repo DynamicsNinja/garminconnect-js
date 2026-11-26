@@ -1,6 +1,8 @@
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { createHash } from "node:crypto";
 import type { OAuth1Token, OAuth2Token, Tokens } from "./tokens.js";
+import { isValidDiveToken } from "./tokens.js";
 
 /**
  * Persists a client's tokens between runs. Implement it to keep tokens in a database or a secret
@@ -32,12 +34,20 @@ export class MemoryTokenStore implements TokenStore {
 
 const OAUTH1_FILE = "oauth1_token.json";
 const OAUTH2_FILE = "oauth2_token.json";
+const DIVE_FILE = "dive_token.json";
+
+// Bind the sidecar to the login, so a stale file cannot leak credentials across accounts.
+function loginKey(oauth1: OAuth1Token): string {
+  return createHash("sha256").update(JSON.stringify([
+    oauth1.oauth_token, oauth1.oauth_token_secret, oauth1.domain ?? null,
+  ])).digest("hex");
+}
 
 /** garth-compatible on-disk format: tokens written by Python garth load directly. */
 export class FileTokenStore implements TokenStore {
   /**
    * Stores tokens as `oauth1_token.json` and `oauth2_token.json` in `dir`, which is created on the
-   * first save.
+   * first save. An optional `dive_token.json` sidecar leaves the garth files unchanged.
    */
   constructor(private readonly dir: string) {}
 
@@ -85,7 +95,19 @@ export class FileTokenStore implements TokenStore {
           (parsed1["mfa_expiration_timestamp"] as string | null) ?? undefined,
         domain: (parsed1["domain"] as string | null) ?? undefined,
       };
-      return { oauth1, oauth2: parsed2 as unknown as OAuth2Token };
+      const tokens: Tokens = { oauth1, oauth2: parsed2 as unknown as OAuth2Token };
+      try {
+        const sidecar = JSON.parse(await readFile(join(this.dir, DIVE_FILE), "utf8")) as {
+          loginKey?: string; token?: OAuth2Token;
+        };
+        const dive = sidecar?.token;
+        if (sidecar?.loginKey === loginKey(oauth1) && dive && isValidDiveToken(dive)) {
+          tokens.dive = dive;
+        }
+      } catch {
+        // Missing/corrupt optional credentials must not invalidate the Connect login.
+      }
+      return tokens;
     } catch {
       return null;
     }
@@ -101,24 +123,30 @@ export class FileTokenStore implements TokenStore {
     const suffix = `${process.pid}-${Math.random().toString(36).slice(2)}`;
     const tmp1 = join(this.dir, `${OAUTH1_FILE}.${suffix}.tmp`);
     const tmp2 = join(this.dir, `${OAUTH2_FILE}.${suffix}.tmp`);
+    const tmpDive = join(this.dir, `${DIVE_FILE}.${suffix}.tmp`);
 
     try {
-      // Write both temp files first with 0o600 permissions.
+      // Write temp files first with 0o600 permissions.
       await Promise.all([
         writeFile(tmp1, JSON.stringify(tokens.oauth1, null, 2), { mode: 0o600 }),
         writeFile(tmp2, JSON.stringify(tokens.oauth2, null, 2), { mode: 0o600 }),
+        ...(tokens.dive ? [writeFile(tmpDive, JSON.stringify({
+          loginKey: loginKey(tokens.oauth1), token: tokens.dive,
+        }, null, 2), { mode: 0o600 })] : []),
       ]);
 
-      // Then atomically rename both temp files into place.
+      // Then atomically rename each temp file into place.
       await Promise.all([
         rename(tmp1, join(this.dir, OAUTH1_FILE)),
         rename(tmp2, join(this.dir, OAUTH2_FILE)),
+        tokens.dive ? rename(tmpDive, join(this.dir, DIVE_FILE)) : rm(join(this.dir, DIVE_FILE), { force: true }),
       ]);
     } catch (err) {
       // Clean up temp files if something went wrong.
       await Promise.all([
         rm(tmp1, { force: true }),
         rm(tmp2, { force: true }),
+        rm(tmpDive, { force: true }),
       ]);
       throw err;
     }
@@ -128,6 +156,7 @@ export class FileTokenStore implements TokenStore {
     await Promise.all([
       rm(join(this.dir, OAUTH1_FILE), { force: true }),
       rm(join(this.dir, OAUTH2_FILE), { force: true }),
+      rm(join(this.dir, DIVE_FILE), { force: true }),
     ]);
   }
 }

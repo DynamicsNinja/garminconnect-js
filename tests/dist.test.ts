@@ -115,7 +115,7 @@ describeBuilt("built package (dist)", () => {
     for (const mod of [cjs, esm]) {
       const garmin = new mod.Garmin(new mod.GarminClient());
       expect(typeof garmin.getDiveLogs).toBe("function");
-      expect(typeof garmin.getDiveGear).toBe("function");
+      expect(typeof garmin.uploadDiveImage).toBe("function");
     }
   });
 });
@@ -191,9 +191,9 @@ describeBuilt("built declarations from a consumer project", () => {
         [
           'import { buildWorkout, GarminClient } from "garminconnect-js";',
           'import { exercise, EXERCISES } from "garminconnect-js/exercises";',
-          'import { Garmin, type DiveGearSummary } from "garminconnect-js";',
+          'import { Garmin, type DiveGearInput } from "garminconnect-js";',
           'const garmin = new Garmin(new GarminClient()); void garmin.getDiveLogs();',
-          'const gear: DiveGearSummary = { gearId: 1, name: "mask", type: "MASK" }; void gear;',
+          'const gear: DiveGearInput = { name: "mask", type: "MASK" }; void gear;',
           "void GarminClient; void EXERCISES;",
           'buildWorkout("x", { sport: "strength_training" })',
           '  .interval({ reps: 8, exercise: exercise("SQUAT", "BARBELL_BACK_SQUAT") })',

@@ -8,6 +8,7 @@ import { TOKENS } from "../helpers.js";
 export const SECRET_TOKENS: Tokens = {
   oauth1: { oauth_token: "OAUTH1-TOKEN-SECRET", oauth_token_secret: "OAUTH1-SECRET-SECRET", domain: "garmin.com" },
   oauth2: { ...TOKENS.oauth2, access_token: "OAUTH2-ACCESS-SECRET", refresh_token: "OAUTH2-REFRESH-SECRET" },
+  dive: { ...TOKENS.oauth2, access_token: "DIVE-ACCESS-SECRET", refresh_token: "DIVE-REFRESH-SECRET", scope: "DIVE_API_WRITE" },
 };
 export const PASSWORD = "right-password";
 export const MFA_CODE = "123456";
@@ -18,18 +19,18 @@ export interface FakeAuth extends GarminAuth {
 }
 
 /** Any email works with PASSWORD; an email starting "mfa" needs MFA_CODE. Every user is profile 42. */
-export function fakeAuth(): FakeAuth {
+export function fakeAuth(tokens: Tokens = SECRET_TOKENS): FakeAuth {
   const auth: FakeAuth = {
     refreshes: 0,
     failRefresh: null,
     async login(email, password) {
       if (password !== PASSWORD) throw new GarminAuthError("SSO error: INVALID_CREDENTIALS");
       if (email.startsWith("mfa")) return { state: "mfa_required", mfaState: { flow: "mobile", fake: true } as unknown as MfaState };
-      return { state: "success", tokens: SECRET_TOKENS };
+      return { state: "success", tokens };
     },
     async resume(_state, code) {
       if (code !== MFA_CODE) throw new GarminAuthError("SSO error: INVALID_MFA_CODE");
-      return SECRET_TOKENS;
+      return tokens;
     },
     async profileId() {
       return "42";
